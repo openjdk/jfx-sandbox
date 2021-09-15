@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,16 @@
  * questions.
  */
 
-package com.sun.prism.ps;
+class CompileMSLTask extends NativeCompileTask {
+    protected File outputFile(File sourceFile) {
+        new File("$output/${sourceFile.name.replace('.metal', '.air')}");
+    }
 
-import com.sun.prism.ResourceFactory;
-import java.io.InputStream;
-import java.util.Map;
-
-public interface ShaderFactory extends ResourceFactory {
-
-    public Shader createShader(InputStream pixelShaderCode,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
-
-    // This method is added only for MTL pipeline.
-    public Shader createShader(String shaderName,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
-
-    public Shader createStockShader(String name);
+    protected void doCompile(File sourceFile, File outputFile){
+        def headerDir = 'gensrc/mtl-headers';
+        def includeDir = "$project.buildDir/$headerDir"
+        project.exec({
+            commandLine = ["${project.metalCompiler}", "-I", "$includeDir", "-c", "$sourceFile", "-o", "$outputFile"]
+        });
+    }
 }

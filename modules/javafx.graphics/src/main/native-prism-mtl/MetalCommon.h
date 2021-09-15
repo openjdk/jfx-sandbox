@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,28 @@
  * questions.
  */
 
-package com.sun.prism.ps;
+#ifndef METAL_COMMON_H
+#define METAL_COMMON_H
 
-import com.sun.prism.ResourceFactory;
-import java.io.InputStream;
-import java.util.Map;
+#import <jni.h>
+#import <simd/simd.h>
 
-public interface ShaderFactory extends ResourceFactory {
+#define jlong_to_ptr(value) (intptr_t)value
+#define ptr_to_jlong(value) (jlong)((intptr_t)value)
 
-    public Shader createShader(InputStream pixelShaderCode,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
+#define ENABLE_VERBOSE
 
-    // This method is added only for MTL pipeline.
-    public Shader createShader(String shaderName,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
+#ifdef ENABLE_VERBOSE
+#define TEX_VERBOSE
+#define CTX_VERBOSE
+#define SHADER_VERBOSE
+#define METAL_VERBOSE
+#endif
 
-    public Shader createStockShader(String name);
-}
+#ifdef METAL_VERBOSE
+#define METAL_LOG NSLog
+#else
+#define METAL_LOG(...)
+#endif
+
+#endif

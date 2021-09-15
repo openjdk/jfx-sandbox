@@ -262,12 +262,24 @@ public class PPSRenderer extends PrRenderer {
         if (PrismSettings.verbose) {
             System.out.println("PPSRenderer: scenario.effect - createShader: " + name);
         }
-        InputStream pscode = shaderSource.loadSource(name);
         int maxTexCoordIndex = samplers.keySet().size()-1;
         ShaderFactory factory = (ShaderFactory)rf;
-        return factory.createShader(pscode, samplers, params,
-                                    maxTexCoordIndex,
-                                    isPixcoordUsed, false);
+
+        // TODO: MTL: Instead of hardcoding AccessType.METAL, consider alternate approach to
+        // handle this scenario. for example: Consider querying the ResourceFactory to determine
+        // if it supports creating a Shader from a String or InputStream.
+        if (shaderSource.getAccelType() == AccelType.METAL) {
+            // Create shader using only the name of fragment shader(function).
+            return factory.createShader(name, samplers, params,
+                    maxTexCoordIndex,
+                    isPixcoordUsed, false);
+        } else {
+            // Create shader using the source of fragment shader.
+            InputStream pscode = shaderSource.loadSource(name);
+            return factory.createShader(pscode, samplers, params,
+                    maxTexCoordIndex,
+                    isPixcoordUsed, false);
+        }
     }
 
     /**
@@ -473,6 +485,8 @@ public class PPSRenderer extends PrRenderer {
             shaderSource = createShaderSource(rootPkg + ".impl.hw.d3d.D3DShaderSource");
         } else if (pipe.supportsShader(ShaderType.GLSL, ShaderModel.SM3)) {
             shaderSource = createShaderSource(rootPkg + ".impl.es2.ES2ShaderSource");
+        }  else if (pipe.supportsShader(ShaderType.MSL, ShaderModel.SM3)) {
+            shaderSource = createShaderSource(rootPkg + ".impl.hw.mtl.MTLShaderSource");
         } else {
             throw new InternalError("Unknown GraphicsPipeline");
         }

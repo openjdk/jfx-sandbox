@@ -413,6 +413,16 @@ class D3DResourceFactory extends BaseShaderFactory {
     }
 
     @Override
+    public Shader createShader(String shaderName,
+                               Map<String, Integer> samplers,
+                               Map<String, Integer> params,
+                               int maxTexCoordIndex,
+                               boolean isPixcoordUsed,
+                               boolean isPerVertexColorUsed) {
+        throw new UnsupportedOperationException("Not supported for D3D pipeline");
+    }
+
+    @Override
     public Shader createStockShader(final String name) {
         if (name == null) {
             throw new IllegalArgumentException("Shader name must be non-null");

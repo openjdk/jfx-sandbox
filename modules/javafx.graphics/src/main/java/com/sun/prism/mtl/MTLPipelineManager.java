@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,29 @@
  * questions.
  */
 
-package com.sun.prism.ps;
+package com.sun.prism.mtl;
 
-import com.sun.prism.ResourceFactory;
-import java.io.InputStream;
 import java.util.Map;
+import java.util.HashMap;
 
-public interface ShaderFactory extends ResourceFactory {
+/**
+ * TODO: MTL: Implement the class
+ * MTLRenderPipelineState are re-usable heavy objects, so they should be reused as much possible.
+ * This class is intended to manage these MTLRenderPipelineState objects by creating a map
+ * of MTLRenderPipelineState objects, with fragment function name as key.
+ * Each MTLRenderPipelineState created for 2D shapes would be a combination of
+ * passThrough vertex function and any of the Prism or Decora fragment function.
+ * 3D shaders can be handled similarly or in a different way.
+ * This class may be renamed as MTLPipelineStateManager in future.
+ */
 
-    public Shader createShader(InputStream pixelShaderCode,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
+public class MTLPipelineManager {
+    /*
+    Map<String, MTLRenderPipelineState> pipeStates = new HashMap<>();
 
-    // This method is added only for MTL pipeline.
-    public Shader createShader(String shaderName,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
-
-    public Shader createStockShader(String name);
+    MTLRenderPipelineState getPipelineState(String fragmentFunctionName) {
+        // if a value is present in the pipeStates map, return that value
+        // else create a MTLRenderPipelineState, add it to map, and return it.
+    }
+    */
 }

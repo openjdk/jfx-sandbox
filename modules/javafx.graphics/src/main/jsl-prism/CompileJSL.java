@@ -469,6 +469,7 @@ public class CompileJSL {
         Map<Integer, String> nameMap = jslcinfo.outNameMap;
         nameMap.put(JSLC.OUT_D3D, "prism-d3d/build/gensrc/{pkg}/d3d/hlsl/{name}.hlsl");
         nameMap.put(JSLC.OUT_ES2, "prism-es2/build/gensrc/{pkg}/es2/glsl/{name}.frag");
+        nameMap.put(JSLC.OUT_MTL, "prism-mtl/build/gensrc/{pkg}/mtl/msl/{name}.metal");
         jslcinfo.parseAllArgs(args);
 
         boolean alphaTest = false;

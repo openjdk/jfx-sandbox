@@ -239,6 +239,16 @@ public class ES2ResourceFactory extends BaseShaderFactory {
         return shader;
     }
 
+    @Override
+    public Shader createShader(String shaderName,
+            Map<String, Integer> samplers,
+            Map<String, Integer> params,
+            int maxTexCoordIndex,
+            boolean isPixcoordUsed,
+            boolean isPerVertexColorUsed) {
+        throw new UnsupportedOperationException("Not supported for ES2 pipeline");
+    }
+
     private static String createVertexShaderCode(boolean includePerVertexColor,
             int maxTexCoordIndex) {
         StringBuilder vsAttr = new StringBuilder();

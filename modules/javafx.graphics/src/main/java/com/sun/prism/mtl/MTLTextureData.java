@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,50 @@
  * questions.
  */
 
-package com.sun.prism.ps;
+package com.sun.prism.mtl;
 
-import com.sun.prism.ResourceFactory;
-import java.io.InputStream;
-import java.util.Map;
+import com.sun.prism.impl.Disposer;
 
-public interface ShaderFactory extends ResourceFactory {
+import java.util.Objects;
 
-    public Shader createShader(InputStream pixelShaderCode,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
+public class MTLTextureData implements Disposer.Record {
+    private final MTLContext mtlContext;
+    private long pTexture;
+    private int size;
 
-    // This method is added only for MTL pipeline.
-    public Shader createShader(String shaderName,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
+    // MTLBuffer used to store the pixel data of this texture
+    // private long nTexPixelData;
 
-    public Shader createStockShader(String name);
+    private MTLTextureData() {
+        mtlContext = null;
+    }
+
+    MTLTextureData(MTLContext context, long texPtr) {
+        Objects.requireNonNull(context);
+        if (texPtr <= 0) {
+            throw new IllegalArgumentException("Texture cannot be null");
+        }
+        mtlContext = context;
+        pTexture = texPtr;
+    }
+
+    public void setResource(long resource) {
+        pTexture = resource;
+    }
+
+    public long getResource() {
+        return pTexture;
+    }
+
+    public long getSize() {
+        return size;
+    }
+
+    @Override
+    public void dispose() {
+        if (pTexture != 0) {
+            MTLResourceFactory.releaseTexture(mtlContext, pTexture);
+            pTexture = 0;
+        }
+    }
 }

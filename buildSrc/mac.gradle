@@ -56,7 +56,10 @@ def defaultSdkPath = "/Applications/Xcode.app/Contents/Developer/Platforms/MacOS
 // Set the minimum API version that we require (developers do not need to override this)
 // Note that this is not necessarily the same as the preferred SDK version
 def isAarch64 = TARGET_ARCH == "aarch64" || TARGET_ARCH == "arm64";
-def macOSMinVersion = isAarch64 ? "11.0" : "10.12";
+
+// TODO: MTL: This is a temporary change. The behavior should be made similar
+// to JDK that metal pipeline will not be loaded if OS version is < 10.14
+def macOSMinVersion = isAarch64 ? "11.0" : "10.13";
 defineProperty("MACOSX_MIN_VERSION", macOSMinVersion);
 
 def macOSMinVersionArr = macOSMinVersion.split("\\.")
@@ -156,6 +159,7 @@ def dynamicLinkFlags = [
         "-framework", "OpenGL",
         "-framework", "QuartzCore",
         "-framework", "Security",
+        "-framework", "Metal",
         "-dynamiclib", "-lobjc"].flatten();
 def dynamicLinkFlagsAlt = ["-dynamiclib", commonParams].flatten()
 
@@ -166,14 +170,52 @@ def linkFlags = IS_STATIC_BUILD ? staticLinkFlags : dynamicLinkFlags
 def linkFlagsAlt = IS_STATIC_BUILD ? staticLinkFlags : dynamicLinkFlagsAlt
 
 def toolchainDir
+def metalCompiler
+def metalLinker
+
 if (hasProperty('toolchainDir')) {
     toolchainDir = ext.toolchainDir + "/"
+    metalCompiler = "${toolchainDir}metal"
+    metalLinker = "${toolchainDir}metallib"
 } else {
     toolchainDir = ""
+    ByteArrayOutputStream path = new ByteArrayOutputStream();
+    exec {
+        // xcrun -f --sdk macosx metal
+        commandLine("xcrun", "-f", "--sdk", "macosx", "metal");
+        setStandardOutput(path);
+        ignoreExitValue(true);
+    }
+    metalCompiler = path.toString().trim();
+
+    path = new ByteArrayOutputStream();
+    exec {
+        // xcrun -f --sdk macosx metallib
+        commandLine("xcrun", "-f", "--sdk", "macosx", "metallib");
+        setStandardOutput(path);
+        ignoreExitValue(true);
+    }
+    metalLinker = path.toString().trim();
+
+    if (metalCompiler == "" || metalLinker == "") {
+        throw new GradleException(
+            """
+            FAIL: Cannot find Metal Shader Language (MSL) tools: metal and metallib
+            Please make sure that MSL tools metal and metallib are installed and available on PATH.
+            """
+        );
+    }
 }
+
+// TODO: MTL: Cleanup - remove the prints
+println "metalCompiler   = $metalCompiler"
+println "metalLinker     = $metalLinker"
 
 def compiler = IS_COMPILE_PARFAIT ? "parfait-clang" : "${toolchainDir}clang";
 def linker = IS_STATIC_BUILD ? "libtool" : IS_COMPILE_PARFAIT ? "parfait-clang++" : "${toolchainDir}clang++";
+
+ext.metalCompiler = metalCompiler
+ext.metalLinker = metalLinker
 
 MAC.glass = [:]
 MAC.glass.javahInclude = [
@@ -237,6 +279,17 @@ MAC.prismES2.ccFlags = ["-DMACOSX", ccFlags].flatten()
 MAC.prismES2.linker = linker
 MAC.prismES2.linkFlags = [linkFlags].flatten()
 MAC.prismES2.lib = "prism_es2"
+
+MAC.prismMTL = [:]
+MAC.prismMTL.javahInclude = ["com/sun/prism/mtl/**/*"]
+MAC.prismMTL.nativeSource = [
+    file("${project("graphics").projectDir}/src/main/native-prism-mtl")
+]
+MAC.prismMTL.compiler = compiler
+MAC.prismMTL.ccFlags = ["-I${project("graphics").projectDir}/build/gensrc/mtl-headers", "-DMACOSX", "-Werror=objc-method-access", ccFlags].flatten()
+MAC.prismMTL.linker = linker
+MAC.prismMTL.linkFlags = [linkFlags].flatten()
+MAC.prismMTL.lib = "prism_mtl"
 
 def closedDir = file("$projectDir/../rt-closed")
 MAC.font = [:]

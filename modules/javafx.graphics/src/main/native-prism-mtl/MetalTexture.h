@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,43 @@
  * questions.
  */
 
-package com.sun.prism.ps;
+#ifndef METAL_TEXTURE_H
+#define METAL_TEXTURE_H
 
-import com.sun.prism.ResourceFactory;
-import java.io.InputStream;
-import java.util.Map;
+#import "MetalCommon.h"
+#import <Metal/Metal.h>
+#import <Foundation/Foundation.h>
+#import "MetalContext.h"
 
-public interface ShaderFactory extends ResourceFactory {
+#ifdef TEX_VERBOSE
+#define TEX_LOG NSLog
+#else
+#define TEX_LOG(...)
+#endif
 
-    public Shader createShader(InputStream pixelShaderCode,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
+@interface MetalTexture : NSObject
+{
+    MetalContext *context;
 
-    // This method is added only for MTL pipeline.
-    public Shader createShader(String shaderName,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
+    id<MTLBuffer> pixelBuffer;
+    id<MTLTexture> texture;
 
-    public Shader createStockShader(String name);
+    // Specifying Texture Attributes: https://developer.apple.com/documentation/metal/mtltexturedescriptor
+    NSUInteger width;
+    NSUInteger height;
+    MTLTextureType type;
+    MTLTextureUsage usage;
+    MTLPixelFormat pixelFormat;
+    MTLResourceOptions storageMode;
+    NSUInteger mipmapLevelCount;
+    MTLTextureDescriptor *texDescriptor;
 }
+- (id<MTLTexture>) getTexture;
+- (MetalTexture*) createTexture:(MetalContext*)context ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h;
+- (MetalTexture*) createTexture:(MetalContext*)context ofUsage:(MTLTextureUsage)texUsage ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h;
+- (id<MTLBuffer>) getPixelBuffer;
+//- (void) blitTo:(MetalTexture*) tex;
+
+@end
+
+#endif

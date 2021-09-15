@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,21 @@
  * questions.
  */
 
-package com.sun.prism.ps;
+#import <jni.h>
 
-import com.sun.prism.ResourceFactory;
-import java.io.InputStream;
-import java.util.Map;
+#import "MetalGraphics.h"
+#import "com_sun_prism_mtl_MTLGraphics.h"
 
-public interface ShaderFactory extends ResourceFactory {
+@implementation MetalGraphics
 
-    public Shader createShader(InputStream pixelShaderCode,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
+@end // MetalGraphics
 
-    // This method is added only for MTL pipeline.
-    public Shader createShader(String shaderName,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
 
-    public Shader createStockShader(String name);
+JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLGraphics_nClear
+  (JNIEnv *env, jclass jClass, jlong ctx, jint color)
+{
+    METAL_LOG(@"-> Native: MTLGraphics_nClear");
+    MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
+    [context setRTTLoadActionToClear];
+    return 1;
 }

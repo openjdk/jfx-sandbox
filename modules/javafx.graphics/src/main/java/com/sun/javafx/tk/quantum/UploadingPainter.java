@@ -33,11 +33,18 @@ import com.sun.prism.RTTexture;
 import com.sun.prism.Texture.WrapMode;
 import com.sun.prism.impl.Disposer;
 import com.sun.prism.impl.QueuedPixelSource;
+import com.sun.prism.mtl.MTLContext;
+import com.sun.prism.mtl.MTLRTTexture;
+import com.sun.prism.mtl.MTLResourceFactory;
+import com.sun.prism.mtl.MTLSwapChain;
 
 /**
  * UploadingPainter is used when we need to render into an offscreen buffer.
  * The PresentingPainter is used when we are rendering to the main screen.
  */
+// TODO: MTL: Modifications in this class are a temporary workaround to enable the POC work of Metal.
+// It should be reverted/corrected along with the implementation of SwapChain and CAMetalLayer.
+// Eventually we expect no modifications to this class.
 final class UploadingPainter extends ViewPainter implements Runnable {
 
     private RTTexture   rttexture;
@@ -93,6 +100,7 @@ final class UploadingPainter extends ViewPainter implements Runnable {
                 factory = null;
                 return;
             }
+            System.out.println("Factory : " + factory);
 
             float scalex = getPixelScaleFactorX();
             float scaley = getPixelScaleFactorY();
@@ -122,11 +130,16 @@ final class UploadingPainter extends ViewPainter implements Runnable {
 
             if (needsReset) {
                 disposeRTTexture();
-                rttexture = factory.createRTTexture(bufWidth, bufHeight, WrapMode.CLAMP_NOT_NEEDED,
-                        sceneState.isMSAA());
+                rttexture = factory.createRTTexture(bufWidth, bufHeight,
+                        WrapMode.CLAMP_NOT_NEEDED, sceneState.isMSAA());
                 if (rttexture == null) {
                     return;
                 }
+
+                // create a presentable,  MTLSwapChain
+                presentable = new MTLSwapChain(((MTLResourceFactory) factory).getContext(),
+                        0l, (MTLRTTexture) rttexture, scalex, scaley);
+
                 penScaleX   = scalex;
                 penScaleY   = scaley;
                 penWidth    = viewWidth;
@@ -141,33 +154,45 @@ final class UploadingPainter extends ViewPainter implements Runnable {
             }
             g.scale(scalex, scaley);
             paintImpl(g);
+            presentable.prepare(null);
             freshBackBuffer = false;
 
             int outWidth = sceneState.getOutputWidth();
             int outHeight = sceneState.getOutputHeight();
             float outScaleX = sceneState.getOutputScaleX();
             float outScaleY = sceneState.getOutputScaleY();
-            RTTexture rtt;
-            if (rttexture.isMSAA() || outWidth != bufWidth || outHeight != bufHeight) {
+            RTTexture rtt = rttexture;
+            /*if (rttexture.isMSAA() || outWidth != bufWidth || outHeight != bufHeight) {
                 rtt = resolveRenderTarget(g, outWidth, outHeight);
             } else {
                 rtt = rttexture;
-            }
+            }*/
 
             Pixels pix = pixelSource.getUnusedPixels(outWidth, outHeight, outScaleX, outScaleY);
             IntBuffer bits = (IntBuffer) pix.getPixels();
 
+            System.err.println("UploadingPainter() -> Reading rtt pixels " +
+                    "bits.capacity(): " + bits.capacity() +
+                    ", outWidth: " + outWidth + ", outHeight: " + outHeight +
+                    ", outScaleX: " + outScaleX + ", outScaleY: " + outScaleY);
             int rawbits[] = rtt.getPixels();
-
+            //int dim = bits.array();
+            /*int rawbits[] = new int[bits.capacity()];
+            for (int i = 0; (i + 3) < rawbits.length; i += 4) {
+                rawbits[i + 0] = 0xFF;
+                rawbits[i + 1] = 0x00;
+                rawbits[i + 2] = 0xFF;
+                rawbits[i + 3] = 0x00;
+            }*/
             if (rawbits != null) {
                 bits.put(rawbits, 0, outWidth * outHeight);
             } else {
-                if (!rtt.readPixels(bits)) {
-                    /* device lost */
+                /*if (!rtt.readPixels(bits)) {
+                    // device lost
                     sceneState.getScene().entireSceneNeedsRepaint();
                     disposeRTTexture();
                     pix = null;
-                }
+                }*/
             }
 
             if (rttexture != null) {
@@ -198,7 +223,7 @@ final class UploadingPainter extends ViewPainter implements Runnable {
             sceneState.getScene().setPainting(false);
 
             if (factory != null) {
-                factory.getTextureResourcePool().freeDisposalRequestedAndCheckResources(errored);
+                //factory.getTextureResourcePool().freeDisposalRequestedAndCheckResources(errored);
             }
 
             renderLock.unlock();

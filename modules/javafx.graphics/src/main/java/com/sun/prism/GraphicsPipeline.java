@@ -48,7 +48,11 @@ public abstract class GraphicsPipeline {
         /**
          * The pipeline supports shaders built with the OpenGL GLSL shader language
          */
-        GLSL
+        GLSL,
+        /**
+         * The pipeline supports shaders built with the Metal shader language
+         */
+        MSL
     }
 
     public static enum ShaderModel {

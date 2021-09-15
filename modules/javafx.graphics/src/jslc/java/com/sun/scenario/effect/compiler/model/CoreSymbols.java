@@ -26,6 +26,7 @@
 package com.sun.scenario.effect.compiler.model;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -50,6 +51,10 @@ public class CoreSymbols {
 
     public static Function getFunction(String name, List<Type> ptypes) {
         return SymbolTable.getFunctionForSignature(funcs, name, ptypes);
+    }
+
+    public static Set<Function> getFunctions() {
+        return Collections.unmodifiableSet(getAllFunctions());
     }
 
     static {

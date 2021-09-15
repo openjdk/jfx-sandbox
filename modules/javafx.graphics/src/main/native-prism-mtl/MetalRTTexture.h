@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,30 @@
  * questions.
  */
 
-package com.sun.prism.ps;
+#ifndef METAL_RTTEXTURE_H
+#define METAL_RTTEXTURE_H
 
-import com.sun.prism.ResourceFactory;
-import java.io.InputStream;
-import java.util.Map;
+#import "MetalCommon.h"
+#import <Metal/Metal.h>
+#import <Foundation/Foundation.h>
+#import "MetalContext.h"
+#import "MetalTexture.h"
 
-public interface ShaderFactory extends ResourceFactory {
-
-    public Shader createShader(InputStream pixelShaderCode,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
-
-    // This method is added only for MTL pipeline.
-    public Shader createShader(String shaderName,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
-
-    public Shader createStockShader(String name);
+@interface MetalRTTexture: MetalTexture
+{
+    int cw;
+    int ch;
+    int pw;
+    int ph;
 }
+
+- (id<MTLTexture>) getTexture;
+- (MetalRTTexture*) createTexture:(MetalContext*)ctx ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h;
+- (void) setContentDimensions:(int)w height:(int)h;
+- (int) getPw;
+- (int) getPh;
+- (int) getCw;
+- (int) getCh;
+@end
+
+#endif

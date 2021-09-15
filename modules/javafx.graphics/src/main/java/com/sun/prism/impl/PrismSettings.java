@@ -210,7 +210,9 @@ public final class PrismSettings {
             if (PlatformUtil.isWindows()) {
                 tryOrderArr = new String[] { "d3d", "sw" };
             } else if (PlatformUtil.isMac()) {
-                tryOrderArr = new String[] { "es2", "sw" };
+                // TODO: MTL: This order is temporary. During the initial releases,
+                // es2 will remain first in order.
+                tryOrderArr = new String[] { "mtl", "es2", "sw" };
             } else if (PlatformUtil.isIOS()) {
                 tryOrderArr = new String[] { "es2" };
             } else if (PlatformUtil.isAndroid()) {
@@ -346,7 +348,11 @@ public final class PrismSettings {
         superShader = getBoolean(systemProperties, "prism.supershader", true);
 
         // Force uploading painter (e.g., to avoid Linux live-resize jittering)
-        forceUploadingPainter = getBoolean(systemProperties, "prism.forceUploadingPainter", false);
+        // TODO: MTL: This is a temporary change for Metal POCs. It should be reverted back in future.
+        forceUploadingPainter = getBoolean(systemProperties, "prism.forceUploadingPainter", true);
+        if (verbose) {
+            printBooleanOption(forceUploadingPainter, "Forcing UploadingPainter");
+        }
 
         // Force the use of fragment shader that does alpha testing (i.e. discard if alpha == 0.0)
         forceAlphaTestShader = getBoolean(systemProperties, "prism.forceAlphaTestShader", false);

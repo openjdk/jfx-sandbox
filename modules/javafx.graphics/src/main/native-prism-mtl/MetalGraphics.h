@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,22 @@
  * questions.
  */
 
-package com.sun.prism.ps;
+#ifndef METAL_GRAPHICS_H
+#define METAL_GRAPHICS_H
 
-import com.sun.prism.ResourceFactory;
-import java.io.InputStream;
-import java.util.Map;
+#import "MetalContext.h"
 
-public interface ShaderFactory extends ResourceFactory {
+/**
+ * Collection of all draw Calls.
+ * It may be possible to achieve using only the JNI methods,
+ * and may not require a solid @interface
+ */
 
-    public Shader createShader(InputStream pixelShaderCode,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
-
-    // This method is added only for MTL pipeline.
-    public Shader createShader(String shaderName,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
-
-    public Shader createStockShader(String name);
+@interface MetalGraphics : NSObject
+{
+    MetalContext* context;
 }
+
+@end
+
+#endif

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,28 +23,37 @@
  * questions.
  */
 
-package com.sun.prism.ps;
+#import <jni.h>
 
-import com.sun.prism.ResourceFactory;
-import java.io.InputStream;
-import java.util.Map;
+#import "MetalResourceFactory.h"
+#import "com_sun_prism_mtl_MTLResourceFactory.h"
 
-public interface ShaderFactory extends ResourceFactory {
+@implementation MetalResourceFactory
 
-    public Shader createShader(InputStream pixelShaderCode,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
+- (MetalTexture*) createTexture {return nil;}
 
-    // This method is added only for MTL pipeline.
-    public Shader createShader(String shaderName,
-                               Map<String, Integer> samplers,
-                               Map<String, Integer> params,
-                               int maxTexCoordIndex,
-                               boolean isPixcoordUsed,
-                               boolean isPerVertexColorUsed);
+- (MetalRTTexture*) createRTT {return nil;}
+- (void) disposeRTT:(MetalRTTexture*) rtt {}
 
-    public Shader createStockShader(String name);
+- (void) disposeTexture:(MetalTexture*) texture {}
+
+- (id<MTLBuffer>) allocateBuffer {return 0;}
+- (void) releaseBuffer {}
+
+- (void) loadMTLLibrary {}
+- (id<MTLFunction>) getVertexFunction {return 0;}
+- (id<MTLFunction>) getFragmentFunction {return 0;}
+
+@end // MetalResourceFactory
+
+
+JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLResourceFactory_nCreateTexture
+  (JNIEnv *env, jclass class, jlong pContext, jint format, jint hint,
+    jboolean isRTT, jint width, jint height, jint samples, jboolean useMipmap)
+{
+
+    METAL_LOG(@"-> MTLResourceFactory_nCreateTexture");
+    MetalContext* context = (MetalContext*) jlong_to_ptr(pContext);
+    jlong rtt = ptr_to_jlong([[MetalTexture alloc] createTexture:context ofWidth:width ofHeight:height]);
+    return rtt;
 }

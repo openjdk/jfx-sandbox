@@ -541,7 +541,12 @@ public abstract class Effect {
          * Indicates that this {@code Effect} is being accelerated in
          * graphics hardware via Direct3D.
          */
-        DIRECT3D("Direct3D");
+        DIRECT3D("Direct3D"),
+        /**
+         * Indicates that this {@code Effect} is being accelerated in
+         * graphics hardware via Metal.
+         */
+        METAL("Metal");
 
         private String text;
 
