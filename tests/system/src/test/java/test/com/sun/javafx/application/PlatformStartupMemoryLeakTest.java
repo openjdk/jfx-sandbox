@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,20 +22,34 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package javafx.scene.control;
 
-public class TableCellShim<S,T> extends TableCell<S,T> {
+package test.com.sun.javafx.application;
 
-    @Override
-    public void updateItem(T item, boolean empty) {
-        super.updateItem(item, empty);
+import javafx.application.Platform;
+import org.junit.Test;
+import org.junit.AfterClass;
+import test.util.memory.JMemoryBuddy;
+
+public class PlatformStartupMemoryLeakTest {
+
+    @Test
+    public void testStartupLeak() {
+        JMemoryBuddy.memoryTest((checker) -> {
+            // This Runnable must not turn into a lambda, because then the test wouldn't work anymore.
+            Runnable r = new Runnable() {
+                @Override
+                public void run() {
+                    System.out.println("Startup called!");
+                }
+            };
+            Platform.startup(r);
+            checker.assertCollectable(r);
+        });
     }
 
-    public static <S, T> void set_lockItemOnEdit(TableCell<S, T> tc, boolean b) {
-        tc.lockItemOnEdit = b;
+    @AfterClass
+    public static void tearDown() {
+        Platform.exit();
     }
 
-    public static <S, T> TablePosition<S, T> getEditingCellAtStartEdit(TableCell<S, T> cell) {
-        return cell.getEditingCellAtStartEdit();
-    }
 }
