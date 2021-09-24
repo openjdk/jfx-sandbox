@@ -55,12 +55,6 @@ public class MTLGraphics extends BaseShaderGraphics {
     }
 
     @Override
-    public void clearQuad(float x1, float y1, float x2, float y2) {
-        System.err.println("MTLGraphics.clearQuad(): x1 = " + x1 + ", y1 = " + y1 + ", x2 = " + x2 + ", y2 = " + y2);
-        // TODO: MTL: Clear the rtt
-    }
-
-    @Override
     public void sync() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
