@@ -217,6 +217,10 @@ def linker = IS_STATIC_BUILD ? "libtool" : IS_COMPILE_PARFAIT ? "parfait-clang++
 ext.metalCompiler = metalCompiler
 ext.metalLinker = metalLinker
 
+// Strip native .dylib shared libraries as a postprocess step when copying them
+MAC.strip = "${toolchainDir}strip"
+MAC.stripArgs = [ "-x" ]
+
 MAC.glass = [:]
 MAC.glass.javahInclude = [
     "com/sun/glass/events/**",
