@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -157,7 +157,7 @@ void writeImageToDataObject(RefPtr<DataObjectJava> dataObject, const Element& el
     if (!cachedImage || !cachedImage->image() || !cachedImage->isLoaded()) {
         return;
     }
-    SharedBuffer* imageBuffer = cachedImage->image()->data();
+    FragmentedSharedBuffer* imageBuffer = cachedImage->image()->data();
     if (!imageBuffer || !imageBuffer->size()) {
         return;
     }
@@ -237,6 +237,7 @@ std::unique_ptr<Pasteboard> Pasteboard::createForCopyAndPaste(std::unique_ptr<Pa
     static RefPtr<DataObjectJava> data = DataObjectJava::create();
     // TODO: setURL, setFiles, setData, setHtml (needs URL)
     data->setPlainText(jGetPlainText());
+    data->setData(DataObjectJava::mimeHTML(), jGetPlainText());
     return std::unique_ptr<Pasteboard>(new Pasteboard(data, true));
 }
 
@@ -513,6 +514,10 @@ void Pasteboard::read(PasteboardWebContentReader&, WebContentReadingPolicy, std:
 }
 
 void Pasteboard::write(const PasteboardImage&)
+{
+}
+
+void Pasteboard::write(const PasteboardBuffer&)
 {
 }
 

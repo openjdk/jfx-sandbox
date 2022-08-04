@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -5086,6 +5086,11 @@ public class TableViewTest {
             if (obj == null) return false;
             return id == ((RT22599_DataType)obj).id;
         }
+
+        @Override
+        public int hashCode() {
+            return id;
+        }
     }
 
     private int rt_39966_count = 0;
@@ -5669,4 +5674,130 @@ public class TableViewTest {
         sl.dispose();
     }
 
+    @Test
+    public void test_ChangeToStringKeyboardMultipleSelectionCellMode() {
+        final Thread.UncaughtExceptionHandler exceptionHandler = Thread.currentThread().getUncaughtExceptionHandler();
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> fail("We don't expect any exceptions in this test!"));
+
+        TableColumn<Person, String> firstNameCol = new TableColumn<>("First Name");
+        firstNameCol.setCellValueFactory(new PropertyValueFactory<>("firstName"));
+
+        TableColumn<Person, String> lastNameCol = new TableColumn<>("Last Name");
+        lastNameCol.setCellValueFactory(new PropertyValueFactory<>("lastName"));
+
+        TableView<Person> table = new TableView<>();
+        table.setItems(personTestData);
+        table.getColumns().addAll(firstNameCol, lastNameCol);
+
+        sm = table.getSelectionModel();
+        sm.setCellSelectionEnabled(true);
+        sm.setSelectionMode(SelectionMode.MULTIPLE);
+
+        // Call change::toString
+        table.getSelectionModel().getSelectedItems().addListener((ListChangeListener<Person>) Object::toString);
+
+        StageLoader sl = new StageLoader(table);
+
+        KeyEventFirer keyboard = new KeyEventFirer(table);
+
+        assertEquals(0, sm.getSelectedItems().size());
+
+        sm.select(0, firstNameCol);
+        assertEquals(1, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        keyboard.doKeyPress(KeyCode.RIGHT, KeyModifier.SHIFT);
+        assertEquals(2, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        sm.clearSelection();
+
+        sl.dispose();
+
+        // reset the exception handler
+        Thread.currentThread().setUncaughtExceptionHandler(exceptionHandler);
+    }
+
+    @Test
+    public void test_ChangeToStringMouseMultipleSelectionCellMode() {
+        final Thread.UncaughtExceptionHandler exceptionHandler = Thread.currentThread().getUncaughtExceptionHandler();
+        Thread.currentThread().setUncaughtExceptionHandler((t, e) -> fail("We don't expect any exceptions in this test!"));
+
+        TableColumn<Person, String> firstNameCol = new TableColumn<>("First Name");
+        firstNameCol.setCellValueFactory(new PropertyValueFactory<>("firstName"));
+
+        TableColumn<Person, String> lastNameCol = new TableColumn<>("Last Name");
+        lastNameCol.setCellValueFactory(new PropertyValueFactory<>("lastName"));
+
+        TableView<Person> table = new TableView<>();
+        table.setItems(personTestData);
+        table.getColumns().addAll(firstNameCol, lastNameCol);
+
+        sm = table.getSelectionModel();
+        sm.setCellSelectionEnabled(true);
+        sm.setSelectionMode(SelectionMode.MULTIPLE);
+
+        // Call change::toString
+        table.getSelectionModel().getSelectedItems().addListener((ListChangeListener<Person>) Object::toString);
+
+        assertEquals(0, sm.getSelectedItems().size());
+
+        sm.select(0, firstNameCol);
+        assertTrue(sm.isSelected(0, firstNameCol));
+        assertEquals(1, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        TableCell<Person, String> cell = (TableCell<Person, String>) VirtualFlowTestUtils.getCell(table, 0, 1);
+        new MouseEventFirer(cell).fireMousePressAndRelease(KeyModifier.getShortcutKey());
+        assertTrue(sm.isSelected(0, firstNameCol));
+        assertTrue(sm.isSelected(0, lastNameCol));
+        assertEquals(2, sm.getSelectedCells().size());
+        assertEquals(1, sm.getSelectedItems().size());
+
+        // reset the exception handler
+        Thread.currentThread().setUncaughtExceptionHandler(exceptionHandler);
+    }
+
+    // see JDK-8284665
+    @Test
+    public void testAnchorRemainsWhenAddingMoreItemsBelow() {
+        TableView<String> stringTableView = new TableView<>();
+        stringTableView.getItems().addAll("a", "b", "c", "d");
+
+        TableColumn<String,String> column = new TableColumn<>("Column");
+        column.setCellValueFactory(cdf -> new ReadOnlyStringWrapper(cdf.getValue()));
+        stringTableView.getColumns().add(column);
+
+        TableSelectionModel<String> sm = stringTableView.getSelectionModel();
+        sm.setSelectionMode(SelectionMode.MULTIPLE);
+
+        // click on row 1
+        Cell startCell = VirtualFlowTestUtils.getCell(stringTableView, 1, 0);
+        new MouseEventFirer(startCell).fireMousePressAndRelease();
+
+        assertTrue(sm.isSelected(1));
+        assertEquals("b", sm.getSelectedItem());
+
+        TablePosition anchor = TableCellBehavior.getAnchor(stringTableView, null);
+        assertTrue(TableCellBehavior.hasNonDefaultAnchor(stringTableView));
+        assertEquals(1, anchor.getRow());
+        assertEquals(column, anchor.getTableColumn());
+
+        // now add a new item
+        stringTableView.getItems().add("e");
+
+        // select also row 2
+        Cell endCell = VirtualFlowTestUtils.getCell(stringTableView, 2, 0);
+        new MouseEventFirer(endCell).fireMousePressAndRelease(KeyModifier.SHIFT);
+
+        // row 1 should remain selected
+        assertTrue(sm.isSelected(1));
+        assertTrue(sm.isSelected(2));
+
+        // anchor should remain at 1
+        anchor = TableCellBehavior.getAnchor(stringTableView, null);
+        assertTrue(TableCellBehavior.hasNonDefaultAnchor(stringTableView));
+        assertEquals(1, anchor.getRow());
+        assertEquals(column, anchor.getTableColumn());
+    }
 }

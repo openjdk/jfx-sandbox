@@ -86,8 +86,9 @@ elseif (UNIX)
         generic/WorkQueueGeneric.cpp
         linux/CurrentProcessMemoryStatus.cpp
         linux/MemoryFootprintLinux.cpp
-        linux/MemoryPressureHandlerLinux.cpp
         unix/LanguageUnix.cpp
+        unix/MemoryPressureHandlerUnix.cpp
+        linux/RealTimeThreads.cpp
     )
     list(APPEND WTF_LIBRARIES rt)
 elseif (WIN32)
