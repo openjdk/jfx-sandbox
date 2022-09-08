@@ -57,7 +57,7 @@ typedef enum VertexInputIndex {
 @interface MetalContext : NSObject
 {
     simd_float4x4 mvpMatrix;
-    VS_INPUT vertices[64];
+    VS_INPUT vertices[85];//TODO: MTL: this should not exceed 4KB if we need to use setVertexBytes
     NSUInteger numTriangles;
     id<MTLDevice> device;
     id<MTLCommandQueue> commandQueue;

@@ -98,7 +98,8 @@ public class MTLResourceFactory extends BaseShaderFactory {
     public Texture createTexture(PixelFormat formatHint, Texture.Usage usageHint,
                                  Texture.WrapMode wrapMode, int w, int h) {
         // TODO: MTL: Complete implementation
-        return null;
+        //return null;
+        return createTexture(formatHint, usageHint, wrapMode, w,h, false);
     }
 
     @Override

@@ -235,14 +235,14 @@ public class MTLContext extends BaseShaderContext {
     @Override
     protected void renderQuads(float[] coordArray, byte[] colorArray, int numVertices) {
         System.err.println("\n\nnumVertices = " + numVertices);
-        System.err.println("coordArray");
+        System.err.println("coordArray : size = "+coordArray.length);
         for (int i = 0; i < numVertices * 7; i += 7) {
             System.err.println(
                     "xyz: x: " + coordArray[i] + ", y: " + coordArray[i + 1] + ", z: " + coordArray[i + 2]
                     + ",  uv1: u: " + coordArray[i + 3] + ", v: " + coordArray[i + 4]
                     + ",  uv2: u: " + coordArray[i + 5] + ", v: " + coordArray[i + 6]);
         }
-        System.err.println("\ncolorArray");
+        System.err.println("\ncolorArray : size = "+ colorArray.length);
         for (int i = 0; i < numVertices * 4; i += 4) {
             int r = colorArray[i] & 0xFF;
             int g = colorArray[i + 1] & 0xFF;

@@ -55,7 +55,7 @@
     MTLTextureDescriptor *texDescriptor;
 }
 - (id<MTLTexture>) getTexture;
-- (MetalTexture*) createTexture:(MetalContext*)context ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h;
+- (MetalTexture*) createTexture:(MetalContext*)context ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h pixelFormat:(NSUInteger) format;
 - (MetalTexture*) createTexture:(MetalContext*)context ofUsage:(MTLTextureUsage)texUsage ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h;
 - (id<MTLBuffer>) getPixelBuffer;
 //- (void) blitTo:(MetalTexture*) tex;

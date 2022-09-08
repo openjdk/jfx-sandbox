@@ -24,9 +24,7 @@
  */
 
 #import <jni.h>
-
 #import "MetalResourceFactory.h"
-#import "com_sun_prism_mtl_MTLResourceFactory.h"
 
 @implementation MetalResourceFactory
 
@@ -48,12 +46,11 @@
 
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLResourceFactory_nCreateTexture
-  (JNIEnv *env, jclass class, jlong pContext, jint format, jint hint,
-    jboolean isRTT, jint width, jint height, jint samples, jboolean useMipmap)
-{
+    (JNIEnv *env, jclass class, jlong pContext, jint format, jint hint,
+        jboolean isRTT, jint width, jint height, jint samples, jboolean useMipmap) {
 
-    METAL_LOG(@"-> MTLResourceFactory_nCreateTexture");
-    MetalContext* context = (MetalContext*) jlong_to_ptr(pContext);
-    jlong rtt = ptr_to_jlong([[MetalTexture alloc] createTexture:context ofWidth:width ofHeight:height]);
-    return rtt;
+        METAL_LOG(@"-> MTLResourceFactory_nCreateTexture");
+        MetalContext* context = (MetalContext*) jlong_to_ptr(pContext);
+        jlong rtt = ptr_to_jlong([[MetalTexture alloc] createTexture:context ofWidth:width ofHeight:height pixelFormat:format]);
+        return rtt;
 }

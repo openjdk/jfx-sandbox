@@ -25,7 +25,6 @@
 
 #import <jni.h>
 #import "MetalTexture.h"
-#import "com_sun_prism_mtl_MTLTexture.h"
 
 @implementation MetalTexture
 
@@ -33,6 +32,7 @@
 - (MetalTexture*) createTexture : (MetalContext*) ctx
              ofWidth : (NSUInteger) w
             ofHeight : (NSUInteger) h
+            pixelFormat : (NSUInteger) format
 {
     //return [self createTexture:ctx ofUsage:MTLTextureUsageShaderRead ofWidth:w ofHeight:h];
 
@@ -44,6 +44,9 @@
         usage = MTLTextureUsageShaderRead;
         usage = MTLTextureUsageUnknown; // TODO: MTL: - MTLTextureUsageShaderWrite | MTLTextureUsageShaderRead;
         pixelFormat = MTLPixelFormatBGRA8Unorm;
+        if (format == 4) { // TODO: MTL: have proper format to pixelFormat mapping
+            pixelFormat = MTLPixelFormatA8Unorm;
+        }
         type = MTLTextureType2D;
         storageMode = MTLResourceStorageModeShared;
 
@@ -79,11 +82,12 @@
                  bytesPerRow: 10 * 4];
         */
 
-        TEX_LOG(@"MetalTexture - createTexture -- width = %lu, height = %lu", width, height);
+        TEX_LOG(@"MetalTexture - createTexture -- width = %lu, height = %lu, format = %d", width, height, format);
         TEX_LOG(@"created MetalTexture = %p", texture);
     }
     return self;
 }
+
 
 // This method creates a native MTLTexture and corrresponding MTLBuffer
 // Note : Currently this method is invoked with texUsage - MTLTextureUsageRenderTarget
@@ -126,11 +130,14 @@
 
 - (id<MTLBuffer>) getPixelBuffer
 {
+
     id<MTLCommandQueue> queue             = [[context getDevice] newCommandQueue];
     id<MTLCommandBuffer> commandBuffer    = [queue commandBuffer];
     id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
     [blitEncoder synchronizeTexture:texture slice:0 level:0];
     [blitEncoder endEncoding];
+
+    TEX_LOG(@"getPixelBuffer = %p", commandBuffer);
 
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
@@ -151,10 +158,8 @@
 @end // MetalTexture
 
 
-JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jbyteArray pixData,
-    jint srcx, jint srcy, jint w, jint h, jint scanStride)
-{
+JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
+(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jbyteArray pixData, jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride) {
     TEX_LOG(@"-> Native: MTLTexture_nUpdate srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex = (MetalTexture*)jlong_to_ptr(nTexturePtr);
@@ -162,7 +167,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
     id<MTLTexture> tex = [mtlTex getTexture];
     jbyte *pixels = (*env)->GetByteArrayElements(env, pixData, 0);
 
-    MTLRegion region = {{srcx,srcy,0}, {w, h, 1}};
+    MTLRegion region = {{dstx,dsty,0}, {w, h, 1}};
 
     [tex replaceRegion:region
              mipmapLevel:0
@@ -171,6 +176,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
 
     (*env)->ReleaseByteArrayElements(env, pixData, pixels, 0);
 
-    // TODO: MTL: add error detection and return appropriate value
-    // return 0;
+    // TODO: MTL: add error detection and return appropriate jlong
+    return 0;
 }

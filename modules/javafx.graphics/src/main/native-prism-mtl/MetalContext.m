@@ -44,6 +44,7 @@
 #define CTX_LOG(...)
 #endif
 
+#define MAX_QUADS_IN_A_BATCH 14
 @implementation MetalContext
 
 - (id) createContext:(NSString*)shaderLibPath
@@ -128,7 +129,7 @@
 
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer
 {
-    CTX_LOG(@"MetalContext.getCurrentCommandBuffer()");
+    CTX_LOG(@"MetalContext.getCurrentCommandBuffer() --- current value = %p", currentCommandBuffer);
     if (currentCommandBuffer == nil) {
         return [self newCommandBuffer];
     }
@@ -147,27 +148,22 @@
 {
     CTX_LOG(@"MetalContext.drawIndexedQuads()");
 
-    [self fillVB:pSrcFloats colors:pSrcColors numVertices:numVerts];
+    CTX_LOG(@"numVerts = %d", numVerts);
 
     id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
+
     id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:rttPassDesc];
 
     if (currentPipeState != nil) {
-        CTX_LOG(@"MetalContext.drawIndexedQuads() currentShader");
         [renderEncoder setRenderPipelineState:currentPipeState];
     } else {
-        CTX_LOG(@"MetalContext.drawIndexedQuads() currentShader is nil");
         id<MTLRenderPipelineState> pipeline = [pipelineManager getPipeStateWithFragFuncName:@"Solid_Color"];
         [renderEncoder setRenderPipelineState:pipeline];
     }
 
-    [renderEncoder setVertexBytes:vertices
-                           length:sizeof(vertices)
-                          atIndex:VertexInputIndexVertices];
-
     [renderEncoder setVertexBytes:&mvpMatrix
-                           length:sizeof(mvpMatrix)
-                          atIndex:VertexInputMatrixMVP];
+                               length:sizeof(mvpMatrix)
+                              atIndex:VertexInputMatrixMVP];
 
     [renderEncoder setFragmentBuffer:currentFragArgBuffer
                               offset:0
@@ -175,25 +171,49 @@
 
     if (tex0 != nil) {
         id<MTLTexture> tex = [tex0 getTexture];
-
-        CTX_LOG(@"drawIndexedQuads tex0 = %p tex = %p", tex0, tex);
-
         [currentShader setTexture: @"inputTex" texture:tex];
-
         [renderEncoder useResource:tex usage:MTLResourceUsageRead];
     }
 
-    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
-                      vertexStart:0
-                      vertexCount:numTriangles * 3];
+    int numQuads = numVerts/4;
+
+    // size of VS_INPUT is 48 bytes
+    // We can use setVertexBytes() method to pass a vertext buffer of max size 4KB
+    // 4096 / 48 = 85 vertices at a time.
+
+    // No of quads when represneted as 2 triangles of 3 vertices each = 85/6 = 14
+    // We can issue 14 quads draw from a single vertex buffer batch
+    // 14 quads ==> 14 * 4 vertices = 56 vertices
+
+    // FillVB methods fills 84 vertices in vertex batch from 56 given vertices
+    // Send 56 vertices at max in each iteration
+
+    for (int i = 0; i < numQuads; i += MAX_QUADS_IN_A_BATCH) {
+
+        int quads = MAX_QUADS_IN_A_BATCH;
+        if ((i + MAX_QUADS_IN_A_BATCH) > numQuads) {
+            quads = numQuads - i;
+        }
+        CTX_LOG(@"Quads in this iteration =========== %d", quads);
+
+        [self fillVB:pSrcFloats + (i * 4)
+              colors:pSrcColors + (i * 4 * 4)
+              numVertices:quads * 4];
+
+        [renderEncoder setVertexBytes:vertices
+                               length:sizeof(vertices)
+                              atIndex:VertexInputIndexVertices];
+
+        [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
+                          vertexStart:0
+                          vertexCount:quads * 2 * 3];
+    }
 
     [renderEncoder endEncoding];
 
     [commandBuffer commit];
-
-    [self resetRenderPass];
-
     [commandBuffer waitUntilCompleted];
+    [self resetRenderPass];
 
     return 1;
 }
@@ -242,6 +262,9 @@
     VS_INPUT* pVert = vertices;
     numTriangles = numVerts / 2;
     int numQuads = numTriangles / 2;
+
+
+    CTX_LOG(@"fillVB : numVerts = %d, numTriangles = %d, numQuads = %d", numVerts, numTriangles, numQuads);
 
     for (int i = 0; i < numQuads; i++) {
         unsigned char const* colors = (unsigned char*)(pSrcColors + i * 4 * 4);

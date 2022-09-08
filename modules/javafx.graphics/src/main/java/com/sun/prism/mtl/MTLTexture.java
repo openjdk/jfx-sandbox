@@ -85,7 +85,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
 
     native private static void nUpdate(long contextHandle, long pResource,
                                        byte[] pixels,
-                                      int srcx, int srcy, int w, int h, int stride);
+                                       int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
 
 
     @Override
@@ -93,8 +93,14 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
 
         // TODO: MTL: Copy according to PixelFormat - this works for RGBA format as of now
         ByteBuffer buf = (ByteBuffer)buffer;
-        byte[] arr = buf.hasArray()? buf.array() : null;
-        nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr, srcx, srcy, srcw, srch, srcscan);
+        byte[] arr = buf.hasArray()? buf.array(): null;
+
+        if (arr == null) {
+            arr = new byte[buf.remaining()];
+            buf.get(arr);
+        }
+
+        nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
     }
 
     @Override
