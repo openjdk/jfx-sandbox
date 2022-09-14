@@ -91,7 +91,10 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
     @Override
     public void update(Buffer buffer, PixelFormat format, int dstx, int dsty, int srcx, int srcy, int srcw, int srch, int srcscan, boolean skipFlush) {
 
-        // TODO: MTL: Copy according to PixelFormat - this works for RGBA format as of now
+        // ------------------------------------------------------------------------------
+        // TODO: MTL: Copy according to PixelFormat - this works for BGRA & RGB formats as of now
+        // ------------------------------------------------------------------------------
+
         ByteBuffer buf = (ByteBuffer)buffer;
         byte[] arr = buf.hasArray()? buf.array(): null;
 
@@ -100,7 +103,38 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
             buf.get(arr);
         }
 
-        nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+        // TODO: MTL: Implement cases for other PixelFormats
+        switch(format) {
+            case BYTE_RGB: {
+                    // Metal does not support 24-bit format
+                    // hence `arr` data needs to be converted to BGRA format that
+                    // the native metal texture expects
+                    byte[] arr32Bit = new byte[srcw * srch * 4];
+                    int dstIndex = 0;
+                    int index = 0;
+
+                    final int rowStride = srcw * 3;
+                    final int totalBytes = srch * rowStride;
+
+                    for (int rowIndex = 0; rowIndex < totalBytes; rowIndex += rowStride) {
+                        for (int colIndex = 0; colIndex < rowStride; colIndex += 3) {
+                            index = rowIndex + colIndex;
+                            arr32Bit[dstIndex++] = arr[index+2];
+                            arr32Bit[dstIndex++] = arr[index+1];
+                            arr32Bit[dstIndex++] = arr[index];
+                            arr32Bit[dstIndex++] = (byte)255;
+                        }
+                    }
+
+                    nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr32Bit, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
+                }
+                break;
+
+            default:
+                // assume that `arr` data is in BGRA format
+                nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+                break;
+        }
     }
 
     @Override
