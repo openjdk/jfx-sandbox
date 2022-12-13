@@ -41,6 +41,14 @@ import java.net.URI;
 public class MTLContext extends BaseShaderContext {
 
     public static final int NUM_QUADS = PrismSettings.superShader ? 4096 : 256;
+
+    public static final int MTL_COMPMODE_CLEAR           = 0;
+    public static final int MTL_COMPMODE_SRC             = 1;
+    public static final int MTL_COMPMODE_SRCOVER         = 2;
+    public static final int MTL_COMPMODE_DSTOUT          = 3;
+    public static final int MTL_COMPMODE_ADD             = 4;
+
+
     private final long pContext;
     private MTLRTTexture renderTarget;
     private MTLResourceFactory resourceFactory;
@@ -223,6 +231,33 @@ public class MTLContext extends BaseShaderContext {
     @Override
     protected void updateCompositeMode(CompositeMode mode) {
         System.err.println("MTLContext.updateCompositeMode() :mode = " + mode);
+
+        int mtlCompMode;
+        switch (mode) {
+            case CLEAR:
+                mtlCompMode = MTL_COMPMODE_CLEAR;
+                break;
+
+            case SRC:
+                mtlCompMode = MTL_COMPMODE_SRC;
+                break;
+
+            case SRC_OVER:
+                mtlCompMode = MTL_COMPMODE_SRCOVER;
+                break;
+
+            case DST_OUT:
+                mtlCompMode = MTL_COMPMODE_DSTOUT;
+                break;
+
+            case ADD:
+                mtlCompMode = MTL_COMPMODE_ADD;
+                break;
+
+            default:
+                throw new InternalError("Unrecognized composite mode: " + mode);
+        }
+        nSetCompositeMode(getContextHandle(), mtlCompMode);
     }
 
     @Override
@@ -264,4 +299,5 @@ public class MTLContext extends BaseShaderContext {
         double m10, double m11, double m12, double m13,
         double m20, double m21, double m22, double m23,
         double m30, double m31, double m32, double m33);
+    native private static void nSetCompositeMode(long context, int mode);
 }
