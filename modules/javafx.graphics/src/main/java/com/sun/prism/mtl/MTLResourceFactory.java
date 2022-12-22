@@ -68,15 +68,16 @@ public class MTLResourceFactory extends BaseShaderFactory {
     public Shader createShader(String shaderName, Map<String, Integer> samplers,
                                Map<String, Integer> params, int maxTexCoordIndex,
                                boolean isPixcoordUsed, boolean isPerVertexColorUsed) {
-        System.err.println(">>> createShader()");
+        System.err.println(">>> MTLResourceFactory.createShader()");
         System.err.println("    shaderName: " + shaderName);
         System.err.println("    samplers: " + samplers);
         System.err.println("    params: " + params);
         System.err.println("    maxTexCoordIndex: " + maxTexCoordIndex);
         System.err.println("    isPixcoordUsed: " + isPixcoordUsed);
         System.err.println("    isPerVertexColorUsed: " + isPerVertexColorUsed);
-        MTLShader shader = MTLShader.createShader(getContext(), shaderName);
-        System.err.println("<<< createShader()");
+        Shader shader = MTLShader.createShader(getContext(), shaderName, samplers,
+                params, maxTexCoordIndex, isPixcoordUsed, isPerVertexColorUsed);
+        System.err.println("<<< MTLResourceFactory.createShader()");
         return shader;
     }
 
@@ -84,7 +85,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
     public Shader createStockShader(String shaderName) {
         System.err.println(">>> createStockShader() : " + shaderName);
         // MTLShader shader = new MTLShader(getContext(), shaderName);
-        MTLShader shader = MTLShader.createShader(getContext(), shaderName);
+        Shader shader = MTLShader.createShader(getContext(), shaderName);
         System.err.println("<<< createStockShader() : " + shaderName);
         return shader;
     }
@@ -149,14 +150,14 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public int getRTTWidth(int w, Texture.WrapMode wrapMode) {
-        // TODO: MTL: Complete implementation
-        return 0;
+        int rttWidth = nextPowerOf64(w, 8192);
+        return rttWidth;
     }
 
     @Override
     public int getRTTHeight(int h, Texture.WrapMode wrapMode) {
-        // TODO: MTL: Complete implementation
-        return 0;
+        int rttHeight = nextPowerOf64(h, 8192);
+        return rttHeight;
     }
 
     @Override

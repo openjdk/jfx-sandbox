@@ -184,8 +184,10 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void updateTexture(int texUnit, Texture tex) {
+        new Exception().printStackTrace();
         System.err.println("MTLContext.updateTexture() :texUnit = " + texUnit + ", tex = " + tex);
         MTLTexture tex0 = (MTLTexture)tex;
+        MTLShader.setTexture(texUnit, tex);
         nSetTex0(pContext, tex0.getNativeHandle());
     }
 

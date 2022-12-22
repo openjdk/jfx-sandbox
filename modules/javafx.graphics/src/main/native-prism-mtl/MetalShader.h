@@ -30,6 +30,7 @@
 #import <Metal/Metal.h>
 #import <Foundation/Foundation.h>
 #import "MetalContext.h"
+#import "MetalTexture.h"
 #import "MetalPipelineManager.h"
 
 @interface MetalShader : NSObject
@@ -52,10 +53,14 @@
 - (void) enable;
 - (void) setTexture:(NSString*)argumentName texture:(id<MTLTexture>) texture;
 
+- (void) setInt:  (NSString*)argumentName i0:(int) i0;
+
 - (void) setFloat:  (NSString*)argumentName f0:(float) f0;
 - (void) setFloat2: (NSString*)argumentName f0:(float) f0 f1:(float) f1;
 - (void) setFloat3: (NSString*)argumentName f0:(float) f0 f1:(float) f1 f2:(float) f2;
 - (void) setFloat4: (NSString*)argumentName f0:(float) f0 f1:(float) f1 f2:(float) f2  f3:(float) f3;
+
+- (void) setConstants:  (NSString*)argumentName values:(float[]) values size:(int) size;
 
 @end
 
