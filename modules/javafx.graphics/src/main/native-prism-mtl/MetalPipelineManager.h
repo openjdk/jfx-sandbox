@@ -34,12 +34,13 @@
 /**
  * native interface for the Java class MTLPipelineManager
  */
-
 @interface MetalPipelineManager : NSObject
 {
     id<MTLLibrary> shaderLib;
     id<MTLFunction> vertexFunction;
     MetalContext *context;
+    int compositeMode;
+
 
     /*
     MTLRenderPipelineDescriptor* pipeDesc;
@@ -67,7 +68,8 @@
 - (id<MTLFunction>) getFunction:(NSString*) funcName;
 - (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>) fragFunc;
 - (id<MTLRenderPipelineState>) getPipeStateWithFragFuncName:(NSString*) funcName;
-
+- (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*) pipeDesc;
+- (void) setCompositeBlendMode:(int) mode;
 @end
 
 #endif
