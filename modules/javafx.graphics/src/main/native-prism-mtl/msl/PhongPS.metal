@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,15 @@
  * questions.
  */
 
-#ifndef METAL_COMMON_H
-#define METAL_COMMON_H
+#include <metal_stdlib>
+#include <simd/simd.h>
+using namespace metal;
 
-#import <jni.h>
-#import <simd/simd.h>
+typedef struct VS_PHONG_INOUT {
+    float4 position [[position]];
+} VS_PHONG_INOUT;
 
-#define jlong_to_ptr(value) (intptr_t)value
-#define ptr_to_jlong(value) (jlong)((intptr_t)value)
-
-#define ENABLE_VERBOSE
-
-#ifdef ENABLE_VERBOSE
-#define TEX_VERBOSE
-#define CTX_VERBOSE
-#define SHADER_VERBOSE
-#define METAL_VERBOSE
-#define MESH_VERBOSE
-#endif
-
-#ifdef METAL_VERBOSE
-#define METAL_LOG NSLog
-#else
-#define METAL_LOG(...)
-#endif
-
-#endif
+fragment float4 PhongPS( VS_PHONG_INOUT vert [[stage_in]])
+{
+    return float4(1.0, 0.0, 0.0, 1.0);
+}

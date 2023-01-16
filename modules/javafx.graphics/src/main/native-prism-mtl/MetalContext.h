@@ -35,6 +35,9 @@
 @class MetalResourceFactory;
 @class MetalPipelineManager;
 @class MetalShader;
+@class MetalPhongShader;
+@class MetalPhongMaterial;
+@class MetalMeshView;
 
 struct PrismSourceVertex {
     float x, y, z;
@@ -54,9 +57,16 @@ typedef enum VertexInputIndex {
     VertexInputMatrixMVP = 1,
 } VertexInputIndex;
 
+typedef struct VS_PHONG_INPUT {
+    vector_float4 position;
+    vector_float4 texCoord;
+    vector_float4 normal;
+} VS_PHONG_INPUT;
+
 @interface MetalContext : NSObject
 {
     simd_float4x4 mvpMatrix;
+    simd_float4x4 worldMatrix;
     VS_INPUT vertices[85];//TODO: MTL: this should not exceed 4KB if we need to use setVertexBytes
     NSUInteger numTriangles;
     id<MTLDevice> device;
@@ -76,6 +86,7 @@ typedef enum VertexInputIndex {
     //id<MTLRenderPipelineState> passThroughPipeState;
 
     MetalPipelineManager* pipelineManager;
+    MetalPhongShader *phongShader;
 }
 
 - (MetalPipelineManager*) getPipelineManager;
@@ -106,6 +117,21 @@ typedef enum VertexInputIndex {
         m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
         m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33;
 
+- (void) setWorldTransformMatrix:(float)m00
+        m01:(float)m01 m02:(float)m02 m03:(float)m03
+        m10:(float)m10 m11:(float)m11 m12:(float)m12 m13:(float)m13
+        m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
+        m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33;
+
+- (void) setWorldTransformIdentityMatrix:(float)m00
+        m01:(float)m01 m02:(float)m02 m03:(float)m03
+        m10:(float)m10 m11:(float)m11 m12:(float)m12 m13:(float)m13
+        m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
+        m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33;
+
+- (NSInteger) setDeviceParametersFor3D;
+
+- (void) renderMeshView:(MetalMeshView*)meshView;
 @end
 
 #endif

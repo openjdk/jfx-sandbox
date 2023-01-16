@@ -96,7 +96,11 @@ public class NGPhongMaterial {
 
         if (diffuseMap.isDirty()) {
             if (diffuseMap.getImage() == null) {
-                diffuseMap.setImage(WHITE_1X1);
+                // TODO: JavaFX Metal, This creates dummy INT_ARGB_PRE image,
+                // as of now we support only BYTE_BGRA textures in Metal.
+                // This is needed once we start supporting texture maps in
+                // Metal.
+                //diffuseMap.setImage(WHITE_1X1);
             }
             material.setTextureMap(diffuseMap);
         }

@@ -2548,11 +2548,42 @@ project(":graphics") {
         }
         nativePrism.dependsOn compileMSLPassThroughVS;
 
-        // TODO: MTL: add 3D shaders
+        task compileMSLPhongVS(group: "Build") {
+            def PHONG_VS_SRC = file("src/main/native-prism-mtl/msl/PhongVS.metal")
+            doLast {
+                mkdir "$buildDir/msl"
+                exec {
+                    commandLine("${metalCompiler}")
+                    args += [ "-c" ]
+                    args += [ "$PHONG_VS_SRC" ]
+                    args += [ "-o" ]
+                    args += [ "$buildDir/msl/PhongVS.air" ]
+                }
+            }
+        }
+        nativePrism.dependsOn compileMSLPhongVS;
+
+        task compileMSLPhongPS(group: "Build") {
+            def PHONG_PS_SRC = file("src/main/native-prism-mtl/msl/PhongPS.metal")
+            doLast {
+                mkdir "$buildDir/msl"
+                exec {
+                    commandLine("${metalCompiler}")
+                    args += [ "-c" ]
+                    args += [ "$PHONG_PS_SRC" ]
+                    args += [ "-o" ]
+                    args += [ "$buildDir/msl/PhongPS.air" ]
+                }
+            }
+        }
+        nativePrism.dependsOn compileMSLPhongPS;
+
         task linkMSLShader(group: "Build") {
             dependsOn(compileDecoraMSLShaders,
                       compilePrismMSLShaders,
-                      compileMSLPassThroughVS)
+                      compileMSLPassThroughVS,
+                      compileMSLPhongVS,
+                      compileMSLPhongPS)
             doLast {
                 def shaderFiles = fileTree(dir: "$buildDir/msl", include: "**/*.air")
                 exec {

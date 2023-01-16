@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,35 @@
  * questions.
  */
 
-#ifndef METAL_COMMON_H
-#define METAL_COMMON_H
+#ifndef METAL_LIGHT_H
+#define METAL_LIGHT_H
 
-#import <jni.h>
-#import <simd/simd.h>
+#import "MetalCommon.h"
+#import <Metal/Metal.h>
+#import <Foundation/Foundation.h>
+#import "MetalContext.h"
 
-#define jlong_to_ptr(value) (intptr_t)value
-#define ptr_to_jlong(value) (jlong)((intptr_t)value)
+@interface MetalLight : NSObject
+{
+    float position[3];
+    float color[3];
+    float a;
+    float attenuation[4]; // ca, la, qa, isAttenuated
+    float maxRange;
+    float direction[3];
+    float inAngle;
+    float outAngle;
+    float foff;
+}
 
-#define ENABLE_VERBOSE
+- (MetalLight*) createLight:(float)x y:(float)y z:(float)z
+            r:(float)r g:(float)g b:(float)b w:(float)w
+            ca:(float)ca la:(float)la qa:(float)qa
+            isA:(float)isAttenuated range:(float)range
+            dirX:(float)dirX dirY:(float)dirY dirZ:(float)dirZ
+            inA:(float)innerAngle outA:(float)outerAngle
+            falloff:(float)falloff;
 
-#ifdef ENABLE_VERBOSE
-#define TEX_VERBOSE
-#define CTX_VERBOSE
-#define SHADER_VERBOSE
-#define METAL_VERBOSE
-#define MESH_VERBOSE
-#endif
-
-#ifdef METAL_VERBOSE
-#define METAL_LOG NSLog
-#else
-#define METAL_LOG(...)
-#endif
+@end
 
 #endif

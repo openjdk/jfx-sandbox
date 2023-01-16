@@ -23,29 +23,37 @@
  * questions.
  */
 
-#ifndef METAL_COMMON_H
-#define METAL_COMMON_H
+#ifndef METAL_MESH_H
+#define METAL_MESH_H
 
-#import <jni.h>
-#import <simd/simd.h>
+#import "MetalCommon.h"
+#import <Metal/Metal.h>
+#import <Foundation/Foundation.h>
+#import "MetalContext.h"
 
-#define jlong_to_ptr(value) (intptr_t)value
-#define ptr_to_jlong(value) (jlong)((intptr_t)value)
+#define PHONG_VERTEX_SIZE sizeof(VS_PHONG_INPUT)
 
-#define ENABLE_VERBOSE
+@interface MetalMesh : NSObject
+{
+    VS_PHONG_INPUT vertices[24];
+    MetalContext *context;
+    id<MTLBuffer> indexBuffer;
+    id<MTLBuffer> vertexBuffer;
+    NSUInteger numVertices;
+    NSUInteger numIndices;
+}
 
-#ifdef ENABLE_VERBOSE
-#define TEX_VERBOSE
-#define CTX_VERBOSE
-#define SHADER_VERBOSE
-#define METAL_VERBOSE
-#define MESH_VERBOSE
-#endif
-
-#ifdef METAL_VERBOSE
-#define METAL_LOG NSLog
-#else
-#define METAL_LOG(...)
-#endif
+- (id) createMesh:(MetalContext*)ctx;
+- (bool) buildBuffers:(float*)vb
+                vSize:(unsigned int)vbSize
+              iBuffer:(unsigned short*)ib
+                iSize:(unsigned int)ibSize;
+- (void) releaseVertexBuffer;
+- (void) releaseIndexBuffer;
+- (id<MTLBuffer>) getVertexBuffer;
+- (id<MTLBuffer>) getIndexBuffer;
+- (NSUInteger) getNumVertices;
+- (NSUInteger) getNumIndices;
+@end
 
 #endif
