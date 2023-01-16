@@ -352,7 +352,7 @@
                 pVert->color.x = ((float)(*(colors)))/255.0f;
                 pVert->color.y = ((float)(*(colors + 1)))/255.0f;
                 pVert->color.z = ((float)(*(colors + 2)))/255.0f;
-                pVert->color.w = 1.0f;
+                pVert->color.w = ((float)(*(colors + 3)))/255.0f;
 
                 pVert->texCoord0.x = inVerts->tu1;
                 pVert->texCoord0.y = inVerts->tv1;
@@ -865,4 +865,19 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
 
     return [pCtx setDeviceParametersFor3D];
+}
+
+/*
+* Class:     com_sun_prism_mtl_MTLContext
+* Method:    nSetCompositeMode
+*/
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCompositeMode(JNIEnv *env, jclass jClass, jlong context, jint mode)
+{
+    MetalContext* mtlCtx = (MetalContext*)jlong_to_ptr(context);
+
+    MetalPipelineManager* pipeLineMgr = [mtlCtx getPipelineManager];
+
+    [pipeLineMgr setCompositeBlendMode:mode];
+
+    return;
 }

@@ -26,6 +26,8 @@
 #import <jni.h>
 
 #import "MetalPipelineManager.h"
+#include "com_sun_prism_mtl_MTLContext.h"
+
 
 @implementation MetalPipelineManager
 
@@ -36,6 +38,7 @@
     pipeStateDict = [[NSMutableDictionary alloc] init];
     shaderLib = [[context getDevice] newLibraryWithFile:path error:&error];
     vertexFunction = [self getFunction:@"passThrough"];
+    compositeMode = com_sun_prism_mtl_MTLContext_MTL_COMPMODE_SRCOVER; //default
 
     if (shaderLib != nil) {
         NSArray<NSString *> *functionNames = [shaderLib functionNames];
@@ -78,13 +81,9 @@
     pipeDesc.vertexFunction = vertexFunction;
     pipeDesc.fragmentFunction = func;
     pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
-    pipeDesc.colorAttachments[0].blendingEnabled = YES;
-    pipeDesc.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
-    pipeDesc.colorAttachments[0].sourceRGBBlendFactor = MTLBlendFactorSourceAlpha;
-    pipeDesc.colorAttachments[0].destinationRGBBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
-    //pipeDesc.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
-    //pipeDesc.colorAttachments[0].sourceAlphaBlendFactor = MTLBlendFactorSourceAlpha;
-    //pipeDesc.colorAttachments[0].destinationAlphaBlendFactor = MTLBlendFactorOneMinusSourceAlpha;
+
+    [self setPipelineCompositeBlendMode:pipeDesc];
+
     id<MTLRenderPipelineState> pipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
     NSAssert(pipeState, @"Failed to create pipeline state to render to texture: %@", error);
     //pipeStateDict[func] = pipeState;
@@ -128,6 +127,59 @@
 - (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFuncName:(NSString*) funcName
 {
     return [self getPhongPipeStateWithFragFunc:[self getFunction:funcName]];
+}
+
+- (void) setCompositeBlendMode:(int) mode
+{
+    NSLog(@"-> Native: MetalPipelineManager setCompositeBlendMode --- mode = %d", mode);
+    compositeMode = mode;
+}
+
+- (void) setPipelineCompositeBlendMode: (MTLRenderPipelineDescriptor*) pipeDesc
+{
+    MTLBlendFactor srcFactor;
+    MTLBlendFactor dstFactor;
+
+    switch(compositeMode) {
+        case com_sun_prism_mtl_MTLContext_MTL_COMPMODE_CLEAR:
+            srcFactor = MTLBlendFactorZero;
+            dstFactor = MTLBlendFactorZero;
+            break;
+
+        case com_sun_prism_mtl_MTLContext_MTL_COMPMODE_SRC:
+            srcFactor = MTLBlendFactorOne;
+            dstFactor = MTLBlendFactorZero;
+            break;
+
+        case com_sun_prism_mtl_MTLContext_MTL_COMPMODE_SRCOVER:
+            srcFactor = MTLBlendFactorOne;
+            dstFactor = MTLBlendFactorOneMinusSourceAlpha;
+            break;
+
+        case com_sun_prism_mtl_MTLContext_MTL_COMPMODE_DSTOUT:
+            srcFactor = MTLBlendFactorZero;
+            dstFactor = MTLBlendFactorOneMinusSourceAlpha;
+            break;
+
+        case com_sun_prism_mtl_MTLContext_MTL_COMPMODE_ADD:
+            srcFactor = MTLBlendFactorOne;
+            dstFactor = MTLBlendFactorOne;
+            break;
+
+        default:
+            srcFactor = MTLBlendFactorOne;
+            dstFactor = MTLBlendFactorOneMinusSourceAlpha;
+            break;
+    }
+
+    pipeDesc.colorAttachments[0].blendingEnabled = YES;
+    pipeDesc.colorAttachments[0].rgbBlendOperation = MTLBlendOperationAdd;
+    pipeDesc.colorAttachments[0].alphaBlendOperation = MTLBlendOperationAdd;
+
+    pipeDesc.colorAttachments[0].sourceAlphaBlendFactor = srcFactor;
+    pipeDesc.colorAttachments[0].sourceRGBBlendFactor = srcFactor;
+    pipeDesc.colorAttachments[0].destinationAlphaBlendFactor = dstFactor;
+    pipeDesc.colorAttachments[0].destinationRGBBlendFactor = dstFactor;
 }
 
 @end // MetalPipelineManager

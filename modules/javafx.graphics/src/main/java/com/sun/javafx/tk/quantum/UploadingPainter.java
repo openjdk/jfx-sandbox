@@ -45,7 +45,7 @@ import com.sun.prism.mtl.MTLSwapChain;
 // TODO: MTL: Modifications in this class are a temporary workaround to enable the POC work of Metal.
 // It should be reverted/corrected along with the implementation of SwapChain and CAMetalLayer.
 // Eventually we expect no modifications to this class.
-final class UploadingPainter extends ViewPainter implements Runnable {
+final class UploadingPainter extends ViewPainter {
 
     private RTTexture   rttexture;
     // resolveRTT is a temporary render target to "resolve" a msaa render buffer
