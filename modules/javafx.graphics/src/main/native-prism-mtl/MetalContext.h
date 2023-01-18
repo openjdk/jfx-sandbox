@@ -57,12 +57,6 @@ typedef enum VertexInputIndex {
     VertexInputMatrixMVP = 1,
 } VertexInputIndex;
 
-typedef struct VS_PHONG_INPUT {
-    vector_float4 position;
-    vector_float4 texCoord;
-    vector_float4 normal;
-} VS_PHONG_INPUT;
-
 @interface MetalContext : NSObject
 {
     simd_float4x4 mvpMatrix;

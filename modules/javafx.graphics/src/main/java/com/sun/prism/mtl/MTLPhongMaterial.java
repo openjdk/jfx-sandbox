@@ -34,7 +34,7 @@ import com.sun.prism.impl.Disposer;
 import com.sun.javafx.logging.PlatformLogger;
 
 /**
- * TODO: 3D - Need documentation
+ * TODO: MTL: 3D - Need documentation
  */
 class MTLPhongMaterial extends BasePhongMaterial implements PhongMaterial {
 
@@ -80,9 +80,6 @@ class MTLPhongMaterial extends BasePhongMaterial implements PhongMaterial {
         Image image = map.getImage();
         Texture texture = (image == null) ? null
                 : context.getResourceFactory().getCachedTexture(image, Texture.WrapMode.REPEAT, useMipmap);
-        // TODO
-        /*long hTexture = (texture != null) ? ((MTLTexture) texture).getNativeTextureObject() : 0;
-        context.setMap(nativeHandle, map.getType().ordinal(), hTexture);*/
         return texture;
     }
 

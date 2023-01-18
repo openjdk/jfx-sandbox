@@ -31,11 +31,10 @@
 #import <Foundation/Foundation.h>
 #import "MetalContext.h"
 
-#define PHONG_VERTEX_SIZE sizeof(VS_PHONG_INPUT)
+#define NUM_OF_FLOATS_PER_VERTEX 9
 
 @interface MetalMesh : NSObject
 {
-    VS_PHONG_INPUT vertices[24];
     MetalContext *context;
     id<MTLBuffer> indexBuffer;
     id<MTLBuffer> vertexBuffer;

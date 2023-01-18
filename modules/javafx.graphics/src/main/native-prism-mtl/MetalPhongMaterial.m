@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,8 @@
         specularColor[1] = 1;
         specularColor[2] = 1;
         specularColor[3] = 32;
+        // TODO: MTL: Enable below maps once we have
+        // texture support
         /*map[DIFFUSE] = NULL;
         map[SPECULAR] = NULL;
         map[BUMP] = NULL;

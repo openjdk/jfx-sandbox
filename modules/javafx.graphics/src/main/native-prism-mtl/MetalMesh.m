@@ -30,7 +30,11 @@
 #else
 #define MESH_LOG(...)
 #endif
-
+typedef struct
+{
+    vector_float4 position;
+    vector_float4 color;
+} MBEVertex;
 @implementation MetalMesh
 
 - (id) createMesh:(MetalContext*)ctx
@@ -41,8 +45,6 @@
         context = ctx;
         indexBuffer = NULL;
         vertexBuffer = NULL;
-        // See MeshData.cc where n = 1
-        //fvf = D3DFVF_XYZ | (2 << D3DFVF_TEXCOUNT_SHIFT) | D3DFVF_TEXCOORDSIZE4(1);
         numVertices = 0;
         numIndices = 0;
     }
@@ -59,13 +61,11 @@
     MESH_LOG(@"ibsize %d", ibSize);
     id<MTLDevice> device = [context getDevice];
     unsigned int size = vbSize * sizeof (float);
-    MESH_LOG(@"VertexBuffer size %d", size);
-    MESH_LOG(@"PHONG_VERTEX_SIZE %d", PHONG_VERTEX_SIZE);
-    //unsigned int vbCount = size / PHONG_VERTEX_SIZE; // in vertices
-    unsigned int vbCount = vbSize / 9;
-    size = vbCount * PHONG_VERTEX_SIZE;
-    MESH_LOG(@"vbCount %d", vbCount);
-    VS_PHONG_INPUT* pVert = vertices;
+    unsigned int vbCount = vbSize / NUM_OF_FLOATS_PER_VERTEX;
+     MESH_LOG(@"vbCount %d", vbCount);
+    // TODO: MTL: Cleanup this code in future if we think we don't need
+    // to add padding to float3 data
+    /*VS_PHONG_INPUT* pVert = vertices;
     for (int i = 0; i < vbCount; i++) {
         pVert->position.x = *(vb + (i * 9));
         pVert->position.y = *(vb + (i * 9) + 1);
@@ -80,13 +80,13 @@
         pVert->normal.z = *(vb + (i * 9) + 7);
         pVert->normal.w = *(vb + (i * 9) + 8);
         pVert++;
-    }
+    }*/
 
     if (numVertices != vbCount) {
         [self releaseVertexBuffer];
-        vertexBuffer = [[device newBufferWithBytes:vertices length:sizeof(vertices) options:MTLResourceStorageModeShared] autorelease];
+        vertexBuffer = [[device newBufferWithBytes:vb length:size options:MTLResourceStorageModeShared] autorelease];
         numVertices = vbCount;
-        MESH_LOG(@"numVertices %d", numVertices);
+        MESH_LOG(@"numVertices %lu", numVertices);
     }
 
     size = ibSize * sizeof (unsigned short);
@@ -95,7 +95,7 @@
         [self releaseIndexBuffer];
         indexBuffer = [[device newBufferWithBytes:ib length:size options:MTLResourceStorageModeShared] autorelease];
         numIndices = ibSize;
-        MESH_LOG(@"numIndices %d", numIndices);
+        MESH_LOG(@"numIndices %lu", numIndices);
     }
 
     MESH_LOG(@"MetalMesh->buildBuffers done");

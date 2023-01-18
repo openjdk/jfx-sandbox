@@ -31,7 +31,7 @@ import com.sun.prism.impl.BaseMeshView;
 import com.sun.prism.impl.Disposer;
 
 /**
- * TODO: 3D - Need documentation
+ * TODO: MTL: 3D - Need documentation
  */
 class MTLMeshView extends BaseMeshView {
 
@@ -40,8 +40,6 @@ class MTLMeshView extends BaseMeshView {
     private final MTLContext context;
     private final long nativeHandle;
 
-    // TODO: 3D - Need a mechanism to "decRefCount" Mesh and Material
-    //            if we need to do eager clean up
     final private MTLMesh mesh;
     private MTLPhongMaterial material;
 
@@ -85,7 +83,7 @@ class MTLMeshView extends BaseMeshView {
     public void setLight(int index, float x, float y, float z, float r, float g, float b, float w,
             float ca, float la, float qa, float isAttenuated, float maxRange, float dirX, float dirY, float dirZ,
             float innerAngle, float outerAngle, float falloff) {
-        // NOTE: We only support up to 3 point lights at the present
+        // TODO: MTL: Check whether we need to support more than 3 lights
         if (index >= 0 && index <= 2) {
             context.setLight(nativeHandle, index, x, y, z, r, g, b, w, ca, la, qa, isAttenuated, maxRange,
                     dirX, dirY, dirZ, innerAngle, outerAngle, falloff);
@@ -94,9 +92,11 @@ class MTLMeshView extends BaseMeshView {
 
     @Override
     public void render(Graphics g) {
-        material.lockTextureMaps();
+        // TODO: MTL: Enable creation of 3D texture once we have support for
+        // different format of textures like INT_ARGB_PRE
+        //material.lockTextureMaps();
         context.renderMeshView(nativeHandle, g);
-        material.unlockTextureMaps();
+        //material.unlockTextureMaps();
     }
 
     @Override
@@ -106,7 +106,7 @@ class MTLMeshView extends BaseMeshView {
 
     @Override
     public void dispose() {
-        // TODO: 3D - Need a mechanism to "decRefCount" Mesh and Material
+        // TODO: MTL: 3D - Need a mechanism to "decRefCount" Mesh and Material
         material = null;
         disposerRecord.dispose();
         count--;

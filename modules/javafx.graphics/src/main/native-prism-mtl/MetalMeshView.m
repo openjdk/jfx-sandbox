@@ -41,14 +41,13 @@
         MESH_LOG(@"MetalMeshView_createMeshView()");
         context = ctx;
         mesh = mtlMesh;
-        //material = NULL;
+        material = NULL;
         ambientLightColor[0] = 0;
         ambientLightColor[1] = 0;
         ambientLightColor[2] = 0;
         numLights = 0;
-        //ZeroMemory(lights, sizeof(D3DLight) * 3);
         lightsDirty = TRUE;
-        //cullMode = D3DCULL_NONE;
+        cullMode = MTLCullModeNone;
         wireframe = FALSE;
     }
     return self;
@@ -94,7 +93,6 @@
     MESH_LOG(@"MetalMeshView_setLight()");
     // NOTE: We only support up to 3 point lights at the present
     if (index >= 0 && index <= MAX_NUM_LIGHTS - 1) {
-        //MetalLight& light = lights[index];
         MetalLight* light = ([[MetalLight alloc] createLight:x y:y z:z
             r:r g:g b:b w:w
             ca:ca la:la qa:qa
@@ -110,5 +108,10 @@
 - (MetalMesh*) getMesh
 {
     return mesh;
+}
+
+- (int) getCullingMode
+{
+    return cullMode;
 }
 @end // MetalMeshView

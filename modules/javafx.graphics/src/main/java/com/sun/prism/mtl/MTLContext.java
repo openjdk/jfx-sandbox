@@ -67,6 +67,8 @@ public class MTLContext extends BaseShaderContext {
     private GeneralTransform3D scratchTx = new GeneralTransform3D(); // Column major matrix
     private GeneralTransform3D projViewTx = new GeneralTransform3D(); // Column major matrix
 
+    private static double[] tempAdjustClipSpaceMat = new double[16];
+
     private static final String shaderLibPath;
     public final static int CULL_BACK                  = 110;
     public final static int CULL_FRONT                 = 111;
@@ -154,6 +156,16 @@ public class MTLContext extends BaseShaderContext {
         return pContext;
     }
 
+    private GeneralTransform3D adjustClipSpace(GeneralTransform3D projViewTx) {
+        double[] m = projViewTx.get(tempAdjustClipSpaceMat);
+        m[8] = (m[8] + m[12])/2;
+        m[9] = (m[9] + m[13])/2;
+        m[10] = (m[10] + m[14])/2;
+        m[11] = (m[11] + m[15])/2;
+        projViewTx.set(m);
+        return projViewTx;
+    }
+
     @Override
     protected State updateRenderTarget(RenderTarget target, NGCamera camera, boolean depthTest) {
         System.err.println("MTLContext.updateRenderTarget() :target = " + target + ", camera = " + camera + ", depthTest = " + depthTest);
@@ -167,10 +179,11 @@ public class MTLContext extends BaseShaderContext {
         // Need to validate the camera before getting its computed data.
         if (camera instanceof NGDefaultCamera) {
             ((NGDefaultCamera) camera).validate(targetWidth, targetHeight);
+            // TODO: MTL: Check whether we need to adjust clip space
             projViewTx = camera.getProjViewTx(projViewTx);
             System.err.println("MTLContext.updateRenderTarget() projViewTx:2:-->\n" + projViewTx);
         } else {
-            projViewTx = camera.getProjViewTx(projViewTx);
+            projViewTx = adjustClipSpace(camera.getProjViewTx(projViewTx));
             double vw = camera.getViewWidth();
             double vh = camera.getViewHeight();
             if (targetWidth != vw || targetHeight != vh) {
@@ -194,7 +207,7 @@ public class MTLContext extends BaseShaderContext {
             projViewTx.get(8),  projViewTx.get(9),  projViewTx.get(10), projViewTx.get(11),
             projViewTx.get(12), projViewTx.get(13), projViewTx.get(14), projViewTx.get(15));
 
-        // cameraPos = camera.getPositionInWorld(cameraPos);
+        cameraPos = camera.getPositionInWorld(cameraPos);
         return new State();
     }
 
@@ -364,7 +377,6 @@ public class MTLContext extends BaseShaderContext {
         return nCreateMTLMesh(pContext);
     }
 
-    // TODO: 3D - Should this be called dispose?
     void releaseMTLMesh(long nativeHandle) {
         System.err.println("3D : MTLContext:releaseMTLMesh()");
         nReleaseMTLMesh(pContext, nativeHandle);
@@ -397,6 +409,7 @@ public class MTLContext extends BaseShaderContext {
 
     boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
                                 int[] indexBuffer, int indexBufferLength) {
+        // TODO: MTL: Complete the implementation
         System.err.println("3D : MTLContext:buildNativeGeometryInt()");
         return false;
         //return nBuildNativeGeometryInt(pContext, nativeHandle, vertexBuffer,
@@ -408,8 +421,8 @@ public class MTLContext extends BaseShaderContext {
         return nCreateMTLPhongMaterial(pContext);
     }
 
-    // TODO: 3D - Should this be called dispose?
     void releaseMTLPhongMaterial(long nativeHandle) {
+        // TODO: MTL: Complete the implementation
         System.err.println("3D : MTLContext:createMTLPhongMaterial()");
         //nReleaseMTLPhongMaterial(pContext, nativeHandle);
     }
@@ -425,6 +438,7 @@ public class MTLContext extends BaseShaderContext {
     }
 
     void setMap(long nativePhongMaterial, int mapType, long nativeTexture) {
+        // TODO: MTL: Complete the implementation
         System.err.println("3D : MTLContext:setMap()");
         //nSetMap(pContext, nativePhongMaterial, mapType, nativeTexture);
     }
@@ -434,8 +448,8 @@ public class MTLContext extends BaseShaderContext {
         return nCreateMTLMeshView(pContext, nativeMesh);
     }
 
-    // TODO: 3D - Should this be called dispose?
     void releaseMTLMeshView(long nativeMeshView) {
+        // TODO: MTL: Complete the implementation
         System.err.println("3D : MTLContext:releaseMTLMeshView()");
         //nReleaseMTLMeshView(pContext, nativeMeshView);
     }
@@ -498,13 +512,7 @@ public class MTLContext extends BaseShaderContext {
             rawMatrix[8], rawMatrix[9], rawMatrix[10], rawMatrix[11],
             rawMatrix[12], rawMatrix[13], rawMatrix[14], rawMatrix[15]);
 
-        /*int res = nSetProjViewMatrix(pContext, g.isDepthTest(),
-            0.0033333334, 0.0, 0.0, 0.0,
-            0.0, 0.0033333334, 0.0, 0.0,
-            0.0, 0.0, 0.0033333334, 0.0,
-            -1.0, -1.0, 0.0, 1.0);*/
-
-        // TODO : Implement eye position
+        // TODO: MTL: Implement eye position
         //res = nSetCameraPosition(pContext, cameraPos.x, cameraPos.y, cameraPos.z);
 
         // Undo the SwapChain scaling done in createGraphics() because 3D needs
@@ -526,12 +534,6 @@ public class MTLContext extends BaseShaderContext {
             rawMatrix[4], rawMatrix[5], rawMatrix[6], rawMatrix[7],
             rawMatrix[8], rawMatrix[9], rawMatrix[10], rawMatrix[11],
             rawMatrix[12], rawMatrix[13], rawMatrix[14], rawMatrix[15]);
-
-        /*nSetWorldTransform(pContext,
-            0.80473787, 0.50587934, -0.3106172, 0.0,
-            -0.3106172, 0.80473787, 0.50587934, 0.0,
-            0.50587934, -0.3106172, 0.80473787, 0.0,
-            300.0, 300.0, 0.0, 1.0);*/
         nRenderMeshView(pContext, nativeMeshView);
     }
 

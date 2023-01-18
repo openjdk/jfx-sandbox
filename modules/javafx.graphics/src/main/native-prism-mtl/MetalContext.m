@@ -269,6 +269,8 @@
 
 - (void) renderMeshView:(MetalMeshView*)meshView
 {
+    // TODO: MTL: Move creation of MTLRenderPassDescriptor to commom class
+    // like MetalMeshView
     id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
     MTLRenderPassDescriptor* phongRPD = [MTLRenderPassDescriptor new];
     phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
@@ -280,7 +282,11 @@
     id<MTLRenderPipelineState> phongPipelineState =
         [[self getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"];
     [phongEncoder setRenderPipelineState:phongPipelineState];
-    [phongEncoder setCullMode:MTLCullModeNone];
+    // In Metal default winding order is Clockwise but the vertex data that
+    // we are getting is in CounterClockWise order, so we need to set
+    // MTLWindingCounterClockwise explicitly
+    [phongEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
+    [phongEncoder setCullMode:[meshView getCullingMode]];
     [phongEncoder setVertexBytes:&mvpMatrix
                                length:sizeof(mvpMatrix)
                               atIndex:1];
@@ -297,15 +303,11 @@
         indexType:MTLIndexTypeUInt16
         indexBuffer:[mesh getIndexBuffer]
         indexBufferOffset:0];
-    /*[phongEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-        indexCount:36
-        indexType:MTLIndexTypeUInt16
-        indexBuffer:[mesh getIndexBuffer]
-        indexBufferOffset:0];*/
     [phongEncoder endEncoding];
 
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
+    // TODO: MTL: Check whether we need to resetRenderPass
 }
 
 - (void) resetRenderPass
@@ -397,6 +399,8 @@
 
 - (NSInteger) setDeviceParametersFor3D
 {
+    // TODO: MTL: Check whether we can do RenderPassDescriptor
+    // initialization in this call
     CTX_LOG(@"MetalContext_setDeviceParametersFor3D()");
 
     if (!phongShader) {
@@ -570,11 +574,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMesh
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMesh
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh)
 {
+    // TODO: MTL: Complete the implementation
     CTX_LOG(@"MTLContext_nReleaseMTLMesh");
-    /*D3DMesh *mesh = (D3DMesh *) jlong_to_ptr(nativeMesh);
-    if (mesh) {
-        delete mesh;
-    }*/
 }
 
 /*
@@ -634,8 +635,8 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometryInt
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh, jfloatArray vb, jint vbSize, jintArray ib, jint ibSize)
 {
+    // TODO: MTL: Complete the implementation
     CTX_LOG(@"MTLContext_nBuildNativeGeometryInt");
-    // TODO
     return JNI_TRUE;
 }
 
@@ -662,11 +663,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLPhongMateria
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLPhongMaterial
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial)
 {
+    // TODO: MTL: Complete the implementation
     CTX_LOG(@"MTLContext_nReleaseMTLPhongMaterial");
-    /*D3DPhongMaterial *phongMaterial = (D3DPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
-    if (phongMaterial) {
-        delete phongMaterial;
-    }*/
 }
 
 /*
@@ -706,12 +704,8 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMap
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
         jint mapType, jlong nativeTexture)
 {
+    // TODO: MTL: Complete the implementation
     CTX_LOG(@"MTLContext_nSetMap");
-    /*D3DPhongMaterial *phongMaterial = (D3DPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
-    IDirect3DBaseTexture9 *texMap = (IDirect3DBaseTexture9 *)  jlong_to_ptr(nativeTexture);
-    RETURN_IF_NULL(phongMaterial);
-
-    phongMaterial->setMap(mapType, texMap);*/
 }
 
 /*
@@ -740,11 +734,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMeshView
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMeshView
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
 {
+    // TODO: MTL: Complete the implementation
     CTX_LOG(@"MTLContext_nReleaseMTLMeshView");
-    /*D3DMeshView *meshView = (D3DMeshView *) jlong_to_ptr(nativeMeshView);
-    if (meshView) {
-        delete meshView;
-    }*/
 }
 
 /*
@@ -760,13 +751,13 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCullingMode
 
     switch (cullMode) {
         case com_sun_prism_mtl_MTLContext_CULL_BACK:
-            cullMode = (UInt)2;
+            cullMode = MTLCullModeBack;
             break;
         case com_sun_prism_mtl_MTLContext_CULL_FRONT:
-            cullMode = (UInt)1;
+            cullMode = MTLCullModeFront;
             break;
         case com_sun_prism_mtl_MTLContext_CULL_NONE:
-            cullMode = (UInt)0;
+            cullMode = MTLCullModeNone;
             break;
     }
     [meshView setCullingMode:cullMode];

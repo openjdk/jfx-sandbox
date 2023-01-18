@@ -41,18 +41,8 @@
     if (self) {
         MESH_LOG(@"MetalPhongShader_createPhongShader()");
         context = ctx;
-        /*id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
-        phongRPD = [MTLRenderPassDescriptor new];
-        phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
-        phongRPD.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1); // make this programmable
-        phongRPD.colorAttachments[0].storeAction = MTLStoreActionStore;
-        phongRPD.colorAttachments[0].texture = [[context getRTT] getTexture];
-        phongEncoder = [commandBuffer renderCommandEncoderWithDescriptor:phongRPD];
-        id<MTLRenderPipelineState> phongPipelineState =
-            [[context getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"];
-        [phongEncoder setRenderPipelineState:phongPipelineState];*/
-        // TODO remove below line once we actually encode draw call
-        //[phongEncoder endEncoding];
+        // TODO: MTL: Check whether we can initialize
+        // RenderPassDescriptor here
     }
     return self;
 }

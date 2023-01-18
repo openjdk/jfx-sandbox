@@ -104,7 +104,10 @@
     pipeDesc.vertexFunction = [self getFunction:@"PhongVS"];
     pipeDesc.fragmentFunction = func;
     pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
-    MTLVertexDescriptor* vertDesc = [[MTLVertexDescriptor alloc] init];
+
+    // TODO: MTL: Cleanup this code in future if we think we don't need
+    // to add padding to float3 data and use VertexDescriptor
+    /*MTLVertexDescriptor* vertDesc = [[MTLVertexDescriptor alloc] init];
     vertDesc.attributes[0].format = MTLVertexFormatFloat4;
     vertDesc.attributes[0].offset = 0;
     vertDesc.attributes[0].bufferIndex = 0;
@@ -117,7 +120,7 @@
     vertDesc.layouts[0].stride = 48;
     vertDesc.layouts[0].stepRate = 1;
     vertDesc.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
-    pipeDesc.vertexDescriptor = vertDesc;
+    pipeDesc.vertexDescriptor = vertDesc;*/
     id<MTLRenderPipelineState> pipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
     NSAssert(pipeState, @"Failed to create pipeline state for phong shader: %@", error);
 

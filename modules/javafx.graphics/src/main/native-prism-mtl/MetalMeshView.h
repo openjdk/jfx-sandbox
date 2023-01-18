@@ -66,6 +66,7 @@
         falloff:(float)falloff;
 
 - (MetalMesh*) getMesh;
+- (int) getCullingMode;
 @end
 
 #endif
