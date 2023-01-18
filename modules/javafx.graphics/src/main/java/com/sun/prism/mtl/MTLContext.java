@@ -27,6 +27,8 @@ package com.sun.prism.mtl;
 
 import com.sun.glass.ui.Screen;
 import com.sun.javafx.geom.Rectangle;
+import com.sun.javafx.geom.Vec3d;
+import com.sun.javafx.geom.transform.Affine3D;
 import com.sun.javafx.geom.transform.BaseTransform;
 import com.sun.javafx.geom.transform.GeneralTransform3D;
 import com.sun.javafx.sg.prism.NGCamera;
@@ -58,10 +60,19 @@ public class MTLContext extends BaseShaderContext {
     private int targetWidth;
     private int targetHeight;
 
+    private Vec3d cameraPos = new Vec3d();
+    private static float rawMatrix[] = new float[16];
+    private GeneralTransform3D worldTx = new GeneralTransform3D();
+    private static final Affine3D scratchAffine3DTx = new Affine3D();
     private GeneralTransform3D scratchTx = new GeneralTransform3D(); // Column major matrix
     private GeneralTransform3D projViewTx = new GeneralTransform3D(); // Column major matrix
 
+    private static double[] tempAdjustClipSpaceMat = new double[16];
+
     private static final String shaderLibPath;
+    public final static int CULL_BACK                  = 110;
+    public final static int CULL_FRONT                 = 111;
+    public final static int CULL_NONE                  = 112;
     /*
      * Locate the shader library on disk
      *
@@ -145,6 +156,16 @@ public class MTLContext extends BaseShaderContext {
         return pContext;
     }
 
+    private GeneralTransform3D adjustClipSpace(GeneralTransform3D projViewTx) {
+        double[] m = projViewTx.get(tempAdjustClipSpaceMat);
+        m[8] = (m[8] + m[12])/2;
+        m[9] = (m[9] + m[13])/2;
+        m[10] = (m[10] + m[14])/2;
+        m[11] = (m[11] + m[15])/2;
+        projViewTx.set(m);
+        return projViewTx;
+    }
+
     @Override
     protected State updateRenderTarget(RenderTarget target, NGCamera camera, boolean depthTest) {
         System.err.println("MTLContext.updateRenderTarget() :target = " + target + ", camera = " + camera + ", depthTest = " + depthTest);
@@ -158,10 +179,11 @@ public class MTLContext extends BaseShaderContext {
         // Need to validate the camera before getting its computed data.
         if (camera instanceof NGDefaultCamera) {
             ((NGDefaultCamera) camera).validate(targetWidth, targetHeight);
+            // TODO: MTL: Check whether we need to adjust clip space
             projViewTx = camera.getProjViewTx(projViewTx);
             System.err.println("MTLContext.updateRenderTarget() projViewTx:2:-->\n" + projViewTx);
         } else {
-            projViewTx = camera.getProjViewTx(projViewTx);
+            projViewTx = adjustClipSpace(camera.getProjViewTx(projViewTx));
             double vw = camera.getViewWidth();
             double vh = camera.getViewHeight();
             if (targetWidth != vw || targetHeight != vh) {
@@ -185,8 +207,7 @@ public class MTLContext extends BaseShaderContext {
             projViewTx.get(8),  projViewTx.get(9),  projViewTx.get(10), projViewTx.get(11),
             projViewTx.get(12), projViewTx.get(13), projViewTx.get(14), projViewTx.get(15));
 
-        // cameraPos = camera.getPositionInWorld(cameraPos);
-
+        cameraPos = camera.getPositionInWorld(cameraPos);
         return new State();
     }
 
@@ -220,7 +241,10 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void updateWorldTransform(BaseTransform xform) {
-        System.err.println("MTLContext.updateWorldTransform() :xform = " + xform);
+        worldTx.setIdentity();
+        if ((xform != null) && (!xform.isIdentity())) {
+            worldTx.mul(xform);
+        }
     }
 
     @Override
@@ -299,5 +323,243 @@ public class MTLContext extends BaseShaderContext {
         double m10, double m11, double m12, double m13,
         double m20, double m21, double m22, double m23,
         double m30, double m31, double m32, double m33);
+
     native private static void nSetCompositeMode(long context, int mode);
+
+    private static native void nSetWorldTransformToIdentity(long pContext);
+    private static native void nSetWorldTransform(long pContext,
+                                                  double m00, double m01, double m02, double m03,
+                                                  double m10, double m11, double m12, double m13,
+                                                  double m20, double m21, double m22, double m23,
+                                                  double m30, double m31, double m32, double m33);
+    private static native int nSetDeviceParametersFor3D(long pContext);
+    private static native int nSetCameraPosition(long pContext, double x, double y, double z);
+    private static native long nCreateMTLMesh(long pContext);
+    private static native void nReleaseMTLMesh(long pContext, long nativeHandle);
+    private static native boolean nBuildNativeGeometryShort(long pContext, long nativeHandle,
+                                                            float[] vertexBuffer, int vertexBufferLength, short[] indexBuffer, int indexBufferLength);
+    private static native boolean nBuildNativeGeometryInt(long pContext, long nativeHandle,
+                                                          float[] vertexBuffer, int vertexBufferLength, int[] indexBuffer, int indexBufferLength);
+    private static native long nCreateMTLPhongMaterial(long pContext);
+    private static native void nReleaseMTLPhongMaterial(long pContext, long nativeHandle);
+    private static native void nSetDiffuseColor(long pContext, long nativePhongMaterial,
+                                                float r, float g, float b, float a);
+    private static native void nSetSpecularColor(long pContext, long nativePhongMaterial,
+                                                 boolean set, float r, float g, float b, float a);
+    private static native void nSetMap(long pContext, long nativePhongMaterial,
+                                       int mapType, long texID);
+    private static native long nCreateMTLMeshView(long pContext, long nativeMesh);
+    private static native void nReleaseMTLMeshView(long pContext, long nativeHandle);
+    private static native void nSetCullingMode(long pContext, long nativeMeshView,
+                                               int cullingMode);
+    private static native void nSetMaterial(long pContext, long nativeMeshView,
+                                            long nativePhongMaterialInfo);
+    private static native void nSetWireframe(long pContext, long nativeMeshView,
+                                             boolean wireframe);
+    private static native void nSetAmbientLight(long pContext, long nativeMeshView,
+                                                float r, float g, float b);
+    private static native void nSetLight(long pContext, long nativeMeshView,
+                                         int index, float x, float y, float z, float r, float g, float b, float w, float ca, float la, float qa,
+                                         float isAttenuated, float maxRange, float dirX, float dirY, float dirZ, float innerAngle, float outerAngle,
+                                         float falloff);
+    private static native void nRenderMeshView(long pContext, long nativeMeshView);
+
+    @Override
+    protected void setDeviceParametersFor3D() {
+        if (checkDisposed()) return;
+        System.err.println("3D : MTLContext:setDeviceParametersFor3D()");
+        nSetDeviceParametersFor3D(pContext);
+    }
+
+    long createMTLMesh() {
+        if (checkDisposed()) return 0;
+        System.err.println("3D : MTLContext:createMTLMesh()");
+        return nCreateMTLMesh(pContext);
+    }
+
+    void releaseMTLMesh(long nativeHandle) {
+        System.err.println("3D : MTLContext:releaseMTLMesh()");
+        nReleaseMTLMesh(pContext, nativeHandle);
+    }
+
+    boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
+                                short[] indexBuffer, int indexBufferLength) {
+        System.err.println("3D : MTLContext:buildNativeGeometryShort()");
+        System.err.println("VertexBuffer");
+        int i = 0;
+        int index = 0;
+        while (i < vertexBuffer.length) {
+            System.err.println("Index " + index + " : " + vertexBuffer[i]
+                + " " + vertexBuffer[i + 1] + " " + vertexBuffer[i + 2]);
+            i = i + 9;
+            index++;
+        }
+        i = 0;
+        index = 0;
+        System.err.println("IndexBuffer");
+        while (i < indexBuffer.length) {
+            System.err.println("Triangle " + index + " : " + indexBuffer[i]
+                + " " + indexBuffer[i + 1] + " " + indexBuffer[i + 2]);
+            i = i + 3;
+            index++;
+        }
+        return nBuildNativeGeometryShort(pContext, nativeHandle, vertexBuffer,
+            vertexBufferLength, indexBuffer, indexBufferLength);
+    }
+
+    boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
+                                int[] indexBuffer, int indexBufferLength) {
+        // TODO: MTL: Complete the implementation
+        System.err.println("3D : MTLContext:buildNativeGeometryInt()");
+        return false;
+        //return nBuildNativeGeometryInt(pContext, nativeHandle, vertexBuffer,
+            //vertexBufferLength, indexBuffer, indexBufferLength);
+    }
+
+    long createMTLPhongMaterial() {
+        System.err.println("3D : MTLContext:createMTLPhongMaterial()");
+        return nCreateMTLPhongMaterial(pContext);
+    }
+
+    void releaseMTLPhongMaterial(long nativeHandle) {
+        // TODO: MTL: Complete the implementation
+        System.err.println("3D : MTLContext:createMTLPhongMaterial()");
+        //nReleaseMTLPhongMaterial(pContext, nativeHandle);
+    }
+
+    void setDiffuseColor(long nativePhongMaterial, float r, float g, float b, float a) {
+        System.err.println("3D : MTLContext:setDiffuseColor()");
+        nSetDiffuseColor(pContext, nativePhongMaterial, r, g, b, a);
+    }
+
+    void setSpecularColor(long nativePhongMaterial, boolean set, float r, float g, float b, float a) {
+        System.err.println("3D : MTLContext:setSpecularColor()");
+        nSetSpecularColor(pContext, nativePhongMaterial, set, r, g, b, a);
+    }
+
+    void setMap(long nativePhongMaterial, int mapType, long nativeTexture) {
+        // TODO: MTL: Complete the implementation
+        System.err.println("3D : MTLContext:setMap()");
+        //nSetMap(pContext, nativePhongMaterial, mapType, nativeTexture);
+    }
+
+    long createMTLMeshView(long nativeMesh) {
+        System.err.println("3D : MTLContext:createMTLMeshView()");
+        return nCreateMTLMeshView(pContext, nativeMesh);
+    }
+
+    void releaseMTLMeshView(long nativeMeshView) {
+        // TODO: MTL: Complete the implementation
+        System.err.println("3D : MTLContext:releaseMTLMeshView()");
+        //nReleaseMTLMeshView(pContext, nativeMeshView);
+    }
+
+    void setCullingMode(long nativeMeshView, int cullMode) {
+        System.err.println("3D : MTLContext:setCullingMode()");
+        int cm;
+        if (cullMode == MeshView.CULL_NONE) {
+            cm = CULL_NONE;
+        } else if (cullMode == MeshView.CULL_BACK) {
+            cm = CULL_BACK;
+        } else if (cullMode == MeshView.CULL_FRONT) {
+            cm = CULL_FRONT;
+        } else {
+            throw new IllegalArgumentException("illegal value for CullMode: " + cullMode);
+        }
+        nSetCullingMode(pContext, nativeMeshView, cm);
+    }
+
+    void setMaterial(long nativeMeshView, long nativePhongMaterial) {
+        System.err.println("3D : MTLContext:setMaterial()");
+        nSetMaterial(pContext, nativeMeshView, nativePhongMaterial);
+    }
+
+    void setWireframe(long nativeMeshView, boolean wireframe) {
+        System.err.println("3D : MTLContext:setWireframe()");
+        nSetWireframe(pContext, nativeMeshView, wireframe);
+    }
+
+    void setAmbientLight(long nativeMeshView, float r, float g, float b) {
+        System.err.println("3D : MTLContext:setAmbientLight()");
+        nSetAmbientLight(pContext, nativeMeshView, r, g, b);
+    }
+
+    void setLight(long nativeMeshView, int index, float x, float y, float z, float r, float g, float b, float w,
+                  float ca, float la, float qa, float isAttenuated, float maxRange, float dirX, float dirY, float dirZ,
+                  float innerAngle, float outerAngle, float falloff) {
+        System.err.println("3D : MTLContext:setLight()");
+        nSetLight(pContext, nativeMeshView, index, x, y, z, r, g, b, w,  ca, la, qa, isAttenuated, maxRange,
+            dirX, dirY, dirZ, innerAngle, outerAngle, falloff);
+    }
+
+    void renderMeshView(long nativeMeshView, Graphics g) {
+        System.err.println("3D : MTLContext:renderMeshView()");
+        // Support retina display by scaling the projViewTx and pass it to the shader.
+        float pixelScaleFactorX = g.getPixelScaleFactorX();
+        float pixelScaleFactorY = g.getPixelScaleFactorY();
+        if (pixelScaleFactorX != 1.0 || pixelScaleFactorY != 1.0) {
+            scratchTx = scratchTx.set(projViewTx);
+            scratchTx.scale(pixelScaleFactorX, pixelScaleFactorY, 1.0);
+            updateRawMatrix(scratchTx);
+        } else {
+            updateRawMatrix(projViewTx);
+        }
+        printRawMatrix("Projection");
+        // Set projection view matrix
+        int res = nSetProjViewMatrix(pContext, g.isDepthTest(),
+            rawMatrix[0], rawMatrix[1], rawMatrix[2], rawMatrix[3],
+            rawMatrix[4], rawMatrix[5], rawMatrix[6], rawMatrix[7],
+            rawMatrix[8], rawMatrix[9], rawMatrix[10], rawMatrix[11],
+            rawMatrix[12], rawMatrix[13], rawMatrix[14], rawMatrix[15]);
+
+        // TODO: MTL: Implement eye position
+        //res = nSetCameraPosition(pContext, cameraPos.x, cameraPos.y, cameraPos.z);
+
+        // Undo the SwapChain scaling done in createGraphics() because 3D needs
+        // this information in the shader (via projViewTx)
+        BaseTransform xform = g.getTransformNoClone();
+        if (pixelScaleFactorX != 1.0 || pixelScaleFactorY != 1.0) {
+            scratchAffine3DTx.setToIdentity();
+            scratchAffine3DTx.scale(1.0 / pixelScaleFactorX, 1.0 / pixelScaleFactorY);
+            scratchAffine3DTx.concatenate(xform);
+            updateWorldTransform(scratchAffine3DTx);
+        } else {
+            updateWorldTransform(xform);
+        }
+
+        updateRawMatrix(worldTx);
+        printRawMatrix("World");
+        nSetWorldTransform(pContext,
+            rawMatrix[0], rawMatrix[1], rawMatrix[2], rawMatrix[3],
+            rawMatrix[4], rawMatrix[5], rawMatrix[6], rawMatrix[7],
+            rawMatrix[8], rawMatrix[9], rawMatrix[10], rawMatrix[11],
+            rawMatrix[12], rawMatrix[13], rawMatrix[14], rawMatrix[15]);
+        nRenderMeshView(pContext, nativeMeshView);
+    }
+
+    void printRawMatrix(String mesg) {
+        System.err.println(mesg + " = ");
+        for (int i = 0; i < 4; i++) {
+            System.err.println(rawMatrix[i] + ", " + rawMatrix[i+4]
+                + ", " + rawMatrix[i+8] + ", " + rawMatrix[i+12]);
+        }
+    }
+    private void updateRawMatrix(GeneralTransform3D src) {
+        rawMatrix[0]  = (float)src.get(0); // Scale X
+        rawMatrix[1]  = (float)src.get(4); // Shear Y
+        rawMatrix[2]  = (float)src.get(8);
+        rawMatrix[3]  = (float)src.get(12);
+        rawMatrix[4]  = (float)src.get(1); // Shear X
+        rawMatrix[5]  = (float)src.get(5); // Scale Y
+        rawMatrix[6]  = (float)src.get(9);
+        rawMatrix[7]  = (float)src.get(13);
+        rawMatrix[8]  = (float)src.get(2);
+        rawMatrix[9]  = (float)src.get(6);
+        rawMatrix[10] = (float)src.get(10);
+        rawMatrix[11] = (float)src.get(14);
+        rawMatrix[12] = (float)src.get(3);  // Translate X
+        rawMatrix[13] = (float)src.get(7);  // Translate Y
+        rawMatrix[14] = (float)src.get(11);
+        rawMatrix[15] = (float)src.get(15);
+    }
 }

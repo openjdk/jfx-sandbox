@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,36 @@
  * questions.
  */
 
-#ifndef METAL_COMMON_H
-#define METAL_COMMON_H
+#ifndef METAL_PHONGMATERIAL_H
+#define METAL_PHONGMATERIAL_H
 
-#import <jni.h>
-#import <simd/simd.h>
+#import "MetalCommon.h"
+#import <Metal/Metal.h>
+#import <Foundation/Foundation.h>
+#import "MetalContext.h"
 
-#define jlong_to_ptr(value) (intptr_t)value
-#define ptr_to_jlong(value) (jlong)((intptr_t)value)
+#define DIFFUSE 0
+#define SPECULAR 1
+#define BUMP 2
+#define SELFILLUMINATION 3
 
-#define ENABLE_VERBOSE
+@interface MetalPhongMaterial : NSObject
+{
+    MetalContext* context;
+    float diffuseColor[4], specularColor[4];
+    bool specularColorSet;
+}
 
-#ifdef ENABLE_VERBOSE
-#define TEX_VERBOSE
-#define CTX_VERBOSE
-#define SHADER_VERBOSE
-#define METAL_VERBOSE
-#define MESH_VERBOSE
-#endif
-
-#ifdef METAL_VERBOSE
-#define METAL_LOG NSLog
-#else
-#define METAL_LOG(...)
-#endif
+- (MetalPhongMaterial*) createPhongMaterial:(MetalContext*)ctx;
+- (void) setDiffuseColor:(float)r
+                       g:(float)g
+                       b:(float)b
+                       a:(float)a;
+- (void) setSpecularColor:(bool)set
+                        r:(float)r
+                        g:(float)g
+                        b:(float)b
+                        a:(float)a;
+@end
 
 #endif

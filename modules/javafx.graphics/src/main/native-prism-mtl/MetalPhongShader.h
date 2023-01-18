@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,23 @@
  * questions.
  */
 
-#ifndef METAL_COMMON_H
-#define METAL_COMMON_H
+#ifndef METAL_PHONGSHADER_H
+#define METAL_PHONGSHADER_H
 
-#import <jni.h>
-#import <simd/simd.h>
+#import "MetalCommon.h"
+#import <Metal/Metal.h>
+#import <Foundation/Foundation.h>
+#import "MetalContext.h"
 
-#define jlong_to_ptr(value) (intptr_t)value
-#define ptr_to_jlong(value) (jlong)((intptr_t)value)
+@interface MetalPhongShader : NSObject
+{
+    MetalContext* context;
+    MTLRenderPassDescriptor* phongRPD;
+    id<MTLRenderCommandEncoder> phongEncoder;
+}
 
-#define ENABLE_VERBOSE
+- (MetalPhongShader*) createPhongShader:(MetalContext*)ctx;
 
-#ifdef ENABLE_VERBOSE
-#define TEX_VERBOSE
-#define CTX_VERBOSE
-#define SHADER_VERBOSE
-#define METAL_VERBOSE
-#define MESH_VERBOSE
-#endif
-
-#ifdef METAL_VERBOSE
-#define METAL_LOG NSLog
-#else
-#define METAL_LOG(...)
-#endif
+@end
 
 #endif

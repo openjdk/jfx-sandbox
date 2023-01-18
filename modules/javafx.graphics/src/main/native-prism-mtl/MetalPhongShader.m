@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,27 @@
  * questions.
  */
 
-#ifndef METAL_COMMON_H
-#define METAL_COMMON_H
+#import "MetalPhongShader.h"
+#import "MetalRTTexture.h"
+#import "MetalPipelineManager.h"
 
-#import <jni.h>
-#import <simd/simd.h>
-
-#define jlong_to_ptr(value) (intptr_t)value
-#define ptr_to_jlong(value) (jlong)((intptr_t)value)
-
-#define ENABLE_VERBOSE
-
-#ifdef ENABLE_VERBOSE
-#define TEX_VERBOSE
-#define CTX_VERBOSE
-#define SHADER_VERBOSE
-#define METAL_VERBOSE
-#define MESH_VERBOSE
-#endif
-
-#ifdef METAL_VERBOSE
-#define METAL_LOG NSLog
+#ifdef MESH_VERBOSE
+#define MESH_LOG NSLog
 #else
-#define METAL_LOG(...)
+#define MESH_LOG(...)
 #endif
 
-#endif
+@implementation MetalPhongShader
+
+- (MetalPhongShader*) createPhongShader:(MetalContext*)ctx
+{
+    self = [super init];
+    if (self) {
+        MESH_LOG(@"MetalPhongShader_createPhongShader()");
+        context = ctx;
+        // TODO: MTL: Check whether we can initialize
+        // RenderPassDescriptor here
+    }
+    return self;
+}
+@end // MetalPhongShader

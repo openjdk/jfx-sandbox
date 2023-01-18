@@ -68,6 +68,8 @@
 - (id<MTLFunction>) getFunction:(NSString*) funcName;
 - (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>) fragFunc;
 - (id<MTLRenderPipelineState>) getPipeStateWithFragFuncName:(NSString*) funcName;
+- (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFunc:(id<MTLFunction>) fragFunc;
+- (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFuncName:(NSString*) funcName;
 - (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*) pipeDesc;
 - (void) setCompositeBlendMode:(int) mode;
 @end
