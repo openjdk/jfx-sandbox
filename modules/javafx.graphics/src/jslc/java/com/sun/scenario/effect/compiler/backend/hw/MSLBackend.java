@@ -426,10 +426,7 @@ public class MSLBackend extends SLBackend {
         uniformsForShaderFile = uniformsForShaderFile.replace(" float3", " vector_float3");
         uniformsForShaderFile = uniformsForShaderFile.replace(" float4", " vector_float4");
         header.append("typedef struct " + uniformStructName + " {\n" + uniformsForShaderFile + "} " + uniformStructName + ";\n\n");
-        // TODO: MTL: Check if more samplers are needed.
-        // MSL shaders use only one sampler for texture operations.
-        // We may have to revisit this to add more samplers once we test all the shaders individually.
-        header.append("constexpr sampler " + textureSamplerName + "(coord::normalized, mag_filter::linear, min_filter::linear);\n\n");
+        header.append("sampler " + textureSamplerName + ";\n\n");
         header.append("float4 " + sampleTexFuncName + "(texture2d<float> colorTexture, float2 texCoord) {\n");
         header.append("    return colorTexture.sample(" + textureSamplerName + ", texCoord);\n");
         header.append("}\n\n");
@@ -443,7 +440,9 @@ public class MSLBackend extends SLBackend {
         updateCommonHeaders();
         String fragmentFunctionDef = "\nfragment float4 " + shaderFunctionName + "(VS_OUTPUT in [[ stage_in ]]";
         fragmentFunctionDef += ",\n    device " + uniformStructName + "& uniforms [[ buffer(0) ]]";
+        fragmentFunctionDef += ",\n    sampler textureSampler [[sampler(0)]]";
         fragmentFunctionDef += ") {\n\nfloat4 outFragColor;";
+        fragmentFunctionDef += "\n" + textureSamplerName + " = textureSampler;";
         shader = shader.replace(MAIN, fragmentFunctionDef);
 
         int indexOfClosingBraceOfMain = shader.lastIndexOf('}');

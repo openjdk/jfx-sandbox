@@ -66,6 +66,8 @@ typedef enum VertexInputIndex {
     id<MTLBuffer> currentFragArgBuffer;
     MetalShader* currentShader;
 
+    id<MTLSamplerState> sampler;
+
     MetalResourceFactory* resourceFactory;
 
     MetalRTTexture* rtt;
@@ -106,6 +108,7 @@ typedef enum VertexInputIndex {
         m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
         m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33;
 
+- (void) setSampler:(bool)isLinear wrapMode:(int)wrapMode;
 @end
 
 #endif

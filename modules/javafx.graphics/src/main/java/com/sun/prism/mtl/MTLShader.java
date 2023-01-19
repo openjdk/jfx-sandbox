@@ -38,7 +38,7 @@ public class MTLShader implements Shader  {
     private final MTLContext context;
     private final String fragmentFunctionName;
     private final Map<Integer, String> samplers = new HashMap<>();
-    private long nMetalShaderRef;
+    private final long nMetalShaderRef;
 
     private static Map<String, MTLShader> shaderMap = new HashMap<>();
     private static MTLShader currentEnabledShader;
@@ -147,7 +147,6 @@ public class MTLShader implements Shader  {
     public static void setTexture(int texUnit, Texture tex) {
         System.err.println(">>> MTLShader.setTexture() : fragmentFunctionName : " + currentEnabledShader.fragmentFunctionName);
         System.err.println("    MTLShader.setTexture() texUnit = " + texUnit);
-        //new Exception().printStackTrace();
         MTLTexture mtlTex = (MTLTexture)tex;
         nSetTexture(currentEnabledShader.nMetalShaderRef,
                 currentEnabledShader.samplers.get(texUnit), mtlTex.getNativeHandle());

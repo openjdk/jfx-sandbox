@@ -57,6 +57,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
 - (id) initWithContext:(MetalContext*)ctx withFragFunc:(NSString*) fragName
 {
+    SHADER_LOG(@"\n");
     self = [super init];
     if (self) {
         context = ctx;
@@ -87,6 +88,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
 - (void) enable
 {
+    SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.enable()----> fragFuncName: %@", fragFuncName);
     [context setCurrentPipeState:pipeState];
     [context setCurrentArgumentBuffer:argumentBuffer];
@@ -96,6 +98,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
 - (id<MTLRenderPipelineState>) getPipeState
 {
+    SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.getPipeState()----> fragFuncName: %@", fragFuncName);
     return pipeState;
     SHADER_LOG(@"<<<< MetalShader.getPipeState()\n");

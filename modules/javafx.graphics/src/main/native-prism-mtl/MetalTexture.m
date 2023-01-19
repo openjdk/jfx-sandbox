@@ -36,6 +36,9 @@
 {
     //return [self createTexture:ctx ofUsage:MTLTextureUsageShaderRead ofWidth:w ofHeight:h];
 
+    TEX_LOG(@"\n");
+    TEX_LOG(@">>>> MetalTexture.createTexture()  w = %lu, h= %lu", w, h);
+
     self = [super init];
     if (self) {
         width = w;
@@ -81,10 +84,9 @@
                  withBytes:img
                  bytesPerRow: 10 * 4];
         */
-
-        TEX_LOG(@"MetalTexture - createTexture -- width = %lu, height = %lu, format = %d", width, height, format);
-        TEX_LOG(@"created MetalTexture = %p", texture);
     }
+    TEX_LOG(@">>>> MetalTexture.createTexture()  width = %lu, height = %lu, format = %lu", width, height, format);
+    TEX_LOG(@">>>> MetalTexture.createTexture()  created MetalTexture = %p", texture);
     return self;
 }
 
@@ -97,6 +99,9 @@
                          ofWidth : (NSUInteger) w
                         ofHeight : (NSUInteger) h
 {
+    TEX_LOG(@"\n");
+    TEX_LOG(@">>>> MetalTexture.createTexture()2  w = %lu, h= %lu", w, h);
+
     self = [super init];
     if (self) {
         width = w;
@@ -120,28 +125,26 @@
 
         // Create buffer for reading - used in getPixelBuffer
         pixelBuffer = [device newBufferWithLength: (width * height * 4) options: storageMode];
-
-        TEX_LOG(@"MetalTexture - createTexture (buffer backed texture) -- width = %lu, height = %lu", width, height);
-        TEX_LOG(@"-> MetalTexture.createTexture()2 : PB length: %d", (int)([pixelBuffer length]));
-        TEX_LOG(@"created MetalTexture = %p", texture);
     }
+    TEX_LOG(@">>>> MetalTexture.createTexture()2  (buffer backed texture) -- width = %lu, height = %lu", width, height);
+    TEX_LOG(@">>>> MetalTexture.createTexture()2  PB length: %d", (int)([pixelBuffer length]));
+    TEX_LOG(@">>>> MetalTexture.createTexture()2  created MetalTexture = %p", texture);
     return self;
 }
 
 - (id<MTLBuffer>) getPixelBuffer
 {
-
+    TEX_LOG(@"\n");
     id<MTLCommandQueue> queue             = [[context getDevice] newCommandQueue];
     id<MTLCommandBuffer> commandBuffer    = [queue commandBuffer];
     id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
     [blitEncoder synchronizeTexture:texture slice:0 level:0];
     [blitEncoder endEncoding];
 
-    TEX_LOG(@"getPixelBuffer = %p", commandBuffer);
+    TEX_LOG(@">>>> MetalTexture.getPixelBuffer() = %p", commandBuffer);
 
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
-
 
     [texture getBytes:(void *)pixelBuffer.contents
              bytesPerRow: width * 4
@@ -160,6 +163,7 @@
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
 (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jbyteArray pixData, jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride) {
+    TEX_LOG(@"\n");
     TEX_LOG(@"-> Native: MTLTexture_nUpdate srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex = (MetalTexture*)jlong_to_ptr(nTexturePtr);
