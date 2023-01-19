@@ -40,6 +40,7 @@
 #define CTX_VERBOSE
 #define SHADER_VERBOSE
 #define METAL_VERBOSE
+#define MESH_VERBOSE
 #endif
 
 #ifdef METAL_VERBOSE

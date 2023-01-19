@@ -37,6 +37,10 @@
 #import "MetalPipelineManager.h"
 #import "MetalShader.h"
 #import "com_sun_prism_mtl_MTLContext.h"
+#import "MetalMesh.h"
+#import "MetalPhongShader.h"
+#import "MetalMeshView.h"
+#import "MetalPhongMaterial.h"
 
 #ifdef CTX_VERBOSE
 #define CTX_LOG NSLog
@@ -260,6 +264,79 @@
     );
 }
 
+- (void) setWorldTransformMatrix:(float)m00
+        m01:(float)m01 m02:(float)m02 m03:(float)m03
+        m10:(float)m10 m11:(float)m11 m12:(float)m12 m13:(float)m13
+        m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
+        m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33
+{
+    CTX_LOG(@"MetalContext.setWorldTransformMatrix()");
+    worldMatrix = simd_matrix(
+        (simd_float4){ m00, m01, m02, m03 },
+        (simd_float4){ m10, m11, m12, m13 },
+        (simd_float4){ m20, m21, m22, m23 },
+        (simd_float4){ m30, m31, m32, m33 }
+    );
+}
+
+- (void) setWorldTransformIdentityMatrix:(float)m00
+        m01:(float)m01 m02:(float)m02 m03:(float)m03
+        m10:(float)m10 m11:(float)m11 m12:(float)m12 m13:(float)m13
+        m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
+        m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33
+{
+    CTX_LOG(@"MetalContext.setWorldTransformIdentityMatrix()");
+    worldMatrix = simd_matrix(
+        (simd_float4){ m00, m01, m02, m03 },
+        (simd_float4){ m10, m11, m12, m13 },
+        (simd_float4){ m20, m21, m22, m23 },
+        (simd_float4){ m30, m31, m32, m33 }
+    );
+}
+
+- (void) renderMeshView:(MetalMeshView*)meshView
+{
+    // TODO: MTL: Move creation of MTLRenderPassDescriptor to commom class
+    // like MetalMeshView
+    id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
+    MTLRenderPassDescriptor* phongRPD = [MTLRenderPassDescriptor new];
+    phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
+    phongRPD.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1); // make this programmable
+    phongRPD.colorAttachments[0].storeAction = MTLStoreActionStore;
+    phongRPD.colorAttachments[0].texture = [[self getRTT] getTexture];
+
+    id<MTLRenderCommandEncoder> phongEncoder = [commandBuffer renderCommandEncoderWithDescriptor:phongRPD];
+    id<MTLRenderPipelineState> phongPipelineState =
+        [[self getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"];
+    [phongEncoder setRenderPipelineState:phongPipelineState];
+    // In Metal default winding order is Clockwise but the vertex data that
+    // we are getting is in CounterClockWise order, so we need to set
+    // MTLWindingCounterClockwise explicitly
+    [phongEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
+    [phongEncoder setCullMode:[meshView getCullingMode]];
+    [phongEncoder setVertexBytes:&mvpMatrix
+                               length:sizeof(mvpMatrix)
+                              atIndex:1];
+    [phongEncoder setVertexBytes:&worldMatrix
+                               length:sizeof(worldMatrix)
+                              atIndex:2];
+    MetalMesh* mesh = [meshView getMesh];
+    id<MTLBuffer> vBuffer = [mesh getVertexBuffer];
+    [phongEncoder setVertexBuffer:vBuffer
+                           offset:0
+                            atIndex:0];
+    [phongEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+        indexCount:[mesh getNumIndices]
+        indexType:MTLIndexTypeUInt16
+        indexBuffer:[mesh getIndexBuffer]
+        indexBufferOffset:0];
+    [phongEncoder endEncoding];
+
+    [commandBuffer commit];
+    [commandBuffer waitUntilCompleted];
+    // TODO: MTL: Check whether we need to resetRenderPass
+}
+
 - (void) resetRenderPass
 {
     CTX_LOG(@"MetalContext.resetRenderPass()");
@@ -345,6 +422,18 @@
 - (void) setCurrentShader:(MetalShader*) shader
 {
     currentShader = shader;
+}
+
+- (NSInteger) setDeviceParametersFor3D
+{
+    // TODO: MTL: Check whether we can do RenderPassDescriptor
+    // initialization in this call
+    CTX_LOG(@"MetalContext_setDeviceParametersFor3D()");
+
+    if (!phongShader) {
+        phongShader = ([[MetalPhongShader alloc] createPhongShader:self]);
+    }
+    return 1;
 }
 
 // TODO: MTL: This was copied from GlassHelper, and could be moved to a utility class.
@@ -456,6 +545,353 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetProjViewMatrix
         m30:m30 m31:m31 m32:m32 m33:m33];
 
     return 1;
+}
+
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWorldTransform
+  (JNIEnv *env, jclass jClass,
+    jlong context,
+    jdouble m00, jdouble m01, jdouble m02, jdouble m03,
+    jdouble m10, jdouble m11, jdouble m12, jdouble m13,
+    jdouble m20, jdouble m21, jdouble m22, jdouble m23,
+    jdouble m30, jdouble m31, jdouble m32, jdouble m33)
+{
+    CTX_LOG(@"MTLContext_nSetWorldTransform");
+    MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
+
+    CTX_LOG(@"%f %f %f %f", m00, m01, m02, m03);
+    CTX_LOG(@"%f %f %f %f", m10, m11, m12, m13);
+    CTX_LOG(@"%f %f %f %f", m20, m21, m22, m23);
+    CTX_LOG(@"%f %f %f %f", m30, m31, m32, m33);
+
+    [mtlContext setWorldTransformMatrix:m00 m01:m01 m02:m02 m03:m03
+        m10:m10 m11:m11 m12:m12 m13:m13
+        m20:m20 m21:m21 m22:m22 m23:m23
+        m30:m30 m31:m31 m32:m32 m33:m33];
+
+    return;
+}
+
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWorldTransformToIdentity
+  (JNIEnv *env, jclass jClass,
+    jlong context)
+{
+    CTX_LOG(@"MTLContext_nSetWorldTransformToIdentity");
+    MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
+
+    [mtlContext setWorldTransformIdentityMatrix:1 m01:0 m02:0 m03:0
+        m10:0 m11:1 m12:0 m13:0
+        m20:0 m21:0 m22:1 m23:0
+        m30:0 m31:0 m32:0 m33:1];
+
+    return;
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nCreateMTLMesh
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMesh
+  (JNIEnv *env, jclass jClass, jlong ctx)
+{
+    CTX_LOG(@"MTLContext_nCreateMTLMesh");
+    //return 1;
+    MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
+
+    MetalMesh* mesh = ([[MetalMesh alloc] createMesh:pCtx]);
+    return ptr_to_jlong(mesh);
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nReleaseMTLMesh
+ * Signature: (JJ)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMesh
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh)
+{
+    // TODO: MTL: Complete the implementation
+    CTX_LOG(@"MTLContext_nReleaseMTLMesh");
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nBuildNativeGeometryShort
+ * Signature: (JJ[FI[SI)Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometryShort
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh, jfloatArray vb, jint vbSize, jshortArray ib, jint ibSize)
+{
+    CTX_LOG(@"MTLContext_nBuildNativeGeometryShort");
+    CTX_LOG(@"vbSize %d ibSize %d", vbSize, ibSize);
+    MetalMesh *mesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
+
+    if (vbSize < 0 || ibSize < 0) {
+        return JNI_FALSE;
+    }
+
+    unsigned int uvbSize = (unsigned int) vbSize;
+    unsigned int uibSize = (unsigned int) ibSize;
+    unsigned int vertexBufferSize = (*env)->GetArrayLength(env, vb);
+    unsigned int indexBufferSize = (*env)->GetArrayLength(env, ib);
+    CTX_LOG(@"vertexBufferSize %d indexBufferSize %d", vertexBufferSize, indexBufferSize);
+
+    if (uvbSize > vertexBufferSize || uibSize > indexBufferSize) {
+        return JNI_FALSE;
+    }
+
+    float *vertexBuffer = (float *) ((*env)->GetPrimitiveArrayCritical(env, vb, 0));
+    if (vertexBuffer == NULL) {
+        CTX_LOG(@"MTLContext_nBuildNativeGeometryShort vertexBuffer is NULL");
+        return JNI_FALSE;
+    }
+
+    unsigned short *indexBuffer = (unsigned short *) ((*env)->GetPrimitiveArrayCritical(env, ib, 0));
+    if (indexBuffer == NULL) {
+        CTX_LOG(@"MTLContext_nBuildNativeGeometryShort indexBuffer is NULL");
+        (*env)->ReleasePrimitiveArrayCritical(env, vb, vertexBuffer, 0);
+        return JNI_FALSE;
+    }
+
+    bool result = [mesh buildBuffers:vertexBuffer
+                                  vSize:uvbSize
+                                iBuffer:indexBuffer
+                                  iSize:uibSize];
+    (*env)->ReleasePrimitiveArrayCritical(env, ib, indexBuffer, 0);
+    (*env)->ReleasePrimitiveArrayCritical(env, vb, vertexBuffer, 0);
+
+    return result;
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nBuildNativeGeometryInt
+ * Signature: (JJ[FI[II)Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometryInt
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh, jfloatArray vb, jint vbSize, jintArray ib, jint ibSize)
+{
+    // TODO: MTL: Complete the implementation
+    CTX_LOG(@"MTLContext_nBuildNativeGeometryInt");
+    return JNI_TRUE;
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nCreateMTLPhongMaterial
+ * Signature: (J)J
+ */
+JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLPhongMaterial
+  (JNIEnv *env, jclass jClass, jlong ctx)
+{
+    CTX_LOG(@"MTLContext_nCreateMTLPhongMaterial");
+    MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
+
+    MetalPhongMaterial *phongMaterial = ([[MetalPhongMaterial alloc] createPhongMaterial:pCtx]);
+    return ptr_to_jlong(phongMaterial);
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nReleaseMTLPhongMaterial
+ * Signature: (JJ)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLPhongMaterial
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial)
+{
+    // TODO: MTL: Complete the implementation
+    CTX_LOG(@"MTLContext_nReleaseMTLPhongMaterial");
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetDiffuseColor
+ * Signature: (JJFFFF)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDiffuseColor
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
+        jfloat r, jfloat g, jfloat b, jfloat a)
+{
+    CTX_LOG(@"MTLContext_nSetDiffuseColor");
+    MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
+    [phongMaterial setDiffuseColor:r g:g b:b a:a];
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetSpecularColor
+ * Signature: (JJZFFFF)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetSpecularColor
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
+        jboolean set, jfloat r, jfloat g, jfloat b, jfloat a)
+{
+    CTX_LOG(@"MTLContext_nSetSpecularColor");
+    MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
+    bool specularSet = set ? true : false;
+    [phongMaterial setSpecularColor:specularSet r:r g:g b:b a:a];
+}
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetMap
+ * Signature: (JJIJ)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMap
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
+        jint mapType, jlong nativeTexture)
+{
+    // TODO: MTL: Complete the implementation
+    CTX_LOG(@"MTLContext_nSetMap");
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nCreateMTLMeshView
+ * Signature: (JJ)J
+ */
+JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMeshView
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh)
+{
+    CTX_LOG(@"MTLContext_nCreateMTLMeshView");
+    MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
+
+    MetalMesh *pMesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
+
+    MetalMeshView* meshView = ([[MetalMeshView alloc] createMeshView:pCtx
+                                                                mesh:pMesh]);
+    return ptr_to_jlong(meshView);
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nReleaseMTLMeshView
+ * Signature: (JJ)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMeshView
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
+{
+    // TODO: MTL: Complete the implementation
+    CTX_LOG(@"MTLContext_nReleaseMTLMeshView");
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetCullingMode
+ * Signature: (JJI)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCullingMode
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jint cullMode)
+{
+    CTX_LOG(@"MTLContext_nSetCullingMode");
+    MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
+
+    switch (cullMode) {
+        case com_sun_prism_mtl_MTLContext_CULL_BACK:
+            cullMode = MTLCullModeBack;
+            break;
+        case com_sun_prism_mtl_MTLContext_CULL_FRONT:
+            cullMode = MTLCullModeFront;
+            break;
+        case com_sun_prism_mtl_MTLContext_CULL_NONE:
+            cullMode = MTLCullModeNone;
+            break;
+    }
+    [meshView setCullingMode:cullMode];
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetMaterial
+ * Signature: (JJJ)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMaterial
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jlong nativePhongMaterial)
+{
+    CTX_LOG(@"MTLContext_nSetMaterial");
+    MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
+
+    MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
+    [meshView setMaterial:phongMaterial];
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetWireframe
+ * Signature: (JJZ)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWireframe
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jboolean wireframe)
+{
+    CTX_LOG(@"MTLContext_nSetWireframe");
+    MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
+    bool isWireFrame = wireframe ? true : false;
+    [meshView setWireframe:isWireFrame];
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetAmbientLight
+ * Signature: (JJFFF)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetAmbientLight
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView,
+        jfloat r, jfloat g, jfloat b)
+{
+    CTX_LOG(@"MTLContext_nSetAmbientLight");
+    MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
+    [meshView setAmbientLight:r g:g b:b];
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetLight
+ * Signature: (JJIFFFFFFFFFFFFFFFFFF)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetLight
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jint index,
+        jfloat x, jfloat y, jfloat z, jfloat r, jfloat g, jfloat b, jfloat w,
+        jfloat ca, jfloat la, jfloat qa, jfloat isAttenuated, jfloat range,
+        jfloat dirX, jfloat dirY, jfloat dirZ, jfloat innerAngle, jfloat outerAngle, jfloat falloff)
+{
+    CTX_LOG(@"MTLContext_nSetLight");
+    MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
+    [meshView setLight:index
+        x:x y:y z:z
+        r:r g:g b:b w:w
+        ca:ca la:la qa:qa
+        isA:isAttenuated range:range
+        dirX:dirX dirY:dirY dirZ:dirZ
+        inA:innerAngle outA:outerAngle
+        falloff:falloff];
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nRenderMeshView
+ * Signature: (JJ)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRenderMeshView
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
+{
+    CTX_LOG(@"MTLContext_nRenderMeshView");
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+    MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
+    [pCtx renderMeshView:meshView];
+    return;
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetDeviceParametersFor3D
+ */
+
+JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor3D
+  (JNIEnv *env, jclass jClass, jlong ctx)
+{
+    CTX_LOG(@"MTLContext_nSetDeviceParametersFor3D");
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+
+    return [pCtx setDeviceParametersFor3D];
 }
 
 /*

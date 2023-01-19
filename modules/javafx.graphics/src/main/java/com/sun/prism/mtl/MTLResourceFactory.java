@@ -215,20 +215,20 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public PhongMaterial createPhongMaterial() {
-        // TODO: MTL: Complete implementation
-        return null;
+        if (checkDisposed()) return null;
+        return MTLPhongMaterial.create(context);
     }
 
     @Override
     public MeshView createMeshView(Mesh mesh) {
-        // TODO: MTL: Complete implementation
-        return null;
+        if (checkDisposed()) return null;
+        return MTLMeshView.create(context, (MTLMesh) mesh);
     }
 
     @Override
     public Mesh createMesh() {
-        // TODO: MTL: Complete implementation
-        return null;
+        if (checkDisposed()) return null;
+        return MTLMesh.create(context);
     }
 
     static native long nCreateTexture(long pContext,
