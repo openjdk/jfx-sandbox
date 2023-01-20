@@ -130,6 +130,33 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
                 }
                 break;
 
+            case BYTE_GRAY:
+                    // Suitable 8-bit native formats are MTLPixelFormatA8Unorm & MTLPixelFormatR8Unorm.
+                    // These formats do not work well with our generated shader - Texture_RGB.
+                    // hence `arr` data is converted to BGRA format here.
+                    //
+                    // In future, if needed for performance reason:
+                    // Texture_RGB shader can be tweaked to fill up R,G,B fields from single byte grayscale value.
+                    // Care must be taken not to break current behavior of this shader.
+                    byte[] arr32Bit = new byte[srcw * srch * 4];
+                    int dstIndex = 0;
+                    int index = 0;
+
+                    final int totalBytes = srch * srcw;
+
+                    for (int rowIndex = 0; rowIndex < totalBytes; rowIndex += srcw) {
+                        for (int colIndex = 0; colIndex < srcw; colIndex++) {
+                            index = rowIndex + colIndex;
+                            arr32Bit[dstIndex++] = arr[index];
+                            arr32Bit[dstIndex++] = arr[index];
+                            arr32Bit[dstIndex++] = arr[index];
+                            arr32Bit[dstIndex++] = (byte)255;
+                        }
+                    }
+
+                    nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr32Bit, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
+                break;
+
             default:
                 // assume that `arr` data is in BGRA format
                 nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
