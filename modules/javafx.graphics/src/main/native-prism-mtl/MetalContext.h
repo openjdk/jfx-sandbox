@@ -81,6 +81,7 @@ typedef enum VertexInputIndex {
 
     MetalPipelineManager* pipelineManager;
     MetalPhongShader *phongShader;
+    MTLRenderPassDescriptor* phongRPD;
 }
 
 - (MetalPipelineManager*) getPipelineManager;

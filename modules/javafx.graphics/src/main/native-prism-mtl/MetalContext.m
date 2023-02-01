@@ -269,15 +269,7 @@
 
 - (void) renderMeshView:(MetalMeshView*)meshView
 {
-    // TODO: MTL: Move creation of MTLRenderPassDescriptor to commom class
-    // like MetalMeshView
     id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
-    MTLRenderPassDescriptor* phongRPD = [MTLRenderPassDescriptor new];
-    phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
-    phongRPD.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1); // make this programmable
-    phongRPD.colorAttachments[0].storeAction = MTLStoreActionStore;
-    phongRPD.colorAttachments[0].texture = [[self getRTT] getTexture];
-
     id<MTLRenderCommandEncoder> phongEncoder = [commandBuffer renderCommandEncoderWithDescriptor:phongRPD];
     id<MTLRenderPipelineState> phongPipelineState =
         [[self getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"];
@@ -307,7 +299,13 @@
 
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
-    // TODO: MTL: Check whether we need to resetRenderPass
+    [self updatePhongLoadAction];
+}
+
+- (void) updatePhongLoadAction
+{
+    CTX_LOG(@"MetalContext.updatePhongLoadAction()");
+    phongRPD.colorAttachments[0].loadAction = MTLLoadActionLoad;
 }
 
 - (void) resetRenderPass
@@ -399,13 +397,18 @@
 
 - (NSInteger) setDeviceParametersFor3D
 {
-    // TODO: MTL: Check whether we can do RenderPassDescriptor
-    // initialization in this call
     CTX_LOG(@"MetalContext_setDeviceParametersFor3D()");
+    id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
+    phongRPD = [MTLRenderPassDescriptor new];
+    phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
+    phongRPD.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1); // make this programmable
+    phongRPD.colorAttachments[0].storeAction = MTLStoreActionStore;
+    phongRPD.colorAttachments[0].texture = [[self getRTT] getTexture];
 
-    if (!phongShader) {
+    // TODO: MTL: Check whether we need to do shader initialization here
+    /*if (!phongShader) {
         phongShader = ([[MetalPhongShader alloc] createPhongShader:self]);
-    }
+    }*/
     return 1;
 }
 
