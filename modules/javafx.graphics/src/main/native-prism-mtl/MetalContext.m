@@ -70,7 +70,7 @@
 
         rttPassDesc = [MTLRenderPassDescriptor new];
         rttPassDesc.colorAttachments[0].loadAction = rttLoadAction;
-        rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1); // make this programmable
+        rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 0); // make this programmable
         rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
 
         MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor new] autorelease];
@@ -201,9 +201,8 @@
     sampler = nil;
 
     if (tex0 != nil) {
-        // id<MTLTexture> tex = [tex0 getTexture];
-        // [currentShader setTexture: @"inputTex" texture:tex];
-        // [renderEncoder useResource:tex usage:MTLResourceUsageRead];
+        id<MTLTexture> tex = [tex0 getTexture];
+        [renderEncoder useResource:tex usage:MTLResourceUsageRead];
     }
 
     int numQuads = numVerts/4;

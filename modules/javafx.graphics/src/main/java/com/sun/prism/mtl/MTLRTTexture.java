@@ -114,14 +114,12 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     public boolean getUseMipmap() {
         // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
-        // return false;
     }
 
     @Override
     public Texture getSharedTexture(WrapMode altMode) {
         // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
-        // return null;
     }
 
     @Override
@@ -147,28 +145,24 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     public boolean readPixels(Buffer pixels) {
         // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
-        // return false;
     }
 
     @Override
     public boolean readPixels(Buffer pixels, int x, int y, int width, int height) {
         // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
-        // return false;
     }
 
     @Override
     public boolean isVolatile() {
         // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
-        // return false;
     }
 
     @Override
     public Screen getAssociatedScreen() {
         // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
-        // return null;
     }
 
     @Override
@@ -180,7 +174,6 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     public boolean isOpaque() {
         // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
-        // return false;
     }
 
     @Override

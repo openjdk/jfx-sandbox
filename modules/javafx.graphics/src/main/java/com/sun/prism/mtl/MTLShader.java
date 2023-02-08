@@ -37,12 +37,11 @@ public class MTLShader implements Shader  {
     // TODO: MTL: Use table/Dict for storing shader function pointer based on function name
     private final MTLContext context;
     private final String fragmentFunctionName;
-    private final Map<Integer, String> samplers = new HashMap<>();
     private final long nMetalShaderRef;
+    private final Map<Integer, String> samplers = new HashMap<>();
 
     private static Map<String, MTLShader> shaderMap = new HashMap<>();
     private static MTLShader currentEnabledShader;
-
 
     native private static long nCreateMetalShader(long context, String fragFuncName);
     native private static long nEnable(long nMetalShader);
@@ -89,12 +88,12 @@ public class MTLShader implements Shader  {
 
         if (shaderMap.containsKey(fragFuncName)) {
             System.err.println("    The shader was already created and exists in map");
-            System.err.println("<<< MTLShader.createShader()");
+            System.err.println("<<< MTLShader.createShader()1");
             return shaderMap.get(fragFuncName);
         } else {
             MTLShader shader = new MTLShader(ctx, fragFuncName);
             shader.storeSamplers(samplers);
-            System.err.println("<<< MTLShader.createShader()");
+            System.err.println("<<< MTLShader.createShader()1");
             return shader;
         }
     }
@@ -109,7 +108,7 @@ public class MTLShader implements Shader  {
         } else {
             shader = new MTLShader(ctx, fragFuncName);
         }
-        System.err.println("<<< MTLShader.createShader()");
+        System.err.println("<<< MTLShader.createShader()2");
         return shader;
     }
 
@@ -157,7 +156,6 @@ public class MTLShader implements Shader  {
         System.err.println(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
         System.err.println("    MTLShader.setConstant() name = " + name + ", i0 = " + i0);
         nSetInt(nMetalShaderRef, name, i0);
-        //throw new UnsupportedOperationException("Not implemented yet.");
     }
 
     @Override

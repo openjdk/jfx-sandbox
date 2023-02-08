@@ -69,7 +69,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
         for (NSString *key in fragArgIndicesDict) {
             id value = fragArgIndicesDict[key];
-            SHADER_LOG(@"Value: %@ for key: %@", value, key);
+            SHADER_LOG(@"-> Native: MetalShader.initWithContext() Value: %@ for key: %@", value, key);
         }
 
         fragFuncName = fragName;
@@ -294,9 +294,9 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nSetTexture
     SHADER_LOG(@"\n");
     SHADER_LOG(@"-> JNICALL Native: MTLShader_nSetTexture");
     MetalShader* mtlShader = (MetalShader*)jlong_to_ptr(shader);
-    NSString* nameString = jStringToNSString(env, name);
-    MetalTexture* mtlTex = (MetalTexture*)jlong_to_ptr(nTexturePtr);
-    id<MTLTexture> tex = [mtlTex getTexture];
+    NSString* nameString   = jStringToNSString(env, name);
+    MetalTexture* mtlTex   = (MetalTexture*)jlong_to_ptr(nTexturePtr);
+    id<MTLTexture> tex     = [mtlTex getTexture];
 
     [mtlShader setTexture:nameString texture:tex];
     return 1;

@@ -104,20 +104,20 @@
 
     self = [super init];
     if (self) {
-        width = w;
-        height = h;
+        width   = w;
+        height  = h;
         context = ctx;
-        usage = texUsage;
+        usage   = texUsage;
+        type    = MTLTextureType2D;
         pixelFormat = MTLPixelFormatBGRA8Unorm;
-        type = MTLTextureType2D;
         storageMode = MTLResourceStorageModeShared;
 
         texDescriptor = [MTLTextureDescriptor new];
-        texDescriptor.textureType = type;
-        texDescriptor.width = width;
+        texDescriptor.usage  = usage;
+        texDescriptor.width  = width;
         texDescriptor.height = height;
+        texDescriptor.textureType = type;
         texDescriptor.pixelFormat = pixelFormat;
-        texDescriptor.usage = usage;
 
         id<MTLDevice> device = [context getDevice];
 
@@ -166,7 +166,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
     TEX_LOG(@"\n");
     TEX_LOG(@"-> Native: MTLTexture_nUpdate srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
-    MetalTexture* mtlTex = (MetalTexture*)jlong_to_ptr(nTexturePtr);
+    MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 
     id<MTLTexture> tex = [mtlTex getTexture];
     jbyte *pixels = (*env)->GetByteArrayElements(env, pixData, 0);
