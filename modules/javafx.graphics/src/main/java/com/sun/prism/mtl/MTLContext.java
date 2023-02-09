@@ -363,7 +363,7 @@ public class MTLContext extends BaseShaderContext {
     native private static int  nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
     native private static void nUpdateRenderTarget(long context, long texPtr);
     native private static int  nResetTransform(long context);
-    native private static int  nSetSampler(long pContext, boolean isLinear, int wrapMode);
+    native private static void nSetSampler(long pContext, boolean isLinear, int wrapMode);
     native private static void nSetTex0(long context, long texPtr);
     native private static int  nSetProjViewMatrix(long pContext, boolean isOrtho,
         double m00, double m01, double m02, double m03,

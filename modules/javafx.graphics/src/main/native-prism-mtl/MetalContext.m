@@ -172,7 +172,7 @@
 {
     CTX_LOG(@"MetalContext.drawIndexedQuads()");
 
-    CTX_LOG(@"numVerts = %d", numVerts);
+    CTX_LOG(@"numVerts = %lu", numVerts);
 
     id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
 
@@ -365,7 +365,7 @@
     int numQuads = numTriangles / 2;
 
 
-    CTX_LOG(@"fillVB : numVerts = %d, numTriangles = %d, numQuads = %d", numVerts, numTriangles, numQuads);
+    CTX_LOG(@"fillVB : numVerts = %d, numTriangles = %lu, numQuads = %d", numVerts, numTriangles, numQuads);
 
     for (int i = 0; i < numQuads; i++) {
         unsigned char const* colors = (unsigned char*)(pSrcColors + i * 4 * 4);
@@ -506,7 +506,7 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
     return 1;
 }
 
-JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetSampler
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetSampler
   (JNIEnv *env, jclass jClass,
     jlong context, jboolean isLinear, jint wrapMode)
 {
