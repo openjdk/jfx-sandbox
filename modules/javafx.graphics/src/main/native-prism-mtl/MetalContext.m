@@ -202,6 +202,12 @@
 
     if (tex0 != nil) {
         id<MTLTexture> tex = [tex0 getTexture];
+        // TODO: MTL: JDK-8302166
+        // This call is needed for Text rendering. Text rendering would break
+        // if removed. But this gets executed for any texture that was set last,
+        // so it should be moved to a better place so that it executes only when needed.
+        // so this if block and relevant call to setTex0 from MTLContext.setTexture
+        // would also be removed.
         [renderEncoder useResource:tex usage:MTLResourceUsageRead];
     }
 
