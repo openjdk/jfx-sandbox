@@ -70,10 +70,31 @@
 
         rttPassDesc = [MTLRenderPassDescriptor new];
         rttPassDesc.colorAttachments[0].loadAction = rttLoadAction;
-        rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1); // make this programmable
+        rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 0); // make this programmable
         rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
+
+        MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor new] autorelease];
+        sampler = [device newSamplerStateWithDescriptor:samplerDescriptor];
     }
     return self;
+}
+
+- (void) setSampler:(bool)isLinear wrapMode:(int)wrapMode;
+{
+    CTX_LOG(@"MetalContext.setSampler()");
+    MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor new] autorelease];
+    if (isLinear) {
+        samplerDescriptor.minFilter = MTLSamplerMinMagFilterLinear;
+        samplerDescriptor.magFilter = MTLSamplerMinMagFilterLinear;
+        samplerDescriptor.mipFilter = MTLSamplerMinMagFilterLinear;
+    }
+    if (wrapMode != -1) {
+        samplerDescriptor.rAddressMode = wrapMode;
+        samplerDescriptor.sAddressMode = wrapMode;
+        samplerDescriptor.tAddressMode = wrapMode;
+    }
+
+    sampler = [device newSamplerStateWithDescriptor:samplerDescriptor];
 }
 
 - (void) setRTT:(MetalRTTexture*)rttPtr
@@ -88,7 +109,6 @@
     CTX_LOG(@"-> Native: MetalContext.getRTT()");
     return rtt;
 }
-
 
 - (void) setTex0:(MetalTexture*)texPtr
 {
@@ -173,9 +193,15 @@
                               offset:0
                              atIndex:0];
 
+    if (sampler == nil) {
+        MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor new] autorelease];
+        sampler = [device newSamplerStateWithDescriptor:samplerDescriptor];
+    }
+    [renderEncoder setFragmentSamplerState:sampler atIndex:0];
+    sampler = nil;
+
     if (tex0 != nil) {
         id<MTLTexture> tex = [tex0 getTexture];
-        [currentShader setTexture: @"inputTex" texture:tex];
         [renderEncoder useResource:tex usage:MTLResourceUsageRead];
     }
 
@@ -478,6 +504,15 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     //[mtlContext resetProjViewMatrix];
     return 1;
+}
+
+JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetSampler
+  (JNIEnv *env, jclass jClass,
+    jlong context, jboolean isLinear, jint wrapMode)
+{
+    CTX_LOG(@"MTLContext_nSetSampler");
+    MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
+    [mtlContext setSampler:isLinear  wrapMode:wrapMode];
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTex0

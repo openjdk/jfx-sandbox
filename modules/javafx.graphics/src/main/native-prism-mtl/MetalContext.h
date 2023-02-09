@@ -70,6 +70,8 @@ typedef enum VertexInputIndex {
     id<MTLBuffer> currentFragArgBuffer;
     MetalShader* currentShader;
 
+    id<MTLSamplerState> sampler;
+
     MetalResourceFactory* resourceFactory;
 
     MetalRTTexture* rtt;
@@ -101,6 +103,8 @@ typedef enum VertexInputIndex {
 - (MetalTexture*) getTex0;
 - (void) setRTT:(MetalRTTexture*)rttPtr;
 - (MetalRTTexture*) getRTT;
+- (void) setSampler:(bool)isLinear wrapMode:(int)wrapMode;
+
 - (void) fillVB:(struct PrismSourceVertex const *)pSrcFloats colors:(char const *)pSrcColors
                   numVertices:(int)numVerts;
 - (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcFloats

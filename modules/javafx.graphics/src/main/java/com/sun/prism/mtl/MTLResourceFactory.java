@@ -31,9 +31,12 @@ import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.impl.TextureResourcePool;
 import com.sun.prism.impl.ps.BaseShaderFactory;
 import com.sun.prism.ps.Shader;
+import com.sun.prism.ps.ShaderFactory;
 
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 import java.util.Map;
+import java.lang.reflect.Method;
 
 public class MTLResourceFactory extends BaseShaderFactory {
     private final MTLContext context;
@@ -56,37 +59,52 @@ public class MTLResourceFactory extends BaseShaderFactory {
     }
 
     @Override
-    public Shader createShader(InputStream pixelShaderCode, Map<String, Integer> samplers,
+    public Shader createShader(InputStream shaderNameStream, Map<String, Integer> samplers,
                                Map<String, Integer> params, int maxTexCoordIndex,
                                boolean isPixcoordUsed, boolean isPerVertexColorUsed) {
-        // All Metal shaders are compiled into a MTLLibrary at build time. No shader code
-        // is generated and compiled at run time. Hence this method is no-op.
-        throw new UnsupportedOperationException("Not required for Metal");
+        try {
+            String shaderName = new String(shaderNameStream.readAllBytes());
+            return createShader(shaderName, samplers, params, maxTexCoordIndex,
+                                isPixcoordUsed, isPerVertexColorUsed);
+        } catch (Exception e) {
+            throw new UnsupportedOperationException("Failed to create a prism shader");
+        }
     }
 
     @Override
     public Shader createShader(String shaderName, Map<String, Integer> samplers,
                                Map<String, Integer> params, int maxTexCoordIndex,
                                boolean isPixcoordUsed, boolean isPerVertexColorUsed) {
-        System.err.println(">>> createShader()");
+        System.err.println(">>> MTLResourceFactory.createShader()");
         System.err.println("    shaderName: " + shaderName);
         System.err.println("    samplers: " + samplers);
         System.err.println("    params: " + params);
         System.err.println("    maxTexCoordIndex: " + maxTexCoordIndex);
         System.err.println("    isPixcoordUsed: " + isPixcoordUsed);
         System.err.println("    isPerVertexColorUsed: " + isPerVertexColorUsed);
-        MTLShader shader = MTLShader.createShader(getContext(), shaderName);
-        System.err.println("<<< createShader()");
+        Shader shader = MTLShader.createShader(getContext(), shaderName, samplers,
+                params, maxTexCoordIndex, isPixcoordUsed, isPerVertexColorUsed);
+        System.err.println("<<< MTLResourceFactory.createShader()");
         return shader;
     }
 
     @Override
     public Shader createStockShader(String shaderName) {
-        System.err.println(">>> createStockShader() : " + shaderName);
-        // MTLShader shader = new MTLShader(getContext(), shaderName);
-        MTLShader shader = MTLShader.createShader(getContext(), shaderName);
-        System.err.println("<<< createStockShader() : " + shaderName);
-        return shader;
+        if (shaderName == null) {
+            throw new IllegalArgumentException("Shader name must be non-null");
+        }
+        try {
+            if (PrismSettings.verbose) {
+                System.out.println("MTLResourceFactory: Prism - createStockShader: " + shaderName);
+            }
+            Class klass = Class.forName("com.sun.prism.shader." + shaderName + "_Loader");
+            Method m = klass.getMethod("loadShader", new Class[] {ShaderFactory.class, InputStream.class});
+            InputStream nameStream = new ByteArrayInputStream(shaderName.getBytes());
+            return (Shader) m.invoke(null, new Object[]{this, nameStream});
+        } catch (Throwable e) {
+            e.printStackTrace();
+            throw new InternalError("Error loading stock shader " + shaderName);
+        }
     }
 
     @Override
@@ -98,7 +116,6 @@ public class MTLResourceFactory extends BaseShaderFactory {
     public Texture createTexture(PixelFormat formatHint, Texture.Usage usageHint,
                                  Texture.WrapMode wrapMode, int w, int h) {
         // TODO: MTL: Complete implementation
-        //return null;
         return createTexture(formatHint, usageHint, wrapMode, w,h, false);
     }
 
@@ -149,14 +166,14 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public int getRTTWidth(int w, Texture.WrapMode wrapMode) {
-        // TODO: MTL: Complete implementation
-        return 0;
+        int rttWidth = nextPowerOf64(w, 8192);
+        return rttWidth;
     }
 
     @Override
     public int getRTTHeight(int h, Texture.WrapMode wrapMode) {
-        // TODO: MTL: Complete implementation
-        return 0;
+        int rttHeight = nextPowerOf64(h, 8192);
+        return rttHeight;
     }
 
     @Override

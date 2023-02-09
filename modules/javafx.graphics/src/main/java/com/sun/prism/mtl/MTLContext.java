@@ -50,6 +50,16 @@ public class MTLContext extends BaseShaderContext {
     public static final int MTL_COMPMODE_DSTOUT          = 3;
     public static final int MTL_COMPMODE_ADD             = 4;
 
+    public static final int MTL_SAMPLER_ADDR_MODE_NOP                    = -1;
+    // CLAMP_TO_EDGE
+    public static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_EDGE          = 0; // MTLSamplerAddressModeClampToEdge
+    public static final int MTL_SAMPLER_ADDR_MODE_MIRR_CLAMP_TO_EDGE     = 1; // MTLSamplerAddressModeMirrorClampToEdge
+    // REPEAT
+    public static final int MTL_SAMPLER_ADDR_MODE_REPEAT                 = 2; // MTLSamplerAddressModeRepeat
+    public static final int MTL_SAMPLER_ADDR_MODE_MIRR_REPEAT            = 3; // MTLSamplerAddressModeMirrorRepeat
+    // CLAMP_TO_ZERO
+    public static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_ZERO          = 4; // MTLSamplerAddressModeClampToZero
+    public static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_BORDER_COLOR  = 5; // MTLSamplerAddressModeClampToBorderColor
 
     private final long pContext;
     private MTLRTTexture renderTarget;
@@ -191,13 +201,20 @@ public class MTLContext extends BaseShaderContext {
             }
         }
 
+        /*
         // ------------------------------------------------------------------------------------------
         // TODO: MTL: This scale transformation is to accomodate HiDPi scale. It is a temporary hack to match screen scaling.
         // This hack shoule be removed once the MTLSwapChain is properly implemented to work with PresentingPainter
         // ------------------------------------------------------------------------------------------
+
+        // TODO: MTL: This scaling is removed with Decora POC implementation, this needs more
+        // investigation to find other changes required to make this work.
+        // for example, even the texture might need to be scaled in accordance to screen scale.
+
         projViewTx.scale(getAssociatedScreen().getRecommendedOutputScaleX(),
                          getAssociatedScreen().getRecommendedOutputScaleY(), 1.0);
-
+        System.err.println("MTLContext.updateRenderTarget() projViewTx:4:-->\n" + projViewTx);
+        */
         System.err.println("MTLContext.updateRenderTarget() projViewTx:3:-->\n" + projViewTx);
 
         // Set projection view matrix
@@ -214,6 +231,35 @@ public class MTLContext extends BaseShaderContext {
     @Override
     protected void updateTexture(int texUnit, Texture tex) {
         System.err.println("MTLContext.updateTexture() :texUnit = " + texUnit + ", tex = " + tex);
+        boolean linear;
+        int wrapMode;
+        if (tex != null) {
+            linear = tex.getLinearFiltering();
+            switch (tex.getWrapMode()) {
+                case CLAMP_NOT_NEEDED:
+                    wrapMode = MTL_SAMPLER_ADDR_MODE_NOP;
+                    break;
+                case CLAMP_TO_EDGE:
+                case CLAMP_TO_EDGE_SIMULATED:
+                case CLAMP_TO_ZERO_SIMULATED:
+                    wrapMode = MTL_SAMPLER_ADDR_MODE_CLAMP_TO_EDGE;
+                    break;
+                case CLAMP_TO_ZERO:
+                    wrapMode = MTL_SAMPLER_ADDR_MODE_CLAMP_TO_ZERO;
+                    break;
+                case REPEAT:
+                case REPEAT_SIMULATED:
+                    wrapMode = MTL_SAMPLER_ADDR_MODE_REPEAT;
+                    break;
+                default:
+                    throw new InternalError("Unrecognized wrap mode: " + tex.getWrapMode());
+            }
+        } else {
+            linear = false;
+            wrapMode = MTL_SAMPLER_ADDR_MODE_CLAMP_TO_EDGE;
+        }
+        MTLShader.setTexture(texUnit, tex);
+        nSetSampler(getContextHandle(), linear, wrapMode);
         MTLTexture tex0 = (MTLTexture)tex;
         nSetTex0(pContext, tex0.getNativeHandle());
     }
@@ -294,14 +340,14 @@ public class MTLContext extends BaseShaderContext {
     @Override
     protected void renderQuads(float[] coordArray, byte[] colorArray, int numVertices) {
         System.err.println("\n\nnumVertices = " + numVertices);
-        System.err.println("coordArray : size = "+coordArray.length);
+        System.err.println("coordArray : length = " + coordArray.length);
         for (int i = 0; i < numVertices * 7; i += 7) {
             System.err.println(
                     "xyz: x: " + coordArray[i] + ", y: " + coordArray[i + 1] + ", z: " + coordArray[i + 2]
                     + ",  uv1: u: " + coordArray[i + 3] + ", v: " + coordArray[i + 4]
                     + ",  uv2: u: " + coordArray[i + 5] + ", v: " + coordArray[i + 6]);
         }
-        System.err.println("\ncolorArray : size = "+ colorArray.length);
+        System.err.println("\ncolorArray : length = " + colorArray.length);
         for (int i = 0; i < numVertices * 4; i += 4) {
             int r = colorArray[i] & 0xFF;
             int g = colorArray[i + 1] & 0xFF;
@@ -314,11 +360,12 @@ public class MTLContext extends BaseShaderContext {
     }
 
     native private static long nInitialize(String shaderLibPathStr);
-    native private static int nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
+    native private static int  nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
     native private static void nUpdateRenderTarget(long context, long texPtr);
-    native private static int nResetTransform(long context);
+    native private static int  nResetTransform(long context);
+    native private static int  nSetSampler(long pContext, boolean isLinear, int wrapMode);
     native private static void nSetTex0(long context, long texPtr);
-    private static native int nSetProjViewMatrix(long pContext, boolean isOrtho,
+    native private static int  nSetProjViewMatrix(long pContext, boolean isOrtho,
         double m00, double m01, double m02, double m03,
         double m10, double m11, double m12, double m13,
         double m20, double m21, double m22, double m23,
