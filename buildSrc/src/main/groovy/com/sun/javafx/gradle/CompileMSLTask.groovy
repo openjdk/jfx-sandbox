@@ -32,7 +32,7 @@ class CompileMSLTask extends NativeCompileTask {
         def headerDir = 'gensrc/mtl-headers';
         def includeDir = "$project.buildDir/$headerDir"
         project.exec({
-            commandLine = ["${project.metalCompiler}", "-I", "$includeDir", "-c", "$sourceFile", "-o", "$outputFile"]
+            commandLine = ["${project.metalCompiler}", "-Wdeprecated", "-I", "$includeDir", "-c", "$sourceFile", "-o", "$outputFile"]
         });
     }
 }

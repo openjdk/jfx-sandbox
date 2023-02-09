@@ -44,7 +44,7 @@ typedef struct VS_OUTPUT
 } VS_OUTPUT;
 
 
-vertex VS_OUTPUT passThrough(const uint v_id [[ vertex_id ]],
+[[vertex]] VS_OUTPUT passThrough(const uint v_id [[ vertex_id ]],
                       constant VS_INPUT * v_in [[ buffer(0) ]],
                       constant float4x4 & mvp_matrix [[ buffer(1) ]])
 {
