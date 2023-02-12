@@ -254,14 +254,13 @@ public class MTLContext extends BaseShaderContext {
                 default:
                     throw new InternalError("Unrecognized wrap mode: " + tex.getWrapMode());
             }
-        } else {
-            linear = false;
-            wrapMode = MTL_SAMPLER_ADDR_MODE_CLAMP_TO_EDGE;
+            MTLShader.setTexture(texUnit, tex);
+            nSetSampler(getContextHandle(), linear, wrapMode);
+
+            // TODO: MTL: JDK-8302166
+            MTLTexture tex0 = (MTLTexture)tex;
+            nSetTex0(pContext, tex0.getNativeHandle());
         }
-        MTLShader.setTexture(texUnit, tex);
-        nSetSampler(getContextHandle(), linear, wrapMode);
-        MTLTexture tex0 = (MTLTexture)tex;
-        nSetTex0(pContext, tex0.getNativeHandle());
     }
 
     @Override
