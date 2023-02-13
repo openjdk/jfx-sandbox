@@ -211,7 +211,7 @@ public class MSLBackend extends SLBackend {
                 // as first parameter.
                 if (!CoreSymbols.getFunctions().contains(getFuncName(e.getFunction().getName())) &&
                         !libraryFunctionsUsedInShader.contains(getFuncName(e.getFunction().getName()))) {
-                    output("uniforms, ");
+                    output("textureSampler, uniforms, ");
                 }
                 first = false;
             } else {
@@ -233,7 +233,7 @@ public class MSLBackend extends SLBackend {
                 // Add "constant Uniforms& uniforms" as the first parameter to all user defined functions.
                 if (!CoreSymbols.getFunctions().contains(getFuncName(d.getFunction().getName())) &&
                         !libraryFunctionsUsedInShader.contains(getFuncName(d.getFunction().getName()))) {
-                    output("device " + uniformStructName + "& uniforms, ");
+                    output("sampler textureSampler, device " + uniformStructName + "& uniforms, ");
                 }
                 first = false;
             } else {
@@ -426,9 +426,8 @@ public class MSLBackend extends SLBackend {
         uniformsForShaderFile = uniformsForShaderFile.replace(" float3", " vector_float3");
         uniformsForShaderFile = uniformsForShaderFile.replace(" float4", " vector_float4");
         header.append("typedef struct " + uniformStructName + " {\n" + uniformsForShaderFile + "} " + uniformStructName + ";\n\n");
-        header.append("sampler " + textureSamplerName + ";\n\n");
-        header.append("float4 " + sampleTexFuncName + "(texture2d<float> colorTexture, float2 texCoord) {\n");
-        header.append("    return colorTexture.sample(" + textureSamplerName + ", texCoord);\n");
+        header.append("float4 " + sampleTexFuncName + "(sampler textureSampler, texture2d<float> colorTexture, float2 texCoord) {\n");
+        header.append("    return colorTexture.sample(textureSampler, texCoord);\n");
         header.append("}\n\n");
 
         return header.toString();
@@ -442,7 +441,6 @@ public class MSLBackend extends SLBackend {
         fragmentFunctionDef += ",\n    device " + uniformStructName + "& uniforms [[ buffer(0) ]]";
         fragmentFunctionDef += ",\n    sampler textureSampler [[sampler(0)]]";
         fragmentFunctionDef += ") {\n\nfloat4 outFragColor;";
-        fragmentFunctionDef += "\n" + textureSamplerName + " = textureSampler;";
         shader = shader.replace(MAIN, fragmentFunctionDef);
 
         int indexOfClosingBraceOfMain = shader.lastIndexOf('}');
@@ -453,6 +451,7 @@ public class MSLBackend extends SLBackend {
             shader = shader.replaceAll("\\b" + helperFunction + "\\b", shaderFunctionName + "_" + helperFunction);
         }
         shader = shader.replaceAll("\\bsampleTex\\b", sampleTexFuncName);
+        shader = shader.replaceAll("\\b" + sampleTexFuncName + "\\(uniforms" + "\\b" , sampleTexFuncName + "(textureSampler, uniforms");
 
         return shader;
     }
