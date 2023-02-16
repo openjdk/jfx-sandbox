@@ -195,6 +195,18 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
             }   
             break;
 
+            case BYTE_ALPHA: {
+                ByteBuffer buf = (ByteBuffer)buffer;
+                byte[] arr = buf.hasArray()? buf.array(): null;
+
+                if (arr == null) {
+                    arr = new byte[buf.remaining()];
+                    buf.get(arr);
+                }
+                nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+            }
+            break;
+
             default:
                 throw new IllegalArgumentException("Unsupported PixelFormat "+ format);
         }
