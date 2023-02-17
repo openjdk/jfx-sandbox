@@ -33,6 +33,7 @@ import com.sun.prism.impl.BaseTexture;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.nio.FloatBuffer;
 
 public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTextureResource<T>> {
 
@@ -87,13 +88,16 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
     native private static void nUpdate(long contextHandle, long pResource,
                                        byte[] pixels,
                                        int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
+    native private static void nUpdateFloat(long contextHandle, long pResource,
+                                            float[] pixels,
+                                            int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
 
 
 @Override
     public void update(Buffer buffer, PixelFormat format, int dstx, int dsty, int srcx, int srcy, int srcw, int srch, int srcscan, boolean skipFlush) {
 
-        switch(format) {
-            case INT_ARGB_PRE: {
+        if (format.getDataType() == PixelFormat.DataType.INT) {
+            if (format == PixelFormat.INT_ARGB_PRE) {
                 IntBuffer buf = (IntBuffer)buffer;
                 int[] arr = buf.hasArray() ? buf.array() : null;
                 if (arr == null) {
@@ -111,30 +115,42 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
                 }
 
                 nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), bArr, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
+            } else {
+                throw new IllegalArgumentException("Unsupported INT PixelFormat"+ format);
             }
-            break;
+        } else if (format.getDataType() == PixelFormat.DataType.FLOAT) {
+            if (format == PixelFormat.FLOAT_XYZW) {
+                System.err.println("FLOAT_XYZW - data type of buffer is : " + buffer.getClass().getName());
+                System.err.println("Buffer capacity : " + buffer.capacity());
+                System.err.println("Buffer limit : " + buffer.limit());
+                System.err.println("srcscan  = " + srcscan);
+                System.err.println("srcw  = " + srcw);
+                System.err.println("srch  = " + srch);
 
-            case BYTE_BGRA_PRE: {
-                ByteBuffer buf = (ByteBuffer)buffer;
-                byte[] arr = buf.hasArray()? buf.array(): null;
+                FloatBuffer buf = (FloatBuffer)buffer;
+                float[] arr = buf.hasArray()? buf.array(): null;
 
                 if (arr == null) {
-                    arr = new byte[buf.remaining()];
+                    arr = new float[buf.remaining()];
                     buf.get(arr);
                 }
+
+                nUpdateFloat(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+            } else {
+                throw new IllegalArgumentException("Unsupported FLOAT PixelFormat"+ format);
+            }
+        } else if (format.getDataType() == PixelFormat.DataType.BYTE) {
+            ByteBuffer buf = (ByteBuffer)buffer;
+            byte[] arr = buf.hasArray()? buf.array(): null;
+
+            if (arr == null) {
+                arr = new byte[buf.remaining()];
+                buf.get(arr);
+            }
+
+            if (format == PixelFormat.BYTE_BGRA_PRE || format == PixelFormat.BYTE_ALPHA) {
                 nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
-            }
-            break;
-
-            case BYTE_RGB: {
-                ByteBuffer buf = (ByteBuffer)buffer;
-                byte[] arr = buf.hasArray()? buf.array(): null;
-
-                if (arr == null) {
-                    arr = new byte[buf.remaining()];
-                    buf.get(arr);
-                }
-
+            } else if (format == PixelFormat.BYTE_RGB) {
                 // Metal does not support 24-bit format
                 // hence `arr` data needs to be converted to BGRA format that
                 // the native metal texture expects
@@ -156,18 +172,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
                 }
 
                 nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr32Bit, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
-            }
-            break;
-
-            case BYTE_GRAY: {
-                ByteBuffer buf = (ByteBuffer)buffer;
-                byte[] arr = buf.hasArray()? buf.array(): null;
-
-                if (arr == null) {
-                    arr = new byte[buf.remaining()];
-                    buf.get(arr);
-                }
-
+            } else if (format == PixelFormat.BYTE_GRAY) {
                 // Suitable 8-bit native formats are MTLPixelFormatA8Unorm & MTLPixelFormatR8Unorm.
                 // These formats do not work well with our generated shader - Texture_RGB.
                 // hence `arr` data is converted to BGRA format here.
@@ -192,23 +197,11 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
                 }
 
                 nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr32Bit, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
-            }   
-            break;
-
-            case BYTE_ALPHA: {
-                ByteBuffer buf = (ByteBuffer)buffer;
-                byte[] arr = buf.hasArray()? buf.array(): null;
-
-                if (arr == null) {
-                    arr = new byte[buf.remaining()];
-                    buf.get(arr);
-                }
-                nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+            } else if (format == PixelFormat.MULTI_YCbCr_420 || format == PixelFormat.BYTE_APPLE_422) {
+                throw new IllegalArgumentException("Format not yet supported by Metal pipeline :"+ format);
             }
-            break;
-
-            default:
-                throw new IllegalArgumentException("Unsupported PixelFormat "+ format);
+        } else {
+            throw new IllegalArgumentException("Unsupported PixelFormat DataType : "+ format);
         }
     }
 

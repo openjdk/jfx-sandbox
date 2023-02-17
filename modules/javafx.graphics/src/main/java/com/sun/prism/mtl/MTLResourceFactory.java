@@ -151,8 +151,19 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public boolean isFormatSupported(PixelFormat format) {
-        // TODO: MTL: Complete implementation
-        return false;
+        switch (format) {
+            case BYTE_RGB:
+            case BYTE_GRAY:
+            case BYTE_ALPHA:
+            case BYTE_BGRA_PRE:
+            case INT_ARGB_PRE:
+            case FLOAT_XYZW:
+                return true;
+            case MULTI_YCbCr_420:
+            case BYTE_APPLE_422:
+            default:
+                return false;
+        }
     }
 
     @Override

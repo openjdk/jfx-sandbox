@@ -49,7 +49,12 @@
         pixelFormat = MTLPixelFormatBGRA8Unorm;
         if (format == 4) { // TODO: MTL: have proper format to pixelFormat mapping
             pixelFormat = MTLPixelFormatA8Unorm;
+            TEX_LOG(@"Creating texture with native format MTLPixelFormatA8Unorm");
         }
+        if (format == 7) {
+            pixelFormat = MTLPixelFormatRGBA32Float;
+            TEX_LOG(@"Creating texture with native format MTLPixelFormatRGBA32Float");
+         }
         type = MTLTextureType2D;
         storageMode = MTLResourceStorageModeShared;
 
@@ -179,6 +184,31 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
              bytesPerRow: scanStride];
 
     (*env)->ReleaseByteArrayElements(env, pixData, pixels, 0);
+
+    // TODO: MTL: add error detection and return appropriate jlong
+    return 0;
+}
+
+JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
+(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jfloatArray pixData, jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride) {
+    TEX_LOG(@"\n");
+    TEX_LOG(@"-> Native: MTLTexture_nUpdateFloat srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
+    MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
+    MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
+
+    id<MTLTexture> tex = [mtlTex getTexture];
+    jfloat *pixels = (*env)->GetFloatArrayElements(env, pixData, 0);
+
+    void* vPtr = (void*) pixels;
+
+    MTLRegion region = {{dstx,dsty,0}, {w, h, 1}};
+
+    [tex replaceRegion:region
+             mipmapLevel:0
+             withBytes:pixels
+             bytesPerRow: scanStride];
+
+    (*env)->ReleaseFloatArrayElements(env, pixData, pixels, 0);
 
     // TODO: MTL: add error detection and return appropriate jlong
     return 0;
