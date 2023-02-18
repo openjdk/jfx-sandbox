@@ -59,28 +59,6 @@ public class MTLGraphics extends BaseShaderGraphics {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    @Override
-    public void scale(float sx, float sy, float sz) {
-        System.err.println("MTLGraphics.scale() sx = " + sx + ", sy = " + sy + ", sz = " + sz);
-        // Treat scale as identity scale if platform doesn't support 3D
-        // and it isn't a 2D scale
-        /*if (!GraphicsPipeline.getPipeline().is3DSupported() &&  sz != 1.0f) {
-            return;
-        }*/
-        //super.scale(sx, sy, sz);
-    }
-
-    @Override
-    public void scale(float sx, float sy) {
-        System.err.println("MTLGraphics.scale() sx = " + sx + ", sy = " + sy);
-        // Treat scale as identity scale if platform doesn't support 3D
-        // and it isn't a 2D scale
-        /*if (!GraphicsPipeline.getPipeline().is3DSupported() &&  sz != 1.0f) {
-            return;
-        }*/
-        //super.scale(sx, sy, 1.0f);
-    }
-
     private static native int nClear(long pContext, int colorArgbPre);
 
 }

@@ -199,23 +199,8 @@ public class MTLContext extends BaseShaderContext {
             if (targetWidth != vw || targetHeight != vh) {
                 projViewTx.scale(vw / targetWidth, vh / targetHeight, 1.0);
             }
+            System.err.println("MTLContext.updateRenderTarget() projViewTx:3:-->\n" + projViewTx);
         }
-
-        /*
-        // ------------------------------------------------------------------------------------------
-        // TODO: MTL: This scale transformation is to accomodate HiDPi scale. It is a temporary hack to match screen scaling.
-        // This hack shoule be removed once the MTLSwapChain is properly implemented to work with PresentingPainter
-        // ------------------------------------------------------------------------------------------
-
-        // TODO: MTL: This scaling is removed with Decora POC implementation, this needs more
-        // investigation to find other changes required to make this work.
-        // for example, even the texture might need to be scaled in accordance to screen scale.
-
-        projViewTx.scale(getAssociatedScreen().getRecommendedOutputScaleX(),
-                         getAssociatedScreen().getRecommendedOutputScaleY(), 1.0);
-        System.err.println("MTLContext.updateRenderTarget() projViewTx:4:-->\n" + projViewTx);
-        */
-        System.err.println("MTLContext.updateRenderTarget() projViewTx:3:-->\n" + projViewTx);
 
         // Set projection view matrix
         nSetProjViewMatrix(pContext, depthTest,
