@@ -92,6 +92,10 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
                                             float[] pixels,
                                             int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
 
+    native private static void nUpdateInt(long contextHandle, long pResource,
+                                            int[] pixels,
+                                            int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
+
 
 @Override
     public void update(Buffer buffer, PixelFormat format, int dstx, int dsty, int srcx, int srcy, int srcw, int srch, int srcscan, boolean skipFlush) {
@@ -105,16 +109,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
                     buf.get(arr);
                 }
 
-                byte[] bArr = new byte[arr.length * 4];
-                int j = 0;
-                for (int i=0; i<arr.length; i++) {
-                    bArr[j++] = (byte) ((arr[i] & 0xFF));
-                    bArr[j++] = (byte) ((arr[i] >> 8) & 0xFF);
-                    bArr[j++] = (byte) ((arr[i] >> 16) & 0xFF);
-                    bArr[j++] = (byte) ((arr[i] >> 24) & 0xFF);
-                }
-
-                nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), bArr, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
+                nUpdateInt(this.context.getContextHandle(), this.getNativeHandle(), arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
             } else {
                 throw new IllegalArgumentException("Unsupported INT PixelFormat"+ format);
             }
