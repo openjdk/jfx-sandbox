@@ -23,39 +23,19 @@
  * questions.
  */
 
-#ifndef METAL_LIGHT_H
-#define METAL_LIGHT_H
+static constant int numLights = 3;
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
-#import "MetalContext.h"
-
-@interface MetalLight : NSObject
-{
-    @public
-    float position[3];
-    float color[3];
-    float lightOn;
-    float attenuation[4]; // ca, la, qa, isAttenuated
-    float maxRange;
-    float direction[3];
-    float inAngle;
-    float outAngle;
-    float foff;
-}
-
-- (MetalLight*) createLight:(float)x y:(float)y z:(float)z
-            r:(float)r g:(float)g b:(float)b w:(float)w
-            ca:(float)ca la:(float)la qa:(float)qa
-            isA:(float)isAttenuated range:(float)range
-            dirX:(float)dirX dirY:(float)dirY dirZ:(float)dirZ
-            inA:(float)innerAngle outA:(float)outerAngle
-            falloff:(float)falloff;
-
-- (bool) isPointLight;
-- (bool) isDirectionalLight;
-
-@end
-
-#endif
+struct VS_PHONG_INOUT {
+    float4 position [[position]];
+    float2 texCoord;
+    // TODO: MTL: Currently i can't use
+    // array of vectors in metal. Find a way
+    // to implement it in a better way
+    float3 worldVecsToLights1;
+    float3 worldVecsToLights2;
+    float3 worldVecsToLights3;
+    float3 worldNormLightDirs1;
+    float3 worldNormLightDirs2;
+    float3 worldNormLightDirs3;
+    float3 worldVecToEye;
+};

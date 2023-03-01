@@ -23,39 +23,8 @@
  * questions.
  */
 
-#ifndef METAL_LIGHT_H
-#define METAL_LIGHT_H
-
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
-#import "MetalContext.h"
-
-@interface MetalLight : NSObject
-{
-    @public
-    float position[3];
-    float color[3];
-    float lightOn;
-    float attenuation[4]; // ca, la, qa, isAttenuated
-    float maxRange;
-    float direction[3];
-    float inAngle;
-    float outAngle;
-    float foff;
-}
-
-- (MetalLight*) createLight:(float)x y:(float)y z:(float)z
-            r:(float)r g:(float)g b:(float)b w:(float)w
-            ca:(float)ca la:(float)la qa:(float)qa
-            isA:(float)isAttenuated range:(float)range
-            dirX:(float)dirX dirY:(float)dirY dirZ:(float)dirZ
-            inA:(float)innerAngle outA:(float)outerAngle
-            falloff:(float)falloff;
-
-- (bool) isPointLight;
-- (bool) isDirectionalLight;
-
-@end
-
-#endif
+struct VS_PHONG_INPUT {
+    packed_float3 position;
+    packed_float2 texCoord;
+    packed_float4 normal;
+};

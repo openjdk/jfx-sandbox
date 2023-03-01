@@ -364,7 +364,7 @@ public class MTLContext extends BaseShaderContext {
                                                   double m20, double m21, double m22, double m23,
                                                   double m30, double m31, double m32, double m33);
     private static native int nSetDeviceParametersFor3D(long pContext);
-    private static native int nSetCameraPosition(long pContext, double x, double y, double z);
+    private static native void nSetCameraPosition(long pContext, double x, double y, double z);
     private static native long nCreateMTLMesh(long pContext);
     private static native void nReleaseMTLMesh(long pContext, long nativeHandle);
     private static native boolean nBuildNativeGeometryShort(long pContext, long nativeHandle,
@@ -543,8 +543,7 @@ public class MTLContext extends BaseShaderContext {
             rawMatrix[8], rawMatrix[9], rawMatrix[10], rawMatrix[11],
             rawMatrix[12], rawMatrix[13], rawMatrix[14], rawMatrix[15]);
 
-        // TODO: MTL: Implement eye position
-        //res = nSetCameraPosition(pContext, cameraPos.x, cameraPos.y, cameraPos.z);
+        nSetCameraPosition(pContext, cameraPos.x, cameraPos.y, cameraPos.z);
 
         // Undo the SwapChain scaling done in createGraphics() because 3D needs
         // this information in the shader (via projViewTx)

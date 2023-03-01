@@ -299,41 +299,6 @@
     );
 }
 
-- (void) renderMeshView:(MetalMeshView*)meshView
-{
-    id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
-    id<MTLRenderCommandEncoder> phongEncoder = [commandBuffer renderCommandEncoderWithDescriptor:phongRPD];
-    id<MTLRenderPipelineState> phongPipelineState =
-        [[self getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"];
-    [phongEncoder setRenderPipelineState:phongPipelineState];
-    // In Metal default winding order is Clockwise but the vertex data that
-    // we are getting is in CounterClockWise order, so we need to set
-    // MTLWindingCounterClockwise explicitly
-    [phongEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
-    [phongEncoder setCullMode:[meshView getCullingMode]];
-    [phongEncoder setVertexBytes:&mvpMatrix
-                               length:sizeof(mvpMatrix)
-                              atIndex:1];
-    [phongEncoder setVertexBytes:&worldMatrix
-                               length:sizeof(worldMatrix)
-                              atIndex:2];
-    MetalMesh* mesh = [meshView getMesh];
-    id<MTLBuffer> vBuffer = [mesh getVertexBuffer];
-    [phongEncoder setVertexBuffer:vBuffer
-                           offset:0
-                            atIndex:0];
-    [phongEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-        indexCount:[mesh getNumIndices]
-        indexType:MTLIndexTypeUInt16
-        indexBuffer:[mesh getIndexBuffer]
-        indexBufferOffset:0];
-    [phongEncoder endEncoding];
-
-    [commandBuffer commit];
-    [commandBuffer waitUntilCompleted];
-    [self updatePhongLoadAction];
-}
-
 - (void) updatePhongLoadAction
 {
     CTX_LOG(@"MetalContext.updatePhongLoadAction()");
@@ -442,6 +407,35 @@
         phongShader = ([[MetalPhongShader alloc] createPhongShader:self]);
     }*/
     return 1;
+}
+
+- (void) setCameraPosition:(float)x
+            y:(float)y z:(float)z
+{
+    cPos.x = x;
+    cPos.y = y;
+    cPos.z = z;
+    cPos.w = 0;
+}
+
+- (MTLRenderPassDescriptor*) getPhongRPD
+{
+    return phongRPD;
+}
+
+- (simd_float4x4) getMVPMatrix
+{
+    return mvpMatrix;
+}
+
+- (simd_float4x4) getWorldMatrix
+{
+    return worldMatrix;
+}
+
+- (vector_float4) getCameraPosition
+{
+    return cPos;
 }
 
 // TODO: MTL: This was copied from GlassHelper, and could be moved to a utility class.
@@ -882,10 +876,25 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRenderMeshView
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
 {
     CTX_LOG(@"MTLContext_nRenderMeshView");
-    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
-    [pCtx renderMeshView:meshView];
+    [meshView render];
     return;
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetCameraPosition
+ */
+
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCameraPosition
+  (JNIEnv *env, jclass jClass, jlong ctx, jdouble x,
+   jdouble y, jdouble z)
+{
+    CTX_LOG(@"MTLContext_nSetDeviceParametersFor3D");
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+
+    return [pCtx setCameraPosition:x
+            y:y z:z];
 }
 
 /*

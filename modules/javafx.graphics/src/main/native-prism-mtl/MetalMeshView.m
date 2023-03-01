@@ -24,6 +24,7 @@
  */
 
 #import "MetalMeshView.h"
+#import "MetalPipelineManager.h"
 
 #ifdef MESH_VERBOSE
 #define MESH_LOG NSLog
@@ -114,4 +115,114 @@
 {
     return cullMode;
 }
+
+- (void) render
+{
+    // Prepare lights data
+    float lightsPosition[MAX_NUM_LIGHTS * 4];      // 3 coords + 1 padding
+    float lightsNormDirection[MAX_NUM_LIGHTS * 4]; // 3 coords + 1 padding
+    float lightsColor[MAX_NUM_LIGHTS * 4];         // 3 color + 1 padding
+    float lightsAttenuation[MAX_NUM_LIGHTS * 4];   // 3 attenuation factors + 1 isAttenuated
+    float lightsRange[MAX_NUM_LIGHTS * 4];         // 1 maxRange + 3 padding
+    float spotLightsFactors[MAX_NUM_LIGHTS * 4];   // 2 angles + 1 falloff + 1 padding
+    for (int i = 0, d = 0, p = 0, c = 0, a = 0, r = 0, s = 0; i < MAX_NUM_LIGHTS; i++) {
+        MetalLight* light = lights[i];
+
+        lightsPosition[p++] = light->position[0];
+        lightsPosition[p++] = light->position[1];
+        lightsPosition[p++] = light->position[2];
+        lightsPosition[p++] = 0;
+
+        lightsNormDirection[d++] = light->direction[0];
+        lightsNormDirection[d++] = light->direction[1];
+        lightsNormDirection[d++] = light->direction[2];
+        lightsNormDirection[d++] = 0;
+
+        lightsColor[c++] = light->color[0];
+        lightsColor[c++] = light->color[1];
+        lightsColor[c++] = light->color[2];
+        lightsColor[c++] = 1;
+
+        lightsAttenuation[a++] = light->attenuation[0];
+        lightsAttenuation[a++] = light->attenuation[1];
+        lightsAttenuation[a++] = light->attenuation[2];
+        lightsAttenuation[a++] = light->attenuation[3];
+
+        lightsRange[r++] = light->maxRange;
+        lightsRange[r++] = 0;
+        lightsRange[r++] = 0;
+        lightsRange[r++] = 0;
+
+        if ([light isPointLight] || [light isDirectionalLight]) {
+            spotLightsFactors[s++] = -1; // cos(180)
+            spotLightsFactors[s++] = 2;  // cos(0) - cos(180)
+            spotLightsFactors[s++] = 0;
+            spotLightsFactors[s++] = 0;
+        } else {
+            // preparing for: I = pow((cosAngle - cosOuter) / (cosInner - cosOuter), falloff)
+            float cosInner = cos(light->inAngle * M_PI / 180);
+            float cosOuter = cos(light->outAngle * M_PI / 180);
+            spotLightsFactors[s++] = cosOuter;
+            spotLightsFactors[s++] = cosInner - cosOuter;
+            spotLightsFactors[s++] = light->foff;
+            spotLightsFactors[s++] = 0;
+        }
+    }
+
+    id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
+    id<MTLRenderCommandEncoder> phongEncoder = [commandBuffer renderCommandEncoderWithDescriptor:[context getPhongRPD]];
+    id<MTLRenderPipelineState> phongPipelineState =
+        [[context getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"];
+    [phongEncoder setRenderPipelineState:phongPipelineState];
+    // In Metal default winding order is Clockwise but the vertex data that
+    // we are getting is in CounterClockWise order, so we need to set
+    // MTLWindingCounterClockwise explicitly
+    [phongEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
+    [phongEncoder setCullMode:cullMode];
+    simd_float4x4 mvpMatrix = [context getMVPMatrix];
+    vector_float4 camPos = [context getCameraPosition];
+    [phongEncoder setVertexBytes:&mvpMatrix
+                               length:sizeof(mvpMatrix)
+                              atIndex:1];
+    simd_float4x4 worldMatrix = [context getWorldMatrix];
+    [phongEncoder setVertexBytes:&worldMatrix
+                               length:sizeof(worldMatrix)
+                              atIndex:2];
+    [phongEncoder setVertexBytes:&lightsPosition
+                               length:sizeof(lightsPosition)
+                              atIndex:3];
+    [phongEncoder setVertexBytes:&lightsNormDirection
+                               length:sizeof(lightsNormDirection)
+                              atIndex:4];
+    [phongEncoder setVertexBytes:&camPos
+                               length:sizeof(camPos)
+                              atIndex:5];
+    id<MTLBuffer> vBuffer = [mesh getVertexBuffer];
+    [phongEncoder setVertexBuffer:vBuffer
+                           offset:0
+                            atIndex:0];
+    [phongEncoder setFragmentBytes:&lightsAttenuation
+                                length:sizeof(lightsAttenuation)
+                                atIndex:0];
+    [phongEncoder setFragmentBytes:&lightsColor
+                                length:sizeof(lightsColor)
+                                atIndex:1];
+    [phongEncoder setFragmentBytes:&lightsRange
+                                length:sizeof(lightsRange)
+                                atIndex:2];
+    [phongEncoder setFragmentBytes:&spotLightsFactors
+                                length:sizeof(spotLightsFactors)
+                                atIndex:3];
+    [phongEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+        indexCount:[mesh getNumIndices]
+        indexType:MTLIndexTypeUInt16
+        indexBuffer:[mesh getIndexBuffer]
+        indexBufferOffset:0];
+    [phongEncoder endEncoding];
+
+    [commandBuffer commit];
+    [commandBuffer waitUntilCompleted];
+    [context updatePhongLoadAction];
+}
+
 @end // MetalMeshView

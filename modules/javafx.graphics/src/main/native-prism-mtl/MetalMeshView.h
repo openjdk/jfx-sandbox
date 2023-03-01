@@ -67,6 +67,7 @@
 
 - (MetalMesh*) getMesh;
 - (int) getCullingMode;
+- (void) render;
 @end
 
 #endif

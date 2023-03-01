@@ -84,6 +84,7 @@ typedef enum VertexInputIndex {
     MetalPipelineManager* pipelineManager;
     MetalPhongShader *phongShader;
     MTLRenderPassDescriptor* phongRPD;
+    vector_float4 cPos;
 }
 
 - (MetalPipelineManager*) getPipelineManager;
@@ -129,8 +130,14 @@ typedef enum VertexInputIndex {
         m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33;
 
 - (NSInteger) setDeviceParametersFor3D;
+- (void) updatePhongLoadAction;
+- (MTLRenderPassDescriptor*) getPhongRPD;
+- (simd_float4x4) getMVPMatrix;
+- (simd_float4x4) getWorldMatrix;
+- (void) setCameraPosition:(float)x
+        y:(float)y z:(float)z;
+- (vector_float4) getCameraPosition;
 
-- (void) renderMeshView:(MetalMeshView*)meshView;
 @end
 
 #endif
