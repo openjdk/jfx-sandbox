@@ -110,19 +110,6 @@
     return rtt;
 }
 
-- (void) setTex0:(MetalTexture*)texPtr
-{
-    CTX_LOG(@"-> Native: MetalContext.setTex0() ----- %p", texPtr);
-    tex0 = texPtr;
-}
-
-- (MetalTexture*) getTex0
-{
-    CTX_LOG(@"-> Native: MetalContext.getTex0()");
-    return tex0;
-}
-
-
 - (id<MTLDevice>) getDevice
 {
     // CTX_LOG(@"MetalContext.getDevice()");
@@ -200,14 +187,10 @@
     [renderEncoder setFragmentSamplerState:sampler atIndex:0];
     sampler = nil;
 
-    if (tex0 != nil) {
-        id<MTLTexture> tex = [tex0 getTexture];
-        // TODO: MTL: JDK-8302166
-        // This call is needed for Text rendering. Text rendering would break
-        // if removed. But this gets executed for any texture that was set last,
-        // so it should be moved to a better place so that it executes only when needed.
-        // so this if block and relevant call to setTex0 from MTLContext.setTexture
-        // would also be removed.
+    NSMutableDictionary* textures = [[self getCurrentShader] getTexutresDict];
+    for (NSString *key in textures) {
+        id<MTLTexture> tex = textures[key];
+        CTX_LOG(@"    Value: %@ for key: %@", tex, key);
         [renderEncoder useResource:tex usage:MTLResourceUsageRead];
     }
 
@@ -513,15 +496,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetSampler
     CTX_LOG(@"MTLContext_nSetSampler");
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     [mtlContext setSampler:isLinear  wrapMode:wrapMode];
-}
-
-JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTex0
-  (JNIEnv *env, jclass jClass, jlong context, jlong texPtr)
-{
-    CTX_LOG(@"MTLContext_nSetTex0 : texPtr = %ld", texPtr);
-    MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
-    MetalTexture *tex = (MetalTexture *)jlong_to_ptr(texPtr);
-    [mtlContext setTex0:tex];
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetProjViewMatrix

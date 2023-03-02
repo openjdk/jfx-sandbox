@@ -75,7 +75,6 @@ typedef enum VertexInputIndex {
     MetalResourceFactory* resourceFactory;
 
     MetalRTTexture* rtt;
-    MetalTexture* tex0;
     MTLRenderPassDescriptor* rttPassDesc;
     MTLLoadAction rttLoadAction;
     //MTLRenderPipelineDescriptor* passThroughPipeDesc;
@@ -100,8 +99,6 @@ typedef enum VertexInputIndex {
 - (void) setRTTLoadActionToClear;
 - (void) resetRenderPass;
 
-- (void) setTex0:(MetalTexture*)texPtr;
-- (MetalTexture*) getTex0;
 - (void) setRTT:(MetalRTTexture*)rttPtr;
 - (MetalRTTexture*) getRTT;
 - (void) setSampler:(bool)isLinear wrapMode:(int)wrapMode;

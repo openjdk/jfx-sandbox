@@ -241,10 +241,6 @@ public class MTLContext extends BaseShaderContext {
             }
             MTLShader.setTexture(texUnit, tex);
             nSetSampler(getContextHandle(), linear, wrapMode);
-
-            // TODO: MTL: JDK-8302166
-            MTLTexture tex0 = (MTLTexture)tex;
-            nSetTex0(pContext, tex0.getNativeHandle());
         }
     }
 
@@ -348,7 +344,6 @@ public class MTLContext extends BaseShaderContext {
     native private static void nUpdateRenderTarget(long context, long texPtr);
     native private static int  nResetTransform(long context);
     native private static void nSetSampler(long pContext, boolean isLinear, int wrapMode);
-    native private static void nSetTex0(long context, long texPtr);
     native private static int  nSetProjViewMatrix(long pContext, boolean isOrtho,
         double m00, double m01, double m02, double m03,
         double m10, double m11, double m12, double m13,
