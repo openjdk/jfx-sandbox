@@ -218,6 +218,7 @@ public class MTLShader implements Shader  {
     public void setConstants(String name, FloatBuffer buf, int off, int count) {
         System.err.println(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
         System.err.println("    MTLShader.setConstant() name = " + name + ", buf = " + buf + ", off = " + off + ", count = " + count);
+        count = 4 * count;
         float[] values = new float[count];
         System.err.println("MTLShader.setConstant() name = " + name + ", buf = " + values + ", off = " + off + ", count = " + count);
         buf.get(off, values, 0, count);
