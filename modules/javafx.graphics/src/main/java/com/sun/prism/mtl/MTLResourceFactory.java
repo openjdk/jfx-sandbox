@@ -237,7 +237,10 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public void dispose() {
+        // This is simply invoking super method as of now.
         // TODO: MTL: Complete implementation
+        System.err.println("MTLResourceFactory dispose is invoked");
+        super.dispose();
     }
 
     @Override
@@ -264,9 +267,12 @@ public class MTLResourceFactory extends BaseShaderFactory {
                                       int width, int height, int samples,
                                       boolean useMipmap);
 
+    static native void nReleaseTexture(long context, long pTexture);
+
     static void releaseResource(MTLContext context, long resource) {
     }
 
     static void releaseTexture(MTLContext context, long resource) {
+        nReleaseTexture(context.getContextHandle(), resource);
     }
 }

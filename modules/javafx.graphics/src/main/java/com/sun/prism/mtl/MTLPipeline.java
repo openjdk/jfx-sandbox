@@ -94,6 +94,11 @@ public class MTLPipeline extends GraphicsPipeline {
 
     @Override
     public void dispose() {
+        if (mtlResourceFactory != null) {
+            mtlResourceFactory.dispose();
+            mtlResourceFactory = null;
+        }
+
         super.dispose();
     }
 

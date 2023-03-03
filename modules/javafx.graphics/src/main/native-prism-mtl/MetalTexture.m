@@ -117,7 +117,7 @@
         pixelFormat = MTLPixelFormatBGRA8Unorm;
         storageMode = MTLResourceStorageModeShared;
 
-        texDescriptor = [MTLTextureDescriptor new];
+        texDescriptor = [[MTLTextureDescriptor new] autorelease];
         texDescriptor.usage  = usage;
         texDescriptor.width  = width;
         texDescriptor.height = height;
@@ -162,6 +162,22 @@
 {
     return texture;
 }
+
+- (void)dealloc
+{
+    if (texture != nil) {
+        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing native MTLTexture");
+        [texture release];
+        texture = nil;
+    }
+
+    if (pixelBuffer != nil) {
+        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing native MTLBuffer");
+        [pixelBuffer release];
+        pixelBuffer = nil;
+    }
+}
+
 
 @end // MetalTexture
 

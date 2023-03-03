@@ -54,3 +54,15 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLResourceFactory_nCreateTexture
         jlong rtt = ptr_to_jlong([[MetalTexture alloc] createTexture:context ofWidth:width ofHeight:height pixelFormat:format]);
         return rtt;
 }
+
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLResourceFactory_nReleaseTexture
+    (JNIEnv *env, jclass class, jlong pContext, jlong pTexture) {
+
+        MetalContext* context = (MetalContext*) jlong_to_ptr(pContext);
+        MetalTexture* pTex = (MetalTexture*) jlong_to_ptr(pTexture);
+
+        METAL_LOG(@"-> MTLResourceFactory_nReleaseTexture : Releasing MetalTexture = %lu", pTexture);
+
+        [pTex dealloc];
+        pTex = NULL;
+}

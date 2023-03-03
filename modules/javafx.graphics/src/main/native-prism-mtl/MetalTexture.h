@@ -58,6 +58,8 @@
 - (MetalTexture*) createTexture:(MetalContext*)context ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h pixelFormat:(NSUInteger) format;
 - (MetalTexture*) createTexture:(MetalContext*)context ofUsage:(MTLTextureUsage)texUsage ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h;
 - (id<MTLBuffer>) getPixelBuffer;
+- (void)dealloc;
+
 //- (void) blitTo:(MetalTexture*) tex;
 
 @end

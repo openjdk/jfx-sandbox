@@ -148,4 +148,12 @@ public class MTLSwapChain extends MTLResource
     public long getResourceHandle() {
         return 0;
     }
+
+    @Override
+    public void dispose() {
+        if (backBuffer != null) {
+            backBuffer.dispose();
+            backBuffer = null;
+        }
+    }
 }
