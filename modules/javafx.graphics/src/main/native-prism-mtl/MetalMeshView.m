@@ -201,6 +201,7 @@
     [phongEncoder setVertexBuffer:vBuffer
                            offset:0
                             atIndex:0];
+    vector_float4 diffuseColor = [material getDiffuseColor];
     [phongEncoder setFragmentBytes:&lightsAttenuation
                                 length:sizeof(lightsAttenuation)
                                 atIndex:0];
@@ -213,6 +214,9 @@
     [phongEncoder setFragmentBytes:&spotLightsFactors
                                 length:sizeof(spotLightsFactors)
                                 atIndex:3];
+    [phongEncoder setFragmentBytes:&diffuseColor
+                                length:sizeof(diffuseColor)
+                                atIndex:4];
     [phongEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
         indexCount:[mesh getNumIndices]
         indexType:MTLIndexTypeUInt16

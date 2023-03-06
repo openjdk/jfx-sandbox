@@ -32,6 +32,7 @@
 #import "MetalContext.h"
 #import "MetalMesh.h"
 #import "MetalLight.h"
+#import "MetalPhongMaterial.h"
 
 #define MAX_NUM_LIGHTS 3
 
