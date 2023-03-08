@@ -25,6 +25,7 @@
 
 #include <metal_stdlib>
 #include <simd/simd.h>
+#include "PhongPSDecl.h"
 #include "PhongVS2PS.h"
 using namespace metal;
 
@@ -38,11 +39,11 @@ float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float d
 }
 
 fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
-                        constant float4 & lightsAttenuation [[ buffer(0) ]],
-                        constant float4 & lightsColor [[ buffer(1) ]],
-                        constant float4 & lightsRange [[ buffer(2) ]],
-                        constant float4 & spotLightsFactors [[ buffer(3) ]],
-                        constant float4 & diffuseColor [[ buffer(4) ]])
+                        constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
+                        constant float4 & lightsAttenuation [[ buffer(1) ]],
+                        constant float4 & lightsColor [[ buffer(2) ]],
+                        constant float4 & lightsRange [[ buffer(3) ]],
+                        constant float4 & spotLightsFactors [[ buffer(4) ]])
 {
     //return float4(1.0, 0.0, 0.0, 1.0);
     float3 normal = float3(0, 0, 1);
@@ -80,7 +81,10 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
         }
     }
 
-    float3 rez = (diffLightColor) *  (diffuseColor.rgb)+ specLightColor * tSpec.rgb;
+    float3 ambLightColor = psUniforms.ambientLightColor.rgb;
+
+    float3 rez = (ambLightColor + diffLightColor) *
+        (psUniforms.diffuseColor.rgb) + specLightColor * tSpec.rgb;
 
     return float4(saturate(rez), 1.0);
 }

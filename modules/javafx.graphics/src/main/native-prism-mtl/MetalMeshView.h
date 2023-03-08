@@ -36,13 +36,24 @@
 
 #define MAX_NUM_LIGHTS 3
 
+typedef struct VS_PHONG_UNIFORMS {
+    simd_float4x4 mvp_matrix;
+    simd_float4x4 world_matrix;
+    vector_float4 cameraPos;
+} VS_PHONG_UNIFORMS;
+
+typedef struct PS_PHONG_UNIFORMS {
+    vector_float4 diffuseColor;
+    vector_float4 ambientLightColor;
+} PS_PHONG_UNIFORMS;
+
 @interface MetalMeshView : NSObject
 {
     MetalContext* context;
     MetalMesh* mesh;
     MetalPhongMaterial *material;
     MetalLight* lights[MAX_NUM_LIGHTS];
-    float ambientLightColor[3];
+    vector_float4 ambientLightColor;
     int numLights;
     bool lightsDirty;
     int cullMode;

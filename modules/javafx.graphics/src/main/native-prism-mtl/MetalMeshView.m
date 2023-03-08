@@ -43,9 +43,10 @@
         context = ctx;
         mesh = mtlMesh;
         material = NULL;
-        ambientLightColor[0] = 0;
-        ambientLightColor[1] = 0;
-        ambientLightColor[2] = 0;
+        ambientLightColor.x = 0;
+        ambientLightColor.y = 0;
+        ambientLightColor.z = 0;
+        ambientLightColor.w = 0;
         numLights = 0;
         lightsDirty = TRUE;
         cullMode = MTLCullModeNone;
@@ -77,9 +78,10 @@
                        b:(float)b
 {
     MESH_LOG(@"MetalMeshView_setAmbientLight()");
-    ambientLightColor[0] = r;
-    ambientLightColor[1] = g;
-    ambientLightColor[2] = b;
+    ambientLightColor.x = r;
+    ambientLightColor.y = g;
+    ambientLightColor.z = b;
+    ambientLightColor.w = 1;
 }
 
 - (void) setLight:(int)index
@@ -179,43 +181,40 @@
     // MTLWindingCounterClockwise explicitly
     [phongEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
     [phongEncoder setCullMode:cullMode];
-    simd_float4x4 mvpMatrix = [context getMVPMatrix];
-    vector_float4 camPos = [context getCameraPosition];
-    [phongEncoder setVertexBytes:&mvpMatrix
-                               length:sizeof(mvpMatrix)
-                              atIndex:1];
-    simd_float4x4 worldMatrix = [context getWorldMatrix];
-    [phongEncoder setVertexBytes:&worldMatrix
-                               length:sizeof(worldMatrix)
-                              atIndex:2];
-    [phongEncoder setVertexBytes:&lightsPosition
-                               length:sizeof(lightsPosition)
-                              atIndex:3];
-    [phongEncoder setVertexBytes:&lightsNormDirection
-                               length:sizeof(lightsNormDirection)
-                              atIndex:4];
-    [phongEncoder setVertexBytes:&camPos
-                               length:sizeof(camPos)
-                              atIndex:5];
+    VS_PHONG_UNIFORMS vsUniforms;
+    vsUniforms.mvp_matrix = [context getMVPMatrix];
+    vsUniforms.world_matrix = [context getWorldMatrix];
+    vsUniforms.cameraPos = [context getCameraPosition];
     id<MTLBuffer> vBuffer = [mesh getVertexBuffer];
     [phongEncoder setVertexBuffer:vBuffer
                            offset:0
                             atIndex:0];
-    vector_float4 diffuseColor = [material getDiffuseColor];
+    [phongEncoder setVertexBytes:&vsUniforms
+                               length:sizeof(vsUniforms)
+                              atIndex:1];
+    [phongEncoder setVertexBytes:&lightsPosition
+                               length:sizeof(lightsPosition)
+                              atIndex:2];
+    [phongEncoder setVertexBytes:&lightsNormDirection
+                               length:sizeof(lightsNormDirection)
+                              atIndex:3];
+    PS_PHONG_UNIFORMS psUniforms;
+    psUniforms.diffuseColor = [material getDiffuseColor];
+    psUniforms.ambientLightColor = ambientLightColor;
+    [phongEncoder setFragmentBytes:&psUniforms
+                                length:sizeof(psUniforms)
+                                atIndex:0];
     [phongEncoder setFragmentBytes:&lightsAttenuation
                                 length:sizeof(lightsAttenuation)
-                                atIndex:0];
+                                atIndex:1];
     [phongEncoder setFragmentBytes:&lightsColor
                                 length:sizeof(lightsColor)
-                                atIndex:1];
+                                atIndex:2];
     [phongEncoder setFragmentBytes:&lightsRange
                                 length:sizeof(lightsRange)
-                                atIndex:2];
+                                atIndex:3];
     [phongEncoder setFragmentBytes:&spotLightsFactors
                                 length:sizeof(spotLightsFactors)
-                                atIndex:3];
-    [phongEncoder setFragmentBytes:&diffuseColor
-                                length:sizeof(diffuseColor)
                                 atIndex:4];
     [phongEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
         indexCount:[mesh getNumIndices]

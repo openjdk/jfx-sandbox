@@ -51,28 +51,26 @@ float3 getLocalVector(float3 global, float3 N[3]) {
 
 vertex VS_PHONG_INOUT PhongVS(const uint v_id [[ vertex_id ]],
                       constant VS_PHONG_INPUT * v_in [[ buffer(0) ]],
-                      constant float4x4 & mvp_matrix [[ buffer(1) ]],
-                      constant float4x4 & world_matrix [[ buffer(2) ]],
-                      constant float4 & lightsPos [[ buffer(3) ]],
-                      constant float4 & lightsDir [[ buffer(4) ]],
-                      constant float4 & cameraPos [[ buffer(5) ]])
+                      constant VS_PHONG_UNIFORMS & vsUniforms [[ buffer(1) ]],
+                      constant float4 & lightsPos [[ buffer(2) ]],
+                      constant float4 & lightsDir [[ buffer(3) ]])
 {
     VS_PHONG_INOUT out;
     out.texCoord = v_in[v_id].texCoord;
-    float4 worldVertexPos = world_matrix * (float4(v_in[v_id].position, 1.0));
+    float4 worldVertexPos = vsUniforms.world_matrix * (float4(v_in[v_id].position, 1.0));
 
-    out.position = mvp_matrix * worldVertexPos;
+    out.position = vsUniforms.mvp_matrix * worldVertexPos;
 
     float3 n[3];
     quatToMatrix(v_in[v_id].normal, n);
-    float3x3 sWorldMatrix = float3x3(world_matrix[0].xyz,
-                                     world_matrix[1].xyz,
-                                     world_matrix[2].xyz);
+    float3x3 sWorldMatrix = float3x3(vsUniforms.world_matrix[0].xyz,
+                                     vsUniforms.world_matrix[1].xyz,
+                                     vsUniforms.world_matrix[2].xyz);
     for (int i = 0; i != 3; ++i) {
         n[i] = (sWorldMatrix) * n[i];
     }
 
-    float3 worldVecToEye = cameraPos.xyz - worldVertexPos.xyz;
+    float3 worldVecToEye = vsUniforms.cameraPos.xyz - worldVertexPos.xyz;
     out.worldVecToEye = getLocalVector(worldVecToEye, n);
 
     float3 worldVecToLight = (lightsPos).xyz - worldVertexPos.xyz;
