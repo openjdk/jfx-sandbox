@@ -28,6 +28,6 @@ package com.sun.prism.mtl;
 public class MTLRTTextureData extends MTLTextureData {
     MTLRTTextureData(MTLContext context, long texPtr) {
         super(context, texPtr);
-        System.err.println("MTLRTTextureData(): context = " + context + ", texPtr = " + texPtr);
+        MTLLog.Debug("MTLRTTextureData(): context = " + context + ", texPtr = " + texPtr);
     }
 }

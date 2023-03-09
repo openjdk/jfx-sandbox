@@ -134,7 +134,7 @@
 
 - (void) setCompositeBlendMode:(int) mode
 {
-    NSLog(@"-> Native: MetalPipelineManager setCompositeBlendMode --- mode = %d", mode);
+    METAL_LOG(@"-> Native: MetalPipelineManager setCompositeBlendMode --- mode = %d", mode);
     compositeMode = mode;
 }
 

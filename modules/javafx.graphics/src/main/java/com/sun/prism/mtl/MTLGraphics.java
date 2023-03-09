@@ -36,20 +36,20 @@ public class MTLGraphics extends BaseShaderGraphics {
     private MTLGraphics(MTLContext context, RenderTarget target) {
         super(context, target);
         this.context = context;
-        System.err.println("MTLGraphics(): context = " + context + ", target = " + target);
+        MTLLog.Debug("MTLGraphics(): context = " + context + ", target = " + target);
     }
 
     static MTLGraphics create(MTLContext context, RenderTarget target) {
         if (target == null) {
             return null;
         }
-        System.err.println("MTLGraphics.create(): context = " + context + ", target = " + target);
+        MTLLog.Debug("MTLGraphics.create(): context = " + context + ", target = " + target);
         return new MTLGraphics(context, target);
     }
 
     @Override
     public void clear(Color color) {
-        System.err.println("MTLGraphics.clear(): color = " + color);
+        MTLLog.Debug("MTLGraphics.clear(): color = " + color);
         int res = nClear(context.getContextHandle(), color.getIntArgbPre());
         // TODO: MTL: verify the returned res value
     }

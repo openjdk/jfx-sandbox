@@ -45,11 +45,11 @@ public class MTLPipeline extends GraphicsPipeline {
             String libName = "prism_mtl";
 
             if (PrismSettings.verbose) {
-                System.err.println("Loading native metal library, named: " + libName);
+                MTLLog.Debug("Loading native metal library, named: " + libName);
             }
             NativeLibLoader.loadLibrary(libName);
             if (PrismSettings.verbose) {
-                System.err.println("Succeeded: Loading native metal library.");
+                MTLLog.Debug("Succeeded: Loading native metal library.");
             }
             theInstance = new MTLPipeline();
             return null;
@@ -60,13 +60,13 @@ public class MTLPipeline extends GraphicsPipeline {
     }
 
     public static MTLPipeline getInstance() {
-        System.err.println("MTLPipeline.getInstance()");
+        MTLLog.Debug("MTLPipeline.getInstance()");
         return theInstance;
     }
 
     @Override
     public boolean init() {
-        System.err.println("MTLPipeline.init()");
+        MTLLog.Debug("MTLPipeline.init()");
         return true;
     }
 

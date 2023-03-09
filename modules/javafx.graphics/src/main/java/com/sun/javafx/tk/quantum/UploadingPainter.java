@@ -100,7 +100,7 @@ final class UploadingPainter extends ViewPainter {
                 factory = null;
                 return;
             }
-            System.out.println("Factory : " + factory);
+            //System.out.println("Factory : " + factory);
 
             float scalex = getPixelScaleFactorX();
             float scaley = getPixelScaleFactorY();
@@ -171,10 +171,10 @@ final class UploadingPainter extends ViewPainter {
             Pixels pix = pixelSource.getUnusedPixels(outWidth, outHeight, outScaleX, outScaleY);
             IntBuffer bits = (IntBuffer) pix.getPixels();
 
-            System.err.println("UploadingPainter() -> Reading rtt pixels " +
+            /*System.err.println("UploadingPainter() -> Reading rtt pixels " +
                     "bits.capacity(): " + bits.capacity() +
                     ", outWidth: " + outWidth + ", outHeight: " + outHeight +
-                    ", outScaleX: " + outScaleX + ", outScaleY: " + outScaleY);
+                    ", outScaleX: " + outScaleX + ", outScaleY: " + outScaleY);*/
             int rawbits[] = rtt.getPixels();
             //int dim = bits.array();
             /*int rawbits[] = new int[bits.capacity()];

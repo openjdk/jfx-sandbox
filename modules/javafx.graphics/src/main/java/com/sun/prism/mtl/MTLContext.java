@@ -178,8 +178,8 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected State updateRenderTarget(RenderTarget target, NGCamera camera, boolean depthTest) {
-        System.err.println("MTLContext.updateRenderTarget() :target = " + target + ", camera = " + camera + ", depthTest = " + depthTest);
-        System.err.println("MTLContext.updateRenderTarget() projViewTx:1:-->\n" + projViewTx);
+        MTLLog.Debug("MTLContext.updateRenderTarget() :target = " + target + ", camera = " + camera + ", depthTest = " + depthTest);
+        MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:1:-->\n" + projViewTx);
         renderTarget = (MTLRTTexture)target;
         nUpdateRenderTarget(pContext, renderTarget.getNativeHandle());
 
@@ -191,7 +191,7 @@ public class MTLContext extends BaseShaderContext {
             ((NGDefaultCamera) camera).validate(targetWidth, targetHeight);
             // TODO: MTL: Check whether we need to adjust clip space
             projViewTx = camera.getProjViewTx(projViewTx);
-            System.err.println("MTLContext.updateRenderTarget() projViewTx:2:-->\n" + projViewTx);
+            MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:2:-->\n" + projViewTx);
         } else {
             projViewTx = adjustClipSpace(camera.getProjViewTx(projViewTx));
             double vw = camera.getViewWidth();
@@ -199,7 +199,7 @@ public class MTLContext extends BaseShaderContext {
             if (targetWidth != vw || targetHeight != vh) {
                 projViewTx.scale(vw / targetWidth, vh / targetHeight, 1.0);
             }
-            System.err.println("MTLContext.updateRenderTarget() projViewTx:3:-->\n" + projViewTx);
+            MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:3:-->\n" + projViewTx);
         }
 
         // Set projection view matrix
@@ -215,7 +215,7 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void updateTexture(int texUnit, Texture tex) {
-        System.err.println("MTLContext.updateTexture() :texUnit = " + texUnit + ", tex = " + tex);
+        MTLLog.Debug("MTLContext.updateTexture() :texUnit = " + texUnit + ", tex = " + tex);
         boolean linear;
         int wrapMode;
         if (tex != null) {
@@ -246,7 +246,7 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void updateShaderTransform(Shader shader, BaseTransform xform) {
-        System.err.println("MTLContext.updateShaderTransform() :shader = " + shader + ", xform = " + xform);
+        MTLLog.Debug("MTLContext.updateShaderTransform() :shader = " + shader + ", xform = " + xform);
         if (xform == null) {
             xform = BaseTransform.IDENTITY_TRANSFORM;
         }
@@ -275,12 +275,12 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void updateClipRect(Rectangle clipRect) {
-        System.err.println("MTLContext.updateClipRect() :clipRect = " + clipRect);
+        MTLLog.Debug("MTLContext.updateClipRect() :clipRect = " + clipRect);
     }
 
     @Override
     protected void updateCompositeMode(CompositeMode mode) {
-        System.err.println("MTLContext.updateCompositeMode() :mode = " + mode);
+        MTLLog.Debug("MTLContext.updateCompositeMode() :mode = " + mode);
 
         int mtlCompMode;
         switch (mode) {
@@ -312,28 +312,28 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     public void blit(RTTexture srcRTT, RTTexture dstRTT, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0, int dstX1, int dstY1) {
-        System.err.println("MTLContext.blit() :srcRTT = " + srcRTT + ", dstRTT = " + dstRTT + ", srcX0 = " +
+        MTLLog.Debug("MTLContext.blit() :srcRTT = " + srcRTT + ", dstRTT = " + dstRTT + ", srcX0 = " +
                 srcX0 + ", srcY0 = " + srcY0 + ", srcX1 = " + srcX1 + ", srcY1 = " + srcY1 + ", dstX0 = " +
                 dstX0 + ", dstY0 = " + dstY0 + ", dstX1 = " + dstX1 + ", dstY1 = " + dstY1);
     }
 
     @Override
     protected void renderQuads(float[] coordArray, byte[] colorArray, int numVertices) {
-        System.err.println("\n\nnumVertices = " + numVertices);
-        System.err.println("coordArray : length = " + coordArray.length);
+        MTLLog.Debug("\n\nnumVertices = " + numVertices);
+        MTLLog.Debug("coordArray : length = " + coordArray.length);
         for (int i = 0; i < numVertices * 7; i += 7) {
-            System.err.println(
+            MTLLog.Debug(
                     "xyz: x: " + coordArray[i] + ", y: " + coordArray[i + 1] + ", z: " + coordArray[i + 2]
                     + ",  uv1: u: " + coordArray[i + 3] + ", v: " + coordArray[i + 4]
                     + ",  uv2: u: " + coordArray[i + 5] + ", v: " + coordArray[i + 6]);
         }
-        System.err.println("\ncolorArray : length = " + colorArray.length);
+        MTLLog.Debug("\ncolorArray : length = " + colorArray.length);
         for (int i = 0; i < numVertices * 4; i += 4) {
             int r = colorArray[i] & 0xFF;
             int g = colorArray[i + 1] & 0xFF;
             int b = colorArray[i + 2] & 0xFF;
             int a = colorArray[i + 3] & 0xFF;
-            System.err.println(r + ", " + g + ", " + b + ", " + a);
+            MTLLog.Debug(r + ", " + g + ", " + b + ", " + a);
         }
 
         nDrawIndexedQuads(getContextHandle(), coordArray, colorArray, numVertices);
@@ -393,38 +393,38 @@ public class MTLContext extends BaseShaderContext {
     @Override
     protected void setDeviceParametersFor3D() {
         if (checkDisposed()) return;
-        System.err.println("3D : MTLContext:setDeviceParametersFor3D()");
+        MTLLog.Debug("3D : MTLContext:setDeviceParametersFor3D()");
         nSetDeviceParametersFor3D(pContext);
     }
 
     long createMTLMesh() {
         if (checkDisposed()) return 0;
-        System.err.println("3D : MTLContext:createMTLMesh()");
+        MTLLog.Debug("3D : MTLContext:createMTLMesh()");
         return nCreateMTLMesh(pContext);
     }
 
     void releaseMTLMesh(long nativeHandle) {
-        System.err.println("3D : MTLContext:releaseMTLMesh()");
+        MTLLog.Debug("3D : MTLContext:releaseMTLMesh()");
         nReleaseMTLMesh(pContext, nativeHandle);
     }
 
     boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
                                 short[] indexBuffer, int indexBufferLength) {
-        System.err.println("3D : MTLContext:buildNativeGeometryShort()");
-        System.err.println("VertexBuffer");
+        MTLLog.Debug("3D : MTLContext:buildNativeGeometryShort()");
+        MTLLog.Debug("VertexBuffer");
         int i = 0;
         int index = 0;
         while (i < vertexBuffer.length) {
-            System.err.println("Index " + index + " : " + vertexBuffer[i]
+            MTLLog.Debug("Index " + index + " : " + vertexBuffer[i]
                 + " " + vertexBuffer[i + 1] + " " + vertexBuffer[i + 2]);
             i = i + 9;
             index++;
         }
         i = 0;
         index = 0;
-        System.err.println("IndexBuffer");
+        MTLLog.Debug("IndexBuffer");
         while (i < indexBuffer.length) {
-            System.err.println("Triangle " + index + " : " + indexBuffer[i]
+            MTLLog.Debug("Triangle " + index + " : " + indexBuffer[i]
                 + " " + indexBuffer[i + 1] + " " + indexBuffer[i + 2]);
             i = i + 3;
             index++;
@@ -436,52 +436,52 @@ public class MTLContext extends BaseShaderContext {
     boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
                                 int[] indexBuffer, int indexBufferLength) {
         // TODO: MTL: Complete the implementation
-        System.err.println("3D : MTLContext:buildNativeGeometryInt()");
+        MTLLog.Debug("3D : MTLContext:buildNativeGeometryInt()");
         return false;
         //return nBuildNativeGeometryInt(pContext, nativeHandle, vertexBuffer,
             //vertexBufferLength, indexBuffer, indexBufferLength);
     }
 
     long createMTLPhongMaterial() {
-        System.err.println("3D : MTLContext:createMTLPhongMaterial()");
+        MTLLog.Debug("3D : MTLContext:createMTLPhongMaterial()");
         return nCreateMTLPhongMaterial(pContext);
     }
 
     void releaseMTLPhongMaterial(long nativeHandle) {
         // TODO: MTL: Complete the implementation
-        System.err.println("3D : MTLContext:createMTLPhongMaterial()");
+        MTLLog.Debug("3D : MTLContext:createMTLPhongMaterial()");
         //nReleaseMTLPhongMaterial(pContext, nativeHandle);
     }
 
     void setDiffuseColor(long nativePhongMaterial, float r, float g, float b, float a) {
-        System.err.println("3D : MTLContext:setDiffuseColor()");
+        MTLLog.Debug("3D : MTLContext:setDiffuseColor()");
         nSetDiffuseColor(pContext, nativePhongMaterial, r, g, b, a);
     }
 
     void setSpecularColor(long nativePhongMaterial, boolean set, float r, float g, float b, float a) {
-        System.err.println("3D : MTLContext:setSpecularColor()");
+        MTLLog.Debug("3D : MTLContext:setSpecularColor()");
         nSetSpecularColor(pContext, nativePhongMaterial, set, r, g, b, a);
     }
 
     void setMap(long nativePhongMaterial, int mapType, long nativeTexture) {
         // TODO: MTL: Complete the implementation
-        System.err.println("3D : MTLContext:setMap()");
+        MTLLog.Debug("3D : MTLContext:setMap()");
         //nSetMap(pContext, nativePhongMaterial, mapType, nativeTexture);
     }
 
     long createMTLMeshView(long nativeMesh) {
-        System.err.println("3D : MTLContext:createMTLMeshView()");
+        MTLLog.Debug("3D : MTLContext:createMTLMeshView()");
         return nCreateMTLMeshView(pContext, nativeMesh);
     }
 
     void releaseMTLMeshView(long nativeMeshView) {
         // TODO: MTL: Complete the implementation
-        System.err.println("3D : MTLContext:releaseMTLMeshView()");
+        MTLLog.Debug("3D : MTLContext:releaseMTLMeshView()");
         //nReleaseMTLMeshView(pContext, nativeMeshView);
     }
 
     void setCullingMode(long nativeMeshView, int cullMode) {
-        System.err.println("3D : MTLContext:setCullingMode()");
+        MTLLog.Debug("3D : MTLContext:setCullingMode()");
         int cm;
         if (cullMode == MeshView.CULL_NONE) {
             cm = CULL_NONE;
@@ -496,30 +496,30 @@ public class MTLContext extends BaseShaderContext {
     }
 
     void setMaterial(long nativeMeshView, long nativePhongMaterial) {
-        System.err.println("3D : MTLContext:setMaterial()");
+        MTLLog.Debug("3D : MTLContext:setMaterial()");
         nSetMaterial(pContext, nativeMeshView, nativePhongMaterial);
     }
 
     void setWireframe(long nativeMeshView, boolean wireframe) {
-        System.err.println("3D : MTLContext:setWireframe()");
+        MTLLog.Debug("3D : MTLContext:setWireframe()");
         nSetWireframe(pContext, nativeMeshView, wireframe);
     }
 
     void setAmbientLight(long nativeMeshView, float r, float g, float b) {
-        System.err.println("3D : MTLContext:setAmbientLight()");
+        MTLLog.Debug("3D : MTLContext:setAmbientLight()");
         nSetAmbientLight(pContext, nativeMeshView, r, g, b);
     }
 
     void setLight(long nativeMeshView, int index, float x, float y, float z, float r, float g, float b, float w,
                   float ca, float la, float qa, float isAttenuated, float maxRange, float dirX, float dirY, float dirZ,
                   float innerAngle, float outerAngle, float falloff) {
-        System.err.println("3D : MTLContext:setLight()");
+        MTLLog.Debug("3D : MTLContext:setLight()");
         nSetLight(pContext, nativeMeshView, index, x, y, z, r, g, b, w,  ca, la, qa, isAttenuated, maxRange,
             dirX, dirY, dirZ, innerAngle, outerAngle, falloff);
     }
 
     void renderMeshView(long nativeMeshView, Graphics g) {
-        System.err.println("3D : MTLContext:renderMeshView()");
+        MTLLog.Debug("3D : MTLContext:renderMeshView()");
         // Support retina display by scaling the projViewTx and pass it to the shader.
         float pixelScaleFactorX = g.getPixelScaleFactorX();
         float pixelScaleFactorY = g.getPixelScaleFactorY();
@@ -563,9 +563,9 @@ public class MTLContext extends BaseShaderContext {
     }
 
     void printRawMatrix(String mesg) {
-        System.err.println(mesg + " = ");
+        MTLLog.Debug(mesg + " = ");
         for (int i = 0; i < 4; i++) {
-            System.err.println(rawMatrix[i] + ", " + rawMatrix[i+4]
+            MTLLog.Debug(rawMatrix[i] + ", " + rawMatrix[i+4]
                 + ", " + rawMatrix[i+8] + ", " + rawMatrix[i+12]);
         }
     }

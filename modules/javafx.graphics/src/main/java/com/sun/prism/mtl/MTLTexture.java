@@ -51,7 +51,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
         this.context = context;
         texPtr = resource.getResource().getResource();
 
-        System.err.println("MTLTexture(): context = " + context + ", resource = " + resource + ", format = " + format + ", wrapMode = " + wrapMode + ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight + ", contentX = " + contentX + ", contentY = " + contentY + ", contentWidth = " + contentWidth + ", contentHeight = " + contentHeight + ", useMipmap = " + useMipmap);
+        MTLLog.Debug("MTLTexture(): context = " + context + ", resource = " + resource + ", format = " + format + ", wrapMode = " + wrapMode + ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight + ", contentX = " + contentX + ", contentY = " + contentY + ", contentWidth = " + contentWidth + ", contentHeight = " + contentHeight + ", useMipmap = " + useMipmap);
     }
 
     MTLTexture(MTLContext context, MTLTextureResource<T> resource,
@@ -68,7 +68,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
 
         texPtr = resource.getResource().getResource();
 
-        System.err.println("MTLTexture(): context = " + context + ", resource = " + resource + ", format = " + format + ", wrapMode = " + wrapMode + ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight + ", contentX = " + contentX + ", contentY = " + contentY + ", contentWidth = " + contentWidth + ", contentHeight = " + contentHeight + ", maxContentWidth = " + maxContentWidth + ", maxContentHeight = " + maxContentHeight + ", useMipmap = " + useMipmap);
+        MTLLog.Debug("MTLTexture(): context = " + context + ", resource = " + resource + ", format = " + format + ", wrapMode = " + wrapMode + ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight + ", contentX = " + contentX + ", contentY = " + contentY + ", contentWidth = " + contentWidth + ", contentHeight = " + contentHeight + ", maxContentWidth = " + maxContentWidth + ", maxContentHeight = " + maxContentHeight + ", useMipmap = " + useMipmap);
     }
 
     public long getNativeHandle() {
@@ -115,12 +115,12 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
             }
         } else if (format.getDataType() == PixelFormat.DataType.FLOAT) {
             if (format == PixelFormat.FLOAT_XYZW) {
-                System.err.println("FLOAT_XYZW - data type of buffer is : " + buffer.getClass().getName());
-                System.err.println("Buffer capacity : " + buffer.capacity());
-                System.err.println("Buffer limit : " + buffer.limit());
-                System.err.println("srcscan  = " + srcscan);
-                System.err.println("srcw  = " + srcw);
-                System.err.println("srch  = " + srch);
+                MTLLog.Debug("FLOAT_XYZW - data type of buffer is : " + buffer.getClass().getName());
+                MTLLog.Debug("Buffer capacity : " + buffer.capacity());
+                MTLLog.Debug("Buffer limit : " + buffer.limit());
+                MTLLog.Debug("srcscan  = " + srcscan);
+                MTLLog.Debug("srcw  = " + srcw);
+                MTLLog.Debug("srch  = " + srch);
 
                 FloatBuffer buf = (FloatBuffer)buffer;
                 float[] arr = buf.hasArray()? buf.array(): null;

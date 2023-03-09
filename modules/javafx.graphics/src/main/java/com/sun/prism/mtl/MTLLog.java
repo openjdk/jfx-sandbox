@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,12 @@
 
 package com.sun.prism.mtl;
 
-import com.sun.prism.impl.DisposerManagedResource;
+import com.sun.prism.impl.PrismSettings;
 
-public class MTLTextureResource<T extends MTLTextureData> extends DisposerManagedResource<T> {
-    MTLTextureResource(T resource) {
-        super(resource, MTLVramPool.getInstance(), resource);
-        MTLLog.Debug("MTLTextureResource()");
-    }
-
-    @Override
-    public void free() {
-        if (resource != null) {
-            resource.dispose();
+public class MTLLog {
+    public static void Debug(String str) {
+        if (PrismSettings.metalDebug) {
+            System.err.println(str);
         }
     }
 }

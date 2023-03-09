@@ -32,7 +32,7 @@
 #define jlong_to_ptr(value) (intptr_t)value
 #define ptr_to_jlong(value) (jlong)((intptr_t)value)
 
-#define ENABLE_VERBOSE
+//#define ENABLE_VERBOSE
 
 #ifdef ENABLE_VERBOSE
 #define TEX_VERBOSE
