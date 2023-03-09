@@ -56,12 +56,6 @@
     CTX_LOG(@"-> MetalContext.createContext()");
     self = [super init];
     if (self) {
-        // RTT must be cleared before drawing into it for the first time,
-        // after drawing first time the loadAction shall be set to MTLLoadActionLoad
-        // so that it becomes a stable rtt.
-        // loadAction is set to MTLLoadActionLoad in [resetRenderPass]
-        rttLoadAction = MTLLoadActionClear;
-
         device = MTLCreateSystemDefaultDevice();
         commandQueue = [device newCommandQueue];
         commandQueue.label = @"The only MTLCommandQueue";
@@ -69,7 +63,6 @@
         [pipelineManager init:self libPath:shaderLibPath];
 
         rttPassDesc = [MTLRenderPassDescriptor new];
-        rttPassDesc.colorAttachments[0].loadAction = rttLoadAction;
         rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 0); // make this programmable
         rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
 
@@ -162,6 +155,13 @@
     CTX_LOG(@"numVerts = %lu", numVerts);
 
     id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
+    if (!rttCleared) {
+        // RTT must be cleared before drawing into it for the first time,
+        // after drawing first time the loadAction shall be set to MTLLoadActionLoad
+        // so that it becomes a stable rtt.
+        // loadAction is set to MTLLoadActionLoad in [resetRenderPass]
+        rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
+    }
 
     id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:rttPassDesc];
 
@@ -286,18 +286,20 @@
 {
     CTX_LOG(@"MetalContext.updatePhongLoadAction()");
     phongRPD.colorAttachments[0].loadAction = MTLLoadActionLoad;
+    rttCleared = true;
 }
 
 - (void) resetRenderPass
 {
     CTX_LOG(@"MetalContext.resetRenderPass()");
     rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
+    rttCleared = true;
 }
 
 - (void) setRTTLoadActionToClear
 {
     CTX_LOG(@"MetalContext.clearRTT()");
-    rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
+    rttCleared = false;
 }
 
 - (void) resetProjViewMatrix
@@ -380,7 +382,9 @@
     CTX_LOG(@"MetalContext_setDeviceParametersFor3D()");
     id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
     phongRPD = [MTLRenderPassDescriptor new];
-    phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
+    if (!rttCleared) {
+        phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
+    }
     phongRPD.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1); // make this programmable
     phongRPD.colorAttachments[0].storeAction = MTLStoreActionStore;
     phongRPD.colorAttachments[0].texture = [[self getRTT] getTexture];
