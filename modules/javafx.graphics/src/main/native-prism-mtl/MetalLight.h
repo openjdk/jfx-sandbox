@@ -33,9 +33,10 @@
 
 @interface MetalLight : NSObject
 {
+    @public
     float position[3];
     float color[3];
-    float a;
+    float lightOn;
     float attenuation[4]; // ca, la, qa, isAttenuated
     float maxRange;
     float direction[3];
@@ -51,6 +52,9 @@
             dirX:(float)dirX dirY:(float)dirY dirZ:(float)dirZ
             inA:(float)innerAngle outA:(float)outerAngle
             falloff:(float)falloff;
+
+- (bool) isPointLight;
+- (bool) isDirectionalLight;
 
 @end
 

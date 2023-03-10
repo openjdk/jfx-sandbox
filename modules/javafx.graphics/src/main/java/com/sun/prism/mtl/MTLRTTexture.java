@@ -52,7 +52,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
         rttHeight = contentHeight;
         pixels = new int[rttWidth * rttHeight];
         nTexPtr = resource.getResource().getResource();
-        System.err.println("MTLRTTexture(): context = " + context + ", resource = " + resource +
+        MTLLog.Debug("MTLRTTexture(): context = " + context + ", resource = " + resource +
                 ", wrapMode = " + wrapMode +
                 ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight +
                 ", contentX = " + contentX + ", contentY = " + contentY +
@@ -64,7 +64,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
                                int physicalWidth, int physicalHeight,
                                int contentWidth, int contentHeight,
                                WrapMode wrapMode, boolean msaa) {
-        System.err.println("MTLRTTexture.create()  physicalWidth = " + physicalWidth +
+        MTLLog.Debug("MTLRTTexture.create()  physicalWidth = " + physicalWidth +
                 ", physicalHeight = " + physicalHeight + ", contentWidth = " + contentWidth +
                 ", contentHeight = " + contentHeight + ", wrapMode = " + wrapMode + ", msaa = " + msaa);
         long nPtr = nCreateRT(context.getContextHandle(),
@@ -136,7 +136,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
 
     @Override
     public int[] getPixels() {
-        System.err.println("MTLRTTexture.getPixels()");
+        MTLLog.Debug("MTLRTTexture.getPixels()");
         nReadPixelsFromContextRTT(nTexPtr, pixels);
         return pixels;
     }

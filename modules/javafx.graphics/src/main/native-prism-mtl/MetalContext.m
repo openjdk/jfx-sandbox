@@ -56,12 +56,6 @@
     CTX_LOG(@"-> MetalContext.createContext()");
     self = [super init];
     if (self) {
-        // RTT must be cleared before drawing into it for the first time,
-        // after drawing first time the loadAction shall be set to MTLLoadActionLoad
-        // so that it becomes a stable rtt.
-        // loadAction is set to MTLLoadActionLoad in [resetRenderPass]
-        rttLoadAction = MTLLoadActionClear;
-
         device = MTLCreateSystemDefaultDevice();
         commandQueue = [device newCommandQueue];
         commandQueue.label = @"The only MTLCommandQueue";
@@ -69,7 +63,6 @@
         [pipelineManager init:self libPath:shaderLibPath];
 
         rttPassDesc = [MTLRenderPassDescriptor new];
-        rttPassDesc.colorAttachments[0].loadAction = rttLoadAction;
         rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 0); // make this programmable
         rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
 
@@ -109,19 +102,6 @@
     CTX_LOG(@"-> Native: MetalContext.getRTT()");
     return rtt;
 }
-
-- (void) setTex0:(MetalTexture*)texPtr
-{
-    CTX_LOG(@"-> Native: MetalContext.setTex0() ----- %p", texPtr);
-    tex0 = texPtr;
-}
-
-- (MetalTexture*) getTex0
-{
-    CTX_LOG(@"-> Native: MetalContext.getTex0()");
-    return tex0;
-}
-
 
 - (id<MTLDevice>) getDevice
 {
@@ -175,6 +155,13 @@
     CTX_LOG(@"numVerts = %lu", numVerts);
 
     id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
+    if (!rttCleared) {
+        // RTT must be cleared before drawing into it for the first time,
+        // after drawing first time the loadAction shall be set to MTLLoadActionLoad
+        // so that it becomes a stable rtt.
+        // loadAction is set to MTLLoadActionLoad in [resetRenderPass]
+        rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
+    }
 
     id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:rttPassDesc];
 
@@ -200,8 +187,10 @@
     [renderEncoder setFragmentSamplerState:sampler atIndex:0];
     sampler = nil;
 
-    if (tex0 != nil) {
-        id<MTLTexture> tex = [tex0 getTexture];
+    NSMutableDictionary* textures = [[self getCurrentShader] getTexutresDict];
+    for (NSString *key in textures) {
+        id<MTLTexture> tex = textures[key];
+        CTX_LOG(@"    Value: %@ for key: %@", tex, key);
         [renderEncoder useResource:tex usage:MTLResourceUsageRead];
     }
 
@@ -293,57 +282,24 @@
     );
 }
 
-- (void) renderMeshView:(MetalMeshView*)meshView
-{
-    id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
-    id<MTLRenderCommandEncoder> phongEncoder = [commandBuffer renderCommandEncoderWithDescriptor:phongRPD];
-    id<MTLRenderPipelineState> phongPipelineState =
-        [[self getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"];
-    [phongEncoder setRenderPipelineState:phongPipelineState];
-    // In Metal default winding order is Clockwise but the vertex data that
-    // we are getting is in CounterClockWise order, so we need to set
-    // MTLWindingCounterClockwise explicitly
-    [phongEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
-    [phongEncoder setCullMode:[meshView getCullingMode]];
-    [phongEncoder setVertexBytes:&mvpMatrix
-                               length:sizeof(mvpMatrix)
-                              atIndex:1];
-    [phongEncoder setVertexBytes:&worldMatrix
-                               length:sizeof(worldMatrix)
-                              atIndex:2];
-    MetalMesh* mesh = [meshView getMesh];
-    id<MTLBuffer> vBuffer = [mesh getVertexBuffer];
-    [phongEncoder setVertexBuffer:vBuffer
-                           offset:0
-                            atIndex:0];
-    [phongEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
-        indexCount:[mesh getNumIndices]
-        indexType:MTLIndexTypeUInt16
-        indexBuffer:[mesh getIndexBuffer]
-        indexBufferOffset:0];
-    [phongEncoder endEncoding];
-
-    [commandBuffer commit];
-    [commandBuffer waitUntilCompleted];
-    [self updatePhongLoadAction];
-}
-
 - (void) updatePhongLoadAction
 {
     CTX_LOG(@"MetalContext.updatePhongLoadAction()");
     phongRPD.colorAttachments[0].loadAction = MTLLoadActionLoad;
+    rttCleared = true;
 }
 
 - (void) resetRenderPass
 {
     CTX_LOG(@"MetalContext.resetRenderPass()");
     rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
+    rttCleared = true;
 }
 
 - (void) setRTTLoadActionToClear
 {
     CTX_LOG(@"MetalContext.clearRTT()");
-    rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
+    rttCleared = false;
 }
 
 - (void) resetProjViewMatrix
@@ -426,7 +382,9 @@
     CTX_LOG(@"MetalContext_setDeviceParametersFor3D()");
     id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
     phongRPD = [MTLRenderPassDescriptor new];
-    phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
+    if (!rttCleared) {
+        phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
+    }
     phongRPD.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1); // make this programmable
     phongRPD.colorAttachments[0].storeAction = MTLStoreActionStore;
     phongRPD.colorAttachments[0].texture = [[self getRTT] getTexture];
@@ -436,6 +394,35 @@
         phongShader = ([[MetalPhongShader alloc] createPhongShader:self]);
     }*/
     return 1;
+}
+
+- (void) setCameraPosition:(float)x
+            y:(float)y z:(float)z
+{
+    cPos.x = x;
+    cPos.y = y;
+    cPos.z = z;
+    cPos.w = 0;
+}
+
+- (MTLRenderPassDescriptor*) getPhongRPD
+{
+    return phongRPD;
+}
+
+- (simd_float4x4) getMVPMatrix
+{
+    return mvpMatrix;
+}
+
+- (simd_float4x4) getWorldMatrix
+{
+    return worldMatrix;
+}
+
+- (vector_float4) getCameraPosition
+{
+    return cPos;
 }
 
 // TODO: MTL: This was copied from GlassHelper, and could be moved to a utility class.
@@ -513,15 +500,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetSampler
     CTX_LOG(@"MTLContext_nSetSampler");
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     [mtlContext setSampler:isLinear  wrapMode:wrapMode];
-}
-
-JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTex0
-  (JNIEnv *env, jclass jClass, jlong context, jlong texPtr)
-{
-    CTX_LOG(@"MTLContext_nSetTex0 : texPtr = %ld", texPtr);
-    MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
-    MetalTexture *tex = (MetalTexture *)jlong_to_ptr(texPtr);
-    [mtlContext setTex0:tex];
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetProjViewMatrix
@@ -876,10 +854,25 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRenderMeshView
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
 {
     CTX_LOG(@"MTLContext_nRenderMeshView");
-    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
-    [pCtx renderMeshView:meshView];
+    [meshView render];
     return;
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetCameraPosition
+ */
+
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCameraPosition
+  (JNIEnv *env, jclass jClass, jlong ctx, jdouble x,
+   jdouble y, jdouble z)
+{
+    CTX_LOG(@"MTLContext_nSetDeviceParametersFor3D");
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+
+    return [pCtx setCameraPosition:x
+            y:y z:z];
 }
 
 /*

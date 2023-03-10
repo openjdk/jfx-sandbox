@@ -39,7 +39,8 @@
 @interface MetalPhongMaterial : NSObject
 {
     MetalContext* context;
-    float diffuseColor[4], specularColor[4];
+    vector_float4 diffuseColor;
+    float specularColor[4];
     bool specularColorSet;
 }
 
@@ -53,6 +54,8 @@
                         g:(float)g
                         b:(float)b
                         a:(float)a;
+
+- (vector_float4) getDiffuseColor;
 @end
 
 #endif

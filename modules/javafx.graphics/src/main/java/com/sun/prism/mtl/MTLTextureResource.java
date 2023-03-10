@@ -30,7 +30,7 @@ import com.sun.prism.impl.DisposerManagedResource;
 public class MTLTextureResource<T extends MTLTextureData> extends DisposerManagedResource<T> {
     MTLTextureResource(T resource) {
         super(resource, MTLVramPool.getInstance(), resource);
-        System.err.println("MTLTextureResource()");
+        MTLLog.Debug("MTLTextureResource()");
     }
 
     @Override

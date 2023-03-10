@@ -64,10 +64,10 @@
                        a:(float)a
 {
     MESH_LOG(@"MetalPhongMaterial_setDiffuseColor()");
-    diffuseColor[0] = r;
-    diffuseColor[1] = g;
-    diffuseColor[2] = b;
-    diffuseColor[3] = a;
+    diffuseColor.x = r;
+    diffuseColor.y = g;
+    diffuseColor.z = b;
+    diffuseColor.w = a;
 }
 
 - (void) setSpecularColor:(bool)set
@@ -82,5 +82,10 @@
     specularColor[1] = g;
     specularColor[2] = b;
     specularColor[3] = a;
+}
+
+- (vector_float4) getDiffuseColor
+{
+    return diffuseColor;
 }
 @end // MetalPhongMaterial

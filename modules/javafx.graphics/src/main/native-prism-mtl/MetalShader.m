@@ -62,6 +62,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     if (self) {
         context = ctx;
         SHADER_LOG(@">>>> MetalShader.initWithContext()----> fragFuncName: %@", fragName);
+        fragTexArgsDict = [[NSMutableDictionary alloc] init];
         fragArgIndicesDict = getPRISMDict(fragName);
         if (fragArgIndicesDict == nil) {
             fragArgIndicesDict = getDECORADict(fragName);
@@ -112,6 +113,17 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     SHADER_LOG(@"<<<< MetalShader.getArgumentBuffer()\n");
 }
 
+- (NSMutableDictionary*) getTexutresDict
+{
+    SHADER_LOG(@"\n");
+    SHADER_LOG(@"MetalShader.getTexutresDict()----> fragFuncName: %@", fragFuncName);
+    for (NSString *key in fragTexArgsDict) {
+        id value = fragTexArgsDict[key];
+        SHADER_LOG(@"    Value: %@ for key: %@", value, key);
+    }
+    return fragTexArgsDict;
+}
+
 - (NSUInteger) getArgumentID:(NSString*) name
 {
     SHADER_LOG(@"\n");
@@ -145,6 +157,10 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
         id value = fragArgIndicesDict[key];
         SHADER_LOG(@"    Value: %@ for key: %@", value, key);
     }
+
+    texture.label = [NSString stringWithFormat:@"%@_%@", fragFuncName, argumentName];
+    [fragTexArgsDict setObject:texture forKey:argumentName];
+
     NSNumber *index = fragArgIndicesDict[argumentName];
     SHADER_LOG(@"    index.intValue: %d", index.intValue);
 

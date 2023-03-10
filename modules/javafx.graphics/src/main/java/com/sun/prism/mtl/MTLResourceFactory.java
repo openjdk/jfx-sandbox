@@ -42,16 +42,16 @@ public class MTLResourceFactory extends BaseShaderFactory {
     private final MTLContext context;
 
     MTLResourceFactory(Screen screen) {
-        System.err.println("MTLResourceFactory(): screen = " + screen);
-        System.err.println(">>> MTLResourceFactory()");
+        MTLLog.Debug("MTLResourceFactory(): screen = " + screen);
+        MTLLog.Debug(">>> MTLResourceFactory()");
         context = new MTLContext(screen, this);
         // TODO: MTL: Move mtl library creation from MetalContext Ctor such that it happens only once
         // can use a static method in Java class/ or a flag
 
         if (PrismSettings.noClampToZero && PrismSettings.verbose) {
-            System.err.println("prism.noclamptozero not supported by MTL");
+            MTLLog.Debug("prism.noclamptozero not supported by MTL");
         }
-        System.err.println("<<< MTLResourceFactory()");
+        MTLLog.Debug("<<< MTLResourceFactory()");
     }
 
     public MTLContext getContext() {
@@ -75,16 +75,16 @@ public class MTLResourceFactory extends BaseShaderFactory {
     public Shader createShader(String shaderName, Map<String, Integer> samplers,
                                Map<String, Integer> params, int maxTexCoordIndex,
                                boolean isPixcoordUsed, boolean isPerVertexColorUsed) {
-        System.err.println(">>> MTLResourceFactory.createShader()");
-        System.err.println("    shaderName: " + shaderName);
-        System.err.println("    samplers: " + samplers);
-        System.err.println("    params: " + params);
-        System.err.println("    maxTexCoordIndex: " + maxTexCoordIndex);
-        System.err.println("    isPixcoordUsed: " + isPixcoordUsed);
-        System.err.println("    isPerVertexColorUsed: " + isPerVertexColorUsed);
+        MTLLog.Debug(">>> MTLResourceFactory.createShader()");
+        MTLLog.Debug("    shaderName: " + shaderName);
+        MTLLog.Debug("    samplers: " + samplers);
+        MTLLog.Debug("    params: " + params);
+        MTLLog.Debug("    maxTexCoordIndex: " + maxTexCoordIndex);
+        MTLLog.Debug("    isPixcoordUsed: " + isPixcoordUsed);
+        MTLLog.Debug("    isPerVertexColorUsed: " + isPerVertexColorUsed);
         Shader shader = MTLShader.createShader(getContext(), shaderName, samplers,
                 params, maxTexCoordIndex, isPixcoordUsed, isPerVertexColorUsed);
-        System.err.println("<<< MTLResourceFactory.createShader()");
+        MTLLog.Debug("<<< MTLResourceFactory.createShader()");
         return shader;
     }
 
@@ -151,8 +151,19 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public boolean isFormatSupported(PixelFormat format) {
-        // TODO: MTL: Complete implementation
-        return false;
+        switch (format) {
+            case BYTE_RGB:
+            case BYTE_GRAY:
+            case BYTE_ALPHA:
+            case BYTE_BGRA_PRE:
+            case INT_ARGB_PRE:
+            case FLOAT_XYZW:
+                return true;
+            case MULTI_YCbCr_420:
+            case BYTE_APPLE_422:
+            default:
+                return false;
+        }
     }
 
     @Override
@@ -198,7 +209,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
     }
 
     public RTTexture createRTTexture(int width, int height, Texture.WrapMode wrapMode, boolean msaa) {
-        System.err.println("MTLResourceFactory.createRTTexture(): width = " + width +
+        MTLLog.Debug("MTLResourceFactory.createRTTexture(): width = " + width +
                 ", height = " + height + ", wrapMode = " + wrapMode + ", msaa = " + msaa);
         int createw = width;
         int createh = height;
@@ -226,7 +237,10 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public void dispose() {
+        // This is simply invoking super method as of now.
         // TODO: MTL: Complete implementation
+        MTLLog.Debug("MTLResourceFactory dispose is invoked");
+        super.dispose();
     }
 
     @Override
@@ -253,9 +267,12 @@ public class MTLResourceFactory extends BaseShaderFactory {
                                       int width, int height, int samples,
                                       boolean useMipmap);
 
+    static native void nReleaseTexture(long context, long pTexture);
+
     static void releaseResource(MTLContext context, long resource) {
     }
 
     static void releaseTexture(MTLContext context, long resource) {
+        nReleaseTexture(context.getContextHandle(), resource);
     }
 }

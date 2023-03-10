@@ -50,7 +50,7 @@
         color[0] = r;
         color[1] = g;
         color[2] = b;
-        a = w;
+        lightOn = w;
         attenuation[0] = ca;
         attenuation[1] = la;
         attenuation[2] = qa;
@@ -65,4 +65,16 @@
     }
     return self;
 }
+
+- (bool) isPointLight
+{
+    return foff == 0 && outAngle == 180 && attenuation[3] > 0.5;
+}
+
+- (bool) isDirectionalLight
+{
+    // testing if attenuation.w is 0 or 1 using <0.5 since equality check for floating points might not work well
+    return attenuation[3] < 0.5;
+}
+
 @end // MetalLight

@@ -36,20 +36,20 @@ public class MTLGraphics extends BaseShaderGraphics {
     private MTLGraphics(MTLContext context, RenderTarget target) {
         super(context, target);
         this.context = context;
-        System.err.println("MTLGraphics(): context = " + context + ", target = " + target);
+        MTLLog.Debug("MTLGraphics(): context = " + context + ", target = " + target);
     }
 
     static MTLGraphics create(MTLContext context, RenderTarget target) {
         if (target == null) {
             return null;
         }
-        System.err.println("MTLGraphics.create(): context = " + context + ", target = " + target);
+        MTLLog.Debug("MTLGraphics.create(): context = " + context + ", target = " + target);
         return new MTLGraphics(context, target);
     }
 
     @Override
     public void clear(Color color) {
-        System.err.println("MTLGraphics.clear(): color = " + color);
+        MTLLog.Debug("MTLGraphics.clear(): color = " + color);
         int res = nClear(context.getContextHandle(), color.getIntArgbPre());
         // TODO: MTL: verify the returned res value
     }
@@ -57,28 +57,6 @@ public class MTLGraphics extends BaseShaderGraphics {
     @Override
     public void sync() {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    @Override
-    public void scale(float sx, float sy, float sz) {
-        System.err.println("MTLGraphics.scale() sx = " + sx + ", sy = " + sy + ", sz = " + sz);
-        // Treat scale as identity scale if platform doesn't support 3D
-        // and it isn't a 2D scale
-        /*if (!GraphicsPipeline.getPipeline().is3DSupported() &&  sz != 1.0f) {
-            return;
-        }*/
-        //super.scale(sx, sy, sz);
-    }
-
-    @Override
-    public void scale(float sx, float sy) {
-        System.err.println("MTLGraphics.scale() sx = " + sx + ", sy = " + sy);
-        // Treat scale as identity scale if platform doesn't support 3D
-        // and it isn't a 2D scale
-        /*if (!GraphicsPipeline.getPipeline().is3DSupported() &&  sz != 1.0f) {
-            return;
-        }*/
-        //super.scale(sx, sy, 1.0f);
     }
 
     private static native int nClear(long pContext, int colorArgbPre);

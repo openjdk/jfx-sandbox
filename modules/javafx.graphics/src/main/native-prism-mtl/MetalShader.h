@@ -40,6 +40,7 @@
     id<MTLFunction> fragmentFunction;
     id<MTLRenderPipelineState> pipeState;
     NSDictionary* fragArgIndicesDict;
+    NSMutableDictionary* fragTexArgsDict;
 
     id<MTLArgumentEncoder> argumentEncoder;
     id<MTLBuffer> argumentBuffer;
@@ -48,6 +49,7 @@
 - (id) initWithContext:(MetalContext*)ctx withFragFunc:(NSString*) fragName;
 - (id<MTLRenderPipelineState>) getPipeState;
 - (id<MTLBuffer>) getArgumentBuffer;
+- (NSMutableDictionary*) getTexutresDict;
 
 - (NSUInteger) getArgumentID:(NSString*) name;
 - (void) enable;

@@ -25,13 +25,66 @@
 
 #include <metal_stdlib>
 #include <simd/simd.h>
+#include "PhongPSDecl.h"
+#include "PhongVS2PS.h"
 using namespace metal;
 
-typedef struct VS_PHONG_INOUT {
-    float4 position [[position]];
-} VS_PHONG_INOUT;
+float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float denom, float falloff) {
+    float cosAngle = dot(normalize(-lightDir), l);
+    float cutoff = cosAngle - cosOuter;
+    if (falloff != 0) {
+        return pow(saturate(cutoff / denom), falloff);
+    }
+    return cutoff >= 0 ? 1 : 0;
+}
 
-fragment float4 PhongPS( VS_PHONG_INOUT vert [[stage_in]])
+fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
+                        constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
+                        constant float4 & lightsAttenuation [[ buffer(1) ]],
+                        constant float4 & lightsColor [[ buffer(2) ]],
+                        constant float4 & lightsRange [[ buffer(3) ]],
+                        constant float4 & spotLightsFactors [[ buffer(4) ]])
 {
-    return float4(1.0, 0.0, 0.0, 1.0);
+    //return float4(1.0, 0.0, 0.0, 1.0);
+    float3 normal = float3(0, 0, 1);
+    float4 tSpec = float4(0, 0, 0, 0);
+    float specPower = 0;
+
+    // lighting
+    float3 worldNormVecToEye = normalize(vert.worldVecToEye);
+    float3 refl = reflect(worldNormVecToEye, normal);
+    float3 diffLightColor = 0;
+    float3 specLightColor = 0;
+
+    // testing if w is 0 or 1 using <0.5 since equality check for floating points might not work well
+    if ((lightsAttenuation + 0).w < 0.5) {
+        diffLightColor += saturate(dot(normal, -vert.worldNormLightDirs1)) * (lightsColor + 0).rgb;
+        specLightColor += pow(saturate(dot(-refl, -vert.worldNormLightDirs1)), specPower) * (lightsColor + 0).rgb;
+    } else {
+        float dist = length(vert.worldVecsToLights1);
+        if (dist <= (lightsRange + 0).x) {
+            float3 l = normalize(vert.worldVecsToLights1);
+
+            float cosOuter = (spotLightsFactors + 0).x;
+            float denom = (spotLightsFactors + 0).y;
+            float falloff = (spotLightsFactors + 0).z;
+            float spotlightFactor = computeSpotlightFactor3(l, vert.worldNormLightDirs1, cosOuter, denom, falloff);
+
+            float ca = (lightsAttenuation + 0).x;
+            float la = (lightsAttenuation + 0).y;
+            float qa = (lightsAttenuation + 0).z;
+            float invAttnFactor = ca + la * dist + qa * dist * dist;
+
+            float3 attenuatedColor = (lightsColor + 0).rgb * spotlightFactor / invAttnFactor;
+            diffLightColor += saturate(dot(normal, l)) * attenuatedColor;
+            specLightColor += pow(saturate(dot(-refl, l)), specPower) * attenuatedColor;
+        }
+    }
+
+    float3 ambLightColor = psUniforms.ambientLightColor.rgb;
+
+    float3 rez = (ambLightColor + diffLightColor) *
+        (psUniforms.diffuseColor.rgb) + specLightColor * tSpec.rgb;
+
+    return float4(saturate(rez), 1.0);
 }
