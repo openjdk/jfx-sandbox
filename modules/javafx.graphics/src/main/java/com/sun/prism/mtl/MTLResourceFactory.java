@@ -45,6 +45,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
         MTLLog.Debug("MTLResourceFactory(): screen = " + screen);
         MTLLog.Debug(">>> MTLResourceFactory()");
         context = new MTLContext(screen, this);
+        context.initState();
         // TODO: MTL: Move mtl library creation from MetalContext Ctor such that it happens only once
         // can use a static method in Java class/ or a flag
 

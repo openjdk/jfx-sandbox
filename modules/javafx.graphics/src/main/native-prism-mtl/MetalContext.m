@@ -56,6 +56,9 @@
     CTX_LOG(@"-> MetalContext.createContext()");
     self = [super init];
     if (self) {
+        isScissorRectSet = false;
+        rttClearColor = 0XFFFFFFFF;
+
         device = MTLCreateSystemDefaultDevice();
         commandQueue = [device newCommandQueue];
         commandQueue.label = @"The only MTLCommandQueue";
@@ -63,7 +66,7 @@
         [pipelineManager init:self libPath:shaderLibPath];
 
         rttPassDesc = [MTLRenderPassDescriptor new];
-        rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 0); // make this programmable
+        rttPassDesc.colorAttachments[0].clearColor  = MTLClearColorMake(1, 1, 1, 1); // make this programmable
         rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
 
         MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor new] autorelease];
@@ -92,8 +95,21 @@
 
 - (void) setRTT:(MetalRTTexture*)rttPtr
 {
-    CTX_LOG(@"-> Native: MetalContext.setRTT()");
     rtt = rttPtr;
+    CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
+                    [rtt getTexture].width, [rtt getTexture].height);
+
+    // TODO: MTL: This is temporary to support replaceRegion call in clearRTT()
+    // It will be removed when we remove replaceRegion call.
+    if (clearBuffer == nil) {
+        int length = [rtt getTexture].width * [rtt getTexture].height;
+        clearBuffer = [device newBufferWithLength:(length * 4)
+                                          options:MTLResourceStorageModeShared];
+        int* pixels = [clearBuffer contents];
+        for (int i = 0; i < length; i++) {
+            *pixels++ = rttClearColor;
+        }
+    }
     rttPassDesc.colorAttachments[0].texture = [rtt getTexture];
 }
 
@@ -186,6 +202,10 @@
     }
     [renderEncoder setFragmentSamplerState:sampler atIndex:0];
     sampler = nil;
+
+    if (isScissorRectSet) {
+        [renderEncoder setScissorRect:scissorRect];
+    }
 
     NSMutableDictionary* textures = [[self getCurrentShader] getTexutresDict];
     for (NSString *key in textures) {
@@ -296,10 +316,72 @@
     rttCleared = true;
 }
 
-- (void) setRTTLoadActionToClear
+- (void) clearRTT:(int)color red:(float)red green:(float)green blue:(float)blue alpha:(float)alpha clearDepth:(bool)clearDepth ignoreScissor:(bool)ignoreScissor
 {
-    CTX_LOG(@"MetalContext.clearRTT()");
-    rttCleared = false;
+    CTX_LOG(@">>>> MetalContext.clearRTT() %f %f %f %f", red, green, blue, alpha);
+    if (ignoreScissor && !isScissorRectSet) {
+        CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
+        rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
+        rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(red, green, blue, alpha);
+    } else if (isScissorRectSet) {
+        CTX_LOG(@"     MetalContext.clearRTT() scissorRect.x = %lu, scissorRect.y = %lu, scissorRect.width = %lu, scissorRect.height = %lu, color = %u",
+                        scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height, color);
+
+        MTLRegion region = MTLRegionMake2D(scissorRect.x, scissorRect.y,
+                                            scissorRect.width, scissorRect.height);
+        CTX_LOG(@"     MetalContext.clearRTT() %lu , %lu", [rtt getTexture].width, [rtt getTexture].height);
+
+        if (rttClearColor != color) {
+            rttClearColor = color;
+            int* pixels = [clearBuffer contents];
+            int length = [rtt getTexture].width * [rtt getTexture].height;
+            for (int i = 0; i < length; i++) {
+                *pixels++ = rttClearColor;
+            }
+        }
+
+        // TODO: MTL: replaceRegion is a temporary fix for clearing the clipRect in rtt.
+        // It should be changed to drawing a rect of size scissorRect, with all vertices
+        // having rttClearColor as color. and should clear the depth buffer too.
+        // When removing this code, clearBuffer should be removed.
+        [[rtt getTexture] replaceRegion:region
+                            mipmapLevel:0
+                              withBytes:[clearBuffer contents]
+                            bytesPerRow:(scissorRect.width * 4)];
+    }
+    CTX_LOG(@"<<<< MetalContext.clearRTT()");
+}
+
+- (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height
+{
+    CTX_LOG(@">>>> MetalContext.setClipRect()");
+    id<MTLTexture> currRtt = [rtt getTexture];
+    if (x <= 0 && y <= 0 && width >= currRtt.width && height >= currRtt.height) {
+        CTX_LOG(@"     MetalContext.setClipRect() 1 resetting clip, %lu, %lu", currRtt.width, currRtt.height);
+        [self resetClip];
+    } else {
+        CTX_LOG(@"     MetalContext.setClipRect() 2");
+        if (x < 0)                        x = 0;
+        if (y < 0)                        y = 0;
+        if (width  > currRtt.width)  width  = currRtt.width;
+        if (height > currRtt.height) height = currRtt.height;
+        scissorRect.x = x;
+        scissorRect.y = y;
+        scissorRect.width  = width;
+        scissorRect.height = height;
+        isScissorRectSet = true;
+    }
+    CTX_LOG(@"<<<< MetalContext.setClipRect()");
+}
+
+- (void) resetClip
+{
+    CTX_LOG(@">>>> MetalContext.resetClip()");
+    isScissorRectSet = false;
+    scissorRect.x = 0;
+    scissorRect.y = 0;
+    scissorRect.width  = 0;
+    scissorRect.height = 0;
 }
 
 - (void) resetProjViewMatrix
@@ -481,6 +563,31 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     MetalRTTexture *rtt = (MetalRTTexture *)jlong_to_ptr(texPtr);
     [mtlContext setRTT:rtt];
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetClipRect
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetClipRect
+  (JNIEnv *env, jclass jClass, jlong ctx,
+   jint x, jint y, jint width, jint height)
+{
+    CTX_LOG(@"MTLContext_nSetClipRect");
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+    [pCtx setClipRect:x y:y width:width height:height];
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nResetClipRect
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetClipRect
+  (JNIEnv *env, jclass jClass, jlong ctx)
+{
+    CTX_LOG(@"MTLContext_nResetClipRect");
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+    [pCtx resetClip];
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
