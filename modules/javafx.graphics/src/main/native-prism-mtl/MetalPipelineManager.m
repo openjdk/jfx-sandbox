@@ -77,7 +77,7 @@
         //return pipeStateDict[func];
     }
     NSError* error;
-    MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
+    MTLRenderPipelineDescriptor* pipeDesc = [[[MTLRenderPipelineDescriptor alloc] init] autorelease];
     pipeDesc.vertexFunction = vertexFunction;
     pipeDesc.fragmentFunction = func;
     pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
@@ -100,7 +100,7 @@
 {
     METAL_LOG(@"MetalPipelineManager.getPhongPipeStateWithFragFunc()");
     NSError* error;
-    MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
+    MTLRenderPipelineDescriptor* pipeDesc = [[[MTLRenderPipelineDescriptor alloc] init] autorelease];
     pipeDesc.vertexFunction = [self getFunction:@"PhongVS"];
     pipeDesc.fragmentFunction = func;
     pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
@@ -183,6 +183,16 @@
     pipeDesc.colorAttachments[0].sourceRGBBlendFactor = srcFactor;
     pipeDesc.colorAttachments[0].destinationAlphaBlendFactor = dstFactor;
     pipeDesc.colorAttachments[0].destinationRGBBlendFactor = dstFactor;
+}
+
+- (void) dealloc
+{
+    METAL_LOG(@"MetalPipelineManager.dealloc ----- releasing native resources");
+
+    if (shaderLib != nil) {
+        [shaderLib release];
+        shaderLib = nil;
+    }
 }
 
 @end // MetalPipelineManager

@@ -143,6 +143,7 @@ typedef enum VertexInputIndex {
 - (void) setCameraPosition:(float)x
         y:(float)y z:(float)z;
 - (vector_float4) getCameraPosition;
+- (void) dealloc;
 
 @end
 

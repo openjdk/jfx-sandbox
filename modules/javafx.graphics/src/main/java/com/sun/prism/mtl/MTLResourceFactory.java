@@ -241,7 +241,9 @@ public class MTLResourceFactory extends BaseShaderFactory {
         // This is simply invoking super method as of now.
         // TODO: MTL: Complete implementation
         MTLLog.Debug("MTLResourceFactory dispose is invoked");
+
         super.dispose();
+        context.dispose();
     }
 
     @Override

@@ -411,6 +411,8 @@ public class MTLContext extends BaseShaderContext {
                                          float falloff);
     private static native void nRenderMeshView(long pContext, long nativeMeshView);
 
+    private static native void nRelease(long pContext);
+
     @Override
     protected void setDeviceParametersFor3D() {
         if (checkDisposed()) return;
@@ -607,5 +609,17 @@ public class MTLContext extends BaseShaderContext {
         rawMatrix[13] = (float)src.get(7);  // Translate Y
         rawMatrix[14] = (float)src.get(11);
         rawMatrix[15] = (float)src.get(15);
+    }
+
+
+    @Override
+    public void dispose() {
+        MTLLog.Debug("(-) MTLContext Dispose is invoked");
+
+        nRelease(pContext);
+        // disposeLCDBuffer();
+        state = null;
+
+        super.dispose();
     }
 }

@@ -522,6 +522,45 @@
     return string;
 }
 
+- (void)dealloc
+{
+    CTX_LOG(@">>>> MTLContext.dealloc -- releasing native MetalContext");
+
+    if (commandQueue != nil) {
+        [commandQueue release];
+        commandQueue = nil;
+    }
+
+    if (pipelineManager != nil) {
+        [pipelineManager dealloc];
+        pipelineManager = nil;
+    }
+
+    if (rttPassDesc != nil) {
+        [rttPassDesc release];
+        rttPassDesc = nil;
+    }
+
+    if (sampler != nil) {
+        [sampler release];
+        sampler = nil;
+    }
+
+    if (phongShader != nil) {
+        [phongShader release];
+        phongShader = nil;
+    }
+
+    if (phongRPD != nil) {
+        [phongRPD release];
+        phongRPD = nil;
+    }
+
+    device = nil;
+
+    [super dealloc];
+}
+
 @end // MetalContext
 
 
@@ -535,6 +574,21 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nInitialize
     jContextPtr = ptr_to_jlong([[MetalContext alloc] createContext:shaderLibPath]);
     CTX_LOG(@"<<<< MTLContext_nInitialize");
     return jContextPtr;
+}
+
+
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRelease
+  (JNIEnv *env, jclass jClass, jlong context)
+{
+    CTX_LOG(@">>>> MTLContext_nRelease");
+
+    MetalContext *contextPtr = jlong_to_ptr(context);
+
+    if (contextPtr != NULL) {
+        [contextPtr dealloc];
+    }
+    contextPtr = NULL;
+    CTX_LOG(@"<<<< MTLContext_nRelease");
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads

@@ -72,6 +72,7 @@
 - (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFuncName:(NSString*) funcName;
 - (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*) pipeDesc;
 - (void) setCompositeBlendMode:(int) mode;
+- (void) dealloc;
 @end
 
 #endif
