@@ -794,10 +794,10 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
         return JNI_FALSE;
     }
 
-    bool result = [mesh buildBuffers:vertexBuffer
-                                  vSize:uvbSize
-                                iBuffer:indexBuffer
-                                  iSize:uibSize];
+    bool result = [mesh buildBuffersShort:vertexBuffer
+                                    vSize:uvbSize
+                                  iBuffer:indexBuffer
+                                    iSize:uibSize];
     (*env)->ReleasePrimitiveArrayCritical(env, ib, indexBuffer, 0);
     (*env)->ReleasePrimitiveArrayCritical(env, vb, vertexBuffer, 0);
 
@@ -812,9 +812,45 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometryInt
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh, jfloatArray vb, jint vbSize, jintArray ib, jint ibSize)
 {
-    // TODO: MTL: Complete the implementation
     CTX_LOG(@"MTLContext_nBuildNativeGeometryInt");
-    return JNI_TRUE;
+    CTX_LOG(@"vbSize %d ibSize %d", vbSize, ibSize);
+    MetalMesh *mesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
+
+    if (vbSize < 0 || ibSize < 0) {
+        return JNI_FALSE;
+    }
+
+    unsigned int uvbSize = (unsigned int) vbSize;
+    unsigned int uibSize = (unsigned int) ibSize;
+    unsigned int vertexBufferSize = (*env)->GetArrayLength(env, vb);
+    unsigned int indexBufferSize = (*env)->GetArrayLength(env, ib);
+    CTX_LOG(@"vertexBufferSize %d indexBufferSize %d", vertexBufferSize, indexBufferSize);
+
+    if (uvbSize > vertexBufferSize || uibSize > indexBufferSize) {
+        return JNI_FALSE;
+    }
+
+    float *vertexBuffer = (float *) ((*env)->GetPrimitiveArrayCritical(env, vb, 0));
+    if (vertexBuffer == NULL) {
+        CTX_LOG(@"MTLContext_nBuildNativeGeometryInt vertexBuffer is NULL");
+        return JNI_FALSE;
+    }
+
+    unsigned int *indexBuffer = (unsigned int *) ((*env)->GetPrimitiveArrayCritical(env, ib, 0));
+    if (indexBuffer == NULL) {
+        CTX_LOG(@"MTLContext_nBuildNativeGeometryInt indexBuffer is NULL");
+        (*env)->ReleasePrimitiveArrayCritical(env, vb, vertexBuffer, 0);
+        return JNI_FALSE;
+    }
+
+    bool result = [mesh buildBuffersInt:vertexBuffer
+                                  vSize:uvbSize
+                                iBuffer:indexBuffer
+                                  iSize:uibSize];
+    (*env)->ReleasePrimitiveArrayCritical(env, ib, indexBuffer, 0);
+    (*env)->ReleasePrimitiveArrayCritical(env, vb, vertexBuffer, 0);
+
+    return result;
 }
 
 /*
