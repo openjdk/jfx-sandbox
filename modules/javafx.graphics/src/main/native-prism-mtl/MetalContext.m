@@ -111,6 +111,7 @@
         }
     }
     rttPassDesc.colorAttachments[0].texture = [rtt getTexture];
+    [self resetClip];
 }
 
 - (MetalRTTexture*) getRTT
