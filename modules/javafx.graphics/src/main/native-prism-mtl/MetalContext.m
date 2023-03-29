@@ -98,18 +98,6 @@
     rtt = rttPtr;
     CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
                     [rtt getTexture].width, [rtt getTexture].height);
-
-    // TODO: MTL: This is temporary to support replaceRegion call in clearRTT()
-    // It will be removed when we remove replaceRegion call.
-    if (clearBuffer == nil) {
-        int length = [rtt getTexture].width * [rtt getTexture].height;
-        clearBuffer = [device newBufferWithLength:(length * 4)
-                                          options:MTLResourceStorageModeShared];
-        int* pixels = [clearBuffer contents];
-        for (int i = 0; i < length; i++) {
-            *pixels++ = rttClearColor;
-        }
-    }
     rttPassDesc.colorAttachments[0].texture = [rtt getTexture];
     [self resetClip];
 }
@@ -327,28 +315,27 @@
     } else if (isScissorRectSet) {
         CTX_LOG(@"     MetalContext.clearRTT() scissorRect.x = %lu, scissorRect.y = %lu, scissorRect.width = %lu, scissorRect.height = %lu, color = %u",
                         scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height, color);
-
-        MTLRegion region = MTLRegionMake2D(scissorRect.x, scissorRect.y,
-                                            scissorRect.width, scissorRect.height);
         CTX_LOG(@"     MetalContext.clearRTT() %lu , %lu", [rtt getTexture].width, [rtt getTexture].height);
 
-        if (rttClearColor != color) {
-            rttClearColor = color;
-            int* pixels = [clearBuffer contents];
-            int length = [rtt getTexture].width * [rtt getTexture].height;
-            for (int i = 0; i < length; i++) {
-                *pixels++ = rttClearColor;
-            }
-        }
+        id<MTLRenderPipelineState> pipeState = currentPipeState;
+        currentPipeState = nil;
 
-        // TODO: MTL: replaceRegion is a temporary fix for clearing the clipRect in rtt.
-        // It should be changed to drawing a rect of size scissorRect, with all vertices
-        // having rttClearColor as color. and should clear the depth buffer too.
-        // When removing this code, clearBuffer should be removed.
-        [[rtt getTexture] replaceRegion:region
-                            mipmapLevel:0
-                              withBytes:[clearBuffer contents]
-                            bytesPerRow:(scissorRect.width * 4)];
+        struct PrismSourceVertex scissorRectVertices[4] = {
+            {scissorRect.x, scissorRect.y, 0, 0, 0, 0},
+            {scissorRect.x + scissorRect.width, scissorRect.y,  0, 0, 0, 0},
+            {scissorRect.x, scissorRect.y + scissorRect.height, 0, 0, 0, 0},
+            {scissorRect.x + scissorRect.width, scissorRect.y + scissorRect.height, 0, 0, 0, 0}
+        };
+
+        char r = red   * 0xFF;
+        char g = green * 0xFF;
+        char b = blue  * 0xFF;
+        char a = alpha * 0xFF;
+        char colors[] = {r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a};
+
+        [self drawIndexedQuads:scissorRectVertices ofColors:colors vertexCount:4];
+
+        currentPipeState = pipeState;
     }
     CTX_LOG(@"<<<< MetalContext.clearRTT()");
 }

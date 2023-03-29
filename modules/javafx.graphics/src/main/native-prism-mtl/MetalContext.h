@@ -76,7 +76,6 @@ typedef enum VertexInputIndex {
 
     MTLScissorRect scissorRect;
     bool isScissorRectSet;
-    id<MTLBuffer> clearBuffer;
     MetalRTTexture* rtt;
     bool rttCleared;
     int  rttClearColor;
