@@ -308,35 +308,35 @@
 - (void) clearRTT:(int)color red:(float)red green:(float)green blue:(float)blue alpha:(float)alpha clearDepth:(bool)clearDepth ignoreScissor:(bool)ignoreScissor
 {
     CTX_LOG(@">>>> MetalContext.clearRTT() %f %f %f %f", red, green, blue, alpha);
-    if (ignoreScissor && !isScissorRectSet) {
+    MTLRegion clearRegion = MTLRegionMake2D(scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height);
+    if (!isScissorRectSet) {
         CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
-        rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
-        rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(red, green, blue, alpha);
-    } else if (isScissorRectSet) {
-        CTX_LOG(@"     MetalContext.clearRTT() scissorRect.x = %lu, scissorRect.y = %lu, scissorRect.width = %lu, scissorRect.height = %lu, color = %u",
-                        scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height, color);
-        CTX_LOG(@"     MetalContext.clearRTT() %lu , %lu", [rtt getTexture].width, [rtt getTexture].height);
-
-        id<MTLRenderPipelineState> pipeState = currentPipeState;
-        currentPipeState = nil;
-
-        struct PrismSourceVertex scissorRectVertices[4] = {
-            {scissorRect.x, scissorRect.y, 0, 0, 0, 0},
-            {scissorRect.x + scissorRect.width, scissorRect.y,  0, 0, 0, 0},
-            {scissorRect.x, scissorRect.y + scissorRect.height, 0, 0, 0, 0},
-            {scissorRect.x + scissorRect.width, scissorRect.y + scissorRect.height, 0, 0, 0, 0}
-        };
-
-        char r = red   * 0xFF;
-        char g = green * 0xFF;
-        char b = blue  * 0xFF;
-        char a = alpha * 0xFF;
-        char colors[] = {r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a};
-
-        [self drawIndexedQuads:scissorRectVertices ofColors:colors vertexCount:4];
-
-        currentPipeState = pipeState;
+        clearRegion = MTLRegionMake2D(0, 0, [rtt getTexture].width, [rtt getTexture].height);
     }
+
+    CTX_LOG(@"     MetalContext.clearRTT() scissorRect.x = %lu, scissorRect.y = %lu, scissorRect.width = %lu, scissorRect.height = %lu, color = %u",
+                    scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height, color);
+    CTX_LOG(@"     MetalContext.clearRTT() %lu , %lu", [rtt getTexture].width, [rtt getTexture].height);
+
+    id<MTLRenderPipelineState> pipeState = currentPipeState;
+    currentPipeState = nil;
+
+    struct PrismSourceVertex scissorRectVertices[4] = {
+        {clearRegion.origin.x, clearRegion.origin.y, 0, 0, 0, 0},
+        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y,  0, 0, 0, 0},
+        {clearRegion.origin.x, clearRegion.origin.y + clearRegion.size.height, 0, 0, 0, 0},
+        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y + clearRegion.size.height, 0, 0, 0, 0}
+    };
+
+    char r = red   * 0xFF;
+    char g = green * 0xFF;
+    char b = blue  * 0xFF;
+    char a = alpha * 0xFF;
+    char colors[] = {r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a};
+
+    [self drawIndexedQuads:scissorRectVertices ofColors:colors vertexCount:4];
+
+    currentPipeState = pipeState;
     CTX_LOG(@"<<<< MetalContext.clearRTT()");
 }
 
