@@ -90,20 +90,6 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     }
 
     @Override
-    public int getMaxContentWidth() {
-        // TODO: MTL: Complete implementation
-        // This value should be fetched from this Texture object
-        return 8192;
-    }
-
-    @Override
-    public int getMaxContentHeight() {
-        // TODO: MTL: Complete implementation
-        // This value should be fetched from this Texture object
-        return 8192;
-    }
-
-    @Override
     public void setContentWidth(int contentWidth) {
         // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");

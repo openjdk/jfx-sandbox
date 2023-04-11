@@ -26,12 +26,21 @@
 #import <jni.h>
 
 #import "MetalGraphics.h"
+#import "MetalTexture.h"
 #import "com_sun_prism_mtl_MTLGraphics.h"
 
 @implementation MetalGraphics
 
 @end // MetalGraphics
 
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLGraphics_nClearRTTexture
+  (JNIEnv *env, jclass jClass, jlong nTexturePtr)
+{
+    METAL_LOG(@"-> Native: MTLGraphics_nClearRTTexture");
+
+    MetalTexture* rtt = (MetalTexture*)jlong_to_ptr(nTexturePtr);
+    [rtt clearContents];
+}
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLGraphics_nClear
   (JNIEnv *env, jclass jClass, jlong ctx,

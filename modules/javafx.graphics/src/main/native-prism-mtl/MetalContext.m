@@ -130,6 +130,7 @@
          CTX_LOG(@"------------------> Native: commandBuffer Scheduled");
     }];
     [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
+         [currentCommandBuffer release];
          currentCommandBuffer = nil;
          CTX_LOG(@"------------------> Native: commandBuffer Completed");
     }];
@@ -155,6 +156,7 @@
                       ofColors : (char const *)pSrcColors
                    vertexCount : (NSUInteger)numVerts
 {
+
     CTX_LOG(@"MetalContext.drawIndexedQuads()");
 
     CTX_LOG(@"numVerts = %lu", numVerts);
@@ -241,6 +243,9 @@
 
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
+
+    [renderEncoder release];
+    renderEncoder = nil;
     [self resetRenderPass];
 
     return 1;
