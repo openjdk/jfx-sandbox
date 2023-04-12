@@ -312,6 +312,7 @@
 
 - (void) clearRTT:(int)color red:(float)red green:(float)green blue:(float)blue alpha:(float)alpha clearDepth:(bool)clearDepth ignoreScissor:(bool)ignoreScissor
 {
+    //TODO: MTL: Add clear depth buffer implementation
     CTX_LOG(@">>>> MetalContext.clearRTT() %f %f %f %f", red, green, blue, alpha);
     MTLRegion clearRegion = MTLRegionMake2D(scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height);
     if (!isScissorRectSet) {
@@ -1046,6 +1047,45 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRenderMeshView
     CTX_LOG(@"MTLContext_nRenderMeshView");
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     [meshView render];
+    return;
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nBlit
+ * Signature: (JJJIIIIIIII)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
+  (JNIEnv *env, jclass jclass, jlong ctx, jlong nSrcRTT, jlong nDstRTT,
+            jint srcX0, jint srcY0, jint srcX1, jint srcY1,
+            jint dstX0, jint dstY0, jint dstX1, jint dstY1)
+{
+    CTX_LOG(@"MTLContext_nBlit");
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+    MetalRTTexture *srcRTT = (MetalRTTexture *)jlong_to_ptr(nSrcRTT);
+    MetalRTTexture *dstRTT = (MetalRTTexture *)jlong_to_ptr(nDstRTT);
+
+    id<MTLTexture> src = [srcRTT getTexture];
+    id<MTLTexture> dst = [dstRTT getTexture];
+
+    id<MTLCommandBuffer> commandBuffer = [pCtx getCurrentCommandBuffer];
+    id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
+    [blitEncoder synchronizeTexture:src slice:0 level:0];
+    [blitEncoder synchronizeTexture:dst slice:0 level:0];
+    [blitEncoder copyFromTexture:src
+                sourceSlice:(NSUInteger)0
+                sourceLevel:(NSUInteger)0
+               sourceOrigin:MTLOriginMake(0, 0, 0)
+                sourceSize:MTLSizeMake(src.width, src.height, src.depth)
+                toTexture:dst
+            destinationSlice:(NSUInteger)0
+            destinationLevel:(NSUInteger)0
+            destinationOrigin:MTLOriginMake(0, 0, 0)];
+    [blitEncoder endEncoding];
+    [commandBuffer commit];
+    [commandBuffer waitUntilCompleted];
+    [blitEncoder release];
+    blitEncoder = nil;
     return;
 }
 

@@ -211,6 +211,7 @@ public class MTLContext extends BaseShaderContext {
             MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:3:-->\n" + projViewTx);
         }
 
+        // TODO: MTL: Add support for depthTest
         // Set projection view matrix
         nSetProjViewMatrix(pContext, depthTest,
             projViewTx.get(0),  projViewTx.get(1),  projViewTx.get(2),  projViewTx.get(3),
@@ -334,6 +335,11 @@ public class MTLContext extends BaseShaderContext {
         MTLLog.Debug("MTLContext.blit() :srcRTT = " + srcRTT + ", dstRTT = " + dstRTT + ", srcX0 = " +
                 srcX0 + ", srcY0 = " + srcY0 + ", srcX1 = " + srcX1 + ", srcY1 = " + srcY1 + ", dstX0 = " +
                 dstX0 + ", dstY0 = " + dstY0 + ", dstX1 = " + dstX1 + ", dstY1 = " + dstY1);
+        long dstNativeHandle = dstRTT == null ? 0L : ((MTLTexture)dstRTT).getNativeHandle();
+        long srcNativeHandle = ((MTLTexture)srcRTT).getNativeHandle();
+        nBlit(pContext, srcNativeHandle, dstNativeHandle,
+            srcX0, srcY0, srcX1, srcY1,
+            dstX0, dstY0, dstX1, dstY1);
     }
 
     @Override
@@ -410,6 +416,10 @@ public class MTLContext extends BaseShaderContext {
                                          float isAttenuated, float maxRange, float dirX, float dirY, float dirZ, float innerAngle, float outerAngle,
                                          float falloff);
     private static native void nRenderMeshView(long pContext, long nativeMeshView);
+
+    private static native void nBlit(long pContext, long nSrcRTT, long nDstRTT,
+                                     int srcX0, int srcY0, int srcX1, int srcY1,
+                                     int dstX0, int dstY0, int dstX1, int dstY1);
 
     private static native void nRelease(long pContext);
 
