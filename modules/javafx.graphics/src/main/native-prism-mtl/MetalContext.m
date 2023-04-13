@@ -130,7 +130,6 @@
          CTX_LOG(@"------------------> Native: commandBuffer Scheduled");
     }];
     [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
-         [currentCommandBuffer release];
          currentCommandBuffer = nil;
          CTX_LOG(@"------------------> Native: commandBuffer Completed");
     }];
