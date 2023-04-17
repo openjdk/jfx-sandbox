@@ -243,8 +243,6 @@
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
 
-    [renderEncoder release];
-    renderEncoder = nil;
     [self resetRenderPass];
 
     return 1;
@@ -1083,8 +1081,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
     [blitEncoder endEncoding];
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
-    [blitEncoder release];
-    blitEncoder = nil;
     return;
 }
 

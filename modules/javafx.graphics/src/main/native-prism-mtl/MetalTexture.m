@@ -169,9 +169,6 @@
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
 
-    [blitEncoder release];
-    blitEncoder = nil;
-
     return pixelBuffer;
 }
 
@@ -200,9 +197,6 @@
 
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
-
-    [blitEncoder release];
-    blitEncoder = nil;
 
     TEX_LOG(@">>>> MetalTexture.clearContents -- Cleared contents of RTT");
 }
