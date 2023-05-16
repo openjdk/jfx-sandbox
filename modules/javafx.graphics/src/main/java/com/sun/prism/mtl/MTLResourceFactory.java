@@ -32,6 +32,8 @@ import com.sun.prism.impl.TextureResourcePool;
 import com.sun.prism.impl.ps.BaseShaderFactory;
 import com.sun.prism.ps.Shader;
 import com.sun.prism.ps.ShaderFactory;
+import com.sun.prism.Texture.Usage;
+import com.sun.prism.Texture.WrapMode;
 
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
@@ -147,7 +149,44 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public Texture createTexture(MediaFrame frame) {
-        return null;
+        frame.holdFrame();
+
+        int width = frame.getWidth();
+        int height = frame.getHeight();
+        int texWidth = frame.getEncodedWidth();
+        int texHeight = frame.getEncodedHeight();
+        PixelFormat texFormat = frame.getPixelFormat();
+
+        MTLLog.Debug(">>> MTLResourceFactory.createTexture()------- for media -------");
+        MTLLog.Debug("(width, height) = ("+ width +", "+height+")");
+        MTLLog.Debug("(texWidth, texHeight) = ("+ texWidth +", "+texHeight+")");
+        MTLLog.Debug("PixelFormat = "+ texFormat);
+        MTLLog.Debug("<<< MTLResourceFactory.createTexture()------- for media -------");
+
+        if (texWidth <= 0 || texHeight <= 0) {
+            frame.releaseFrame();
+            throw new RuntimeException("Illegal texture dimensions (" + texWidth + "x" + texHeight + ")");
+        }
+
+        int bpp = texFormat.getBytesPerPixelUnit();
+        if (texWidth >= (Integer.MAX_VALUE / texHeight / bpp)) {
+            frame.releaseFrame();
+            throw new RuntimeException("Illegal texture dimensions (" + texWidth + "x" + texHeight + ")");
+        }
+
+        MTLVramPool pool = MTLVramPool.getInstance();
+        long size = pool.estimateTextureSize(texWidth, texHeight, texFormat);
+        if (!pool.prepareForAllocation(size)) {
+            frame.releaseFrame();
+            MTLLog.Debug("MTLVramPool prepareForAllocation returned false.");
+            return null;
+        }
+
+        Texture tex = createTexture(texFormat, Usage.DEFAULT, WrapMode.CLAMP_TO_EDGE, texWidth, texHeight);
+
+        frame.releaseFrame();
+
+        return tex;
     }
 
     @Override
@@ -159,9 +198,10 @@ public class MTLResourceFactory extends BaseShaderFactory {
             case BYTE_BGRA_PRE:
             case INT_ARGB_PRE:
             case FLOAT_XYZW:
-                return true;
-            case MULTI_YCbCr_420:
             case BYTE_APPLE_422:
+                return true;
+
+            case MULTI_YCbCr_420:
             default:
                 return false;
         }
