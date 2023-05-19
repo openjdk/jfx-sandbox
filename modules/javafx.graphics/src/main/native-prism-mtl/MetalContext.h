@@ -74,8 +74,11 @@ typedef enum VertexInputIndex {
 
     MetalResourceFactory* resourceFactory;
 
+    MTLScissorRect scissorRect;
+    bool isScissorRectSet;
     MetalRTTexture* rtt;
     bool rttCleared;
+    int  rttClearColor;
     MTLRenderPassDescriptor* rttPassDesc;
     MTLLoadAction rttLoadAction;
     //MTLRenderPipelineDescriptor* passThroughPipeDesc;
@@ -97,11 +100,15 @@ typedef enum VertexInputIndex {
 - (id<MTLCommandBuffer>) newCommandBuffer;
 - (id<MTLCommandBuffer>) newCommandBuffer:(NSString*)label;
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer;
-- (void) setRTTLoadActionToClear;
 - (void) resetRenderPass;
 
 - (void) setRTT:(MetalRTTexture*)rttPtr;
 - (MetalRTTexture*) getRTT;
+- (void) clearRTT:(int)color red:(float)red green:(float)green blue:(float)blue alpha:(float)alpha
+                        clearDepth:(bool)clearDepth ignoreScissor:(bool)ignoreScissor;
+- (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height;
+- (void) resetClip;
+
 - (void) setSampler:(bool)isLinear wrapMode:(int)wrapMode;
 
 - (void) fillVB:(struct PrismSourceVertex const *)pSrcFloats colors:(char const *)pSrcColors
@@ -135,6 +142,7 @@ typedef enum VertexInputIndex {
 - (void) setCameraPosition:(float)x
         y:(float)y z:(float)z;
 - (vector_float4) getCameraPosition;
+- (void) dealloc;
 
 @end
 

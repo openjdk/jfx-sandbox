@@ -51,7 +51,7 @@ typedef struct
     return self;
 }
 
-- (bool) buildBuffers:(float*)vb
+- (bool) buildBuffersShort:(float*)vb
                 vSize:(unsigned int)vbSize
               iBuffer:(unsigned short*)ib
                 iSize:(unsigned int)ibSize
@@ -62,7 +62,7 @@ typedef struct
     id<MTLDevice> device = [context getDevice];
     unsigned int size = vbSize * sizeof (float);
     unsigned int vbCount = vbSize / NUM_OF_FLOATS_PER_VERTEX;
-     MESH_LOG(@"vbCount %d", vbCount);
+    MESH_LOG(@"vbCount %d", vbCount);
     // TODO: MTL: Cleanup this code in future if we think we don't need
     // to add padding to float3 data
     /*VS_PHONG_INPUT* pVert = vertices;
@@ -90,6 +90,39 @@ typedef struct
     }
 
     size = ibSize * sizeof (unsigned short);
+    MESH_LOG(@"IndexBuffer size %d", size);
+    if (numIndices != ibSize) {
+        [self releaseIndexBuffer];
+        indexBuffer = [[device newBufferWithBytes:ib length:size options:MTLResourceStorageModeShared] autorelease];
+        numIndices = ibSize;
+        MESH_LOG(@"numIndices %lu", numIndices);
+    }
+
+    MESH_LOG(@"MetalMesh->buildBuffers done");
+    return true;
+}
+
+- (bool) buildBuffersInt:(float*)vb
+                vSize:(unsigned int)vbSize
+              iBuffer:(unsigned int*)ib
+                iSize:(unsigned int)ibSize
+{
+    MESH_LOG(@"MetalMesh->buildBuffers");
+    MESH_LOG(@"vbsize %d", vbSize);
+    MESH_LOG(@"ibsize %d", ibSize);
+    id<MTLDevice> device = [context getDevice];
+    unsigned int size = vbSize * sizeof (float);
+    unsigned int vbCount = vbSize / NUM_OF_FLOATS_PER_VERTEX;
+    MESH_LOG(@"vbCount %d", vbCount);
+
+    if (numVertices != vbCount) {
+        [self releaseVertexBuffer];
+        vertexBuffer = [[device newBufferWithBytes:vb length:size options:MTLResourceStorageModeShared] autorelease];
+        numVertices = vbCount;
+        MESH_LOG(@"numVertices %lu", numVertices);
+    }
+
+    size = ibSize * sizeof (unsigned int);
     MESH_LOG(@"IndexBuffer size %d", size);
     if (numIndices != ibSize) {
         [self releaseIndexBuffer];

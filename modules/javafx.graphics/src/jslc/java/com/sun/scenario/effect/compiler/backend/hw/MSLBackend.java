@@ -70,6 +70,7 @@ public class MSLBackend extends SLBackend {
     private String uniformsForShaderFile; // visitVarDecl() accumulates all the Uniforms in this string.
     private String uniformsForObjCFiles;
     private boolean isPrismShader;
+    private boolean hasTextureVar;
 
     private List<String> helperFunctions;
     private static final String MTL_HEADERS_DIR = "/mtl-headers/";
@@ -273,6 +274,9 @@ public class MSLBackend extends SLBackend {
                     aUniform += precisionStr + " ";
                 }
             }
+            if (getType(var.getType()).contains("texture2d")) {
+                hasTextureVar = true;
+            }
             uniformNames.add(var.getName());
             aUniform += getType(var.getType()) + " " + var.getName();
             if (var.isArray()) {
@@ -342,6 +346,14 @@ public class MSLBackend extends SLBackend {
 
         try {
             FileWriter objCHeaderFile = new FileWriter(headerFilesDir + objCHeaderFileName);
+
+            if (!hasTextureVar) {
+                String unusedUniform = "UNUSED";
+                uniformNames.add(unusedUniform);
+                uniformsForObjCFiles  += "    texture2d<float> " + unusedUniform + ";\n";
+                uniformIDs += "    " + shaderFunctionName + "_" + unusedUniform + "_ID = " + uniformIDCount + ",\n";
+                uniformIDCount++;
+            }
 
             uniformsForObjCFiles = uniformsForObjCFiles.replace("texture2d<float>", "id<MTLTexture>");
             uniformsForObjCFiles = uniformsForObjCFiles.replace(" float2", " vector_float2");
@@ -422,6 +434,11 @@ public class MSLBackend extends SLBackend {
 
         header.append("#include \"" + FRAGMENT_SHADER_HEADER_FILE_NAME + "\"\n\n");
 
+        if (!hasTextureVar) {
+            String unusedUniform = "UNUSED";
+            uniformsForShaderFile += "    texture2d<float> " + unusedUniform + ";\n";
+        }
+
         uniformsForShaderFile = uniformsForShaderFile.replace(" float2", " vector_float2");
         uniformsForShaderFile = uniformsForShaderFile.replace(" float3", " vector_float3");
         uniformsForShaderFile = uniformsForShaderFile.replace(" float4", " vector_float4");
@@ -480,6 +497,15 @@ public class MSLBackend extends SLBackend {
         uniformsForObjCFiles = "";
         uniformIDs = "";
         uniformIDCount = 0;
+
+        // MTLArguemntEncoder requires the argument struct buffer to contain atleast one variable
+        // of type: buffers, textures, samplers, or any element with the [[id]] attribute’
+        // We have some(22) prism shaders for which the Uniform struct is either empty or contains only float2's
+        // That causes MTL_SHADER_VALIDATION to fail and causes run time crash on Ventura.
+        // So we add a variable texture2d<float> UNUSED; to each shader which does not
+        // already have a texture variable.
+        hasTextureVar = false;
+
         if (isPrismShader) {
             // System.err.println("Prism Shader: " + shaderFunctionName);
             objCHeaderFileName = PRISM_SHADER_HEADER_FILE_NAME;

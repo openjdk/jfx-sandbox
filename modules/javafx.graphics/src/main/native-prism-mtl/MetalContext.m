@@ -56,6 +56,9 @@
     CTX_LOG(@"-> MetalContext.createContext()");
     self = [super init];
     if (self) {
+        isScissorRectSet = false;
+        rttClearColor = 0XFFFFFFFF;
+
         device = MTLCreateSystemDefaultDevice();
         commandQueue = [device newCommandQueue];
         commandQueue.label = @"The only MTLCommandQueue";
@@ -63,7 +66,7 @@
         [pipelineManager init:self libPath:shaderLibPath];
 
         rttPassDesc = [MTLRenderPassDescriptor new];
-        rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 0); // make this programmable
+        rttPassDesc.colorAttachments[0].clearColor  = MTLClearColorMake(1, 1, 1, 1); // make this programmable
         rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
 
         MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor new] autorelease];
@@ -92,9 +95,11 @@
 
 - (void) setRTT:(MetalRTTexture*)rttPtr
 {
-    CTX_LOG(@"-> Native: MetalContext.setRTT()");
     rtt = rttPtr;
+    CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
+                    [rtt getTexture].width, [rtt getTexture].height);
     rttPassDesc.colorAttachments[0].texture = [rtt getTexture];
+    [self resetClip];
 }
 
 - (MetalRTTexture*) getRTT
@@ -150,6 +155,7 @@
                       ofColors : (char const *)pSrcColors
                    vertexCount : (NSUInteger)numVerts
 {
+
     CTX_LOG(@"MetalContext.drawIndexedQuads()");
 
     CTX_LOG(@"numVerts = %lu", numVerts);
@@ -186,6 +192,10 @@
     }
     [renderEncoder setFragmentSamplerState:sampler atIndex:0];
     sampler = nil;
+
+    if (isScissorRectSet) {
+        [renderEncoder setScissorRect:scissorRect];
+    }
 
     NSMutableDictionary* textures = [[self getCurrentShader] getTexutresDict];
     for (NSString *key in textures) {
@@ -232,6 +242,7 @@
 
     [commandBuffer commit];
     [commandBuffer waitUntilCompleted];
+
     [self resetRenderPass];
 
     return 1;
@@ -296,10 +307,72 @@
     rttCleared = true;
 }
 
-- (void) setRTTLoadActionToClear
+- (void) clearRTT:(int)color red:(float)red green:(float)green blue:(float)blue alpha:(float)alpha clearDepth:(bool)clearDepth ignoreScissor:(bool)ignoreScissor
 {
-    CTX_LOG(@"MetalContext.clearRTT()");
-    rttCleared = false;
+    //TODO: MTL: Add clear depth buffer implementation
+    CTX_LOG(@">>>> MetalContext.clearRTT() %f %f %f %f", red, green, blue, alpha);
+    MTLRegion clearRegion = MTLRegionMake2D(scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height);
+    if (!isScissorRectSet) {
+        CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
+        clearRegion = MTLRegionMake2D(0, 0, [rtt getTexture].width, [rtt getTexture].height);
+    }
+
+    CTX_LOG(@"     MetalContext.clearRTT() scissorRect.x = %lu, scissorRect.y = %lu, scissorRect.width = %lu, scissorRect.height = %lu, color = %u",
+                    scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height, color);
+    CTX_LOG(@"     MetalContext.clearRTT() %lu , %lu", [rtt getTexture].width, [rtt getTexture].height);
+
+    id<MTLRenderPipelineState> pipeState = currentPipeState;
+    currentPipeState = nil;
+
+    struct PrismSourceVertex scissorRectVertices[4] = {
+        {clearRegion.origin.x, clearRegion.origin.y, 0, 0, 0, 0},
+        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y,  0, 0, 0, 0},
+        {clearRegion.origin.x, clearRegion.origin.y + clearRegion.size.height, 0, 0, 0, 0},
+        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y + clearRegion.size.height, 0, 0, 0, 0}
+    };
+
+    char r = red   * 0xFF;
+    char g = green * 0xFF;
+    char b = blue  * 0xFF;
+    char a = alpha * 0xFF;
+    char colors[] = {r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a};
+
+    [self drawIndexedQuads:scissorRectVertices ofColors:colors vertexCount:4];
+
+    currentPipeState = pipeState;
+    CTX_LOG(@"<<<< MetalContext.clearRTT()");
+}
+
+- (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height
+{
+    CTX_LOG(@">>>> MetalContext.setClipRect()");
+    id<MTLTexture> currRtt = [rtt getTexture];
+    if (x <= 0 && y <= 0 && width >= currRtt.width && height >= currRtt.height) {
+        CTX_LOG(@"     MetalContext.setClipRect() 1 resetting clip, %lu, %lu", currRtt.width, currRtt.height);
+        [self resetClip];
+    } else {
+        CTX_LOG(@"     MetalContext.setClipRect() 2");
+        if (x < 0)                        x = 0;
+        if (y < 0)                        y = 0;
+        if (width  > currRtt.width)  width  = currRtt.width;
+        if (height > currRtt.height) height = currRtt.height;
+        scissorRect.x = x;
+        scissorRect.y = y;
+        scissorRect.width  = width;
+        scissorRect.height = height;
+        isScissorRectSet = true;
+    }
+    CTX_LOG(@"<<<< MetalContext.setClipRect()");
+}
+
+- (void) resetClip
+{
+    CTX_LOG(@">>>> MetalContext.resetClip()");
+    isScissorRectSet = false;
+    scissorRect.x = 0;
+    scissorRect.y = 0;
+    scissorRect.width  = 0;
+    scissorRect.height = 0;
 }
 
 - (void) resetProjViewMatrix
@@ -440,6 +513,45 @@
     return string;
 }
 
+- (void)dealloc
+{
+    CTX_LOG(@">>>> MTLContext.dealloc -- releasing native MetalContext");
+
+    if (commandQueue != nil) {
+        [commandQueue release];
+        commandQueue = nil;
+    }
+
+    if (pipelineManager != nil) {
+        [pipelineManager dealloc];
+        pipelineManager = nil;
+    }
+
+    if (rttPassDesc != nil) {
+        [rttPassDesc release];
+        rttPassDesc = nil;
+    }
+
+    if (sampler != nil) {
+        [sampler release];
+        sampler = nil;
+    }
+
+    if (phongShader != nil) {
+        [phongShader release];
+        phongShader = nil;
+    }
+
+    if (phongRPD != nil) {
+        [phongRPD release];
+        phongRPD = nil;
+    }
+
+    device = nil;
+
+    [super dealloc];
+}
+
 @end // MetalContext
 
 
@@ -453,6 +565,21 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nInitialize
     jContextPtr = ptr_to_jlong([[MetalContext alloc] createContext:shaderLibPath]);
     CTX_LOG(@"<<<< MTLContext_nInitialize");
     return jContextPtr;
+}
+
+
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRelease
+  (JNIEnv *env, jclass jClass, jlong context)
+{
+    CTX_LOG(@">>>> MTLContext_nRelease");
+
+    MetalContext *contextPtr = jlong_to_ptr(context);
+
+    if (contextPtr != NULL) {
+        [contextPtr dealloc];
+    }
+    contextPtr = NULL;
+    CTX_LOG(@"<<<< MTLContext_nRelease");
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
@@ -481,6 +608,31 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     MetalRTTexture *rtt = (MetalRTTexture *)jlong_to_ptr(texPtr);
     [mtlContext setRTT:rtt];
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetClipRect
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetClipRect
+  (JNIEnv *env, jclass jClass, jlong ctx,
+   jint x, jint y, jint width, jint height)
+{
+    CTX_LOG(@"MTLContext_nSetClipRect");
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+    [pCtx setClipRect:x y:y width:width height:height];
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nResetClipRect
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetClipRect
+  (JNIEnv *env, jclass jClass, jlong ctx)
+{
+    CTX_LOG(@"MTLContext_nResetClipRect");
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+    [pCtx resetClip];
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
@@ -633,10 +785,10 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
         return JNI_FALSE;
     }
 
-    bool result = [mesh buildBuffers:vertexBuffer
-                                  vSize:uvbSize
-                                iBuffer:indexBuffer
-                                  iSize:uibSize];
+    bool result = [mesh buildBuffersShort:vertexBuffer
+                                    vSize:uvbSize
+                                  iBuffer:indexBuffer
+                                    iSize:uibSize];
     (*env)->ReleasePrimitiveArrayCritical(env, ib, indexBuffer, 0);
     (*env)->ReleasePrimitiveArrayCritical(env, vb, vertexBuffer, 0);
 
@@ -651,9 +803,45 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometryInt
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh, jfloatArray vb, jint vbSize, jintArray ib, jint ibSize)
 {
-    // TODO: MTL: Complete the implementation
     CTX_LOG(@"MTLContext_nBuildNativeGeometryInt");
-    return JNI_TRUE;
+    CTX_LOG(@"vbSize %d ibSize %d", vbSize, ibSize);
+    MetalMesh *mesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
+
+    if (vbSize < 0 || ibSize < 0) {
+        return JNI_FALSE;
+    }
+
+    unsigned int uvbSize = (unsigned int) vbSize;
+    unsigned int uibSize = (unsigned int) ibSize;
+    unsigned int vertexBufferSize = (*env)->GetArrayLength(env, vb);
+    unsigned int indexBufferSize = (*env)->GetArrayLength(env, ib);
+    CTX_LOG(@"vertexBufferSize %d indexBufferSize %d", vertexBufferSize, indexBufferSize);
+
+    if (uvbSize > vertexBufferSize || uibSize > indexBufferSize) {
+        return JNI_FALSE;
+    }
+
+    float *vertexBuffer = (float *) ((*env)->GetPrimitiveArrayCritical(env, vb, 0));
+    if (vertexBuffer == NULL) {
+        CTX_LOG(@"MTLContext_nBuildNativeGeometryInt vertexBuffer is NULL");
+        return JNI_FALSE;
+    }
+
+    unsigned int *indexBuffer = (unsigned int *) ((*env)->GetPrimitiveArrayCritical(env, ib, 0));
+    if (indexBuffer == NULL) {
+        CTX_LOG(@"MTLContext_nBuildNativeGeometryInt indexBuffer is NULL");
+        (*env)->ReleasePrimitiveArrayCritical(env, vb, vertexBuffer, 0);
+        return JNI_FALSE;
+    }
+
+    bool result = [mesh buildBuffersInt:vertexBuffer
+                                  vSize:uvbSize
+                                iBuffer:indexBuffer
+                                  iSize:uibSize];
+    (*env)->ReleasePrimitiveArrayCritical(env, ib, indexBuffer, 0);
+    (*env)->ReleasePrimitiveArrayCritical(env, vb, vertexBuffer, 0);
+
+    return result;
 }
 
 /*
@@ -856,6 +1044,43 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRenderMeshView
     CTX_LOG(@"MTLContext_nRenderMeshView");
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     [meshView render];
+    return;
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nBlit
+ * Signature: (JJJIIIIIIII)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
+  (JNIEnv *env, jclass jclass, jlong ctx, jlong nSrcRTT, jlong nDstRTT,
+            jint srcX0, jint srcY0, jint srcX1, jint srcY1,
+            jint dstX0, jint dstY0, jint dstX1, jint dstY1)
+{
+    CTX_LOG(@"MTLContext_nBlit");
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+    MetalRTTexture *srcRTT = (MetalRTTexture *)jlong_to_ptr(nSrcRTT);
+    MetalRTTexture *dstRTT = (MetalRTTexture *)jlong_to_ptr(nDstRTT);
+
+    id<MTLTexture> src = [srcRTT getTexture];
+    id<MTLTexture> dst = [dstRTT getTexture];
+
+    id<MTLCommandBuffer> commandBuffer = [pCtx getCurrentCommandBuffer];
+    id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
+    [blitEncoder synchronizeTexture:src slice:0 level:0];
+    [blitEncoder synchronizeTexture:dst slice:0 level:0];
+    [blitEncoder copyFromTexture:src
+                sourceSlice:(NSUInteger)0
+                sourceLevel:(NSUInteger)0
+               sourceOrigin:MTLOriginMake(0, 0, 0)
+                sourceSize:MTLSizeMake(src.width, src.height, src.depth)
+                toTexture:dst
+            destinationSlice:(NSUInteger)0
+            destinationLevel:(NSUInteger)0
+            destinationOrigin:MTLOriginMake(0, 0, 0)];
+    [blitEncoder endEncoding];
+    [commandBuffer commit];
+    [commandBuffer waitUntilCompleted];
     return;
 }
 

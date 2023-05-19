@@ -32,6 +32,8 @@ import com.sun.prism.impl.TextureResourcePool;
 import com.sun.prism.impl.ps.BaseShaderFactory;
 import com.sun.prism.ps.Shader;
 import com.sun.prism.ps.ShaderFactory;
+import com.sun.prism.Texture.Usage;
+import com.sun.prism.Texture.WrapMode;
 
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
@@ -45,6 +47,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
         MTLLog.Debug("MTLResourceFactory(): screen = " + screen);
         MTLLog.Debug(">>> MTLResourceFactory()");
         context = new MTLContext(screen, this);
+        context.initState();
         // TODO: MTL: Move mtl library creation from MetalContext Ctor such that it happens only once
         // can use a static method in Java class/ or a flag
 
@@ -146,7 +149,44 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public Texture createTexture(MediaFrame frame) {
-        return null;
+        frame.holdFrame();
+
+        int width = frame.getWidth();
+        int height = frame.getHeight();
+        int texWidth = frame.getEncodedWidth();
+        int texHeight = frame.getEncodedHeight();
+        PixelFormat texFormat = frame.getPixelFormat();
+
+        MTLLog.Debug(">>> MTLResourceFactory.createTexture()------- for media -------");
+        MTLLog.Debug("(width, height) = ("+ width +", "+height+")");
+        MTLLog.Debug("(texWidth, texHeight) = ("+ texWidth +", "+texHeight+")");
+        MTLLog.Debug("PixelFormat = "+ texFormat);
+        MTLLog.Debug("<<< MTLResourceFactory.createTexture()------- for media -------");
+
+        if (texWidth <= 0 || texHeight <= 0) {
+            frame.releaseFrame();
+            throw new RuntimeException("Illegal texture dimensions (" + texWidth + "x" + texHeight + ")");
+        }
+
+        int bpp = texFormat.getBytesPerPixelUnit();
+        if (texWidth >= (Integer.MAX_VALUE / texHeight / bpp)) {
+            frame.releaseFrame();
+            throw new RuntimeException("Illegal texture dimensions (" + texWidth + "x" + texHeight + ")");
+        }
+
+        MTLVramPool pool = MTLVramPool.getInstance();
+        long size = pool.estimateTextureSize(texWidth, texHeight, texFormat);
+        if (!pool.prepareForAllocation(size)) {
+            frame.releaseFrame();
+            MTLLog.Debug("MTLVramPool prepareForAllocation returned false.");
+            return null;
+        }
+
+        Texture tex = createTexture(texFormat, Usage.DEFAULT, WrapMode.CLAMP_TO_EDGE, texWidth, texHeight);
+
+        frame.releaseFrame();
+
+        return tex;
     }
 
     @Override
@@ -158,9 +198,10 @@ public class MTLResourceFactory extends BaseShaderFactory {
             case BYTE_BGRA_PRE:
             case INT_ARGB_PRE:
             case FLOAT_XYZW:
-                return true;
-            case MULTI_YCbCr_420:
             case BYTE_APPLE_422:
+                return true;
+
+            case MULTI_YCbCr_420:
             default:
                 return false;
         }
@@ -240,7 +281,9 @@ public class MTLResourceFactory extends BaseShaderFactory {
         // This is simply invoking super method as of now.
         // TODO: MTL: Complete implementation
         MTLLog.Debug("MTLResourceFactory dispose is invoked");
+
         super.dispose();
+        context.dispose();
     }
 
     @Override

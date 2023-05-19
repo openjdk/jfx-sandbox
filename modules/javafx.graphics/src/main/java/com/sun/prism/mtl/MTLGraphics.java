@@ -50,7 +50,28 @@ public class MTLGraphics extends BaseShaderGraphics {
     @Override
     public void clear(Color color) {
         MTLLog.Debug("MTLGraphics.clear(): color = " + color);
-        int res = nClear(context.getContextHandle(), color.getIntArgbPre());
+
+        // TODO: MTL: Remove this if condition once nClear() method starts clearing entire rtt texture
+        if (color == Color.TRANSPARENT) {
+            MTLLog.Debug("------------ clearning entire rtt to transparent ----------");
+
+            long nativeRTTexture = ((MTLRTTexture)getRenderTarget()).getNativeHandle();
+            nClearRTTexture(nativeRTTexture);
+            return;
+        }
+
+        float r = color.getRedPremult();
+        float g = color.getGreenPremult();
+        float b = color.getBluePremult();
+        float a = color.getAlpha();
+        MTLLog.Debug("MTLGraphics.clear(): r = " + r + ", g = " + g + ", b = " + b + ", a = " + a);
+
+        context.validateClearOp(this);
+        getRenderTarget().setOpaque(color.isOpaque());
+
+        // TODO: MTL: Add clear depth buffer implementation
+        int res = nClear(context.getContextHandle(),
+                         color.getIntArgbPre(),  r, g, b, a, false, false);
         // TODO: MTL: verify the returned res value
     }
 
@@ -59,6 +80,7 @@ public class MTLGraphics extends BaseShaderGraphics {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
-    private static native int nClear(long pContext, int colorArgbPre);
+    private static native int nClear(long pContext, int color, float red, float green, float blue, float alpha, boolean clearDepth, boolean ignoreScissor);
+    private static native void nClearRTTexture(long pNativeRTT);
 
 }

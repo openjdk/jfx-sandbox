@@ -36,6 +36,8 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     private int rttHeight;
     private long nTexPtr;
 
+    private boolean opaque;
+
     private MTLRTTexture(MTLContext context, MTLTextureResource<MTLTextureData> resource,
                          WrapMode wrapMode,
                          int physicalWidth, int physicalHeight,
@@ -52,18 +54,22 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
         rttHeight = contentHeight;
         pixels = new int[rttWidth * rttHeight];
         nTexPtr = resource.getResource().getResource();
+        opaque = false;
+
         MTLLog.Debug("MTLRTTexture(): context = " + context + ", resource = " + resource +
                 ", wrapMode = " + wrapMode +
                 ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight +
                 ", contentX = " + contentX + ", contentY = " + contentY +
                 ", contentWidth = " + contentWidth + ", contentHeight = " + contentHeight +
                 ", maxContentWidth = " + maxContentWidth + ", maxContentHeight = " + maxContentHeight);
+
     }
 
     static MTLRTTexture create(MTLContext context,
                                int physicalWidth, int physicalHeight,
                                int contentWidth, int contentHeight,
                                WrapMode wrapMode, boolean msaa) {
+        // TODO: MTL: Implement support for MSAA texture
         MTLLog.Debug("MTLRTTexture.create()  physicalWidth = " + physicalWidth +
                 ", physicalHeight = " + physicalHeight + ", contentWidth = " + contentWidth +
                 ", contentHeight = " + contentHeight + ", wrapMode = " + wrapMode + ", msaa = " + msaa);
@@ -82,20 +88,6 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
 
     public long getNativeHandle() {
         return nTexPtr;
-    }
-
-    @Override
-    public int getMaxContentWidth() {
-        // TODO: MTL: Complete implementation
-        // This value should be fetched from this Texture object
-        return 8192;
-    }
-
-    @Override
-    public int getMaxContentHeight() {
-        // TODO: MTL: Complete implementation
-        // This value should be fetched from this Texture object
-        return 8192;
     }
 
     @Override
@@ -172,14 +164,12 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
 
     @Override
     public boolean isOpaque() {
-        // TODO: MTL: Complete implementation or remove to use super method
-        throw new UnsupportedOperationException("Not implemented");
+        return opaque;
     }
 
     @Override
     public void setOpaque(boolean opaque) {
-        // TODO: MTL: Complete implementation or remove to use super method
-        throw new UnsupportedOperationException("Not implemented");
+        this.opaque = opaque;
     }
 
     @Override

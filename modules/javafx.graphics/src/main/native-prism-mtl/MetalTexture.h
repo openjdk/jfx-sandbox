@@ -42,7 +42,9 @@
     MetalContext *context;
 
     id<MTLBuffer> pixelBuffer;
+    id<MTLBuffer> clearBuffer;
     id<MTLTexture> texture;
+    id<MTLCommandQueue> blitQueue;
 
     // Specifying Texture Attributes: https://developer.apple.com/documentation/metal/mtltexturedescriptor
     NSUInteger width;
@@ -59,6 +61,7 @@
 - (MetalTexture*) createTexture:(MetalContext*)context ofUsage:(MTLTextureUsage)texUsage ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h;
 - (id<MTLBuffer>) getPixelBuffer;
 - (void)dealloc;
+- (void) clearContents;
 
 //- (void) blitTo:(MetalTexture*) tex;
 

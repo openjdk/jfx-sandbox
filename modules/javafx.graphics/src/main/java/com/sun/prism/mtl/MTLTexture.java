@@ -202,6 +202,87 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
 
     @Override
     public void update(MediaFrame frame, boolean skipFlush) {
-        // TODO: MTL: Complete implementation
+
+        MTLLog.Debug("MTLTexture - update for MediaFrame.");
+
+        // TODO: MTL: Check whether we need to implement MULTI_YCbCr_420 format
+        // using multi-texturing.
+        if (frame.getPixelFormat() == PixelFormat.MULTI_YCbCr_420 ||
+            frame.getPixelFormat() != PixelFormat.BYTE_APPLE_422) {
+            // shouldn't have gotten this far
+            throw new IllegalArgumentException("Unsupported format " + frame.getPixelFormat());
+        }
+
+        frame.holdFrame();
+
+        ByteBuffer pixels = frame.getBufferForPlane(0);
+        byte[] arr = pixels.hasArray()? pixels.array(): null;
+        if (arr == null) {
+            arr = new byte[pixels.remaining()];
+            pixels.get(arr);
+        }
+
+        // Below logic reads BYTE_APPLE_422 (YUV422) data from `arr` and
+        // converts it to BGRA array using standard equations in loops.
+        // This can be optimised in future by implementing the logic in metal shader
+        int srcIndex = 0;
+        int dstIndex = 0;
+
+        byte BGRA_arr[] = new byte[frame.getWidth() * frame.getHeight() * 4];
+
+        for (int row = 0; row < frame.getHeight(); row++) {
+            for (int col = 0; col < frame.getWidth() * 2 ; col += 4) {
+
+                // Get the UYVY bytes
+                int u  = (arr[srcIndex++] & 0xFF) - 128;
+                int y1 = (arr[srcIndex++] & 0xFF);
+                int v  = (arr[srcIndex++] & 0xFF) - 128;
+                int y2 = (arr[srcIndex++] & 0xFF);
+
+                int compR = (int)(1.402 * v);
+                int compG = (int)(0.34414 * u + 0.71414 * v);
+                int compB = (int)(1.772 * u);
+
+                // Calculate RGB for the 1st pixel
+                int r = y1 + compR;
+                int g = y1 - compG;
+                int b = y1 + compB;
+
+                r = (r > 255)? 255 : (r < 0)? 0 : r;
+                g = (g > 255)? 255 : (g < 0)? 0 : g;
+                b = (b > 255)? 255 : (b < 0)? 0 : b;
+
+                BGRA_arr[dstIndex++] = (byte)b;
+                BGRA_arr[dstIndex++] = (byte)g;
+                BGRA_arr[dstIndex++] = (byte)r;
+                BGRA_arr[dstIndex++] = (byte)255;
+
+
+                // Calculate RGB for the 2nd pixel
+                r = y2 + compR;
+                g = y2 - compG;
+                b = y2 + compB;
+
+                r = (r > 255)? 255 : (r < 0)? 0 : r;
+                g = (g > 255)? 255 : (g < 0)? 0 : g;
+                b = (b > 255)? 255 : (b < 0)? 0 : b;
+
+                BGRA_arr[dstIndex++] = (byte)b;
+                BGRA_arr[dstIndex++] = (byte)g;
+                BGRA_arr[dstIndex++] = (byte)r;
+                BGRA_arr[dstIndex++] = (byte)255;
+            }
+
+            // Skip padding bytes at the end of each row
+            srcIndex += frame.strideForPlane(0) - (frame.getWidth()*2);
+        }
+
+        nUpdate(this.context.getContextHandle(),
+                this.getNativeHandle(),
+                BGRA_arr, 0, 0, 0, 0,
+                frame.getEncodedWidth(), frame.getEncodedHeight(),
+                frame.getWidth() * 4);
+
+        frame.releaseFrame();
     }
 }

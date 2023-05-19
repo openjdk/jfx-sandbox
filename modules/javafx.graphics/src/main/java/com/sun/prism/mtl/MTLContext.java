@@ -61,6 +61,7 @@ public class MTLContext extends BaseShaderContext {
     public static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_ZERO          = 4; // MTLSamplerAddressModeClampToZero
     public static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_BORDER_COLOR  = 5; // MTLSamplerAddressModeClampToBorderColor
 
+    private State state;
     private final long pContext;
     private MTLRTTexture renderTarget;
     private MTLResourceFactory resourceFactory;
@@ -156,10 +157,16 @@ public class MTLContext extends BaseShaderContext {
         super(screen, factory, NUM_QUADS);
         resourceFactory = factory;
         pContext = nInitialize(shaderLibPath);
+        state = new State();
     }
 
     public MTLResourceFactory getResourceFactory() {
         return resourceFactory;
+    }
+
+    protected void initState() {
+        super.init();
+        nSetCompositeMode(getContextHandle(), MTL_COMPMODE_SRCOVER);
     }
 
     long getContextHandle() {
@@ -183,6 +190,8 @@ public class MTLContext extends BaseShaderContext {
         renderTarget = (MTLRTTexture)target;
         nUpdateRenderTarget(pContext, renderTarget.getNativeHandle());
 
+        resetLastClip(state);
+
         targetWidth = target.getPhysicalWidth();
         targetHeight = target.getPhysicalHeight();
 
@@ -202,6 +211,7 @@ public class MTLContext extends BaseShaderContext {
             MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:3:-->\n" + projViewTx);
         }
 
+        // TODO: MTL: Add support for depthTest
         // Set projection view matrix
         nSetProjViewMatrix(pContext, depthTest,
             projViewTx.get(0),  projViewTx.get(1),  projViewTx.get(2),  projViewTx.get(3),
@@ -210,7 +220,7 @@ public class MTLContext extends BaseShaderContext {
             projViewTx.get(12), projViewTx.get(13), projViewTx.get(14), projViewTx.get(15));
 
         cameraPos = camera.getPositionInWorld(cameraPos);
-        return new State();
+        return state;
     }
 
     @Override
@@ -275,7 +285,17 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void updateClipRect(Rectangle clipRect) {
-        MTLLog.Debug("MTLContext.updateClipRect() :clipRect = " + clipRect);
+        if (clipRect == null || clipRect.isEmpty()) {
+            MTLLog.Debug("MTLContext.updateClipRect() Disable ScissorTest: " + clipRect);
+            nResetClipRect(pContext);
+        } else {
+            int x = clipRect.x;
+            int y = clipRect.y;
+            int width  = clipRect.width;
+            int height = clipRect.height;
+            MTLLog.Debug("MTLContext.updateClipRect() Enable ScissorTest: " + clipRect);
+            nSetClipRect(pContext, x, y, width, height);
+        }
     }
 
     @Override
@@ -315,6 +335,11 @@ public class MTLContext extends BaseShaderContext {
         MTLLog.Debug("MTLContext.blit() :srcRTT = " + srcRTT + ", dstRTT = " + dstRTT + ", srcX0 = " +
                 srcX0 + ", srcY0 = " + srcY0 + ", srcX1 = " + srcX1 + ", srcY1 = " + srcY1 + ", dstX0 = " +
                 dstX0 + ", dstY0 = " + dstY0 + ", dstX1 = " + dstX1 + ", dstY1 = " + dstY1);
+        long dstNativeHandle = dstRTT == null ? 0L : ((MTLTexture)dstRTT).getNativeHandle();
+        long srcNativeHandle = ((MTLTexture)srcRTT).getNativeHandle();
+        nBlit(pContext, srcNativeHandle, dstNativeHandle,
+            srcX0, srcY0, srcX1, srcY1,
+            dstX0, dstY0, dstX1, dstY1);
     }
 
     @Override
@@ -351,6 +376,8 @@ public class MTLContext extends BaseShaderContext {
         double m30, double m31, double m32, double m33);
 
     native private static void nSetCompositeMode(long context, int mode);
+    private static native void nResetClipRect(long context);
+    private static native void nSetClipRect(long context, int x, int y, int width, int height);
 
     private static native void nSetWorldTransformToIdentity(long pContext);
     private static native void nSetWorldTransform(long pContext,
@@ -389,6 +416,12 @@ public class MTLContext extends BaseShaderContext {
                                          float isAttenuated, float maxRange, float dirX, float dirY, float dirZ, float innerAngle, float outerAngle,
                                          float falloff);
     private static native void nRenderMeshView(long pContext, long nativeMeshView);
+
+    private static native void nBlit(long pContext, long nSrcRTT, long nDstRTT,
+                                     int srcX0, int srcY0, int srcX1, int srcY1,
+                                     int dstX0, int dstY0, int dstX1, int dstY1);
+
+    private static native void nRelease(long pContext);
 
     @Override
     protected void setDeviceParametersFor3D() {
@@ -586,5 +619,17 @@ public class MTLContext extends BaseShaderContext {
         rawMatrix[13] = (float)src.get(7);  // Translate Y
         rawMatrix[14] = (float)src.get(11);
         rawMatrix[15] = (float)src.get(15);
+    }
+
+
+    @Override
+    public void dispose() {
+        MTLLog.Debug("(-) MTLContext Dispose is invoked");
+
+        nRelease(pContext);
+        // disposeLCDBuffer();
+        state = null;
+
+        super.dispose();
     }
 }
