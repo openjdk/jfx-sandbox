@@ -48,6 +48,7 @@ public class MTLShader implements Shader  {
     native private static long nDisable(long nMetalShader);
 
     native private static long nSetTexture(long nMetalShader, String texName, long texPtr);
+    native private static long nSetSamplerState(long nMetalShader, String texName, boolean isLinear, int wrapMode);
 
     native private static long nSetInt(long nMetalShader, String uniformName, int f0);
 
@@ -122,7 +123,7 @@ public class MTLShader implements Shader  {
 
     @Override
     public void enable() {
-        MTLLog.Debug(">> MTLShader.enable()  fragFuncName = " + fragmentFunctionName);
+        System.err.println(">> MTLShader.enable()  fragFuncName = " + fragmentFunctionName);
         currentEnabledShader = this;
         nEnable(nMetalShaderRef);
     }
@@ -143,12 +144,17 @@ public class MTLShader implements Shader  {
         }
     }
 
-    public static void setTexture(int texUnit, Texture tex) {
-        MTLLog.Debug(">>> MTLShader.setTexture() : fragmentFunctionName : " + currentEnabledShader.fragmentFunctionName);
-        MTLLog.Debug("    MTLShader.setTexture() texUnit = " + texUnit);
-        MTLTexture mtlTex = (MTLTexture)tex;
-        nSetTexture(currentEnabledShader.nMetalShaderRef,
-                currentEnabledShader.samplers.get(texUnit), mtlTex.getNativeHandle());
+    public static void setTexture(int texUnit, Texture tex, boolean isLinear, int wrapMode) {
+        System.err.println(">>> MTLShader.setTexture() : fragmentFunctionName : " + currentEnabledShader.fragmentFunctionName);
+        System.err.println("    MTLShader.setTexture() : texUnit = " + texUnit + ",  tex = " + tex);
+        String texVarName = currentEnabledShader.samplers.get(texUnit);
+        if (tex != null && texVarName != null) {
+            MTLTexture mtlTex = (MTLTexture)tex;
+            nSetTexture(currentEnabledShader.nMetalShaderRef, texVarName, mtlTex.getNativeHandle());
+
+            System.err.println("    MTLShader.setTexture() sampler = " + texVarName + "Sampler" + ", isLinear: " + isLinear + ", wrapMode: " + wrapMode);
+            nSetSamplerState(currentEnabledShader.nMetalShaderRef, texVarName + "Sampler", isLinear, wrapMode);
+        }
     }
 
     @Override

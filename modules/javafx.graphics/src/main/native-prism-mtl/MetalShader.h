@@ -54,6 +54,7 @@
 - (NSUInteger) getArgumentID:(NSString*) name;
 - (void) enable;
 - (void) setTexture:(NSString*)argumentName texture:(id<MTLTexture>) texture;
+- (void) setSamplerState:(NSString*)argumentName isLinear:(bool) isLinear wrapMode:(int) wrapMode;
 
 - (void) setInt:  (NSString*)argumentName i0:(int) i0;
 

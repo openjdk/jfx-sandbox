@@ -87,7 +87,7 @@ public class MSLBackend extends SLBackend {
     private static final Map<String, String> VAR_MAP = Map.ofEntries(
         entry("pos0",                     "in.texCoord0"),
         entry("pos1",                     "in.texCoord1"),
-        entry("pixcoord",                 "in.pixCoord"),
+        entry("pixcoord",                 "in.position.xy"),
         entry("color",                    "outFragColor"),
         entry("jsl_vertexColor",          "in.fragColor"),
         // The uniform variables are combined into a struct. These structs are generated while
@@ -169,6 +169,8 @@ public class MSLBackend extends SLBackend {
         "min", "max", "mix", "pow", "normalize", "abs", "fract",
         "dot", "clamp", "sqrt", "ceil", "floor", "sign", "sampleTex");
 
+    private static List<String> texUniformNames = new ArrayList<>();
+
     public MSLBackend(JSLParser parser, JSLVisitor visitor) {
         super(parser, visitor);
     }
@@ -212,7 +214,7 @@ public class MSLBackend extends SLBackend {
                 // as first parameter.
                 if (!CoreSymbols.getFunctions().contains(getFuncName(e.getFunction().getName())) &&
                         !libraryFunctionsUsedInShader.contains(getFuncName(e.getFunction().getName()))) {
-                    output("textureSampler, uniforms, ");
+                    output("uniforms, ");
                 }
                 first = false;
             } else {
@@ -234,7 +236,7 @@ public class MSLBackend extends SLBackend {
                 // Add "constant Uniforms& uniforms" as the first parameter to all user defined functions.
                 if (!CoreSymbols.getFunctions().contains(getFuncName(d.getFunction().getName())) &&
                         !libraryFunctionsUsedInShader.contains(getFuncName(d.getFunction().getName()))) {
-                    output("sampler textureSampler, device " + uniformStructName + "& uniforms, ");
+                    output("device " + uniformStructName + "& uniforms, ");
                 }
                 first = false;
             } else {
@@ -274,9 +276,6 @@ public class MSLBackend extends SLBackend {
                     aUniform += precisionStr + " ";
                 }
             }
-            if (getType(var.getType()).contains("texture2d")) {
-                hasTextureVar = true;
-            }
             uniformNames.add(var.getName());
             aUniform += getType(var.getType()) + " " + var.getName();
             if (var.isArray()) {
@@ -296,6 +295,18 @@ public class MSLBackend extends SLBackend {
             }
             if (!uniformsForObjCFiles.contains(var.getName())) {
                 uniformsForObjCFiles += "    " + aUniform + ";\n";
+            }
+
+            if (getType(var.getType()).contains("texture2d")) {
+                hasTextureVar = true;
+
+                texUniformNames.add(var.getName());
+                String samplerName = var.getName() + "Sampler";
+                uniformNames.add(samplerName);
+                uniformsForShaderFile += "    sampler " + samplerName + ";\n";
+                uniformsForObjCFiles  += "    id<MTLSamplerState> " + samplerName + ";\n";
+                uniformIDs += "    " + shaderFunctionName + "_" + samplerName + "_ID = " + uniformIDCount + ",\n";
+                uniformIDCount++;
             }
         } else {
             super.visitVarDecl(d);
@@ -319,17 +330,10 @@ public class MSLBackend extends SLBackend {
             fragmentShaderHeader.append("using namespace metal;\n\n");
 
             fragmentShaderHeader.append("struct VS_OUTPUT {\n");
-            // TODO: MTL: Avoid passing position to fragment function if can be.
-            // position is not needed in any of our fragment shaders, so we should remove it.
-            // This should be done carefully. We should verify that all shaders work as expected.
-
             fragmentShaderHeader.append("    float4 position [[ position ]];\n");
             fragmentShaderHeader.append("    float4 fragColor;\n");
             fragmentShaderHeader.append("    float2 texCoord0;\n");
             fragmentShaderHeader.append("    float2 texCoord1;\n");
-            // if (isPixcoordReferenced) {
-            fragmentShaderHeader.append("    float2 pixCoord;\n");
-            // }
             fragmentShaderHeader.append("};\n\n");
 
             try {
@@ -370,7 +374,6 @@ public class MSLBackend extends SLBackend {
                                 "    vector_float4 color;\n" +
                                 "    vector_float2 texCoord0;\n" +
                                 "    vector_float2 texCoord1;\n" +
-                                "    vector_float2 pixCoord;\n" +
                                 "} " + shaderType + "_VS_INPUT;" +
                                 "\n\n");
             }
@@ -456,7 +459,6 @@ public class MSLBackend extends SLBackend {
         updateCommonHeaders();
         String fragmentFunctionDef = "\n[[fragment]] float4 " + shaderFunctionName + "(VS_OUTPUT in [[ stage_in ]]";
         fragmentFunctionDef += ",\n    device " + uniformStructName + "& uniforms [[ buffer(0) ]]";
-        fragmentFunctionDef += ",\n    sampler textureSampler [[sampler(0)]]";
         fragmentFunctionDef += ") {\n\nfloat4 outFragColor;";
         shader = shader.replace(MAIN, fragmentFunctionDef);
 
@@ -468,7 +470,10 @@ public class MSLBackend extends SLBackend {
             shader = shader.replaceAll("\\b" + helperFunction + "\\b", shaderFunctionName + "_" + helperFunction);
         }
         shader = shader.replaceAll("\\bsampleTex\\b", sampleTexFuncName);
-        shader = shader.replaceAll("\\b" + sampleTexFuncName + "\\(uniforms" + "\\b" , sampleTexFuncName + "(textureSampler, uniforms");
+        for (String tex : texUniformNames) {
+            shader = shader.replaceAll("\\b" + sampleTexFuncName + "\\(uniforms." + tex + "\\b" ,
+                                       sampleTexFuncName + "(uniforms." + tex + "Sampler, uniforms." + tex);
+        }
 
         return shader;
     }
@@ -486,17 +491,18 @@ public class MSLBackend extends SLBackend {
     }
 
     private void resetVariables() {
-        uniformStructName = shaderFunctionName + "_Uniforms";
+        uniformStructName  = shaderFunctionName + "_Uniforms";
         uniformIDsEnumName = shaderFunctionName + "_ArgumentBufferID";
         textureSamplerName = shaderFunctionName + "_textureSampler";
-        sampleTexFuncName = shaderFunctionName + "_SampleTexture";
+        sampleTexFuncName  = shaderFunctionName + "_SampleTexture";
 
+        uniformIDs      = "";
+        uniformIDCount  = 0;
         helperFunctions = new ArrayList<>();
-        uniformNames = new ArrayList<>();
+        uniformNames    = new ArrayList<>();
+        texUniformNames = new ArrayList<>();
         uniformsForShaderFile = "";
-        uniformsForObjCFiles = "";
-        uniformIDs = "";
-        uniformIDCount = 0;
+        uniformsForObjCFiles  = "";
 
         // MTLArguemntEncoder requires the argument struct buffer to contain atleast one variable
         // of type: buffers, textures, samplers, or any element with the [[id]] attribute’

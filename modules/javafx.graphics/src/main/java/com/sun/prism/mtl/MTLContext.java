@@ -224,12 +224,23 @@ public class MTLContext extends BaseShaderContext {
     }
 
     @Override
-    protected void updateTexture(int texUnit, Texture tex) {
-        MTLLog.Debug("MTLContext.updateTexture() :texUnit = " + texUnit + ", tex = " + tex);
-        boolean linear;
-        int wrapMode;
+    protected void setTexture(int texUnit, Texture tex) {
+        System.err.println("MTLContext.setTexture() ---------- ");
+        if (checkDisposed()) return;
         if (tex != null) {
-            linear = tex.getLinearFiltering();
+            tex.assertLocked();
+            flushVertexBuffer();
+            updateTexture(texUnit, tex);
+        }
+    }
+
+    @Override
+    protected void updateTexture(int texUnit, Texture tex) {
+        System.err.println("MTLContext.updateTexture() :texUnit = " + texUnit + ", tex = " + tex);
+
+        if (tex != null) {
+            boolean isLinear = tex.getLinearFiltering();
+            int wrapMode;// = MTL_SAMPLER_ADDR_MODE_NOP;
             switch (tex.getWrapMode()) {
                 case CLAMP_NOT_NEEDED:
                     wrapMode = MTL_SAMPLER_ADDR_MODE_NOP;
@@ -247,10 +258,11 @@ public class MTLContext extends BaseShaderContext {
                     wrapMode = MTL_SAMPLER_ADDR_MODE_REPEAT;
                     break;
                 default:
+                    System.err.println("MTLContext.updateTexture() : Unrecognized wrap mode: " + tex.getWrapMode());
                     throw new InternalError("Unrecognized wrap mode: " + tex.getWrapMode());
             }
-            MTLShader.setTexture(texUnit, tex);
-            nSetSampler(getContextHandle(), linear, wrapMode);
+            MTLShader.setTexture(texUnit, tex, isLinear, wrapMode);
+            System.err.println("MTLContext.updateTexture(): isLinear = " + isLinear + ", wrapMode = " + wrapMode);
         }
     }
 
@@ -344,15 +356,15 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void renderQuads(float[] coordArray, byte[] colorArray, int numVertices) {
-        MTLLog.Debug("\n\nnumVertices = " + numVertices);
-        MTLLog.Debug("coordArray : length = " + coordArray.length);
+        System.err.println("\n\nnumVertices = " + numVertices);
+        System.err.println("coordArray : length = " + coordArray.length);
         for (int i = 0; i < numVertices * 7; i += 7) {
-            MTLLog.Debug(
+            System.err.println(
                     "xyz: x: " + coordArray[i] + ", y: " + coordArray[i + 1] + ", z: " + coordArray[i + 2]
                     + ",  uv1: u: " + coordArray[i + 3] + ", v: " + coordArray[i + 4]
                     + ",  uv2: u: " + coordArray[i + 5] + ", v: " + coordArray[i + 6]);
         }
-        MTLLog.Debug("\ncolorArray : length = " + colorArray.length);
+        System.err.println("\ncolorArray : length = " + colorArray.length);
         for (int i = 0; i < numVertices * 4; i += 4) {
             int r = colorArray[i] & 0xFF;
             int g = colorArray[i + 1] & 0xFF;
@@ -368,7 +380,6 @@ public class MTLContext extends BaseShaderContext {
     native private static int  nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
     native private static void nUpdateRenderTarget(long context, long texPtr);
     native private static int  nResetTransform(long context);
-    native private static void nSetSampler(long pContext, boolean isLinear, int wrapMode);
     native private static int  nSetProjViewMatrix(long pContext, boolean isOrtho,
         double m00, double m01, double m02, double m03,
         double m10, double m11, double m12, double m13,

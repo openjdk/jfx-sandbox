@@ -719,7 +719,7 @@ public abstract class BaseShaderContext extends BaseContext {
         }
     }
 
-    private void setTexture(int texUnit, Texture tex) {
+    protected void setTexture(int texUnit, Texture tex) {
         if (checkDisposed()) return;
 
         if (tex != null) tex.assertLocked();

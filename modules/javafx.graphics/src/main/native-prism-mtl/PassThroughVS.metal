@@ -40,7 +40,6 @@ typedef struct VS_OUTPUT
     vector_float4 fragColor;
     vector_float2 texCoord0;
     vector_float2 texCoord1;
-    vector_float2 pixCoord;
 } VS_OUTPUT;
 
 
