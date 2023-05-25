@@ -96,6 +96,21 @@
     return [self getPipeStateWithFragFunc:[self getFunction:funcName]];
 }
 
+- (id<MTLComputePipelineState>) getComputePipelineStateWithFunc:(NSString*) funcName
+{
+    NSError* error;
+
+    id<MTLFunction> kernelFunction = [shaderLib newFunctionWithName:funcName];
+
+    id<MTLComputePipelineState> pipeState =  [[context getDevice] newComputePipelineStateWithFunction:kernelFunction
+                                                                       error:&error];
+
+    NSAssert(pipeState, @"Failed to create compute pipeline state: %@", error);
+
+    return pipeState;
+}
+
+
 - (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFunc:(id<MTLFunction>) func
 {
     METAL_LOG(@"MetalPipelineManager.getPhongPipeStateWithFragFunc()");

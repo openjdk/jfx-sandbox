@@ -25,6 +25,8 @@
 
 #import <jni.h>
 #import "MetalTexture.h"
+#import "MetalPipelineManager.h"
+
 
 @implementation MetalTexture
 
@@ -54,7 +56,7 @@
         if (format == 7) {
             pixelFormat = MTLPixelFormatRGBA32Float;
             TEX_LOG(@"Creating texture with native format MTLPixelFormatRGBA32Float");
-         }
+        }
         type = MTLTextureType2D;
         storageMode = MTLResourceStorageModeShared;
 
@@ -298,6 +300,72 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
              bytesPerRow: scanStride];
 
     (*env)->ReleaseIntArrayElements(env, pixData, pixels, 0);
+
+    // TODO: MTL: add error detection and return appropriate jlong
+    return 0;
+}
+
+JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateYUV422
+(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jbyteArray pixData, jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride) {
+    TEX_LOG(@"\n");
+    TEX_LOG(@"-> Native: MTLTexture_nUpdateYUV422 srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
+    MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
+    MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
+
+    id<MTLTexture> tex = [mtlTex getTexture];
+    jbyte* pixels = (*env)->GetByteArrayElements(env, pixData, 0);
+    jbyte* p = pixels;
+
+    @autoreleasepool {
+
+        id<MTLDevice> device = [context getDevice];
+
+        id<MTLBuffer> srcBuff = [[device newBufferWithLength: (w * h * 2) options: MTLResourceStorageModeManaged] autorelease];
+        for (int row = 0; row < h; row++) {
+            // Copy each row in srcBuff
+            memcpy(srcBuff.contents + (row * w * 2),
+                   (char*) pixels, w*2);
+
+            pixels += (w * 2);
+            pixels += scanStride - (w*2);
+        }
+
+        [srcBuff didModifyRange:NSMakeRange(0, srcBuff.length)];
+
+
+        MTLSize _threadgroupSize = MTLSizeMake(2, 1, 1);
+
+        MTLSize _threadgroupCount;
+        _threadgroupCount.width  = w / _threadgroupSize.width;
+        _threadgroupCount.height = h / _threadgroupSize.height;
+        _threadgroupCount.depth = 1;
+
+        id<MTLComputePipelineState> _computePipelineState = [[context getPipelineManager] getComputePipelineStateWithFunc:@"uyvy422_to_rgba"];
+
+        id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
+
+        id<MTLComputeCommandEncoder> computeEncoder = [commandBuffer computeCommandEncoder];
+
+        [computeEncoder setComputePipelineState:_computePipelineState];
+
+        [computeEncoder setBuffer:srcBuff
+                            offset:0
+                           atIndex:0];
+
+        [computeEncoder setTexture:tex
+                           atIndex:0];
+
+        [computeEncoder dispatchThreadgroups:_threadgroupCount
+                       threadsPerThreadgroup:_threadgroupSize];
+
+        [computeEncoder endEncoding];
+        [commandBuffer commit];
+        [commandBuffer waitUntilCompleted];
+    }
+
+    pixels = p;
+
+    (*env)->ReleaseByteArrayElements(env, pixData, pixels, 0);
 
     // TODO: MTL: add error detection and return appropriate jlong
     return 0;

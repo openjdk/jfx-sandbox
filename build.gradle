@@ -2571,6 +2571,21 @@ project(":graphics") {
         }
         nativePrism.dependsOn compileMSLPassThroughVS;
 
+        task compileMSLComputeKernels(group: "Build") {
+            def COMPUTE_KERNELS_SRC = file("src/main/native-prism-mtl/ComputeKernels.metal")
+            doLast {
+                mkdir "$buildDir/msl"
+                exec {
+                    commandLine("${metalCompiler}")
+                    args += [ "-c" ]
+                    args += [ "$COMPUTE_KERNELS_SRC" ]
+                    args += [ "-o" ]
+                    args += [ "$buildDir/msl/ComputeKernels.air" ]
+                }
+            }
+        }
+        nativePrism.dependsOn compileMSLComputeKernels;
+
         task compileMSLPhongVS(group: "Build") {
             def PHONG_VS_SRC = file("src/main/native-prism-mtl/msl/PhongVS.metal")
             doLast {
@@ -2605,6 +2620,7 @@ project(":graphics") {
             dependsOn(compileDecoraMSLShaders,
                       compilePrismMSLShaders,
                       compileMSLPassThroughVS,
+                      compileMSLComputeKernels,
                       compileMSLPhongVS,
                       compileMSLPhongPS)
             doLast {
