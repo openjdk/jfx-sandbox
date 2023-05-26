@@ -33,6 +33,8 @@ import java.util.concurrent.TimeUnit;
 import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.geometry.Point3D;
+import javafx.scene.control.Button;
+import javafx.scene.effect.BlendMode;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.paint.Color;
@@ -371,6 +373,51 @@ public class RenderPerfTest {
             super.addComponents(node, n, x, y, vx, vy);
             for (int id = 0; id < n; id++) {
                 circle[id].setSmooth(false);
+            }
+        }
+    }
+
+    static class CircleRendererBlendMultiply extends CircleRenderer {
+
+        CircleRendererBlendMultiply(int n, double r) {
+            super(n, r);
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            super.addComponents(node, n, x, y, vx, vy);
+            for (int id = 0; id < n; id += 10) {
+                circle[id].setBlendMode(BlendMode.MULTIPLY);
+            }
+        }
+    }
+
+    static class CircleRendererBlendAdd extends CircleRenderer {
+
+        CircleRendererBlendAdd(int n, double r) {
+            super(n, r);
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            super.addComponents(node, n, x, y, vx, vy);
+            for (int id = 0; id < n; id += 10) {
+                circle[id].setBlendMode(BlendMode.ADD);
+            }
+        }
+    }
+
+    static class CircleRendererBlendDarken extends CircleRenderer {
+
+        CircleRendererBlendDarken(int n, double r) {
+            super(n, r);
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            super.addComponents(node, n, x, y, vx, vy);
+            for (int id = 0; id < n; id += 10) {
+                circle[id].setBlendMode(BlendMode.DARKEN);
             }
         }
     }
@@ -716,6 +763,129 @@ public class RenderPerfTest {
         }
     }
 
+    static class MultiShapeRenderer extends FlatParticleRenderer {
+        Circle[] circle;
+        Rectangle[] rectangle;
+        Arc[] arc;
+        Ellipse[] ellipse;
+
+        MultiShapeRenderer(int n, double r) {
+            super(n, r);
+            circle = new Circle[n / 4];
+            rectangle = new Rectangle[n / 4];
+            arc = new Arc[n / 4];
+            ellipse = new Ellipse[n / 4];
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            int index =0;
+             for (int id = 0; id < n / 4; id++) {
+                circle[id] = new Circle();
+
+                circle[id].setCenterX(x[index]);
+                circle[id].setCenterY(y[index]);
+                circle[id].setRadius(r);
+                circle[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(circle[id]);
+                index++;
+
+                rectangle[id] = new Rectangle();
+
+                rectangle[id].setX(x[index] - r);
+                rectangle[id].setY(y[index] - r);
+                rectangle[id].setWidth(2 * r);
+                rectangle[id].setHeight(2 * r);
+                rectangle[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(rectangle[id]);
+                index++;
+
+                arc[id] = new Arc();
+
+                arc[id].setCenterX(x[index]);
+                arc[id].setCenterY(y[index]);
+                arc[id].setRadiusX(r);
+                arc[id].setRadiusY(r);
+                arc[id].setStartAngle(random.nextDouble(100));
+                arc[id].setLength(random.nextDouble(360));
+                arc[id].setType(ArcType.ROUND);
+                arc[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(arc[id]);
+                index++;
+
+                ellipse[id] = new Ellipse();
+
+                ellipse[id].setCenterX(x[index]);
+                ellipse[id].setCenterY(y[index]);
+                ellipse[id].setRadiusX(2 * r);
+                ellipse[id].setRadiusY(r);
+                ellipse[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(ellipse[id]);
+                index++;
+            }
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            int index = 0;
+            for (int id = 0; id < n / 4; id++) {
+                circle[id].setCenterX(x[index]);
+                circle[id].setCenterY(y[index]);
+                index++;
+
+                rectangle[id].setX(x[index] - r);
+                rectangle[id].setY(y[index] - r);
+                index++;
+
+                arc[id].setCenterX(x[index]);
+                arc[id].setCenterY(y[index]);
+                index++;
+
+                ellipse[id].setCenterX(x[index]);
+                ellipse[id].setCenterY(y[index]);
+                index++;
+            }
+        }
+
+        public void releaseResource() {
+            circle = null;
+            rectangle = null;
+            arc = null;
+            ellipse = null;
+        }
+    }
+
+    static class ButtonRenderer implements ParticleRenderer {
+        double r;
+        Button[] button;
+
+        ButtonRenderer(int n, double r) {
+            this.r = r;
+            button = new Button[n];
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                button[id] = new Button();
+                button[id].setText(String.valueOf(id));
+                button[id].setLayoutX(x[id]);
+                button[id].setLayoutY(y[id]);
+                node.getChildren().add(button[id]);
+            }
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                button[id].setLayoutX(x[id]);
+                button[id].setLayoutY(y[id]);
+            }
+        }
+
+        public void releaseResource() {
+            button = null;
+        }
+    }
+
     /**
      * {@link PerfMeter} is the class which runs each test.
      * This uses the JavaFX applcation environment created and invokes {@link ParticleRenderable}
@@ -764,7 +934,6 @@ public class RenderPerfTest {
                 stage.setOnShown(event -> Platform.runLater(startupLatch::countDown));
                 stage.setOnHidden(event -> Platform.runLater(stageHiddenLatch::countDown));
 
-
                 stage.show();
 
                 frameRateMeter = new AnimationTimer() {
@@ -781,6 +950,7 @@ public class RenderPerfTest {
                         }
 
                         moveComponents(renderable);
+
                         if (!warmUp) {
                             frames++;
                             if (now >= startTime + TEST_TIME) {
@@ -849,6 +1019,18 @@ public class RenderPerfTest {
         (new PerfMeter("CircleRH")).exec(createPR(new CircleRendererRH(objectCount, R)));
     }
 
+    public void testCircleBlendMultiply() throws Exception {
+        (new PerfMeter("CircleBlendMultiply")).exec(createPR(new CircleRendererBlendMultiply(objectCount, R)));
+    }
+
+    public void testCircleBlendAdd() throws Exception {
+        (new PerfMeter("CircleBlendAdd")).exec(createPR(new CircleRendererBlendAdd(objectCount, R)));
+    }
+
+    public void testCircleBlendDarken() throws Exception {
+        (new PerfMeter("CircleBlendDarken")).exec(createPR(new CircleRendererBlendDarken(objectCount, R)));
+    }
+
     public void testStrokedCircle() throws Exception {
         (new PerfMeter("StrokedCircle")).exec(createPR(new StrokedCircleRenderer(objectCount, R)));
     }
@@ -903,6 +1085,14 @@ public class RenderPerfTest {
 
     public void test3DBox() throws Exception {
         (new PerfMeter("3DBox")).exec(createPR(new Box3DRenderer(objectCount, R)));
+    }
+
+    public void testMultiShape() throws Exception {
+        (new PerfMeter("MultiShape")).exec(createPR(new MultiShapeRenderer(objectCount, R)));
+    }
+
+    public void testButton() throws Exception {
+        (new PerfMeter("Button")).exec(createPR(new ButtonRenderer(objectCount, R)));
     }
 
     /**
