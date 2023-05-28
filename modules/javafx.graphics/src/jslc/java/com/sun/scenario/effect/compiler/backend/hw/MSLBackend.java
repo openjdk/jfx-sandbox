@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 import static java.util.Map.entry;
 
@@ -78,6 +79,8 @@ public class MSLBackend extends SLBackend {
 
     private static final Map<String, String> QUAL_MAP = Map.of(
         "param", "constant");
+
+    private static Map<String, String> texSamplerMap = new HashMap<>();
 
     private static final Map<String, String> TYPE_MAP = Map.of(
         "sampler",  "texture2d<float>",
@@ -208,11 +211,11 @@ public class MSLBackend extends SLBackend {
         boolean first = true;
         for (Expr param : e.getParams()) {
             if (first) {
-                // For every user defined function, pass a reference to the uniforms struct
-                // as first parameter.
+                // For every user defined function, pass reference to 4 samplers and
+                // reference to the uniforms struct.
                 if (!CoreSymbols.getFunctions().contains(getFuncName(e.getFunction().getName())) &&
                         !libraryFunctionsUsedInShader.contains(getFuncName(e.getFunction().getName()))) {
-                    output("textureSampler, uniforms, ");
+                    output("sampler0, sampler1, sampler2, sampler3, uniforms, ");
                 }
                 first = false;
             } else {
@@ -231,10 +234,13 @@ public class MSLBackend extends SLBackend {
         boolean first = true;
         for (Param param : func.getParams()) {
             if (first) {
-                // Add "constant Uniforms& uniforms" as the first parameter to all user defined functions.
+                // Add 4 sampler variables and "device <Uniforms>& uniforms" as the parameter to all user defined functions.
                 if (!CoreSymbols.getFunctions().contains(getFuncName(d.getFunction().getName())) &&
                         !libraryFunctionsUsedInShader.contains(getFuncName(d.getFunction().getName()))) {
-                    output("sampler textureSampler, device " + uniformStructName + "& uniforms, ");
+                    output("\n"+
+                           "sampler sampler0, sampler sampler1,\n" +
+                           "sampler sampler2, sampler sampler3,\n" +
+                           "device " + uniformStructName + "& uniforms,\n");
                 }
                 first = false;
             } else {
@@ -276,6 +282,7 @@ public class MSLBackend extends SLBackend {
             }
             if (getType(var.getType()).contains("texture2d")) {
                 hasTextureVar = true;
+                texSamplerMap.put(var.getName(), "sampler" + texSamplerMap.size());
             }
             uniformNames.add(var.getName());
             aUniform += getType(var.getType()) + " " + var.getName();
@@ -446,10 +453,15 @@ public class MSLBackend extends SLBackend {
     public String getShader() {
         String shader = super.getShader();
         updateCommonHeaders();
-        String fragmentFunctionDef = "\n[[fragment]] float4 " + shaderFunctionName + "(VS_OUTPUT in [[ stage_in ]]";
-        fragmentFunctionDef += ",\n    device " + uniformStructName + "& uniforms [[ buffer(0) ]]";
-        fragmentFunctionDef += ",\n    sampler textureSampler [[sampler(0)]]";
-        fragmentFunctionDef += ") {\n\nfloat4 outFragColor;";
+        String fragmentFunctionDef = "\n[[fragment]] float4 " + shaderFunctionName + "(VS_OUTPUT in [[ stage_in ]],";
+        fragmentFunctionDef += "\n    device " + uniformStructName + "& uniforms [[ buffer(0) ]],";
+        fragmentFunctionDef += "\n    sampler sampler0 [[ sampler(0) ]],";
+        fragmentFunctionDef += "\n    sampler sampler1 [[ sampler(1) ]],";
+        fragmentFunctionDef += "\n    sampler sampler2 [[ sampler(2) ]],";
+        fragmentFunctionDef += "\n    sampler sampler3 [[ sampler(3) ]]) {";
+
+        fragmentFunctionDef += "\n\nfloat4 outFragColor;";
+
         shader = shader.replace(MAIN, fragmentFunctionDef);
 
         int indexOfClosingBraceOfMain = shader.lastIndexOf('}');
@@ -460,7 +472,10 @@ public class MSLBackend extends SLBackend {
             shader = shader.replaceAll("\\b" + helperFunction + "\\b", shaderFunctionName + "_" + helperFunction);
         }
         shader = shader.replaceAll("\\bsampleTex\\b", sampleTexFuncName);
-        shader = shader.replaceAll("\\b" + sampleTexFuncName + "\\(uniforms" + "\\b" , sampleTexFuncName + "(textureSampler, uniforms");
+        for (Map.Entry<String,String> entry : texSamplerMap.entrySet()) {
+            shader = shader.replaceAll("\\b" + sampleTexFuncName + "\\(uniforms." + entry.getKey() + "\\b",
+                sampleTexFuncName + "(" + entry.getValue() + ", uniforms." + entry.getKey());
+        }
 
         return shader;
     }
@@ -483,6 +498,7 @@ public class MSLBackend extends SLBackend {
         textureSamplerName = shaderFunctionName + "_textureSampler";
         sampleTexFuncName = shaderFunctionName + "_SampleTexture";
 
+        texSamplerMap = new HashMap<>();
         helperFunctions = new ArrayList<>();
         uniformNames = new ArrayList<>();
         uniformsForShaderFile = "";

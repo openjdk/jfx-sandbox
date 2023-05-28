@@ -224,6 +224,17 @@ public class MTLContext extends BaseShaderContext {
     }
 
     @Override
+    protected void setTexture(int texUnit, Texture tex) {
+        MTLLog.Debug("MTLContext.setTexture() : texUnit = " + texUnit + ", tex = " + tex);
+        if (checkDisposed()) return;
+        if (tex != null) {
+            tex.assertLocked();
+            flushVertexBuffer();
+            updateTexture(texUnit, tex);
+        }
+    }
+
+    @Override
     protected void updateTexture(int texUnit, Texture tex) {
         MTLLog.Debug("MTLContext.updateTexture() :texUnit = " + texUnit + ", tex = " + tex);
         boolean linear;
@@ -249,8 +260,7 @@ public class MTLContext extends BaseShaderContext {
                 default:
                     throw new InternalError("Unrecognized wrap mode: " + tex.getWrapMode());
             }
-            MTLShader.setTexture(texUnit, tex);
-            nSetSampler(getContextHandle(), linear, wrapMode);
+            MTLShader.setTexture(texUnit, tex, linear, wrapMode);
         }
     }
 
@@ -368,7 +378,6 @@ public class MTLContext extends BaseShaderContext {
     native private static int  nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
     native private static void nUpdateRenderTarget(long context, long texPtr);
     native private static int  nResetTransform(long context);
-    native private static void nSetSampler(long pContext, boolean isLinear, int wrapMode);
     native private static int  nSetProjViewMatrix(long pContext, boolean isOrtho,
         double m00, double m01, double m02, double m03,
         double m10, double m11, double m12, double m13,

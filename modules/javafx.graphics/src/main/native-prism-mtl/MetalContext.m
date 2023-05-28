@@ -68,29 +68,8 @@
         rttPassDesc = [MTLRenderPassDescriptor new];
         rttPassDesc.colorAttachments[0].clearColor  = MTLClearColorMake(1, 1, 1, 1); // make this programmable
         rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
-
-        MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor new] autorelease];
-        sampler = [device newSamplerStateWithDescriptor:samplerDescriptor];
     }
     return self;
-}
-
-- (void) setSampler:(bool)isLinear wrapMode:(int)wrapMode;
-{
-    CTX_LOG(@"MetalContext.setSampler()");
-    MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor new] autorelease];
-    if (isLinear) {
-        samplerDescriptor.minFilter = MTLSamplerMinMagFilterLinear;
-        samplerDescriptor.magFilter = MTLSamplerMinMagFilterLinear;
-        samplerDescriptor.mipFilter = MTLSamplerMinMagFilterLinear;
-    }
-    if (wrapMode != -1) {
-        samplerDescriptor.rAddressMode = wrapMode;
-        samplerDescriptor.sAddressMode = wrapMode;
-        samplerDescriptor.tAddressMode = wrapMode;
-    }
-
-    sampler = [device newSamplerStateWithDescriptor:samplerDescriptor];
 }
 
 - (void) setRTT:(MetalRTTexture*)rttPtr
@@ -186,22 +165,24 @@
                               offset:0
                              atIndex:0];
 
-    if (sampler == nil) {
-        MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor new] autorelease];
-        sampler = [device newSamplerStateWithDescriptor:samplerDescriptor];
+    NSMutableDictionary* texturesDict = [[self getCurrentShader] getTexutresDict];
+    if ([texturesDict count] > 0) {
+        for (NSString *key in texturesDict) {
+            id<MTLTexture> tex = texturesDict[key];
+            CTX_LOG(@"    Value: %@ for key: %@", tex, key);
+            [renderEncoder useResource:tex usage:MTLResourceUsageRead];
+        }
+
+        NSMutableDictionary* samplersDict = [[self getCurrentShader] getSamplersDict];
+        for (NSNumber *key in samplersDict) {
+            id<MTLSamplerState> sampler = samplersDict[key];
+            CTX_LOG(@"    Value: %@ for key: %@", tex, key);
+            [renderEncoder setFragmentSamplerState:sampler atIndex:[key integerValue]];
+        }
     }
-    [renderEncoder setFragmentSamplerState:sampler atIndex:0];
-    sampler = nil;
 
     if (isScissorRectSet) {
         [renderEncoder setScissorRect:scissorRect];
-    }
-
-    NSMutableDictionary* textures = [[self getCurrentShader] getTexutresDict];
-    for (NSString *key in textures) {
-        id<MTLTexture> tex = textures[key];
-        CTX_LOG(@"    Value: %@ for key: %@", tex, key);
-        [renderEncoder useResource:tex usage:MTLResourceUsageRead];
     }
 
     int numQuads = numVerts/4;
@@ -532,11 +513,6 @@
         rttPassDesc = nil;
     }
 
-    if (sampler != nil) {
-        [sampler release];
-        sampler = nil;
-    }
-
     if (phongShader != nil) {
         [phongShader release];
         phongShader = nil;
@@ -643,15 +619,6 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     //[mtlContext resetProjViewMatrix];
     return 1;
-}
-
-JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetSampler
-  (JNIEnv *env, jclass jClass,
-    jlong context, jboolean isLinear, jint wrapMode)
-{
-    CTX_LOG(@"MTLContext_nSetSampler");
-    MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
-    [mtlContext setSampler:isLinear  wrapMode:wrapMode];
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetProjViewMatrix

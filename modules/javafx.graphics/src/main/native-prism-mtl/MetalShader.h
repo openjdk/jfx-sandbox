@@ -41,6 +41,7 @@
     id<MTLRenderPipelineState> pipeState;
     NSDictionary* fragArgIndicesDict;
     NSMutableDictionary* fragTexArgsDict;
+    NSMutableDictionary* fragTexSamplerDict;
 
     id<MTLArgumentEncoder> argumentEncoder;
     id<MTLBuffer> argumentBuffer;
@@ -50,10 +51,16 @@
 - (id<MTLRenderPipelineState>) getPipeState;
 - (id<MTLBuffer>) getArgumentBuffer;
 - (NSMutableDictionary*) getTexutresDict;
+- (NSMutableDictionary*) getSamplersDict;
 
 - (NSUInteger) getArgumentID:(NSString*) name;
 - (void) enable;
-- (void) setTexture:(NSString*)argumentName texture:(id<MTLTexture>) texture;
+
+- (void) setTexture:(int)texID
+         nameString:(NSString*)argumentName
+            texture:(id<MTLTexture>)texture
+           isLinear:(bool)isLinear
+           wrapMode:(int)wrapMode;
 
 - (void) setInt:  (NSString*)argumentName i0:(int) i0;
 

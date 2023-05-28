@@ -47,7 +47,8 @@ public class MTLShader implements Shader  {
     native private static long nEnable(long nMetalShader);
     native private static long nDisable(long nMetalShader);
 
-    native private static long nSetTexture(long nMetalShader, String texName, long texPtr);
+    native private static long nSetTexture(long nMetalShader, int texID, String texName,
+                                           long texPtr, boolean isLinear, int wrapMode);
 
     native private static long nSetInt(long nMetalShader, String uniformName, int f0);
 
@@ -143,12 +144,13 @@ public class MTLShader implements Shader  {
         }
     }
 
-    public static void setTexture(int texUnit, Texture tex) {
+    public static void setTexture(int texUnit, Texture tex, boolean isLinear, int wrapMode) {
         MTLLog.Debug(">>> MTLShader.setTexture() : fragmentFunctionName : " + currentEnabledShader.fragmentFunctionName);
-        MTLLog.Debug("    MTLShader.setTexture() texUnit = " + texUnit);
+        MTLLog.Debug("    MTLShader.setTexture() texUnit = " + texUnit + ", isLinear = " + isLinear + ", wrapMode = " + wrapMode);
         MTLTexture mtlTex = (MTLTexture)tex;
-        nSetTexture(currentEnabledShader.nMetalShaderRef,
-                currentEnabledShader.samplers.get(texUnit), mtlTex.getNativeHandle());
+        nSetTexture(currentEnabledShader.nMetalShaderRef, texUnit,
+                currentEnabledShader.samplers.get(texUnit), mtlTex.getNativeHandle(),
+                isLinear, wrapMode);
     }
 
     @Override

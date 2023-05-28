@@ -62,7 +62,8 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     if (self) {
         context = ctx;
         SHADER_LOG(@">>>> MetalShader.initWithContext()----> fragFuncName: %@", fragName);
-        fragTexArgsDict = [[NSMutableDictionary alloc] init];
+        fragTexArgsDict    = [[NSMutableDictionary alloc] init];
+        fragTexSamplerDict = [[NSMutableDictionary alloc] init];
         fragArgIndicesDict = getPRISMDict(fragName);
         if (fragArgIndicesDict == nil) {
             fragArgIndicesDict = getDECORADict(fragName);
@@ -124,6 +125,17 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     return fragTexArgsDict;
 }
 
+- (NSMutableDictionary*) getSamplersDict
+{
+    SHADER_LOG(@"\n");
+    SHADER_LOG(@"MetalShader.getSamplersDict()----> fragFuncName: %@", fragFuncName);
+    for (NSString *key in fragTexSamplerDict) {
+        id value = fragTexSamplerDict[key];
+        SHADER_LOG(@"    Value: %@ for key: %@", value, key);
+    }
+    return fragTexSamplerDict;
+}
+
 - (NSUInteger) getArgumentID:(NSString*) name
 {
     SHADER_LOG(@"\n");
@@ -148,7 +160,11 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     SHADER_LOG(@"<<<< MetalShader.setInt()");
 }
 
-- (void) setTexture:(NSString*)argumentName texture:(id<MTLTexture>) texture
+- (void) setTexture:(int)texID
+         nameString:(NSString*)argumentName
+            texture:(id<MTLTexture>)texture
+           isLinear:(bool)isLinear
+           wrapMode:(int)wrapMode
 {
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.setTexture() : argumentName = %@, texture = %p", argumentName, texture);
@@ -165,6 +181,19 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     SHADER_LOG(@"    index.intValue: %d", index.intValue);
 
     [argumentEncoder setTexture:texture atIndex:index.intValue];
+
+    // Create and store sampler for this texture
+    MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor new] autorelease];
+    if (isLinear) {
+        samplerDescriptor.minFilter = MTLSamplerMinMagFilterLinear;
+        samplerDescriptor.magFilter = MTLSamplerMinMagFilterLinear;
+    }
+    if (wrapMode != -1) {
+        samplerDescriptor.sAddressMode = wrapMode;
+        samplerDescriptor.tAddressMode = wrapMode;
+    }
+    id<MTLSamplerState> sampler = [[context getDevice] newSamplerStateWithDescriptor:samplerDescriptor];
+    [fragTexSamplerDict setObject:sampler forKey:[NSNumber numberWithInt:texID]];
 
     SHADER_LOG(@"<<<< MetalShader.setTexture()");
 }
@@ -305,7 +334,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nDisable
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nSetTexture
-  (JNIEnv *env, jclass jClass, jlong shader, jstring name, jlong nTexturePtr)
+  (JNIEnv *env, jclass jClass, jlong shader, jint texID, jstring name,
+    jlong nTexturePtr, jboolean isLinear, jint wrapMode)
 {
     SHADER_LOG(@"\n");
     SHADER_LOG(@"-> JNICALL Native: MTLShader_nSetTexture");
@@ -314,7 +344,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nSetTexture
     MetalTexture* mtlTex   = (MetalTexture*)jlong_to_ptr(nTexturePtr);
     id<MTLTexture> tex     = [mtlTex getTexture];
 
-    [mtlShader setTexture:nameString texture:tex];
+    [mtlShader setTexture:texID nameString:nameString texture:tex isLinear:isLinear wrapMode:wrapMode];
     return 1;
 }
 

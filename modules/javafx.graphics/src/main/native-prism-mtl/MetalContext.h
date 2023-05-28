@@ -70,8 +70,6 @@ typedef enum VertexInputIndex {
     id<MTLBuffer> currentFragArgBuffer;
     MetalShader* currentShader;
 
-    id<MTLSamplerState> sampler;
-
     MetalResourceFactory* resourceFactory;
 
     MTLScissorRect scissorRect;
@@ -108,8 +106,6 @@ typedef enum VertexInputIndex {
                         clearDepth:(bool)clearDepth ignoreScissor:(bool)ignoreScissor;
 - (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height;
 - (void) resetClip;
-
-- (void) setSampler:(bool)isLinear wrapMode:(int)wrapMode;
 
 - (void) fillVB:(struct PrismSourceVertex const *)pSrcFloats colors:(char const *)pSrcColors
                   numVertices:(int)numVerts;
