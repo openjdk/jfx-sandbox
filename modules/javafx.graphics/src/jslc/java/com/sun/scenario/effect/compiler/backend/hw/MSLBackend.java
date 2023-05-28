@@ -87,7 +87,7 @@ public class MSLBackend extends SLBackend {
     private static final Map<String, String> VAR_MAP = Map.ofEntries(
         entry("pos0",                     "in.texCoord0"),
         entry("pos1",                     "in.texCoord1"),
-        entry("pixcoord",                 "in.pixCoord"),
+        entry("pixcoord",                 "in.position.xy"),
         entry("color",                    "outFragColor"),
         entry("jsl_vertexColor",          "in.fragColor"),
         // The uniform variables are combined into a struct. These structs are generated while
@@ -319,17 +319,10 @@ public class MSLBackend extends SLBackend {
             fragmentShaderHeader.append("using namespace metal;\n\n");
 
             fragmentShaderHeader.append("struct VS_OUTPUT {\n");
-            // TODO: MTL: Avoid passing position to fragment function if can be.
-            // position is not needed in any of our fragment shaders, so we should remove it.
-            // This should be done carefully. We should verify that all shaders work as expected.
-
             fragmentShaderHeader.append("    float4 position [[ position ]];\n");
             fragmentShaderHeader.append("    float4 fragColor;\n");
             fragmentShaderHeader.append("    float2 texCoord0;\n");
             fragmentShaderHeader.append("    float2 texCoord1;\n");
-            // if (isPixcoordReferenced) {
-            fragmentShaderHeader.append("    float2 pixCoord;\n");
-            // }
             fragmentShaderHeader.append("};\n\n");
 
             try {
@@ -370,7 +363,6 @@ public class MSLBackend extends SLBackend {
                                 "    vector_float4 color;\n" +
                                 "    vector_float2 texCoord0;\n" +
                                 "    vector_float2 texCoord1;\n" +
-                                "    vector_float2 pixCoord;\n" +
                                 "} " + shaderType + "_VS_INPUT;" +
                                 "\n\n");
             }
