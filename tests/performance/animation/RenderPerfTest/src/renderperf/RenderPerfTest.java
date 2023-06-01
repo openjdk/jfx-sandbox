@@ -24,6 +24,7 @@
 package renderperf;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -100,7 +101,7 @@ public class RenderPerfTest {
     private static Group group;
     private static Random random = new Random(100);
     private static int objectCount = 0;
-    private static String testName = null;
+    private static ArrayList<String> testList = null;
 
     interface Renderable {
         void addComponents(Group node);
@@ -1124,10 +1125,19 @@ public class RenderPerfTest {
             String arg = args[i];
             switch(arg) {
             case "-t":
-                testName = args[++i];
+                while ((i+1) < args.length && args[i + 1].charAt(0) != '-') {
+                    testList.add(args[++i]);
+                }
+                if (testList.size() == 0) return false;
                 break;
             case "-n":
-                objectCount = Integer.parseInt(args[++i]);
+                try {
+                    objectCount = Integer.parseInt(args[++i]);
+                }
+                catch (ArrayIndexOutOfBoundsException e) {
+                    System.out.println("\nnumber_of_objects not provided.");
+                    return false;
+                }
                 break;
             case "-h":
             case "--help":
@@ -1151,7 +1161,7 @@ public class RenderPerfTest {
     public static void printUsage() {
         System.out.println("Usage: java @<path_to>/run.args RenderPerfTest -t <test_name> -n <number_of_objects> -h");
         System.out.println("       Where test_name: Name of the test to be executed");
-        System.out.println("             number_of_objects:Number of objects to be rendered in the test");
+        System.out.println("             number_of_objects: Number of objects to be rendered in the test");
         System.out.println("             -h: help: print application usage");
         System.out.println("NOTE: Set JVM command line parameter -Djavafx.animation.fullspeed=true to run animation at full speed");
 
@@ -1162,6 +1172,7 @@ public class RenderPerfTest {
         RenderPerfTest test = new RenderPerfTest();
 
         test.intializeFxEnvironment();
+        testList = new ArrayList<String>();
 
         if (!test.parseCmdOptions(args)) {
             printUsage();
@@ -1175,9 +1186,11 @@ public class RenderPerfTest {
         test.initializeRenderers(test.objectCount);
 
         try {
-            if (test.testName != null) {
-                Method m = RenderPerfTest.class.getDeclaredMethod("test" + test.testName);
-                m.invoke(test);
+            if (testList.size() != 0) {
+                for(String testName: testList) {
+                    Method m = RenderPerfTest.class.getDeclaredMethod("test" + testName);
+                    m.invoke(test);
+                }
             } else {
                 Method[] methods = RenderPerfTest.class.getDeclaredMethods();
                 for (Method m : methods) {
