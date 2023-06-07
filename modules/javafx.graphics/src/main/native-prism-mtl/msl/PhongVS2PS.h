@@ -23,11 +23,13 @@
  * questions.
  */
 
-static constant int numLights = 3;
+#define MAX_NUM_LIGHTS 3
 
 struct VS_PHONG_INOUT {
     float4 position [[position]];
     float2 texCoord;
+    float3 worldVecToEye;
+    float numLights;
     // TODO: MTL: Currently i can't use
     // array of vectors in metal. Find a way
     // to implement it in a better way
@@ -37,5 +39,9 @@ struct VS_PHONG_INOUT {
     float3 worldNormLightDirs1;
     float3 worldNormLightDirs2;
     float3 worldNormLightDirs3;
-    float3 worldVecToEye;
+    // TODO: MTL: Tried implementing using
+    // array of scalars but this also results in
+    // compile time error
+    /*float worldVecsToLights[MAX_NUM_LIGHTS * 3];
+    float worldNormLightDirs[MAX_NUM_LIGHTS * 3];*/
 };

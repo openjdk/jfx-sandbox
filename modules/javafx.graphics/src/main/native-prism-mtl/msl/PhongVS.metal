@@ -51,12 +51,11 @@ float3 getLocalVector(float3 global, float3 N[3]) {
 
 vertex VS_PHONG_INOUT PhongVS(const uint v_id [[ vertex_id ]],
                       constant VS_PHONG_INPUT * v_in [[ buffer(0) ]],
-                      constant VS_PHONG_UNIFORMS & vsUniforms [[ buffer(1) ]],
-                      constant float4 & lightsPos [[ buffer(2) ]],
-                      constant float4 & lightsDir [[ buffer(3) ]])
+                      constant VS_PHONG_UNIFORMS & vsUniforms [[ buffer(1) ]])
 {
     VS_PHONG_INOUT out;
     out.texCoord = v_in[v_id].texCoord;
+    out.numLights = vsUniforms.numLights;
     float4 worldVertexPos = vsUniforms.world_matrix * (float4(v_in[v_id].position, 1.0));
 
     out.position = vsUniforms.mvp_matrix * worldVertexPos;
@@ -73,19 +72,66 @@ vertex VS_PHONG_INOUT PhongVS(const uint v_id [[ vertex_id ]],
     float3 worldVecToEye = vsUniforms.cameraPos.xyz - worldVertexPos.xyz;
     out.worldVecToEye = getLocalVector(worldVecToEye, n);
 
-    float3 worldVecToLight = (lightsPos).xyz - worldVertexPos.xyz;
+    // TODO: MTL: Implementation using array of scalars
+    // which is not working
+    /*for (int i = 0; i < vsUniforms.numLights; i++) {
+        float4 lightPos = float4(vsUniforms.lightsPosition[(i * 4)],
+                                 vsUniforms.lightsPosition[(i * 4) + 1],
+                                 vsUniforms.lightsPosition[(i * 4) + 2],
+                                 0.0);
+        float4 lightDir = float4(vsUniforms.lightsNormDirection[(i * 4)],
+                                 vsUniforms.lightsNormDirection[(i * 4) + 1],
+                                 vsUniforms.lightsNormDirection[(i * 4) + 2],
+                                 0.0);
+        float3 worldVecToLight = (lightPos).xyz - worldVertexPos.xyz;
+        float3 worldVecToLightLocal = getLocalVector(worldVecToLight, n);
+        out.worldVecsToLights[(i * 3)] = worldVecToLightLocal.x;
+        out.worldVecsToLights[(i * 3) + 1] = worldVecToLightLocal.y;
+        out.worldVecsToLights[(i * 3) + 2] = worldVecToLightLocal.z;
+
+        float3 worldNormLightDir = (lightDir).xyz;
+        float3 worldNormLightDirsLocal = getLocalVector(worldNormLightDir, n);
+        out.worldNormLightDirs[(i * 3)] = worldNormLightDirsLocal.x;
+        out.worldNormLightDirs[(i * 3) + 1] = worldNormLightDirsLocal.y;
+        out.worldNormLightDirs[(i * 3) + 2] = worldNormLightDirsLocal.z;
+    }*/
+    float4 lightPos1 = float4(vsUniforms.lightsPosition[0],
+                              vsUniforms.lightsPosition[1],
+                              vsUniforms.lightsPosition[2],
+                              0.0);
+    float4 lightPos2 = float4(vsUniforms.lightsPosition[4],
+                              vsUniforms.lightsPosition[5],
+                              vsUniforms.lightsPosition[6],
+                              0.0);
+    float4 lightPos3 = float4(vsUniforms.lightsPosition[8],
+                              vsUniforms.lightsPosition[9],
+                              vsUniforms.lightsPosition[10],
+                              0.0);
+    float4 lightDir1 = float4(vsUniforms.lightsNormDirection[0],
+                              vsUniforms.lightsNormDirection[1],
+                              vsUniforms.lightsNormDirection[2],
+                              0.0);
+    float4 lightDir2 = float4(vsUniforms.lightsNormDirection[4],
+                              vsUniforms.lightsNormDirection[5],
+                              vsUniforms.lightsNormDirection[6],
+                              0.0);
+    float4 lightDir3 = float4(vsUniforms.lightsNormDirection[8],
+                              vsUniforms.lightsNormDirection[9],
+                              vsUniforms.lightsNormDirection[10],
+                              0.0);
+    float3 worldVecToLight = (lightPos1).xyz - worldVertexPos.xyz;
     out.worldVecsToLights1 = getLocalVector(worldVecToLight, n);
-    float3 worldNormLightDir = (lightsDir).xyz;
+    float3 worldNormLightDir = (lightDir1).xyz;
     out.worldNormLightDirs1 = getLocalVector(worldNormLightDir, n);
 
-    worldVecToLight = (lightsPos + 1).xyz - worldVertexPos.xyz;
+    worldVecToLight = (lightPos2).xyz - worldVertexPos.xyz;
     out.worldVecsToLights2 = getLocalVector(worldVecToLight, n);
-    worldNormLightDir = (lightsDir + 1).xyz;
+    worldNormLightDir = (lightDir2).xyz;
     out.worldNormLightDirs2 = getLocalVector(worldNormLightDir, n);
 
-    worldVecToLight = (lightsPos + 2).xyz - worldVertexPos.xyz;
+    worldVecToLight = (lightPos3).xyz - worldVertexPos.xyz;
     out.worldVecsToLights3 = getLocalVector(worldVecToLight, n);
-    worldNormLightDir = (lightsDir + 2).xyz;
+    worldNormLightDir = (lightDir3).xyz;
     out.worldNormLightDirs3 = getLocalVector(worldNormLightDir, n);
 
     return out;

@@ -39,11 +39,7 @@ float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float d
 }
 
 fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
-                        constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
-                        constant float4 & lightsAttenuation [[ buffer(1) ]],
-                        constant float4 & lightsColor [[ buffer(2) ]],
-                        constant float4 & lightsRange [[ buffer(3) ]],
-                        constant float4 & spotLightsFactors [[ buffer(4) ]])
+                        constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]])
 {
     //return float4(1.0, 0.0, 0.0, 1.0);
     float3 normal = float3(0, 0, 1);
@@ -56,28 +52,70 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
     float3 diffLightColor = 0;
     float3 specLightColor = 0;
 
-    // testing if w is 0 or 1 using <0.5 since equality check for floating points might not work well
-    if ((lightsAttenuation + 0).w < 0.5) {
-        diffLightColor += saturate(dot(normal, -vert.worldNormLightDirs1)) * (lightsColor + 0).rgb;
-        specLightColor += pow(saturate(dot(-refl, -vert.worldNormLightDirs1)), specPower) * (lightsColor + 0).rgb;
-    } else {
-        float dist = length(vert.worldVecsToLights1);
-        if (dist <= (lightsRange + 0).x) {
-            float3 l = normalize(vert.worldVecsToLights1);
+    for (int i = 0; i < vert.numLights; i++) {
+        // TODO: MTL: Implementation using array of scalars
+        // which is not working
+        /*float3 light = float3(vert.worldVecsToLights[(i * 3)],
+                              vert.worldVecsToLights[(i * 3) + 1],
+                              vert.worldVecsToLights[(i * 3) + 2]);
+        float3 lightDir = float3(vert.worldNormLightDirs[(i * 3)],
+                                 vert.worldNormLightDirs[(i * 3) + 1],
+                                 vert.worldNormLightDirs[(i * 3) + 2]);*/
+        float3 light;
+        float3 lightDir;
+        switch (i) {
+            case 0 :
+                light = vert.worldVecsToLights1;
+                lightDir = vert.worldNormLightDirs1;
+                break;
+            case 1 :
+                light = vert.worldVecsToLights2;
+                lightDir = vert.worldNormLightDirs2;
+                break;
+            case 2 :
+                light = vert.worldVecsToLights3;
+                lightDir = vert.worldNormLightDirs3;
+                break;
+        }
+        float4 lightColor = float4(psUniforms.lightsColor[(i * 4)],
+                                   psUniforms.lightsColor[(i * 4) + 1],
+                                   psUniforms.lightsColor[(i * 4) + 2],
+                                   1.0);
+        float4 lightAttenuation = float4(psUniforms.lightsAttenuation[(i * 4)],
+                                         psUniforms.lightsAttenuation[(i * 4) + 1],
+                                         psUniforms.lightsAttenuation[(i * 4) + 2],
+                                         psUniforms.lightsAttenuation[(i * 4) + 3]);
+        float4 lightRange = float4(psUniforms.lightsRange[(i * 4)],
+                                   0.0,
+                                   0.0,
+                                   0.0);
+        float4 spotLightsFactor = float4(psUniforms.spotLightsFactors[(i * 4)],
+                                         psUniforms.spotLightsFactors[(i * 4) + 1],
+                                         psUniforms.spotLightsFactors[(i * 4) + 2],
+                                         psUniforms.spotLightsFactors[(i * 4) + 3]);
+        // testing if w is 0 or 1 using <0.5 since equality check for floating points might not work well
+        if ((lightAttenuation).w < 0.5) {
+            diffLightColor += saturate(dot(normal, -lightDir)) * (lightColor).rgb;
+            specLightColor += pow(saturate(dot(-refl, -lightDir)), specPower) * (lightColor).rgb;
+        } else {
+            float dist = length(light);
+            if (dist <= (lightRange).x) {
+                float3 l = normalize(light);
 
-            float cosOuter = (spotLightsFactors + 0).x;
-            float denom = (spotLightsFactors + 0).y;
-            float falloff = (spotLightsFactors + 0).z;
-            float spotlightFactor = computeSpotlightFactor3(l, vert.worldNormLightDirs1, cosOuter, denom, falloff);
+                float cosOuter = (spotLightsFactor).x;
+                float denom = (spotLightsFactor).y;
+                float falloff = (spotLightsFactor).z;
+                float spotlightFactor = computeSpotlightFactor3(l, lightDir, cosOuter, denom, falloff);
 
-            float ca = (lightsAttenuation + 0).x;
-            float la = (lightsAttenuation + 0).y;
-            float qa = (lightsAttenuation + 0).z;
-            float invAttnFactor = ca + la * dist + qa * dist * dist;
+                float ca = (lightAttenuation).x;
+                float la = (lightAttenuation).y;
+                float qa = (lightAttenuation).z;
+                float invAttnFactor = ca + la * dist + qa * dist * dist;
 
-            float3 attenuatedColor = (lightsColor + 0).rgb * spotlightFactor / invAttnFactor;
-            diffLightColor += saturate(dot(normal, l)) * attenuatedColor;
-            specLightColor += pow(saturate(dot(-refl, l)), specPower) * attenuatedColor;
+                float3 attenuatedColor = (lightColor).rgb * spotlightFactor / invAttnFactor;
+                diffLightColor += saturate(dot(normal, l)) * attenuatedColor;
+                specLightColor += pow(saturate(dot(-refl, l)), specPower) * attenuatedColor;
+            }
         }
     }
 

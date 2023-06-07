@@ -23,7 +23,13 @@
  * questions.
  */
 
+#define MAX_NUM_LIGHTS 3
+
 struct PS_PHONG_UNIFORMS {
     float4 diffuseColor;
     float4 ambientLightColor;
+    float lightsColor[MAX_NUM_LIGHTS * 4];
+    float lightsAttenuation[MAX_NUM_LIGHTS * 4];
+    float lightsRange[MAX_NUM_LIGHTS * 4];
+    float spotLightsFactors[MAX_NUM_LIGHTS * 4];
 };

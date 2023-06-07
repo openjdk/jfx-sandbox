@@ -23,6 +23,8 @@
  * questions.
  */
 
+#define MAX_NUM_LIGHTS 3
+
 struct VS_PHONG_INPUT {
     packed_float3 position;
     packed_float2 texCoord;
@@ -33,4 +35,7 @@ struct VS_PHONG_UNIFORMS {
     simd_float4x4 mvp_matrix;
     simd_float4x4 world_matrix;
     float4 cameraPos;
+    float lightsPosition[MAX_NUM_LIGHTS * 4];
+    float lightsNormDirection[MAX_NUM_LIGHTS * 4];
+    float numLights;
 };
