@@ -37,8 +37,11 @@ import com.sun.prism.Texture.WrapMode;
 
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
-import java.util.Map;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Map;
+
 
 public class MTLResourceFactory extends BaseShaderFactory {
     private final MTLContext context;
@@ -182,10 +185,67 @@ public class MTLResourceFactory extends BaseShaderFactory {
             return null;
         }
 
+        if (texFormat == PixelFormat.MULTI_YCbCr_420) {
+            // Create a MultiTexture
+            MTLLog.Debug("Creating a MultiTexture.");
+
+            MultiTexture tex = new MultiTexture(texFormat, WrapMode.CLAMP_TO_EDGE, width, height);
+
+            // create/add the subtextures
+            // Textures: 0 = luma, 1 = Chroma blue, 2 = Chroma red, 3 = alpha
+            for (int index = 0; index < frame.planeCount(); index++) {
+                int subWidth = texWidth;
+                int subHeight =  texHeight;
+
+                if (index == PixelFormat.YCBCR_PLANE_CHROMABLUE
+                        || index == PixelFormat.YCBCR_PLANE_CHROMARED)
+                {
+                    subWidth /= 2;
+                    subHeight /= 2;
+                }
+
+                Texture subTex = createTexture(PixelFormat.BYTE_ALPHA, Usage.DYNAMIC, WrapMode.CLAMP_TO_EDGE,
+                                                  subWidth, subHeight);
+
+                if (subTex == null) {
+                    tex.dispose();
+                    frame.releaseFrame();
+                    return null;
+                }
+
+                tex.setTexture(subTex, index);
+            }
+
+            // Note : Solid_TexuteYV12.metal shader that is used to render this pixel format
+            // expects 4 texture parameters
+            // Generate alpha texture artificially if it is unavailable in the MediaFrame
+            if (frame.planeCount() == 3) {
+
+                Texture subTex = createTexture(PixelFormat.BYTE_ALPHA, Usage.DYNAMIC, WrapMode.CLAMP_TO_EDGE,
+                                               texWidth, texHeight);
+
+                if (subTex == null) {
+                    tex.dispose();
+                    frame.releaseFrame();
+                    return null;
+                }
+
+                byte arr[] = new byte[texWidth * texHeight];
+                Arrays.fill(arr, (byte)255);
+                ByteBuffer pixels = ByteBuffer.wrap(arr);
+                subTex.update(pixels, PixelFormat.BYTE_ALPHA, 0, 0, 0, 0,
+                              texWidth, texHeight, texWidth, true);
+
+                tex.setTexture(subTex, 3);
+            }
+
+            frame.releaseFrame();
+            return tex;
+        } //PixelFormat.MULTI_YCbCr_420
+
         Texture tex = createTexture(texFormat, Usage.DEFAULT, WrapMode.CLAMP_TO_EDGE, texWidth, texHeight);
 
         frame.releaseFrame();
-
         return tex;
     }
 
