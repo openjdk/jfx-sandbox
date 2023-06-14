@@ -176,7 +176,7 @@
         NSMutableDictionary* samplersDict = [[self getCurrentShader] getSamplersDict];
         for (NSNumber *key in samplersDict) {
             id<MTLSamplerState> sampler = samplersDict[key];
-            CTX_LOG(@"    Value: %@ for key: %@", tex, key);
+            CTX_LOG(@"    Value: %@ for key: %@", sampler, key);
             [renderEncoder setFragmentSamplerState:sampler atIndex:[key integerValue]];
         }
     }
@@ -1060,7 +1060,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCameraPosition
   (JNIEnv *env, jclass jClass, jlong ctx, jdouble x,
    jdouble y, jdouble z)
 {
-    CTX_LOG(@"MTLContext_nSetDeviceParametersFor3D");
+    CTX_LOG(@"MTLContext_nSetCameraPosition");
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
 
     return [pCtx setCameraPosition:x

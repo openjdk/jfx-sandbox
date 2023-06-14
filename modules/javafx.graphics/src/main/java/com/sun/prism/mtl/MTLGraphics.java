@@ -52,7 +52,7 @@ public class MTLGraphics extends BaseShaderGraphics {
         MTLLog.Debug("MTLGraphics.clear(): color = " + color);
 
         // TODO: MTL: Remove this if condition once nClear() method starts clearing entire rtt texture
-        if (color == Color.TRANSPARENT) {
+        if (color.equals(Color.TRANSPARENT)) {
             MTLLog.Debug("------------ clearning entire rtt to transparent ----------");
 
             long nativeRTTexture = ((MTLRTTexture)getRenderTarget()).getNativeHandle();
