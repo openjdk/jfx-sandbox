@@ -27,10 +27,13 @@ package com.sun.prism.mtl;
 
 import com.sun.glass.ui.Screen;
 import com.sun.prism.*;
+import com.sun.prism.ReadbackRenderTarget;
 
 import java.nio.Buffer;
+import java.nio.IntBuffer;
 
-public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTexture {
+
+public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTexture, ReadbackRenderTarget {
     private int[] pixels;
     private int rttWidth;
     private int rttHeight;
@@ -91,6 +94,11 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     }
 
     @Override
+    public Texture getBackBuffer() {
+        return this;
+    }
+
+    @Override
     public void setContentWidth(int contentWidth) {
         // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
@@ -134,9 +142,16 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     }
 
     @Override
-    public boolean readPixels(Buffer pixels) {
-        // TODO: MTL: Complete implementation or remove to use super method
-        throw new UnsupportedOperationException("Not implemented");
+    public boolean readPixels(Buffer pix) {
+        // TODO: MTL: The call from Canvas rendering expects IntBuffer, which is implemented here.
+        // In future, if needed, need to implement pix as ByteBuffer
+        if (pix instanceof IntBuffer) {
+            MTLLog.Debug("MTLRTTexture(): readPixels -- IntBuffer.");
+            nReadPixelsFromContextRTT(nTexPtr, pixels);
+            pix = IntBuffer.wrap(pixels);
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -147,14 +162,12 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
 
     @Override
     public boolean isVolatile() {
-        // TODO: MTL: Complete implementation or remove to use super method
-        throw new UnsupportedOperationException("Not implemented");
+        return true;
     }
 
     @Override
     public Screen getAssociatedScreen() {
-        // TODO: MTL: Complete implementation or remove to use super method
-        throw new UnsupportedOperationException("Not implemented");
+        return getContext().getAssociatedScreen();
     }
 
     @Override
