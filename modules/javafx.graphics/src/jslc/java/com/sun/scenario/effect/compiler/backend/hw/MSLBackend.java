@@ -365,6 +365,11 @@ public class MSLBackend extends SLBackend {
                                 "#define " + shaderType + "_SHADER_COMMON_H\n\n" +
                                 "#import <Metal/Metal.h>\n" +
                                 "#import <simd/simd.h>\n\n" +
+                                "#ifdef MSL_BACKEND_VERBOSE\n" +
+                                "#define MSL_LOG NSLog\n" +
+                                "#else\n" +
+                                "#define MSL_LOG(...)\n" +
+                                "#endif\n\n" +
                                 "typedef struct " + shaderType + "_VS_INPUT {\n" +
                                 "    vector_float2 position;\n" +
                                 "    vector_float4 color;\n" +
@@ -408,10 +413,10 @@ public class MSLBackend extends SLBackend {
             objCHeaderFile.write(objCHeader.toString());
 
             objCHeaderFile.write("NSDictionary* get" + shaderType + "Dict(NSString* inShaderName) {\n");
-            objCHeaderFile.write("    NSLog(@\"get" + shaderType + "Dict \");\n");
+            objCHeaderFile.write("    MSL_LOG(@\"get" + shaderType + "Dict \");\n");
             for (String aShaderName : shaderFunctionNameList) {
                 objCHeaderFile.write("    if ([inShaderName isEqualToString:@\"" + aShaderName + "\"]) {\n");
-                objCHeaderFile.write("        NSLog(@\"get" + shaderType + "Dict() : calling -> get" + aShaderName + "_Uniform_VarID_Dict()\");\n");
+                objCHeaderFile.write("        MSL_LOG(@\"get" + shaderType + "Dict() : calling -> get" + aShaderName + "_Uniform_VarID_Dict()\");\n");
                 objCHeaderFile.write("        return get" + aShaderName + "_Uniform_VarID_Dict();\n");
                 objCHeaderFile.write("    }\n");
             }
