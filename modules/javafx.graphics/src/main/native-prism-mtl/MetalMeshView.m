@@ -212,6 +212,8 @@
     [phongEncoder setFragmentBytes:&psUniforms
                                 length:sizeof(psUniforms)
                                 atIndex:0];
+    [phongEncoder setFragmentTexture:[material getMap:DIFFUSE]
+                             atIndex:0];
     [phongEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
         indexCount:[mesh getNumIndices]
         indexType:MTLIndexTypeUInt16

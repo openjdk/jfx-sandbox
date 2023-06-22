@@ -92,11 +92,9 @@ class MTLMeshView extends BaseMeshView {
 
     @Override
     public void render(Graphics g) {
-        // TODO: MTL: Enable creation of 3D texture once we have support for
-        // different format of textures like INT_ARGB_PRE
-        //material.lockTextureMaps();
+        material.lockTextureMaps();
         context.renderMeshView(nativeHandle, g);
-        //material.unlockTextureMaps();
+        material.unlockTextureMaps();
     }
 
     @Override

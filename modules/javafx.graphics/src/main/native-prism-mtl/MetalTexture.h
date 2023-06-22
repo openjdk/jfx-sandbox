@@ -54,12 +54,13 @@
     MTLPixelFormat pixelFormat;
     MTLResourceOptions storageMode;
     NSUInteger mipmapLevelCount;
-    MTLTextureDescriptor *texDescriptor;
+    bool mipmapped;
 }
 - (id<MTLTexture>) getTexture;
-- (MetalTexture*) createTexture:(MetalContext*)context ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h pixelFormat:(NSUInteger) format;
+- (MetalTexture*) createTexture:(MetalContext*)context ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h pixelFormat:(NSUInteger) format useMipMap:(bool)useMipMap;
 - (MetalTexture*) createTexture:(MetalContext*)context ofUsage:(MTLTextureUsage)texUsage ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h;
 - (id<MTLBuffer>) getPixelBuffer;
+- (void) generateMipMap;
 - (void)dealloc;
 - (void) clearContents;
 

@@ -506,9 +506,8 @@ public class MTLContext extends BaseShaderContext {
     }
 
     void setMap(long nativePhongMaterial, int mapType, long nativeTexture) {
-        // TODO: MTL: Complete the implementation
         MTLLog.Debug("3D : MTLContext:setMap()");
-        //nSetMap(pContext, nativePhongMaterial, mapType, nativeTexture);
+        nSetMap(pContext, nativePhongMaterial, mapType, nativeTexture);
     }
 
     long createMTLMeshView(long nativeMesh) {

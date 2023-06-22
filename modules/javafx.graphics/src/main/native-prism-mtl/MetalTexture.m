@@ -35,6 +35,7 @@
              ofWidth : (NSUInteger) w
             ofHeight : (NSUInteger) h
             pixelFormat : (NSUInteger) format
+            useMipMap   : (bool)useMipMap
 {
     //return [self createTexture:ctx ofUsage:MTLTextureUsageShaderRead ofWidth:w ofHeight:h];
 
@@ -57,14 +58,13 @@
             pixelFormat = MTLPixelFormatRGBA32Float;
             TEX_LOG(@"Creating texture with native format MTLPixelFormatRGBA32Float");
         }
-        type = MTLTextureType2D;
-        storageMode = MTLResourceStorageModeShared;
 
-        texDescriptor = [MTLTextureDescriptor new];
-        texDescriptor.textureType = type;
-        texDescriptor.width = width;
-        texDescriptor.height = height;
-        texDescriptor.pixelFormat = pixelFormat;
+        mipmapped = useMipMap;
+        TEX_LOG(@"useMipMap : %d", useMipMap);
+        MTLTextureDescriptor *texDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pixelFormat
+                                                                                                 width:width
+                                                                                                height:height
+                                                                                             mipmapped:useMipMap];
         texDescriptor.usage = usage;
 
         // Create buffer to store pixel data and then a texture using that buffer
@@ -122,7 +122,7 @@
         pixelFormat = MTLPixelFormatBGRA8Unorm;
         storageMode = MTLResourceStorageModeShared;
 
-        texDescriptor = [[MTLTextureDescriptor new] autorelease];
+        MTLTextureDescriptor *texDescriptor = [[MTLTextureDescriptor new] autorelease];
         texDescriptor.usage  = usage;
         texDescriptor.width  = width;
         texDescriptor.height = height;
@@ -172,6 +172,22 @@
     [commandBuffer waitUntilCompleted];
 
     return pixelBuffer;
+}
+
+- (void) generateMipMap
+{
+    TEX_LOG(@">>>> MetalTexture.generateMipMap()");
+    if (mipmapped) {
+        TEX_LOG(@">>>> MetalTexture.generateMipMap() needed");
+        id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
+        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
+        [blitEncoder generateMipmapsForTexture: [self getTexture]];
+        [blitEncoder endEncoding];
+        [commandBuffer commit];
+        [commandBuffer waitUntilCompleted];
+    } else {
+        TEX_LOG(@">>>> MetalTexture.generateMipMap() no-op");
+    }
 }
 
 - (id<MTLTexture>) getTexture
@@ -255,6 +271,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
 
     (*env)->ReleaseByteArrayElements(env, pixData, pixels, 0);
 
+    [mtlTex generateMipMap];
+
     // TODO: MTL: add error detection and return appropriate jlong
     return 0;
 }
@@ -278,6 +296,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
 
     (*env)->ReleaseFloatArrayElements(env, pixData, pixels, 0);
 
+    [mtlTex generateMipMap];
+
     // TODO: MTL: add error detection and return appropriate jlong
     return 0;
 }
@@ -300,6 +320,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
              bytesPerRow: scanStride];
 
     (*env)->ReleaseIntArrayElements(env, pixData, pixels, 0);
+
+    [mtlTex generateMipMap];
 
     // TODO: MTL: add error detection and return appropriate jlong
     return 0;

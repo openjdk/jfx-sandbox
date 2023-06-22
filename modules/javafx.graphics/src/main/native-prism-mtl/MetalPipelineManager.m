@@ -136,6 +136,7 @@
     vertDesc.layouts[0].stepRate = 1;
     vertDesc.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
     pipeDesc.vertexDescriptor = vertDesc;*/
+    [self setPipelineCompositeBlendMode:pipeDesc];
     id<MTLRenderPipelineState> pipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
     NSAssert(pipeState, @"Failed to create pipeline state for phong shader: %@", error);
 

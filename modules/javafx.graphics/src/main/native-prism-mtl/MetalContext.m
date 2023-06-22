@@ -875,8 +875,11 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMap
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
         jint mapType, jlong nativeTexture)
 {
-    // TODO: MTL: Complete the implementation
     CTX_LOG(@"MTLContext_nSetMap");
+    MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
+    MetalTexture *texMap = (MetalTexture *)  jlong_to_ptr(nativeTexture);
+
+    [phongMaterial setMap:mapType map:[texMap getTexture]];
 }
 
 /*

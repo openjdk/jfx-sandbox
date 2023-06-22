@@ -42,6 +42,7 @@
     vector_float4 diffuseColor;
     float specularColor[4];
     bool specularColorSet;
+    id<MTLTexture> map[4];
 }
 
 - (MetalPhongMaterial*) createPhongMaterial:(MetalContext*)ctx;
@@ -56,6 +57,9 @@
                         a:(float)a;
 
 - (vector_float4) getDiffuseColor;
+- (void) setMap:(int)mapID
+            map:(id<MTLTexture>)texMap;
+- (id<MTLTexture>) getMap:(int)mapID;
 @end
 
 #endif

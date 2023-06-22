@@ -39,12 +39,26 @@ float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float d
 }
 
 fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
-                        constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]])
+                        constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
+                        texture2d<float> mapDiffuse [[ texture(0) ]])
 {
     //return float4(1.0, 0.0, 0.0, 1.0);
     float3 normal = float3(0, 0, 1);
     float4 tSpec = float4(0, 0, 0, 0);
     float specPower = 0;
+
+    float2 texD = vert.texCoord;
+
+    // TODO : MTL : This is default filter and addressmode
+    // set in both OpenGL and D3D, currently i am setting it
+    // directly here, in future we can optimise it to be passed
+    // as sampler state.
+    constexpr sampler s(filter::linear,
+                        mip_filter::linear,
+                        address::repeat);
+    float4 tDiff = mapDiffuse.sample(s, texD);
+    if (tDiff.a == 0.0) discard_fragment();
+    tDiff = tDiff * psUniforms.diffuseColor;
 
     // lighting
     float3 worldNormVecToEye = normalize(vert.worldVecToEye);
@@ -122,7 +136,7 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
     float3 ambLightColor = psUniforms.ambientLightColor.rgb;
 
     float3 rez = (ambLightColor + diffLightColor) *
-        (psUniforms.diffuseColor.rgb) + specLightColor * tSpec.rgb;
+        (tDiff.rgb) + specLightColor * tSpec.rgb;
 
-    return float4(saturate(rez), 1.0);
+    return float4(saturate(rez), tDiff.a);
 }

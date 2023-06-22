@@ -60,6 +60,17 @@ public class MTLResourceFactory extends BaseShaderFactory {
         MTLLog.Debug("<<< MTLResourceFactory()");
     }
 
+    static int nextPowerOfTwo(int val, int max) {
+        if (val > max) {
+            return 0;
+        }
+        int i = 1;
+        while (i < val) {
+            i *= 2;
+        }
+        return i;
+    }
+
     public MTLContext getContext() {
         return context;
     }
@@ -129,15 +140,45 @@ public class MTLResourceFactory extends BaseShaderFactory {
     public Texture createTexture(PixelFormat formatHint, Texture.Usage usageHint,
                                  Texture.WrapMode wrapMode, int w, int h, boolean useMipmap) {
 
-        int createw = w;
-        int createh = h;
+        if (checkDisposed()) return null;
 
-        // createw = nextPowerOf64(createw, 8192);
-        // createh = nextPowerOf64(createh, 8192);
+        if (!isFormatSupported(formatHint)) {
+            throw new UnsupportedOperationException(
+                "Pixel format " + formatHint +
+                    " not supported on this device");
+        }
+
+        if (formatHint == PixelFormat.MULTI_YCbCr_420) {
+            throw new UnsupportedOperationException("MULTI_YCbCr_420 textures require a MediaFrame");
+        }
+
+        int allocw, alloch;
+        if (PrismSettings.forcePow2) {
+            allocw = nextPowerOfTwo(w, Integer.MAX_VALUE);
+            alloch = nextPowerOfTwo(h, Integer.MAX_VALUE);
+        } else {
+            allocw = w;
+            alloch = h;
+        }
+
+        if (allocw <= 0 || alloch <= 0) {
+            throw new RuntimeException("Illegal texture dimensions (" + allocw + "x" + alloch + ")");
+        }
+
+        int bpp = formatHint.getBytesPerPixelUnit();
+        if (allocw >= (Integer.MAX_VALUE / alloch / bpp)) {
+            throw new RuntimeException("Illegal texture dimensions (" + allocw + "x" + alloch + ")");
+        }
+
+        MTLVramPool pool = MTLVramPool.getInstance();
+        long size = pool.estimateTextureSize(allocw, alloch, formatHint);
+        if (!pool.prepareForAllocation(size)) {
+            return null;
+        }
 
         long pResource = nCreateTexture(context.getContextHandle() ,
                 (int) formatHint.ordinal(), (int) usageHint.ordinal(),
-                true, createw, createh, 1, false);
+                false, allocw, alloch, 0, useMipmap);
 
         if (pResource == 0L) {
             return null;
@@ -147,7 +188,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
         MTLTextureResource resource = new MTLTextureResource(textData);
 
         // TODO: MTL: contentX and contentY is set as 0 - please see ES2/D3D path and try to match it
-        return new MTLTexture(getContext(), resource, formatHint, wrapMode, createw, createh, 0, 0, createw, createh, useMipmap);
+        return new MTLTexture(getContext(), resource, formatHint, wrapMode, allocw, alloch, 0, 0, allocw, alloch, useMipmap);
     }
 
     @Override

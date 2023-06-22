@@ -48,12 +48,10 @@
         specularColor[1] = 1;
         specularColor[2] = 1;
         specularColor[3] = 32;
-        // TODO: MTL: Enable below maps once we have
-        // texture support
-        /*map[DIFFUSE] = NULL;
+        map[DIFFUSE] = NULL;
         map[SPECULAR] = NULL;
         map[BUMP] = NULL;
-        map[SELFILLUMINATION] = NULL;*/
+        map[SELFILLUMINATION] = NULL;
     }
     return self;
 }
@@ -87,5 +85,27 @@
 - (vector_float4) getDiffuseColor
 {
     return diffuseColor;
+}
+
+- (void) setMap:(int)mapID
+            map:(id<MTLTexture>)texMap
+{
+    MESH_LOG(@"MetalPhongMaterial_setMap()");
+    // Within the range of DIFFUSE, SPECULAR, BUMP, SELFILLUMINATION
+    if (mapID >= 0 && mapID <= 3) {
+        map[mapID] = texMap;
+    } else {
+        MESH_LOG(@"MetalPhongMaterial_setMap(): mapID is out of range");
+    }
+}
+
+- (id<MTLTexture>) getMap:(int)mapID
+{
+    // Within the range of DIFFUSE, SPECULAR, BUMP, SELFILLUMINATION
+    if (mapID >= 0 && mapID <= 3) {
+        return map[mapID];
+    }
+    MESH_LOG(@"MetalPhongMaterial_getMap(): mapID is out of range");
+    return NULL;
 }
 @end // MetalPhongMaterial

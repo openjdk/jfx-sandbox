@@ -25,6 +25,7 @@
 
 package com.sun.prism.mtl;
 
+import com.sun.javafx.PlatformUtil;
 import com.sun.prism.Image;
 import com.sun.prism.PhongMaterial;
 import com.sun.prism.Texture;
@@ -80,6 +81,8 @@ class MTLPhongMaterial extends BasePhongMaterial implements PhongMaterial {
         Image image = map.getImage();
         Texture texture = (image == null) ? null
                 : context.getResourceFactory().getCachedTexture(image, Texture.WrapMode.REPEAT, useMipmap);
+        long hTexture = (texture != null) ? ((MTLTexture) texture).getNativeHandle() : 0;
+        context.setMap(nativeHandle, map.getType().ordinal(), hTexture);
         return texture;
     }
 
@@ -93,8 +96,8 @@ class MTLPhongMaterial extends BasePhongMaterial implements PhongMaterial {
                     continue;
                 }
             }
-            // Enable mipmap if map is diffuse or self illum.
-            boolean useMipmap = (i == PhongMaterial.DIFFUSE) || (i == PhongMaterial.SELF_ILLUM);
+            // Enable mipmap if platform isn't embedded and map is diffuse or self illum
+            boolean useMipmap = (!PlatformUtil.isEmbedded()) && (i == PhongMaterial.DIFFUSE || i == PhongMaterial.SELF_ILLUM);
             texture = setupTexture(maps[i], useMipmap);
             maps[i].setTexture(texture);
             maps[i].setDirty(false);
