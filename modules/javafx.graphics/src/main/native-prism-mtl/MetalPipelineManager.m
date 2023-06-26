@@ -93,7 +93,14 @@
 
 - (id<MTLRenderPipelineState>) getPipeStateWithFragFuncName:(NSString*) funcName
 {
-    return [self getPipeStateWithFragFunc:[self getFunction:funcName]];
+    if ([funcName isEqualToString:@"Solid_Color"] && solidColorPipeState != nil) {
+        return solidColorPipeState;
+    }
+    id<MTLRenderPipelineState> pipeState = [self getPipeStateWithFragFunc:[self getFunction:funcName]];
+    if ([funcName isEqualToString:@"Solid_Color"]) {
+        solidColorPipeState = pipeState;
+    }
+    return pipeState;
 }
 
 - (id<MTLComputePipelineState>) getComputePipelineStateWithFunc:(NSString*) funcName

@@ -41,6 +41,8 @@
     MetalContext *context;
     int compositeMode;
 
+    id<MTLRenderPipelineState> solidColorPipeState;
+
 
     /*
     MTLRenderPipelineDescriptor* pipeDesc;

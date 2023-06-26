@@ -80,7 +80,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
         NSUInteger argumentBufferLength = argumentEncoder.encodedLength;
         SHADER_LOG(@"-> Native: MTLShader.initWithContext()  argumentBufferLength = %lu", argumentBufferLength);
         argumentBuffer = [[context getDevice] newBufferWithLength:argumentBufferLength options:0];
-        argumentBuffer.label = [NSString stringWithFormat:@"Argument Buffer for fragmentFunction %@", fragFuncName];
+        argumentBuffer.label = [NSString stringWithFormat:@"JFX Argument Buffer for fragmentFunction %@", fragFuncName];
         [argumentEncoder setArgumentBuffer:argumentBuffer offset:0];
         pipeState = [[context getPipelineManager] getPipeStateWithFragFunc:fragmentFunction];
         SHADER_LOG(@"<<<< MetalShader.initWithContext()\n");
@@ -174,7 +174,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
         SHADER_LOG(@"    Value: %@ for key: %@", value, key);
     }
 
-    texture.label = [NSString stringWithFormat:@"%@_%@", fragFuncName, argumentName];
+    // texture.label = [NSString stringWithFormat:@"%@_%@", fragFuncName, argumentName];
     [fragTexArgsDict setObject:texture forKey:argumentName];
 
     NSNumber *index = fragArgIndicesDict[argumentName];
