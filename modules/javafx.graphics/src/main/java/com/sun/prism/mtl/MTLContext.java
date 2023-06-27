@@ -354,22 +354,23 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void renderQuads(float[] coordArray, byte[] colorArray, int numVertices) {
-        MTLLog.Debug("\n\nnumVertices = " + numVertices);
+        MTLLog.Debug("numVertices = " + numVertices);
         MTLLog.Debug("coordArray : length = " + coordArray.length);
-        for (int i = 0; i < numVertices * 7; i += 7) {
+        MTLLog.Debug("colorArray : length = " + colorArray.length);
+
+        /*for (int i = 0; i < numVertices * 7; i += 7) {
             MTLLog.Debug(
                     "xyz: x: " + coordArray[i] + ", y: " + coordArray[i + 1] + ", z: " + coordArray[i + 2]
                     + ",  uv1: u: " + coordArray[i + 3] + ", v: " + coordArray[i + 4]
                     + ",  uv2: u: " + coordArray[i + 5] + ", v: " + coordArray[i + 6]);
         }
-        MTLLog.Debug("\ncolorArray : length = " + colorArray.length);
         for (int i = 0; i < numVertices * 4; i += 4) {
             int r = colorArray[i] & 0xFF;
             int g = colorArray[i + 1] & 0xFF;
             int b = colorArray[i + 2] & 0xFF;
             int a = colorArray[i + 3] & 0xFF;
             MTLLog.Debug(r + ", " + g + ", " + b + ", " + a);
-        }
+        }*/
 
         nDrawIndexedQuads(getContextHandle(), coordArray, colorArray, numVertices);
     }
