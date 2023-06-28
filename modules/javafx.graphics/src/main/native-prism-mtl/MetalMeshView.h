@@ -48,10 +48,13 @@ typedef struct VS_PHONG_UNIFORMS {
 typedef struct PS_PHONG_UNIFORMS {
     vector_float4 diffuseColor;
     vector_float4 ambientLightColor;
+    vector_float4 specColor;
     float lightsColor[MAX_NUM_LIGHTS * 4];
     float lightsAttenuation[MAX_NUM_LIGHTS * 4];
     float lightsRange[MAX_NUM_LIGHTS * 4];
     float spotLightsFactors[MAX_NUM_LIGHTS * 4];
+    bool isSpecColor;
+    bool isSpecMap;
 } PS_PHONG_UNIFORMS;
 
 @interface MetalMeshView : NSObject

@@ -29,6 +29,10 @@
 #include "PhongVS2PS.h"
 using namespace metal;
 
+float NTSC_Gray(float3 color) {
+    return dot(color, float3(0.299, 0.587, 0.114));
+}
+
 float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float denom, float falloff) {
     float cosAngle = dot(normalize(-lightDir), l);
     float cutoff = cosAngle - cosOuter;
@@ -40,12 +44,11 @@ float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float d
 
 fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
                         constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
-                        texture2d<float> mapDiffuse [[ texture(0) ]])
+                        texture2d<float> mapDiffuse [[ texture(0) ]],
+                        texture2d<float> mapSpecular [[ texture(1) ]])
 {
     //return float4(1.0, 0.0, 0.0, 1.0);
     float3 normal = float3(0, 0, 1);
-    float4 tSpec = float4(0, 0, 0, 0);
-    float specPower = 0;
 
     float2 texD = vert.texCoord;
 
@@ -53,12 +56,34 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
     // set in both OpenGL and D3D, currently i am setting it
     // directly here, in future we can optimise it to be passed
     // as sampler state.
-    constexpr sampler s(filter::linear,
-                        mip_filter::linear,
-                        address::repeat);
-    float4 tDiff = mapDiffuse.sample(s, texD);
+    constexpr sampler mipmapSampler(filter::linear,
+                                mip_filter::linear,
+                                   address::repeat);
+    float4 tDiff = mapDiffuse.sample(mipmapSampler, texD);
     if (tDiff.a == 0.0) discard_fragment();
     tDiff = tDiff * psUniforms.diffuseColor;
+
+    // specular
+    float4 tSpec = float4(0, 0, 0, 0);
+    float specPower = 0;
+    constexpr sampler nonMipmapSampler(filter::linear,
+                                      address::repeat);
+
+    if (psUniforms.isSpecColor || psUniforms.isSpecMap) {
+        specPower = psUniforms.specColor.a;
+        if (psUniforms.isSpecColor) { // Color
+            tSpec.rgb = psUniforms.specColor.rgb;
+        }
+        if (psUniforms.isSpecMap) { // Texture
+            tSpec = mapSpecular.sample(nonMipmapSampler, texD);
+            specPower *= NTSC_Gray(tSpec.rgb);
+        }
+        if (psUniforms.isSpecColor && psUniforms.isSpecMap) { // Mix
+            tSpec = mapSpecular.sample(nonMipmapSampler, texD);
+            specPower *= NTSC_Gray(tSpec.rgb);
+            tSpec.rgb *= psUniforms.specColor.rgb;
+        }
+    }
 
     // lighting
     float3 worldNormVecToEye = normalize(vert.worldVecToEye);

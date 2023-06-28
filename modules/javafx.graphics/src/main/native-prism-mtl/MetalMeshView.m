@@ -209,11 +209,23 @@
                               atIndex:1];
     psUniforms.diffuseColor = [material getDiffuseColor];
     psUniforms.ambientLightColor = ambientLightColor;
+
+    if ([material isSpecularColor]) {
+        psUniforms.isSpecColor = true;
+        psUniforms.specColor = [material getSpecularColor];
+    } else {
+        psUniforms.isSpecColor = false;
+    }
+    psUniforms.isSpecMap = [material isSpecularMap] ? true : false;
+
     [phongEncoder setFragmentBytes:&psUniforms
                                 length:sizeof(psUniforms)
                                 atIndex:0];
     [phongEncoder setFragmentTexture:[material getMap:DIFFUSE]
                              atIndex:0];
+    [phongEncoder setFragmentTexture:[material getMap:SPECULAR]
+                             atIndex:1];
+
     [phongEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
         indexCount:[mesh getNumIndices]
         indexType:MTLIndexTypeUInt16

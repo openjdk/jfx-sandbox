@@ -40,7 +40,7 @@
 {
     MetalContext* context;
     vector_float4 diffuseColor;
-    float specularColor[4];
+    vector_float4 specularColor;
     bool specularColorSet;
     id<MTLTexture> map[4];
 }
@@ -57,6 +57,9 @@
                         a:(float)a;
 
 - (vector_float4) getDiffuseColor;
+- (vector_float4) getSpecularColor;
+- (bool) isSpecularMap;
+- (bool) isSpecularColor;
 - (void) setMap:(int)mapID
             map:(id<MTLTexture>)texMap;
 - (id<MTLTexture>) getMap:(int)mapID;

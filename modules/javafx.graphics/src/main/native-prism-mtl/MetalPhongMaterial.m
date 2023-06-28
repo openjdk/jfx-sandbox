@@ -39,15 +39,15 @@
     if (self) {
         MESH_LOG(@"MetalPhongMaterial_createPhongMaterial()");
         context = ctx;
-        diffuseColor[0] = 0;
-        diffuseColor[1] = 0;
-        diffuseColor[2] = 0;
-        diffuseColor[3] = 0;
+        diffuseColor.x = 0;
+        diffuseColor.y = 0;
+        diffuseColor.z = 0;
+        diffuseColor.w = 0;
         specularColorSet = false;
-        specularColor[0] = 1;
-        specularColor[1] = 1;
-        specularColor[2] = 1;
-        specularColor[3] = 32;
+        specularColor.x = 1;
+        specularColor.y = 1;
+        specularColor.z = 1;
+        specularColor.w = 32;
         map[DIFFUSE] = NULL;
         map[SPECULAR] = NULL;
         map[BUMP] = NULL;
@@ -76,15 +76,30 @@
 {
     MESH_LOG(@"MetalPhongMaterial_setSpecularColor()");
     specularColorSet = set;
-    specularColor[0] = r;
-    specularColor[1] = g;
-    specularColor[2] = b;
-    specularColor[3] = a;
+    specularColor.x = r;
+    specularColor.y = g;
+    specularColor.z = b;
+    specularColor.w = a;
 }
 
 - (vector_float4) getDiffuseColor
 {
     return diffuseColor;
+}
+
+- (vector_float4) getSpecularColor
+{
+    return specularColor;
+}
+
+- (bool) isSpecularMap
+{
+    return map[SPECULAR] ? true : false;
+}
+
+- (bool) isSpecularColor
+{
+    return specularColorSet;
 }
 
 - (void) setMap:(int)mapID

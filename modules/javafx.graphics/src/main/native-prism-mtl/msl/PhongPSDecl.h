@@ -28,8 +28,11 @@
 struct PS_PHONG_UNIFORMS {
     float4 diffuseColor;
     float4 ambientLightColor;
+    float4 specColor;
     float lightsColor[MAX_NUM_LIGHTS * 4];
     float lightsAttenuation[MAX_NUM_LIGHTS * 4];
     float lightsRange[MAX_NUM_LIGHTS * 4];
     float spotLightsFactors[MAX_NUM_LIGHTS * 4];
+    bool isSpecColor;
+    bool isSpecMap;
 };
