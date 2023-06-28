@@ -130,9 +130,9 @@
     return resourceFactory;
 }
 
-- (NSInteger) drawIndexedQuads : (struct PrismSourceVertex const *)pSrcFloats
-                      ofColors : (char const *)pSrcColors
-                   vertexCount : (NSUInteger)numVerts
+- (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
+                      ofColors:(char const *)pSrcColors
+                   vertexCount:(NSUInteger)numVerts
 {
 
     CTX_LOG(@"MetalContext.drawIndexedQuads()");
@@ -150,12 +150,7 @@
 
     id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:rttPassDesc];
 
-    if (currentPipeState != nil) {
-        [renderEncoder setRenderPipelineState:currentPipeState];
-    } else {
-        id<MTLRenderPipelineState> pipeline = [pipelineManager getPipeStateWithFragFuncName:@"Solid_Color"];
-        [renderEncoder setRenderPipelineState:pipeline];
-    }
+    [renderEncoder setRenderPipelineState:currentPipeState];
 
     [renderEncoder setVertexBytes:&mvpMatrix
                                length:sizeof(mvpMatrix)
@@ -206,7 +201,7 @@
         }
         CTX_LOG(@"Quads in this iteration =========== %d", quads);
 
-        [self fillVB:pSrcFloats + (i * 4)
+        [self fillVB:pSrcXYZUVs + (i * 4)
               colors:pSrcColors + (i * 4 * 4)
               numVertices:quads * 4];
 
@@ -288,6 +283,38 @@
     rttCleared = true;
 }
 
+- (void) drawClearRect:(struct PrismSourceVertex const *)pSrcXYZUVs
+              ofColors:(char const *)pSrcColors
+           vertexCount:(NSUInteger)numVerts
+{
+    CTX_LOG(@"MetalContext.drawClearRect()");
+
+    id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
+    id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:rttPassDesc];
+    id<MTLRenderPipelineState> pipeline = [pipelineManager getPipeStateWithFragFuncName:@"Solid_Color"];
+
+    [renderEncoder setRenderPipelineState:pipeline];
+
+    [renderEncoder setVertexBytes:&mvpMatrix
+                           length:sizeof(mvpMatrix)
+                          atIndex:VertexInputMatrixMVP];
+
+    [self fillVB:pSrcXYZUVs colors:pSrcColors numVertices:4];
+
+    [renderEncoder setVertexBytes:vertices
+                           length:sizeof(VS_INPUT) * 6
+                          atIndex:VertexInputIndexVertices];
+
+    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
+                      vertexStart:0
+                      vertexCount:6];
+
+    [renderEncoder endEncoding];
+
+    [commandBuffer commit];
+    [commandBuffer waitUntilCompleted];
+}
+
 - (void) clearRTT:(int)color red:(float)red green:(float)green blue:(float)blue alpha:(float)alpha clearDepth:(bool)clearDepth ignoreScissor:(bool)ignoreScissor
 {
     //TODO: MTL: Add clear depth buffer implementation
@@ -302,8 +329,6 @@
                     scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height, color);
     CTX_LOG(@"     MetalContext.clearRTT() %lu , %lu", [rtt getTexture].width, [rtt getTexture].height);
 
-    id<MTLRenderPipelineState> pipeState = currentPipeState;
-    currentPipeState = nil;
 
     struct PrismSourceVertex scissorRectVertices[4] = {
         {clearRegion.origin.x, clearRegion.origin.y, 0, 0, 0, 0},
@@ -318,9 +343,8 @@
     char a = alpha * 0xFF;
     char colors[] = {r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a};
 
-    [self drawIndexedQuads:scissorRectVertices ofColors:colors vertexCount:4];
+    [self drawClearRect:scissorRectVertices ofColors:colors vertexCount:4];
 
-    currentPipeState = pipeState;
     CTX_LOG(@"<<<< MetalContext.clearRTT()");
 }
 
@@ -367,7 +391,7 @@
     );
 }
 
-- (void) fillVB:(struct PrismSourceVertex const *)pSrcFloats colors:(char const *)pSrcColors
+- (void) fillVB:(struct PrismSourceVertex const *)pSrcXYZUVs colors:(char const *)pSrcColors
                  numVertices:(int)numVerts
 {
     VS_INPUT* pVert = vertices;
@@ -379,7 +403,7 @@
 
     for (int i = 0; i < numQuads; i++) {
         unsigned char const* colors = (unsigned char*)(pSrcColors + i * 4 * 4);
-        struct PrismSourceVertex const * inVerts = pSrcFloats + i * 4;
+        struct PrismSourceVertex const * inVerts = pSrcXYZUVs + i * 4;
         for (int k = 0; k < 2; k++) {
             for (int j = 0; j < 3; j++) {
                 pVert->position.x = inVerts->x;

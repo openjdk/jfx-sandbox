@@ -109,8 +109,13 @@ typedef enum VertexInputIndex {
 
 - (void) fillVB:(struct PrismSourceVertex const *)pSrcFloats colors:(char const *)pSrcColors
                   numVertices:(int)numVerts;
-- (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcFloats
-                                   ofColors:(char const *)pSrcColors vertexCount:(NSUInteger)numVerts;
+- (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
+                      ofColors:(char const *)pSrcColors
+                   vertexCount:(NSUInteger)numVerts;
+- (void) drawClearRect:(struct PrismSourceVertex const *)pSrcXYZUVs
+              ofColors:(char const *)pSrcColors
+           vertexCount:(NSUInteger)numVerts;
+
 - (void) resetProjViewMatrix;
 - (void) setProjViewMatrix:(bool)isOrtho
         m00:(float)m00 m01:(float)m01 m02:(float)m02 m03:(float)m03
