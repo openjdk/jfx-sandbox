@@ -107,6 +107,11 @@
     return map[BUMP] ? true : false;
 }
 
+- (bool) isSelfIllumMap
+{
+    return map[SELFILLUMINATION] ? true : false;
+}
+
 - (void) setMap:(int)mapID
             map:(id<MTLTexture>)texMap
 {

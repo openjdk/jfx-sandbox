@@ -56,6 +56,7 @@ typedef struct PS_PHONG_UNIFORMS {
     bool isSpecColor;
     bool isSpecMap;
     bool isBumpMap;
+    bool isIlluminated;
 } PS_PHONG_UNIFORMS;
 
 @interface MetalMeshView : NSObject

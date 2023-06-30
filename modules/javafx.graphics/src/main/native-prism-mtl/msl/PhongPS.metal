@@ -46,7 +46,8 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
                         constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
                         texture2d<float> mapDiffuse [[ texture(0) ]],
                         texture2d<float> mapSpecular [[ texture(1) ]],
-                        texture2d<float> mapBump [[ texture(2) ]])
+                        texture2d<float> mapBump [[ texture(2) ]],
+                        texture2d<float> mapSelfIllum [[ texture(3) ]])
 {
     //return float4(1.0, 0.0, 0.0, 1.0);
 
@@ -167,6 +168,11 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
 
     float3 rez = (ambLightColor + diffLightColor) *
         (tDiff.rgb) + specLightColor * tSpec.rgb;
+
+    // self-illumination
+    if (psUniforms.isIlluminated) {
+        rez += mapSelfIllum.sample(mipmapSampler, texD).rgb;
+    }
 
     return float4(saturate(rez), tDiff.a);
 }

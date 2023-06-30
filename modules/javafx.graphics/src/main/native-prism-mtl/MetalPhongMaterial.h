@@ -61,6 +61,7 @@
 - (bool) isSpecularMap;
 - (bool) isSpecularColor;
 - (bool) isBumpMap;
+- (bool) isSelfIllumMap;
 - (void) setMap:(int)mapID
             map:(id<MTLTexture>)texMap;
 - (id<MTLTexture>) getMap:(int)mapID;
