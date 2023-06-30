@@ -217,6 +217,7 @@
         psUniforms.isSpecColor = false;
     }
     psUniforms.isSpecMap = [material isSpecularMap] ? true : false;
+    psUniforms.isBumpMap = [material isBumpMap] ? true : false;
 
     [phongEncoder setFragmentBytes:&psUniforms
                                 length:sizeof(psUniforms)
@@ -225,6 +226,8 @@
                              atIndex:0];
     [phongEncoder setFragmentTexture:[material getMap:SPECULAR]
                              atIndex:1];
+    [phongEncoder setFragmentTexture:[material getMap:BUMP]
+                             atIndex:2];
 
     [phongEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
         indexCount:[mesh getNumIndices]

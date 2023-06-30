@@ -55,6 +55,7 @@ typedef struct PS_PHONG_UNIFORMS {
     float spotLightsFactors[MAX_NUM_LIGHTS * 4];
     bool isSpecColor;
     bool isSpecMap;
+    bool isBumpMap;
 } PS_PHONG_UNIFORMS;
 
 @interface MetalMeshView : NSObject

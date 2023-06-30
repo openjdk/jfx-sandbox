@@ -60,6 +60,7 @@
 - (vector_float4) getSpecularColor;
 - (bool) isSpecularMap;
 - (bool) isSpecularColor;
+- (bool) isBumpMap;
 - (void) setMap:(int)mapID
             map:(id<MTLTexture>)texMap;
 - (id<MTLTexture>) getMap:(int)mapID;

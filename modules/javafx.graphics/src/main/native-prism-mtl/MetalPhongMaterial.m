@@ -102,6 +102,11 @@
     return specularColorSet;
 }
 
+- (bool) isBumpMap
+{
+    return map[BUMP] ? true : false;
+}
+
 - (void) setMap:(int)mapID
             map:(id<MTLTexture>)texMap
 {

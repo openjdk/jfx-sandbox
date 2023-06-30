@@ -45,10 +45,10 @@ float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float d
 fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
                         constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
                         texture2d<float> mapDiffuse [[ texture(0) ]],
-                        texture2d<float> mapSpecular [[ texture(1) ]])
+                        texture2d<float> mapSpecular [[ texture(1) ]],
+                        texture2d<float> mapBump [[ texture(2) ]])
 {
     //return float4(1.0, 0.0, 0.0, 1.0);
-    float3 normal = float3(0, 0, 1);
 
     float2 texD = vert.texCoord;
 
@@ -63,12 +63,17 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
     if (tDiff.a == 0.0) discard_fragment();
     tDiff = tDiff * psUniforms.diffuseColor;
 
+    float3 normal = float3(0, 0, 1);
+    constexpr sampler nonMipmapSampler(filter::linear,
+                                      address::repeat);
+    //bump
+    if (psUniforms.isBumpMap) {
+        float4 BumpSpec = mapBump.sample(nonMipmapSampler, texD);
+        normal = normalize(BumpSpec.xyz * 2 - 1);
+    }
     // specular
     float4 tSpec = float4(0, 0, 0, 0);
     float specPower = 0;
-    constexpr sampler nonMipmapSampler(filter::linear,
-                                      address::repeat);
-
     if (psUniforms.isSpecColor || psUniforms.isSpecMap) {
         specPower = psUniforms.specColor.a;
         if (psUniforms.isSpecColor) { // Color
