@@ -319,14 +319,20 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public int getRTTWidth(int w, Texture.WrapMode wrapMode) {
-        int rttWidth = nextPowerOf64(w, 8192);
-        return rttWidth;
+        // Below debugging logic replicates D3DResoureFactory
+//        if (PrismSettings.forcePow2) {
+//            w = nextPowerOfTwo(w, Integer.MAX_VALUE);
+//        }
+        return w;
     }
 
     @Override
     public int getRTTHeight(int h, Texture.WrapMode wrapMode) {
-        int rttHeight = nextPowerOf64(h, 8192);
-        return rttHeight;
+        // Below debugging logic replicates D3DResoureFactory
+//        if (PrismSettings.forcePow2) {
+//            h = nextPowerOfTwo(h, Integer.MAX_VALUE);
+//        }
+        return h;
     }
 
     @Override
@@ -358,8 +364,26 @@ public class MTLResourceFactory extends BaseShaderFactory {
         int cx = 0;
         int cy = 0;
 
-        createw = nextPowerOf64(createw, 8192);
-        createh = nextPowerOf64(createh, 8192);
+        if (PrismSettings.forcePow2) {
+            createw = nextPowerOfTwo(createw, Integer.MAX_VALUE);
+            createh = nextPowerOfTwo(createh, Integer.MAX_VALUE);
+        }
+        if (createw <= 0 || createh <= 0) {
+            throw new RuntimeException("Illegal texture dimensions (" + createw + "x" + createh + ")");
+        }
+
+        PixelFormat format = PixelFormat.INT_ARGB_PRE;
+        int bpp = format.getBytesPerPixelUnit();
+        if (createw >= (Integer.MAX_VALUE / createh / bpp)) {
+            throw new RuntimeException("Illegal texture dimensions (" + createw + "x" + createh + ")");
+        }
+        // TODO: MTL: We dont create PowerOf64 textures in D3D/OpenGL but
+        // we are creating RTT textures like these in Metal. Removed usage of
+        // nextPowerOf64 as part of JDK-8311225 and verified Ensemble8 and
+        // demos are running fine. If usage of nextPowerOf64 is not
+        // needed we should remove it in future.
+        //createw = nextPowerOf64(createw, 8192);
+        //createh = nextPowerOf64(createh, 8192);
 
         MTLRTTexture rtt = MTLRTTexture.create(context, createw, createh, width, height, wrapMode, msaa);
         return rtt;
