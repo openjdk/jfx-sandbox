@@ -295,6 +295,10 @@
 
     [renderEncoder setRenderPipelineState:pipeline];
 
+    if (isScissorRectSet) {
+        [renderEncoder setScissorRect:scissorRect];
+    }
+
     [renderEncoder setVertexBytes:&mvpMatrix
                            length:sizeof(mvpMatrix)
                           atIndex:VertexInputMatrixMVP];
