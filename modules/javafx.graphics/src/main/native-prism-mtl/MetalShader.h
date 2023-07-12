@@ -47,6 +47,7 @@
     id<MTLBuffer> argumentBuffer;
 }
 
+- (jobject) getUniformNameIdMap:(JNIEnv*)env;
 - (id) initWithContext:(MetalContext*)ctx withFragFunc:(NSString*) fragName;
 - (id<MTLRenderPipelineState>) getPipeState;
 - (id<MTLBuffer>) getArgumentBuffer;
@@ -57,19 +58,19 @@
 - (void) enable;
 
 - (void) setTexture:(int)texID
-         nameString:(NSString*)argumentName
+          uniformID:(int)uniformID
             texture:(id<MTLTexture>)texture
            isLinear:(bool)isLinear
            wrapMode:(int)wrapMode;
 
-- (void) setInt:  (NSString*)argumentName i0:(int) i0;
+- (void) setInt:(int)uniformID i0:(int) i0;
 
-- (void) setFloat:  (NSString*)argumentName f0:(float) f0;
-- (void) setFloat2: (NSString*)argumentName f0:(float) f0 f1:(float) f1;
-- (void) setFloat3: (NSString*)argumentName f0:(float) f0 f1:(float) f1 f2:(float) f2;
-- (void) setFloat4: (NSString*)argumentName f0:(float) f0 f1:(float) f1 f2:(float) f2  f3:(float) f3;
+- (void) setFloat1:(int)uniformID f0:(float) f0;
+- (void) setFloat2:(int)uniformID f0:(float) f0 f1:(float) f1;
+- (void) setFloat3:(int)uniformID f0:(float) f0 f1:(float) f1 f2:(float) f2;
+- (void) setFloat4:(int)uniformID f0:(float) f0 f1:(float) f1 f2:(float) f2  f3:(float) f3;
 
-- (void) setConstants:  (NSString*)argumentName values:(float[]) values size:(int) size;
+- (void) setConstants:(int)uniformID values:(float[]) values size:(int) size;
 
 @end
 

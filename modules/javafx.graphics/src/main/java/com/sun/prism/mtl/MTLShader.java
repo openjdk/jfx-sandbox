@@ -39,25 +39,27 @@ public class MTLShader implements Shader  {
     private final String fragmentFunctionName;
     private final long nMetalShaderRef;
     private final Map<Integer, String> samplers = new HashMap<>();
+    private final Map<String, Integer> uniformNameIdMap;
 
     private static Map<String, MTLShader> shaderMap = new HashMap<>();
     private static MTLShader currentEnabledShader;
 
     native private static long nCreateMetalShader(long context, String fragFuncName);
+    native private static Map  nGetUniformNameIdMap(long nMetalShader);
     native private static long nEnable(long nMetalShader);
     native private static long nDisable(long nMetalShader);
 
-    native private static long nSetTexture(long nMetalShader, int texID, String texName,
+    native private static long nSetTexture(long nMetalShader, int texID, int uniformID,
                                            long texPtr, boolean isLinear, int wrapMode);
 
-    native private static long nSetInt(long nMetalShader, String uniformName, int f0);
+    native private static long nSetInt(long nMetalShader, int uniformID, int i0);
 
-    native private static long nSetFloat(long nMetalShader, String uniformName, float f0);
-    native private static long nSetFloat2(long nMetalShader, String uniformName, float f0, float f1);
-    native private static long nSetFloat3(long nMetalShader, String uniformName, float f0, float f1, float f2);
-    native private static long nSetFloat4(long nMetalShader, String uniformName, float f0, float f1, float f2, float f3);
+    native private static long nSetFloat1(long nMetalShader, int uniformID, float f0);
+    native private static long nSetFloat2(long nMetalShader, int uniformID, float f0, float f1);
+    native private static long nSetFloat3(long nMetalShader, int uniformID, float f0, float f1, float f2);
+    native private static long nSetFloat4(long nMetalShader, int uniformID, float f0, float f1, float f2, float f3);
 
-    native private static long nSetConstants(long nMetalShader, String uniformName, float[] values, int size);
+    native private static long nSetConstants(long nMetalShader, int uniformID, float[] values, int size);
 
     private MTLShader(MTLContext context, String fragmentFunctionName) {
         MTLLog.Debug(">>> MTLShader(): fragFuncName = " + fragmentFunctionName);
@@ -71,7 +73,9 @@ public class MTLShader implements Shader  {
         } else {
             throw new AssertionError("Failed to create Shader");
         }
-        MTLLog.Debug("    shaderMap.size() : " + shaderMap.size());
+        uniformNameIdMap = nGetUniformNameIdMap(nMetalShaderRef);
+        MTLLog.Debug("    uniformNameIdMap: " + uniformNameIdMap);
+        MTLLog.Debug("    shaderMap.size(): " + shaderMap.size());
         MTLLog.Debug("    shaderMap" + shaderMap);
         MTLLog.Debug("<<< MTLShader(): nMetalShaderRef = " + nMetalShaderRef);
     }
@@ -149,15 +153,15 @@ public class MTLShader implements Shader  {
         MTLLog.Debug("    MTLShader.setTexture() texUnit = " + texUnit + ", isLinear = " + isLinear + ", wrapMode = " + wrapMode);
         MTLTexture mtlTex = (MTLTexture)tex;
         nSetTexture(currentEnabledShader.nMetalShaderRef, texUnit,
-                currentEnabledShader.samplers.get(texUnit), mtlTex.getNativeHandle(),
-                isLinear, wrapMode);
+                currentEnabledShader.uniformNameIdMap.get(currentEnabledShader.samplers.get(texUnit)),
+                mtlTex.getNativeHandle(), isLinear, wrapMode);
     }
 
     @Override
     public void setConstant(String name, int i0) {
         MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
         MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", i0 = " + i0);
-        nSetInt(nMetalShaderRef, name, i0);
+        nSetInt(nMetalShaderRef, uniformNameIdMap.get(name), i0);
     }
 
     @Override
@@ -188,7 +192,7 @@ public class MTLShader implements Shader  {
     public void setConstant(String name, float f0) {
         MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
         MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", f0 = " + f0);
-        nSetFloat(nMetalShaderRef, name, f0);
+        nSetFloat1(nMetalShaderRef, uniformNameIdMap.get(name), f0);
         MTLLog.Debug("<< MTLShader.setConstant()");
     }
 
@@ -196,7 +200,7 @@ public class MTLShader implements Shader  {
     public void setConstant(String name, float f0, float f1) {
         MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
         MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", f0 = " + f0 + ", f1 = " + f1);
-        nSetFloat2(nMetalShaderRef, name, f0, f1);
+        nSetFloat2(nMetalShaderRef, uniformNameIdMap.get(name), f0, f1);
         MTLLog.Debug("<< MTLShader.setConstant()");
     }
 
@@ -204,7 +208,7 @@ public class MTLShader implements Shader  {
     public void setConstant(String name, float f0, float f1, float f2) {
         MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
         MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", f0 = " + f0 + ", f1 = " + f1 + ", f2 = " + f2);
-        nSetFloat3(nMetalShaderRef, name, f0, f1, f2);
+        nSetFloat3(nMetalShaderRef, uniformNameIdMap.get(name), f0, f1, f2);
         MTLLog.Debug("<< MTLShader.setConstant()");
     }
 
@@ -212,7 +216,7 @@ public class MTLShader implements Shader  {
     public void setConstant(String name, float f0, float f1, float f2, float f3) {
         MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
         MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", f0 = " + f0 + ", f1 = " + f1 + ", f2 = " + f2 + ", f3 = " + f3);
-        nSetFloat4(nMetalShaderRef, name, f0, f1, f2, f3);
+        nSetFloat4(nMetalShaderRef, uniformNameIdMap.get(name), f0, f1, f2, f3);
         MTLLog.Debug("<< MTLShader.setConstant()");
     }
 
@@ -224,7 +228,7 @@ public class MTLShader implements Shader  {
         float[] values = new float[count];
         MTLLog.Debug("MTLShader.setConstant() name = " + name + ", buf = " + values + ", off = " + off + ", count = " + count);
         buf.get(off, values, 0, count);
-        nSetConstants(nMetalShaderRef, name, values, count);
+        nSetConstants(nMetalShaderRef, uniformNameIdMap.get(name), values, count);
     }
 
     @Override
