@@ -170,12 +170,13 @@ final class UploadingPainter extends ViewPainter {
 
             Pixels pix = pixelSource.getUnusedPixels(outWidth, outHeight, outScaleX, outScaleY);
             IntBuffer bits = (IntBuffer) pix.getPixels();
+            rtt.readPixels(bits);
 
             /*System.err.println("UploadingPainter() -> Reading rtt pixels " +
                     "bits.capacity(): " + bits.capacity() +
                     ", outWidth: " + outWidth + ", outHeight: " + outHeight +
                     ", outScaleX: " + outScaleX + ", outScaleY: " + outScaleY);*/
-            int rawbits[] = rtt.getPixels();
+            //int rawbits[] = rtt.getPixels();
             //int dim = bits.array();
             /*int rawbits[] = new int[bits.capacity()];
             for (int i = 0; (i + 3) < rawbits.length; i += 4) {
@@ -184,16 +185,16 @@ final class UploadingPainter extends ViewPainter {
                 rawbits[i + 2] = 0xFF;
                 rawbits[i + 3] = 0x00;
             }*/
-            if (rawbits != null) {
-                bits.put(rawbits, 0, outWidth * outHeight);
-            } else {
+            //if (rawbits != null) {
+            //    bits.put(rawbits, 0, outWidth * outHeight);
+            //} else {
                 /*if (!rtt.readPixels(bits)) {
                     // device lost
                     sceneState.getScene().entireSceneNeedsRepaint();
                     disposeRTTexture();
                     pix = null;
                 }*/
-            }
+            //}
 
             if (rttexture != null) {
                 rttexture.unlock();

@@ -225,7 +225,7 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void setTexture(int texUnit, Texture tex) {
-        MTLLog.Debug("MTLContext.setTexture() : texUnit = " + texUnit + ", tex = " + tex);
+        //MTLLog.Debug("MTLContext.setTexture() : texUnit = " + texUnit + ", tex = " + tex);
         if (checkDisposed()) return;
         if (tex != null) {
             tex.assertLocked();
@@ -236,7 +236,7 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void updateTexture(int texUnit, Texture tex) {
-        MTLLog.Debug("MTLContext.updateTexture() :texUnit = " + texUnit + ", tex = " + tex);
+        //MTLLog.Debug("MTLContext.updateTexture() :texUnit = " + texUnit + ", tex = " + tex);
         boolean linear;
         int wrapMode;
         if (tex != null) {
@@ -266,7 +266,7 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void updateShaderTransform(Shader shader, BaseTransform xform) {
-        MTLLog.Debug("MTLContext.updateShaderTransform() :shader = " + shader + ", xform = " + xform);
+        //MTLLog.Debug("MTLContext.updateShaderTransform() :shader = " + shader + ", xform = " + xform);
         if (xform == null) {
             xform = BaseTransform.IDENTITY_TRANSFORM;
         }
@@ -296,21 +296,21 @@ public class MTLContext extends BaseShaderContext {
     @Override
     protected void updateClipRect(Rectangle clipRect) {
         if (clipRect == null || clipRect.isEmpty()) {
-            MTLLog.Debug("MTLContext.updateClipRect() Disable ScissorTest: " + clipRect);
+            //MTLLog.Debug("MTLContext.updateClipRect() Disable ScissorTest: " + clipRect);
             nResetClipRect(pContext);
         } else {
             int x = clipRect.x;
             int y = clipRect.y;
             int width  = clipRect.width;
             int height = clipRect.height;
-            MTLLog.Debug("MTLContext.updateClipRect() Enable ScissorTest: " + clipRect);
+            //MTLLog.Debug("MTLContext.updateClipRect() Enable ScissorTest: " + clipRect);
             nSetClipRect(pContext, x, y, width, height);
         }
     }
 
     @Override
     protected void updateCompositeMode(CompositeMode mode) {
-        MTLLog.Debug("MTLContext.updateCompositeMode() :mode = " + mode);
+        //MTLLog.Debug("MTLContext.updateCompositeMode() :mode = " + mode);
 
         int mtlCompMode;
         switch (mode) {
@@ -342,9 +342,9 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     public void blit(RTTexture srcRTT, RTTexture dstRTT, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0, int dstX1, int dstY1) {
-        MTLLog.Debug("MTLContext.blit() :srcRTT = " + srcRTT + ", dstRTT = " + dstRTT + ", srcX0 = " +
+        /*MTLLog.Debug("MTLContext.blit() :srcRTT = " + srcRTT + ", dstRTT = " + dstRTT + ", srcX0 = " +
                 srcX0 + ", srcY0 = " + srcY0 + ", srcX1 = " + srcX1 + ", srcY1 = " + srcY1 + ", dstX0 = " +
-                dstX0 + ", dstY0 = " + dstY0 + ", dstX1 = " + dstX1 + ", dstY1 = " + dstY1);
+                dstX0 + ", dstY0 = " + dstY0 + ", dstX1 = " + dstX1 + ", dstY1 = " + dstY1);*/
         long dstNativeHandle = dstRTT == null ? 0L : ((MTLTexture)dstRTT).getNativeHandle();
         long srcNativeHandle = ((MTLTexture)srcRTT).getNativeHandle();
         nBlit(pContext, srcNativeHandle, dstNativeHandle,

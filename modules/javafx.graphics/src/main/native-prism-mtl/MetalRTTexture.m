@@ -77,26 +77,15 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nReadPixelsFromContextRTT
-  (JNIEnv *env, jclass class, jlong jTexPtr, jintArray pixData)
+    (JNIEnv *env, jclass class, jlong jTexPtr, jobject pixData)
 {
     TEX_LOG(@"-> Native: MTLRTTexture_nReadPixelsFromContextRTT");
-    jint *c_array;
-    int i = 0;
-    int j = 0;
 
     MetalRTTexture* rtt = (MetalRTTexture*) jlong_to_ptr(jTexPtr);
     int *texContent = (int*)[[rtt getPixelBuffer] contents];
-
-    int pw = [rtt getPw];
-    int ph = [rtt getPh];
     int cw = [rtt getCw];
     int ch = [rtt getCh];
 
-    c_array = (*env)->GetIntArrayElements(env, pixData, nil);
-    for (i = 0; i < ch; i++) {
-        for (j = 0; j < cw; j++) {
-            c_array[i * cw + j] = texContent[i * pw + j];
-        }
-    }
-    (*env)->ReleaseIntArrayElements(env, pixData, c_array, 0);
+    int* pDst = (int*) (*env)->GetDirectBufferAddress(env, pixData);
+    memcpy(pDst, texContent, cw * ch * 4);
 }

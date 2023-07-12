@@ -131,13 +131,13 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     native private static long nCreateRT(long context, int pw, int ph, int cw, int ch,
                                          WrapMode wrapMode, boolean msaa);
     native private static void nReadPixels(long nativeHandle, int[] pixBuffer);
-    native private static void nReadPixelsFromContextRTT(long nativeHandle, int[] pixBuffer);
+    native private static void nReadPixelsFromContextRTT(long nativeHandle, IntBuffer pixBuffer);
     native private static long nGetPixelDataPtr(long nativeHandle);
 
     @Override
     public int[] getPixels() {
-        MTLLog.Debug("MTLRTTexture.getPixels()");
-        nReadPixelsFromContextRTT(nTexPtr, pixels);
+        //MTLLog.Debug("MTLRTTexture.getPixels()");
+        nReadPixelsFromContextRTT(nTexPtr, IntBuffer.wrap(pixels));
         return pixels;
     }
 
@@ -146,9 +146,9 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
         // TODO: MTL: The call from Canvas rendering expects IntBuffer, which is implemented here.
         // In future, if needed, need to implement pix as ByteBuffer
         if (pix instanceof IntBuffer) {
-            MTLLog.Debug("MTLRTTexture(): readPixels -- IntBuffer.");
-            nReadPixelsFromContextRTT(nTexPtr, pixels);
-            pix = IntBuffer.wrap(pixels);
+            //MTLLog.Debug("MTLRTTexture(): readPixels -- IntBuffer.");
+            nReadPixelsFromContextRTT(nTexPtr, (IntBuffer)pix);
+            //pix = IntBuffer.wrap(pixels);
             return true;
         }
         return false;
@@ -162,7 +162,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
 
     @Override
     public boolean isVolatile() {
-        return true;
+        return false;
     }
 
     @Override
