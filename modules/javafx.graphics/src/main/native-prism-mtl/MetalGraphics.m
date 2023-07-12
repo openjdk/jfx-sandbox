@@ -33,15 +33,6 @@
 
 @end // MetalGraphics
 
-JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLGraphics_nClearRTTexture
-  (JNIEnv *env, jclass jClass, jlong nTexturePtr)
-{
-    METAL_LOG(@"-> Native: MTLGraphics_nClearRTTexture");
-
-    MetalTexture* rtt = (MetalTexture*)jlong_to_ptr(nTexturePtr);
-    [rtt clearContents];
-}
-
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLGraphics_nClear
   (JNIEnv *env, jclass jClass, jlong ctx,
     jint color, jfloat red, jfloat green, jfloat blue, jfloat alpha,

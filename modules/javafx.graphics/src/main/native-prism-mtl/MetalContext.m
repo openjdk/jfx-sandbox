@@ -56,8 +56,7 @@
     CTX_LOG(@"-> MetalContext.createContext()");
     self = [super init];
     if (self) {
-        isScissorRectSet = false;
-        rttClearColor = 0XFFFFFFFF;
+        isScissorEnabled = false;
 
         device = MTLCreateSystemDefaultDevice();
         commandQueue = [device newCommandQueue];
@@ -176,7 +175,7 @@
         }
     }
 
-    if (isScissorRectSet) {
+    if (isScissorEnabled) {
         [renderEncoder setScissorRect:scissorRect];
     }
 
@@ -295,7 +294,7 @@
 
     [renderEncoder setRenderPipelineState:pipeline];
 
-    if (isScissorRectSet) {
+    if (isScissorEnabled) {
         [renderEncoder setScissorRect:scissorRect];
     }
 
@@ -319,26 +318,39 @@
     [commandBuffer waitUntilCompleted];
 }
 
-- (void) clearRTT:(int)color red:(float)red green:(float)green blue:(float)blue alpha:(float)alpha clearDepth:(bool)clearDepth ignoreScissor:(bool)ignoreScissor
+- (void) clearRTT:(int)color red:(float)red
+                           green:(float)green
+                            blue:(float)blue
+                           alpha:(float)alpha
+                      clearDepth:(bool)clearDepth
+                   ignoreScissor:(bool)ignoreScissor
 {
-    //TODO: MTL: Add clear depth buffer implementation
-    CTX_LOG(@">>>> MetalContext.clearRTT() %f %f %f %f", red, green, blue, alpha);
-    MTLRegion clearRegion = MTLRegionMake2D(scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height);
-    if (!isScissorRectSet) {
+    // TODO: MTL: Add clear depth buffer implementation
+    CTX_LOG(@">>>> MetalContext.clearRTT() %f, %f, %f, %f", red, green, blue, alpha);
+    CTX_LOG(@">>>> MetalContext.clearRTT() %d, %d", clearDepth, ignoreScissor);
+
+    MTLRegion clearRegion = MTLRegionMake2D(0, 0, 0, 0);
+    if (!isScissorEnabled) {
         CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
-        clearRegion = MTLRegionMake2D(0, 0, [rtt getTexture].width, [rtt getTexture].height);
+        rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(red, green, blue, alpha);
+        rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
+        // clearRegion = MTLRegionMake2D(0, 0, [rtt getTexture].width, [rtt getTexture].height);
+    } else {
+        clearRegion = MTLRegionMake2D(scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height);
     }
 
     CTX_LOG(@"     MetalContext.clearRTT() scissorRect.x = %lu, scissorRect.y = %lu, scissorRect.width = %lu, scissorRect.height = %lu, color = %u",
                     scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height, color);
     CTX_LOG(@"     MetalContext.clearRTT() %lu , %lu", [rtt getTexture].width, [rtt getTexture].height);
 
+    CTX_LOG(@"     MetalContext.clearRTT() clearRegion.x = %lu, clearRegion.y = %lu, clearRegion.width = %lu, clearRegion.height = %lu, color = %u",
+                    clearRegion.origin.x, clearRegion.origin.y, clearRegion.size.width, clearRegion.size.height);
 
     struct PrismSourceVertex scissorRectVertices[4] = {
-        {clearRegion.origin.x, clearRegion.origin.y, 0, 0, 0, 0},
-        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y,  0, 0, 0, 0},
-        {clearRegion.origin.x, clearRegion.origin.y + clearRegion.size.height, 0, 0, 0, 0},
-        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y + clearRegion.size.height, 0, 0, 0, 0}
+        {clearRegion.origin.x,  clearRegion.origin.y, 0, 0, 0, 0}, // 0, 0
+        {clearRegion.origin.x,  clearRegion.origin.y  + clearRegion.size.height, 0, 0, 0, 0}, // 0, h
+        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y, 0, 0, 0, 0},    // w, 0
+        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y + clearRegion.size.height, 0, 0, 0, 0} // w, h
     };
 
     char r = red   * 0xFF;
@@ -349,12 +361,18 @@
 
     [self drawClearRect:scissorRectVertices ofColors:colors vertexCount:4];
 
+    if (!isScissorEnabled) {
+        CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
+        rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
+    }
+
     CTX_LOG(@"<<<< MetalContext.clearRTT()");
 }
 
 - (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height
 {
     CTX_LOG(@">>>> MetalContext.setClipRect()");
+    CTX_LOG(@"     MetalContext.setClipRect() x = %d, y = %d, width = %d, height = %d", x, y, width, height);
     id<MTLTexture> currRtt = [rtt getTexture];
     if (x <= 0 && y <= 0 && width >= currRtt.width && height >= currRtt.height) {
         CTX_LOG(@"     MetalContext.setClipRect() 1 resetting clip, %lu, %lu", currRtt.width, currRtt.height);
@@ -369,7 +387,7 @@
         scissorRect.y = y;
         scissorRect.width  = width;
         scissorRect.height = height;
-        isScissorRectSet = true;
+        isScissorEnabled = true;
     }
     CTX_LOG(@"<<<< MetalContext.setClipRect()");
 }
@@ -377,7 +395,7 @@
 - (void) resetClip
 {
     CTX_LOG(@">>>> MetalContext.resetClip()");
-    isScissorRectSet = false;
+    isScissorEnabled = false;
     scissorRect.x = 0;
     scissorRect.y = 0;
     scissorRect.width  = 0;
@@ -413,10 +431,10 @@
                 pVert->position.x = inVerts->x;
                 pVert->position.y = inVerts->y;
 
-                pVert->color.x = ((float)(*(colors)))/255.0f;
-                pVert->color.y = ((float)(*(colors + 1)))/255.0f;
-                pVert->color.z = ((float)(*(colors + 2)))/255.0f;
-                pVert->color.w = ((float)(*(colors + 3)))/255.0f;
+                pVert->color.r = ((float)(*(colors)))/255.0f;
+                pVert->color.g = ((float)(*(colors + 1)))/255.0f;
+                pVert->color.b = ((float)(*(colors + 2)))/255.0f;
+                pVert->color.a = ((float)(*(colors + 3)))/255.0f;
 
                 pVert->texCoord0.x = inVerts->tu1;
                 pVert->texCoord0.y = inVerts->tv1;

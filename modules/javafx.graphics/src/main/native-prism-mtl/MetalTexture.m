@@ -71,7 +71,6 @@
         id<MTLDevice> device = [context getDevice];
         texture = [device newTextureWithDescriptor:texDescriptor];
 
-        clearBuffer = nil; // Unused
         blitQueue = nil; // Unused
 
         /*
@@ -137,10 +136,6 @@
         pixelBuffer = [device newBufferWithLength: (width * height * 4) options: storageMode];
 
         blitQueue = [device newCommandQueue];
-
-        // TODO: MTL: Remove code related to `clearBuffer` once [context clearRTT] starts clearing entire RTT content
-        clearBuffer = [device newBufferWithLength: (width * height * 4) options: MTLResourceStorageModeShared];
-        memset(clearBuffer.contents, 0, width * height * 4);
     }
     TEX_LOG(@">>>> MetalTexture.createTexture()2  (buffer backed texture) -- width = %lu, height = %lu", width, height);
     TEX_LOG(@">>>> MetalTexture.createTexture()2  PB length: %d", (int)([pixelBuffer length]));
@@ -195,30 +190,6 @@
     return texture;
 }
 
-// TODO: MTL: Remove this method once [context clearRTT] starts clearing entire RTT content
-- (void) clearContents {
-
-    id<MTLCommandBuffer> commandBuffer = [blitQueue commandBuffer];
-    id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
-
-    [blitEncoder copyFromBuffer:clearBuffer
-                  sourceOffset:(NSUInteger)0
-             sourceBytesPerRow:(NSUInteger)texture.width * 4
-           sourceBytesPerImage:(NSUInteger)texture.width * texture.height * 4
-                    sourceSize:MTLSizeMake(texture.width, texture.height, 1)
-                     toTexture:texture
-              destinationSlice:(NSUInteger)0
-              destinationLevel:(NSUInteger)0
-             destinationOrigin:MTLOriginMake(0, 0, 0)];
-
-    [blitEncoder endEncoding];
-
-    [commandBuffer commit];
-    [commandBuffer waitUntilCompleted];
-
-    TEX_LOG(@">>>> MetalTexture.clearContents -- Cleared contents of RTT");
-}
-
 - (void)dealloc
 {
     if (texture != nil) {
@@ -231,12 +202,6 @@
         TEX_LOG(@">>>> MetalTexture.dealloc -- releasing native MTLBuffer");
         [pixelBuffer release];
         pixelBuffer = nil;
-    }
-
-    if (clearBuffer != nil) {
-        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing native MTLBuffer - clearBuffer");
-        [clearBuffer release];
-        clearBuffer = nil;
     }
 
     if (blitQueue != nil) {

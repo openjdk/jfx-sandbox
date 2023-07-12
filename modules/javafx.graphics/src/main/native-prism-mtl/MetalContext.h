@@ -73,10 +73,9 @@ typedef enum VertexInputIndex {
     MetalResourceFactory* resourceFactory;
 
     MTLScissorRect scissorRect;
-    bool isScissorRectSet;
+    bool isScissorEnabled;
     MetalRTTexture* rtt;
     bool rttCleared;
-    int  rttClearColor;
     MTLRenderPassDescriptor* rttPassDesc;
     MTLLoadAction rttLoadAction;
     //MTLRenderPipelineDescriptor* passThroughPipeDesc;

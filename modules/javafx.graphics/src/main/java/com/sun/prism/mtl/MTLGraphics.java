@@ -51,15 +51,6 @@ public class MTLGraphics extends BaseShaderGraphics {
     public void clear(Color color) {
         MTLLog.Debug("MTLGraphics.clear(): color = " + color);
 
-        // TODO: MTL: Remove this if condition once nClear() method starts clearing entire rtt texture
-        if (color.equals(Color.TRANSPARENT)) {
-            MTLLog.Debug("------------ clearning entire rtt to transparent ----------");
-
-            long nativeRTTexture = ((MTLRTTexture)getRenderTarget()).getNativeHandle();
-            nClearRTTexture(nativeRTTexture);
-            return;
-        }
-
         float r = color.getRedPremult();
         float g = color.getGreenPremult();
         float b = color.getBluePremult();
@@ -81,6 +72,4 @@ public class MTLGraphics extends BaseShaderGraphics {
     }
 
     private static native int nClear(long pContext, int color, float red, float green, float blue, float alpha, boolean clearDepth, boolean ignoreScissor);
-    private static native void nClearRTTexture(long pNativeRTT);
-
 }

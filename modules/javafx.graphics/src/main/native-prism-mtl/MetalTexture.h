@@ -42,7 +42,6 @@
     MetalContext *context;
 
     id<MTLBuffer> pixelBuffer;
-    id<MTLBuffer> clearBuffer;
     id<MTLTexture> texture;
     id<MTLCommandQueue> blitQueue;
 
@@ -62,7 +61,6 @@
 - (id<MTLBuffer>) getPixelBuffer;
 - (void) generateMipMap;
 - (void)dealloc;
-- (void) clearContents;
 
 //- (void) blitTo:(MetalTexture*) tex;
 
