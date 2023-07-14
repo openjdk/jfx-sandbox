@@ -143,6 +143,21 @@
     return self;
 }
 
+- (void) createDepthTexture
+{
+    id<MTLDevice> device = [context getDevice];
+    if (depthTexture.width != width ||
+        depthTexture.height != height) {
+        MTLTextureDescriptor *depthDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
+                                                                                             width:width
+                                                                                            height:height
+                                                                                         mipmapped:NO];
+        depthDesc.usage = MTLTextureUsageRenderTarget;
+        depthDesc.storageMode = MTLStorageModePrivate;
+        depthTexture = [device newTextureWithDescriptor:depthDesc];
+    }
+}
+
 - (id<MTLBuffer>) getPixelBuffer
 {
     TEX_LOG(@">>>> MetalTexture.getPixelBuffer()");
@@ -188,6 +203,11 @@
 - (id<MTLTexture>) getTexture
 {
     return texture;
+}
+
+- (id<MTLTexture>) getDepthTexture
+{
+    return depthTexture;
 }
 
 - (void)dealloc

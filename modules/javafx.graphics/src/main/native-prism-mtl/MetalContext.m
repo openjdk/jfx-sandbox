@@ -223,7 +223,7 @@
     return 1;
 }
 
-- (void) setProjViewMatrix:(bool)isOrtho
+- (void) setProjViewMatrix:(bool)depthTest
         m00:(float)m00 m01:(float)m01 m02:(float)m02 m03:(float)m03
         m10:(float)m10 m11:(float)m11 m12:(float)m12 m13:(float)m13
         m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
@@ -236,6 +236,7 @@
         (simd_float4){ m20, m21, m22, m23 },
         (simd_float4){ m30, m31, m32, m33 }
     );
+    depthEnabled = depthTest;
 }
 
 - (void) setWorldTransformMatrix:(float)m00
@@ -272,6 +273,7 @@
 {
     CTX_LOG(@"MetalContext.updatePhongLoadAction()");
     phongRPD.colorAttachments[0].loadAction = MTLLoadActionLoad;
+    phongRPD.depthAttachment.loadAction = MTLLoadActionLoad;
     rttCleared = true;
 }
 
@@ -360,6 +362,11 @@
     char colors[] = {r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a};
 
     [self drawClearRect:scissorRectVertices ofColors:colors vertexCount:4];
+    if (clearDepth)
+    {
+        phongRPD.depthAttachment.clearDepth = 1.0;
+        phongRPD.depthAttachment.loadAction = MTLLoadActionClear;
+    }
 
     if (!isScissorEnabled) {
         CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
@@ -484,10 +491,17 @@
     phongRPD = [MTLRenderPassDescriptor new];
     if (!rttCleared) {
         phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
+        phongRPD.depthAttachment.loadAction = MTLLoadActionClear;
     }
     phongRPD.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1); // make this programmable
     phongRPD.colorAttachments[0].storeAction = MTLStoreActionStore;
     phongRPD.colorAttachments[0].texture = [[self getRTT] getTexture];
+
+    if (depthEnabled) {
+        phongRPD.depthAttachment.texture = [[self getRTT] getDepthTexture];
+        phongRPD.depthAttachment.clearDepth = 1.0;
+        phongRPD.depthAttachment.storeAction = MTLStoreActionStore;
+    }
 
     // TODO: MTL: Check whether we need to do shader initialization here
     /*if (!phongShader) {
@@ -523,6 +537,11 @@
 - (vector_float4) getCameraPosition
 {
     return cPos;
+}
+
+- (bool) isDepthEnabled
+{
+    return depthEnabled;
 }
 
 // TODO: MTL: This was copied from GlassHelper, and could be moved to a utility class.
@@ -624,12 +643,19 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
-  (JNIEnv *env, jclass jClass, jlong context, jlong texPtr)
+  (JNIEnv *env, jclass jClass, jlong context, jlong texPtr, jboolean depthTest)
 {
     CTX_LOG(@"MTLContext_nUpdateRenderTarget");
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     MetalRTTexture *rtt = (MetalRTTexture *)jlong_to_ptr(texPtr);
     [mtlContext setRTT:rtt];
+    // TODO: MTL: If we create depth texture while creating RTT
+    // then also current implementation works fine. So in future
+    // if we see any performance/state impact we should move
+    // depthTexture creation along with RTT creation.
+    if (depthTest) {
+        [rtt createDepthTexture];
+    }
 }
 
 /*

@@ -59,10 +59,8 @@ public class MTLGraphics extends BaseShaderGraphics {
 
         context.validateClearOp(this);
         getRenderTarget().setOpaque(color.isOpaque());
-
-        // TODO: MTL: Add clear depth buffer implementation
         int res = nClear(context.getContextHandle(),
-                         color.getIntArgbPre(),  r, g, b, a, false, false);
+                         color.getIntArgbPre(),  r, g, b, a, isDepthBuffer(), false);
         // TODO: MTL: verify the returned res value
     }
 

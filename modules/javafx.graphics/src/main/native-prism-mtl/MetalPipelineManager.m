@@ -126,6 +126,7 @@
     pipeDesc.vertexFunction = [self getFunction:@"PhongVS"];
     pipeDesc.fragmentFunction = func;
     pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
+    pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
 
     // TODO: MTL: Cleanup this code in future if we think we don't need
     // to add padding to float3 data and use VertexDescriptor
@@ -153,6 +154,15 @@
 - (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFuncName:(NSString*) funcName
 {
     return [self getPhongPipeStateWithFragFunc:[self getFunction:funcName]];
+}
+
+- (id<MTLDepthStencilState>) getDepthStencilState
+{
+    MTLDepthStencilDescriptor *depthStencilDescriptor = [MTLDepthStencilDescriptor new];
+    depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionLess;
+    depthStencilDescriptor.depthWriteEnabled = YES;
+    id<MTLDepthStencilState> depthStencilState = [[context getDevice] newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+    return depthStencilState;
 }
 
 - (void) setCompositeBlendMode:(int) mode

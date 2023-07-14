@@ -43,6 +43,7 @@
 
     id<MTLBuffer> pixelBuffer;
     id<MTLTexture> texture;
+    id<MTLTexture> depthTexture;
     id<MTLCommandQueue> blitQueue;
 
     // Specifying Texture Attributes: https://developer.apple.com/documentation/metal/mtltexturedescriptor
@@ -56,8 +57,10 @@
     bool mipmapped;
 }
 - (id<MTLTexture>) getTexture;
+- (id<MTLTexture>) getDepthTexture;
 - (MetalTexture*) createTexture:(MetalContext*)context ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h pixelFormat:(NSUInteger) format useMipMap:(bool)useMipMap;
 - (MetalTexture*) createTexture:(MetalContext*)context ofUsage:(MTLTextureUsage)texUsage ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h;
+- (void) createDepthTexture;
 - (id<MTLBuffer>) getPixelBuffer;
 - (void) generateMipMap;
 - (void)dealloc;

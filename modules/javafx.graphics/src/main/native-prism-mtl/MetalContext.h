@@ -85,6 +85,7 @@ typedef enum VertexInputIndex {
     MetalPhongShader *phongShader;
     MTLRenderPassDescriptor* phongRPD;
     vector_float4 cPos;
+    bool depthEnabled;
 }
 
 - (MetalPipelineManager*) getPipelineManager;
@@ -142,6 +143,7 @@ typedef enum VertexInputIndex {
 - (void) setCameraPosition:(float)x
         y:(float)y z:(float)z;
 - (vector_float4) getCameraPosition;
+- (bool) isDepthEnabled;
 - (void) dealloc;
 
 @end

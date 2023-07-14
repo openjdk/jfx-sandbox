@@ -188,7 +188,7 @@ public class MTLContext extends BaseShaderContext {
         MTLLog.Debug("MTLContext.updateRenderTarget() :target = " + target + ", camera = " + camera + ", depthTest = " + depthTest);
         MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:1:-->\n" + projViewTx);
         renderTarget = (MTLRTTexture)target;
-        nUpdateRenderTarget(pContext, renderTarget.getNativeHandle());
+        nUpdateRenderTarget(pContext, renderTarget.getNativeHandle(), depthTest);
 
         resetLastClip(state);
 
@@ -211,7 +211,6 @@ public class MTLContext extends BaseShaderContext {
             MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:3:-->\n" + projViewTx);
         }
 
-        // TODO: MTL: Add support for depthTest
         // Set projection view matrix
         nSetProjViewMatrix(pContext, depthTest,
             projViewTx.get(0),  projViewTx.get(1),  projViewTx.get(2),  projViewTx.get(3),
@@ -377,7 +376,7 @@ public class MTLContext extends BaseShaderContext {
 
     native private static long nInitialize(String shaderLibPathStr);
     native private static int  nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
-    native private static void nUpdateRenderTarget(long context, long texPtr);
+    native private static void nUpdateRenderTarget(long context, long texPtr, boolean depthTest);
     native private static int  nResetTransform(long context);
     native private static int  nSetProjViewMatrix(long pContext, boolean isOrtho,
         double m00, double m01, double m02, double m03,

@@ -44,9 +44,20 @@
     return self;
 }
 
+- (void) createDepthTexture
+{
+    TEX_LOG(@"-> MetalRTTexture.createDepthTexture()");
+    [super createDepthTexture];
+}
+
 - (id<MTLTexture>) getTexture
 {
     return [super getTexture];
+}
+
+- (id<MTLTexture>) getDepthTexture
+{
+    return [super getDepthTexture];
 }
 
 - (void) setContentDimensions:(int) w

@@ -41,7 +41,9 @@
 }
 
 - (id<MTLTexture>) getTexture;
+- (id<MTLTexture>) getDepthTexture;
 - (MetalRTTexture*) createTexture:(MetalContext*)ctx ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h;
+- (void) createDepthTexture;
 - (void) setContentDimensions:(int)w height:(int)h;
 - (int) getPw;
 - (int) getPh;
