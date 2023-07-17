@@ -60,11 +60,20 @@
         }
 
         mipmapped = useMipMap;
+        // We create 1x1 diffuse map when we have only diffuse
+        // color for PhongMaterial, in such a case if generate mipmap
+        // it causes assertion error at generateMipMap because
+        // mipmapLevelCount will be 1, ignore generating mipmap for
+        // texture 1x1
+        if (useMipMap &&
+            (width == 1 && height == 1)) {
+            mipmapped = false;
+        }
         TEX_LOG(@"useMipMap : %d", useMipMap);
         MTLTextureDescriptor *texDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pixelFormat
                                                                                                  width:width
                                                                                                 height:height
-                                                                                             mipmapped:useMipMap];
+                                                                                             mipmapped:mipmapped];
         texDescriptor.usage = usage;
 
         // Create buffer to store pixel data and then a texture using that buffer
