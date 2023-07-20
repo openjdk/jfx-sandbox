@@ -41,12 +41,14 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
 
     private boolean opaque;
 
+    private boolean MSAA;
+
     private MTLRTTexture(MTLContext context, MTLTextureResource<MTLTextureData> resource,
                          WrapMode wrapMode,
                          int physicalWidth, int physicalHeight,
                          int contentX, int contentY,
                          int contentWidth, int contentHeight,
-                         int maxContentWidth, int maxContentHeight) {
+                         int maxContentWidth, int maxContentHeight, boolean msaa) {
 
         super(context, resource, PixelFormat.BYTE_BGRA_PRE, wrapMode,
                 physicalWidth, physicalHeight,
@@ -58,6 +60,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
         pixels = new int[rttWidth * rttHeight];
         nTexPtr = resource.getResource().getResource();
         opaque = false;
+        MSAA = msaa;
 
         MTLLog.Debug("MTLRTTexture(): context = " + context + ", resource = " + resource +
                 ", wrapMode = " + wrapMode +
@@ -86,7 +89,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
                 physicalWidth, physicalHeight,
                 0, 0,
                 contentWidth, contentHeight,
-                contentWidth, contentHeight);
+                contentWidth, contentHeight, msaa);
     }
 
     public long getNativeHandle() {
@@ -187,7 +190,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
 
     @Override
     public boolean isMSAA() {
-        return false;
+        return MSAA;
     }
 
     @Override

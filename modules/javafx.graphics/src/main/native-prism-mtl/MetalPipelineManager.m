@@ -126,7 +126,14 @@
     pipeDesc.vertexFunction = [self getFunction:@"PhongVS"];
     pipeDesc.fragmentFunction = func;
     pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
-    pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+    if ([context isDepthEnabled]) {
+        pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+    }
+    if ([[context getRTT] isMSAAEnabled]) {
+        pipeDesc.sampleCount = 4;
+    } else {
+        pipeDesc.sampleCount = 1;
+    }
 
     // TODO: MTL: Cleanup this code in future if we think we don't need
     // to add padding to float3 data and use VertexDescriptor
@@ -159,8 +166,13 @@
 - (id<MTLDepthStencilState>) getDepthStencilState
 {
     MTLDepthStencilDescriptor *depthStencilDescriptor = [MTLDepthStencilDescriptor new];
-    depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionLess;
-    depthStencilDescriptor.depthWriteEnabled = YES;
+    if ([context isDepthEnabled]) {
+        depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionLess;
+        depthStencilDescriptor.depthWriteEnabled = YES;
+    } else {
+        depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionAlways;
+        depthStencilDescriptor.depthWriteEnabled = NO;
+    }
     id<MTLDepthStencilState> depthStencilState = [[context getDevice] newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     return depthStencilState;
 }

@@ -236,7 +236,27 @@
         (simd_float4){ m20, m21, m22, m23 },
         (simd_float4){ m30, m31, m32, m33 }
     );
-    depthEnabled = depthTest;
+    if (depthTest &&
+        ([rtt getDepthTexture] != nil)) {
+        depthEnabled = true;
+    } else {
+        depthEnabled = false;
+    }
+}
+
+- (void) setProjViewMatrix:(float)m00
+        m01:(float)m01 m02:(float)m02 m03:(float)m03
+        m10:(float)m10 m11:(float)m11 m12:(float)m12 m13:(float)m13
+        m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
+        m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33
+{
+    CTX_LOG(@"MetalContext.setProjViewMatrix()");
+    mvpMatrix = simd_matrix(
+        (simd_float4){ m00, m01, m02, m03 },
+        (simd_float4){ m10, m11, m12, m13 },
+        (simd_float4){ m20, m21, m22, m23 },
+        (simd_float4){ m30, m31, m32, m33 }
+    );
 }
 
 - (void) setWorldTransformMatrix:(float)m00
@@ -273,7 +293,9 @@
 {
     CTX_LOG(@"MetalContext.updatePhongLoadAction()");
     phongRPD.colorAttachments[0].loadAction = MTLLoadActionLoad;
-    phongRPD.depthAttachment.loadAction = MTLLoadActionLoad;
+    if (depthEnabled) {
+        phongRPD.depthAttachment.loadAction = MTLLoadActionLoad;
+    }
     rttCleared = true;
 }
 
@@ -327,7 +349,6 @@
                       clearDepth:(bool)clearDepth
                    ignoreScissor:(bool)ignoreScissor
 {
-    // TODO: MTL: Add clear depth buffer implementation
     CTX_LOG(@">>>> MetalContext.clearRTT() %f, %f, %f, %f", red, green, blue, alpha);
     CTX_LOG(@">>>> MetalContext.clearRTT() %d, %d", clearDepth, ignoreScissor);
 
@@ -362,11 +383,11 @@
     char colors[] = {r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a};
 
     [self drawClearRect:scissorRectVertices ofColors:colors vertexCount:4];
-    if (clearDepth)
-    {
-        phongRPD.depthAttachment.clearDepth = 1.0;
-        phongRPD.depthAttachment.loadAction = MTLLoadActionClear;
-    }
+    clearDepthTexture = clearDepth;
+    clearColor[0] = red;
+    clearColor[1] = green;
+    clearColor[2] = blue;
+    clearColor[3] = alpha;
 
     if (!isScissorEnabled) {
         CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
@@ -491,16 +512,39 @@
     phongRPD = [MTLRenderPassDescriptor new];
     if (!rttCleared) {
         phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
+    }
+    if (clearDepthTexture &&
+        depthEnabled) {
         phongRPD.depthAttachment.loadAction = MTLLoadActionClear;
     }
-    phongRPD.colorAttachments[0].clearColor = MTLClearColorMake(1, 1, 1, 1); // make this programmable
-    phongRPD.colorAttachments[0].storeAction = MTLStoreActionStore;
-    phongRPD.colorAttachments[0].texture = [[self getRTT] getTexture];
+    phongRPD.colorAttachments[0].clearColor =
+        MTLClearColorMake(clearColor[0],
+                          clearColor[1],
+                          clearColor[2],
+                          clearColor[3]);
 
+    if ([[self getRTT] isMSAAEnabled]) {
+        phongRPD.colorAttachments[0].loadAction = MTLLoadActionClear;
+        phongRPD.colorAttachments[0].storeAction = MTLStoreActionStoreAndMultisampleResolve;
+        phongRPD.colorAttachments[0].texture = [rtt getMSAATexture];
+        phongRPD.colorAttachments[0].resolveTexture = [rtt getTexture];
+    } else {
+        phongRPD.colorAttachments[0].storeAction = MTLStoreActionStore;
+        phongRPD.colorAttachments[0].texture = [rtt getTexture];
+        phongRPD.colorAttachments[0].resolveTexture = nil;
+    }
     if (depthEnabled) {
-        phongRPD.depthAttachment.texture = [[self getRTT] getDepthTexture];
         phongRPD.depthAttachment.clearDepth = 1.0;
-        phongRPD.depthAttachment.storeAction = MTLStoreActionStore;
+        if ([[self getRTT] isMSAAEnabled]) {
+            phongRPD.depthAttachment.loadAction = MTLLoadActionClear;
+            phongRPD.depthAttachment.storeAction = MTLStoreActionStoreAndMultisampleResolve;
+            phongRPD.depthAttachment.texture = [rtt getDepthMSAATexture];
+            phongRPD.depthAttachment.resolveTexture = [rtt getDepthTexture];
+        } else {
+            phongRPD.depthAttachment.storeAction = MTLStoreActionStore;
+            phongRPD.depthAttachment.texture = [[self getRTT] getDepthTexture];
+            phongRPD.depthAttachment.resolveTexture = nil;
+        }
     }
 
     // TODO: MTL: Check whether we need to do shader initialization here
@@ -711,6 +755,36 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetProjViewMatrix
 
     [mtlContext setProjViewMatrix:isOrtho
         m00:m00 m01:m01 m02:m02 m03:m03
+        m10:m10 m11:m11 m12:m12 m13:m13
+        m20:m20 m21:m21 m22:m22 m23:m23
+        m30:m30 m31:m31 m32:m32 m33:m33];
+
+    return 1;
+}
+
+JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTransform
+  (JNIEnv *env, jclass jClass,
+    jlong context,
+    jdouble m00, jdouble m01, jdouble m02, jdouble m03,
+    jdouble m10, jdouble m11, jdouble m12, jdouble m13,
+    jdouble m20, jdouble m21, jdouble m22, jdouble m23,
+    jdouble m30, jdouble m31, jdouble m32, jdouble m33)
+{
+    CTX_LOG(@"MTLContext_nSetTransform");
+    MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
+
+    CTX_LOG(@"%f %f %f %f", m00, m01, m02, m03);
+    CTX_LOG(@"%f %f %f %f", m10, m11, m12, m13);
+    CTX_LOG(@"%f %f %f %f", m20, m21, m22, m23);
+    CTX_LOG(@"%f %f %f %f", m30, m31, m32, m33);
+
+    // TODO: MTL: Added separate nSetTransform because previously
+    // we used to use nSetProjViewMatrix only and enabled depth test
+    // by default. Also check whether we need to do anything else
+    // apart from just updating projection view matrix.
+
+    [mtlContext setProjViewMatrix:m00
+        m01:m01 m02:m02 m03:m03
         m10:m10 m11:m11 m12:m12 m13:m13
         m20:m20 m21:m21 m22:m22 m23:m23
         m30:m30 m31:m31 m32:m32 m33:m33];

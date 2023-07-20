@@ -265,7 +265,7 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void updateShaderTransform(Shader shader, BaseTransform xform) {
-        //MTLLog.Debug("MTLContext.updateShaderTransform() :shader = " + shader + ", xform = " + xform);
+        MTLLog.Debug("MTLContext.updateShaderTransform() :shader = " + shader + ", xform = " + xform);
         if (xform == null) {
             xform = BaseTransform.IDENTITY_TRANSFORM;
         }
@@ -277,7 +277,7 @@ public class MTLContext extends BaseShaderContext {
         } else {
             scratchTx = scratchTx.mul(xform).mul(perspectiveTransform);
         }
-        nSetProjViewMatrix(pContext, true,
+        nSetTransform(pContext,
             scratchTx.get(0),  scratchTx.get(1),  scratchTx.get(2),  scratchTx.get(3),
             scratchTx.get(4),  scratchTx.get(5),  scratchTx.get(6),  scratchTx.get(7),
             scratchTx.get(8),  scratchTx.get(9),  scratchTx.get(10), scratchTx.get(11),
@@ -344,6 +344,9 @@ public class MTLContext extends BaseShaderContext {
         /*MTLLog.Debug("MTLContext.blit() :srcRTT = " + srcRTT + ", dstRTT = " + dstRTT + ", srcX0 = " +
                 srcX0 + ", srcY0 = " + srcY0 + ", srcX1 = " + srcX1 + ", srcY1 = " + srcY1 + ", dstX0 = " +
                 dstX0 + ", dstY0 = " + dstY0 + ", dstX1 = " + dstX1 + ", dstY1 = " + dstY1);*/
+        // TODO: MTL: Verify whether we can avoid this blit when we are trying
+        // to resolve MSAA texture into non-MSAA texture, because in case of Metal
+        // we resolve the texture while rendering itself
         long dstNativeHandle = dstRTT == null ? 0L : ((MTLTexture)dstRTT).getNativeHandle();
         long srcNativeHandle = ((MTLTexture)srcRTT).getNativeHandle();
         nBlit(pContext, srcNativeHandle, dstNativeHandle,
@@ -383,6 +386,12 @@ public class MTLContext extends BaseShaderContext {
         double m10, double m11, double m12, double m13,
         double m20, double m21, double m22, double m23,
         double m30, double m31, double m32, double m33);
+
+    native private static int  nSetTransform(long pContext,
+                                                  double m00, double m01, double m02, double m03,
+                                                  double m10, double m11, double m12, double m13,
+                                                  double m20, double m21, double m22, double m23,
+                                                  double m30, double m31, double m32, double m33);
 
     native private static void nSetCompositeMode(long context, int mode);
     private static native void nResetClipRect(long context);

@@ -30,6 +30,7 @@
 #import <Metal/Metal.h>
 #import <Foundation/Foundation.h>
 #import "MetalContext.h"
+#import "MetalRTTexture.h"
 
 /**
  * native interface for the Java class MTLPipelineManager

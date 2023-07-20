@@ -183,15 +183,14 @@
     }
 
     id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
-    id<MTLRenderCommandEncoder> phongEncoder = [commandBuffer renderCommandEncoderWithDescriptor:[context getPhongRPD]];
+    MTLRenderPassDescriptor* phongRPD = [context getPhongRPD];
+    id<MTLRenderCommandEncoder> phongEncoder = [commandBuffer renderCommandEncoderWithDescriptor:phongRPD];
     id<MTLRenderPipelineState> phongPipelineState =
         [[context getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"];
     [phongEncoder setRenderPipelineState:phongPipelineState];
-    if ([context isDepthEnabled]) {
-        id<MTLDepthStencilState> depthStencilState =
-            [[context getPipelineManager] getDepthStencilState];
-        [phongEncoder setDepthStencilState:depthStencilState];
-    }
+    id<MTLDepthStencilState> depthStencilState =
+        [[context getPipelineManager] getDepthStencilState];
+    [phongEncoder setDepthStencilState:depthStencilState];
     // In Metal default winding order is Clockwise but the vertex data that
     // we are getting is in CounterClockWise order, so we need to set
     // MTLWindingCounterClockwise explicitly

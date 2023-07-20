@@ -76,6 +76,8 @@ typedef enum VertexInputIndex {
     bool isScissorEnabled;
     MetalRTTexture* rtt;
     bool rttCleared;
+    bool clearDepthTexture;
+    float clearColor[4];
     MTLRenderPassDescriptor* rttPassDesc;
     MTLLoadAction rttLoadAction;
     //MTLRenderPipelineDescriptor* passThroughPipeDesc;
@@ -119,6 +121,12 @@ typedef enum VertexInputIndex {
 - (void) resetProjViewMatrix;
 - (void) setProjViewMatrix:(bool)isOrtho
         m00:(float)m00 m01:(float)m01 m02:(float)m02 m03:(float)m03
+        m10:(float)m10 m11:(float)m11 m12:(float)m12 m13:(float)m13
+        m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
+        m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33;
+
+- (void) setProjViewMatrix:(float)m00
+        m01:(float)m01 m02:(float)m02 m03:(float)m03
         m10:(float)m10 m11:(float)m11 m12:(float)m12 m13:(float)m13
         m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
         m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33;

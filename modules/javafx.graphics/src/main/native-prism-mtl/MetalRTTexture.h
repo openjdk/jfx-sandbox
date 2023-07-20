@@ -42,9 +42,12 @@
 
 - (id<MTLTexture>) getTexture;
 - (id<MTLTexture>) getDepthTexture;
-- (MetalRTTexture*) createTexture:(MetalContext*)ctx ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h;
+- (id<MTLTexture>) getDepthMSAATexture;
+- (id<MTLTexture>) getMSAATexture;
+- (MetalRTTexture*) createTexture:(MetalContext*)ctx ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h msaa:(bool)msaa;
 - (void) createDepthTexture;
 - (void) setContentDimensions:(int)w height:(int)h;
+- (bool) isMSAAEnabled;
 - (int) getPw;
 - (int) getPh;
 - (int) getCw;

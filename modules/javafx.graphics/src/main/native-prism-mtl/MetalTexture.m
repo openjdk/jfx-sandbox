@@ -116,6 +116,7 @@
                          ofUsage : (MTLTextureUsage) texUsage
                          ofWidth : (NSUInteger) w
                         ofHeight : (NSUInteger) h
+                            msaa : (bool) msaa
 {
     TEX_LOG(@"\n");
     TEX_LOG(@">>>> MetalTexture.createTexture()2  w = %lu, h= %lu", w, h);
@@ -136,11 +137,30 @@
         texDescriptor.height = height;
         texDescriptor.textureType = type;
         texDescriptor.pixelFormat = pixelFormat;
+        texDescriptor.sampleCount = 1;
 
         id<MTLDevice> device = [context getDevice];
 
         texture = [device newTextureWithDescriptor: texDescriptor];
+        if (msaa) {
+            TEX_LOG(@">>>> MetalTexture.createTexture()2 msaa texture");
+            MTLTextureDescriptor *msaaTexDescriptor = [[MTLTextureDescriptor new] autorelease];
+            msaaTexDescriptor.storageMode = MTLStorageModePrivate;
+            msaaTexDescriptor.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
+            msaaTexDescriptor.width  = width;
+            msaaTexDescriptor.height = height;
+            msaaTexDescriptor.textureType = MTLTextureType2DMultisample;
+            msaaTexDescriptor.pixelFormat = pixelFormat;
+            //By default all SoC's on macOS support 4 sample count
+            msaaTexDescriptor.sampleCount = 4;
+            msaaTexture = [device newTextureWithDescriptor: msaaTexDescriptor];
+        } else {
+            msaaTexture = nil;
+        }
+        isMSAA = msaa;
 
+        depthTexture = nil;
+        depthMSAATexture = nil;
         // Create buffer for reading - used in getPixelBuffer
         pixelBuffer = [device newBufferWithLength: (width * height * 4) options: storageMode];
 
@@ -154,16 +174,27 @@
 
 - (void) createDepthTexture
 {
+    TEX_LOG(@">>>> MetalTexture.createDepthTexture()");
     id<MTLDevice> device = [context getDevice];
     if (depthTexture.width != width ||
         depthTexture.height != height) {
-        MTLTextureDescriptor *depthDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatDepth32Float
-                                                                                             width:width
-                                                                                            height:height
-                                                                                         mipmapped:NO];
+        MTLTextureDescriptor *depthDesc = [[MTLTextureDescriptor new] autorelease];
+        depthDesc.width  = width;
+        depthDesc.height = height;
+        depthDesc.pixelFormat = MTLPixelFormatDepth32Float;
+        depthDesc.textureType = MTLTextureType2D;
+        depthDesc.sampleCount = 1;
         depthDesc.usage = MTLTextureUsageRenderTarget;
-        depthDesc.storageMode = MTLStorageModePrivate;
-        depthTexture = [device newTextureWithDescriptor:depthDesc];
+        depthTexture = [device newTextureWithDescriptor: depthDesc];
+        if (isMSAA) {
+            TEX_LOG(@">>>> MetalTexture.createDepthMSAATexture()");
+            depthDesc.storageMode = MTLStorageModePrivate;
+            depthDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
+            depthDesc.textureType = MTLTextureType2DMultisample;
+            //By default all SoC's on macOS support 4 sample count
+            depthDesc.sampleCount = 4;
+            depthMSAATexture = [device newTextureWithDescriptor: depthDesc];
+        }
     }
 }
 
@@ -219,6 +250,21 @@
     return depthTexture;
 }
 
+- (id<MTLTexture>) getDepthMSAATexture
+{
+    return depthMSAATexture;
+}
+
+- (id<MTLTexture>) getMSAATexture
+{
+    return msaaTexture;
+}
+
+- (bool) isMSAAEnabled
+{
+    return isMSAA;
+}
+
 - (void)dealloc
 {
     if (texture != nil) {
@@ -237,6 +283,24 @@
         TEX_LOG(@">>>> MetalTexture.dealloc -- releasing blitQueue");
         [blitQueue release];
         blitQueue = nil;
+    }
+
+    if (depthTexture != nil) {
+        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing depthTexture");
+        [depthTexture release];
+        depthTexture = nil;
+    }
+
+    if (depthMSAATexture != nil) {
+        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing depthMSAATexture");
+        [depthMSAATexture release];
+        depthMSAATexture = nil;
+    }
+
+    if (msaaTexture != nil) {
+        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing msaaTexture");
+        [msaaTexture release];
+        msaaTexture = nil;
     }
 
     [super dealloc];
