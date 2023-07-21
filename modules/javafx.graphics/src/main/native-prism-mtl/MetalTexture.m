@@ -185,10 +185,10 @@
         depthDesc.textureType = MTLTextureType2D;
         depthDesc.sampleCount = 1;
         depthDesc.usage = MTLTextureUsageRenderTarget;
+        depthDesc.storageMode = MTLStorageModePrivate;
         depthTexture = [device newTextureWithDescriptor: depthDesc];
         if (isMSAA) {
             TEX_LOG(@">>>> MetalTexture.createDepthMSAATexture()");
-            depthDesc.storageMode = MTLStorageModePrivate;
             depthDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
             depthDesc.textureType = MTLTextureType2DMultisample;
             //By default all SoC's on macOS support 4 sample count
