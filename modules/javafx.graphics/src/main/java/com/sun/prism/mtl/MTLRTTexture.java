@@ -140,7 +140,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     @Override
     public int[] getPixels() {
         //MTLLog.Debug("MTLRTTexture.getPixels()");
-        nReadPixelsFromContextRTT(nTexPtr, IntBuffer.wrap(pixels));
+        nReadPixels(nTexPtr, pixels);
         return pixels;
     }
 
