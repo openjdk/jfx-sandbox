@@ -125,12 +125,6 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
         throw new UnsupportedOperationException("Not implemented");
     }
 
-    @Override
-    public void setLinearFiltering(boolean linear) {
-        // TODO: MTL: Complete implementation or remove to use super method
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
     native private static long nCreateRT(long context, int pw, int ph, int cw, int ch,
                                          WrapMode wrapMode, boolean msaa);
     native private static void nReadPixels(long nativeHandle, int[] pixBuffer);
