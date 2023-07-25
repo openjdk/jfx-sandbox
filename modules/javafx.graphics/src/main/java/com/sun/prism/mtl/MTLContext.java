@@ -462,7 +462,8 @@ public class MTLContext extends BaseShaderContext {
     boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
                                 short[] indexBuffer, int indexBufferLength) {
         MTLLog.Debug("3D : MTLContext:buildNativeGeometryShort()");
-        MTLLog.Debug("VertexBuffer");
+        // TODO: MTL: Remove printing of below logs in future
+        /*MTLLog.Debug("VertexBuffer");
         int i = 0;
         int index = 0;
         while (i < vertexBuffer.length) {
@@ -479,18 +480,16 @@ public class MTLContext extends BaseShaderContext {
                 + " " + indexBuffer[i + 1] + " " + indexBuffer[i + 2]);
             i = i + 3;
             index++;
-        }
+        }*/
         return nBuildNativeGeometryShort(pContext, nativeHandle, vertexBuffer,
             vertexBufferLength, indexBuffer, indexBufferLength);
     }
 
     boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
                                 int[] indexBuffer, int indexBufferLength) {
-        // TODO: MTL: Complete the implementation
         MTLLog.Debug("3D : MTLContext:buildNativeGeometryInt()");
-        return false;
-        //return nBuildNativeGeometryInt(pContext, nativeHandle, vertexBuffer,
-            //vertexBufferLength, indexBuffer, indexBufferLength);
+        return nBuildNativeGeometryInt(pContext, nativeHandle, vertexBuffer,
+            vertexBufferLength, indexBuffer, indexBufferLength);
     }
 
     long createMTLPhongMaterial() {
@@ -499,9 +498,8 @@ public class MTLContext extends BaseShaderContext {
     }
 
     void releaseMTLPhongMaterial(long nativeHandle) {
-        // TODO: MTL: Complete the implementation
         MTLLog.Debug("3D : MTLContext:createMTLPhongMaterial()");
-        //nReleaseMTLPhongMaterial(pContext, nativeHandle);
+        nReleaseMTLPhongMaterial(pContext, nativeHandle);
     }
 
     void setDiffuseColor(long nativePhongMaterial, float r, float g, float b, float a) {
@@ -525,9 +523,8 @@ public class MTLContext extends BaseShaderContext {
     }
 
     void releaseMTLMeshView(long nativeMeshView) {
-        // TODO: MTL: Complete the implementation
         MTLLog.Debug("3D : MTLContext:releaseMTLMeshView()");
-        //nReleaseMTLMeshView(pContext, nativeMeshView);
+        nReleaseMTLMeshView(pContext, nativeMeshView);
     }
 
     void setCullingMode(long nativeMeshView, int cullMode) {

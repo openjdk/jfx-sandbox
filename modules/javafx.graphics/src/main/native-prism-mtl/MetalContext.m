@@ -855,8 +855,12 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMesh
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMesh
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh)
 {
-    // TODO: MTL: Complete the implementation
     CTX_LOG(@"MTLContext_nReleaseMTLMesh");
+    MetalMesh *mesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
+    if (mesh != nil) {
+        [mesh release];
+        mesh = nil;
+    }
 }
 
 /*
@@ -980,8 +984,12 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLPhongMateria
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLPhongMaterial
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial)
 {
-    // TODO: MTL: Complete the implementation
     CTX_LOG(@"MTLContext_nReleaseMTLPhongMaterial");
+    MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
+    if (phongMaterial != nil) {
+        [phongMaterial release];
+        phongMaterial = nil;
+    }
 }
 
 /*
@@ -1054,8 +1062,12 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMeshView
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMeshView
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
 {
-    // TODO: MTL: Complete the implementation
     CTX_LOG(@"MTLContext_nReleaseMTLMeshView");
+    MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
+    if (meshView != nil) {
+        [meshView release];
+        meshView = nil;
+    }
 }
 
 /*

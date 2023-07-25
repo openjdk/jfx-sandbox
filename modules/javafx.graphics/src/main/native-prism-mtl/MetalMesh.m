@@ -56,9 +56,7 @@ typedef struct
               iBuffer:(unsigned short*)ib
                 iSize:(unsigned int)ibSize
 {
-    MESH_LOG(@"MetalMesh->buildBuffers");
-    MESH_LOG(@"vbsize %d", vbSize);
-    MESH_LOG(@"ibsize %d", ibSize);
+    MESH_LOG(@"MetalMesh->buildBuffersShort");
     id<MTLDevice> device = [context getDevice];
     unsigned int size = vbSize * sizeof (float);
     unsigned int vbCount = vbSize / NUM_OF_FLOATS_PER_VERTEX;
@@ -84,18 +82,28 @@ typedef struct
 
     if (numVertices != vbCount) {
         [self releaseVertexBuffer];
-        vertexBuffer = [[device newBufferWithBytes:vb length:size options:MTLResourceStorageModeShared] autorelease];
+        vertexBuffer = [[device newBufferWithLength:size options:MTLResourceStorageModeShared] autorelease];
         numVertices = vbCount;
         MESH_LOG(@"numVertices %lu", numVertices);
+    }
+
+    if (vertexBuffer != nil) {
+        MESH_LOG(@"Updating VertexBuffer");
+        memcpy(vertexBuffer.contents, vb, size);
     }
 
     size = ibSize * sizeof (unsigned short);
     MESH_LOG(@"IndexBuffer size %d", size);
     if (numIndices != ibSize) {
         [self releaseIndexBuffer];
-        indexBuffer = [[device newBufferWithBytes:ib length:size options:MTLResourceStorageModeShared] autorelease];
+        indexBuffer = [[device newBufferWithLength:size options:MTLResourceStorageModeShared] autorelease];
         numIndices = ibSize;
         MESH_LOG(@"numIndices %lu", numIndices);
+    }
+
+    if (indexBuffer != nil) {
+        MESH_LOG(@"Updating IndexBuffer");
+        memcpy(indexBuffer.contents, ib, size);
     }
 
     MESH_LOG(@"MetalMesh->buildBuffers done");
@@ -107,9 +115,7 @@ typedef struct
               iBuffer:(unsigned int*)ib
                 iSize:(unsigned int)ibSize
 {
-    MESH_LOG(@"MetalMesh->buildBuffers");
-    MESH_LOG(@"vbsize %d", vbSize);
-    MESH_LOG(@"ibsize %d", ibSize);
+    MESH_LOG(@"MetalMesh->buildBuffersInt");
     id<MTLDevice> device = [context getDevice];
     unsigned int size = vbSize * sizeof (float);
     unsigned int vbCount = vbSize / NUM_OF_FLOATS_PER_VERTEX;
@@ -117,18 +123,28 @@ typedef struct
 
     if (numVertices != vbCount) {
         [self releaseVertexBuffer];
-        vertexBuffer = [[device newBufferWithBytes:vb length:size options:MTLResourceStorageModeShared] autorelease];
+        vertexBuffer = [[device newBufferWithLength:size options:MTLResourceStorageModeShared] autorelease];
         numVertices = vbCount;
         MESH_LOG(@"numVertices %lu", numVertices);
+    }
+
+    if (vertexBuffer != nil) {
+        MESH_LOG(@"Updating VertexBuffer");
+        memcpy(vertexBuffer.contents, vb, size);
     }
 
     size = ibSize * sizeof (unsigned int);
     MESH_LOG(@"IndexBuffer size %d", size);
     if (numIndices != ibSize) {
         [self releaseIndexBuffer];
-        indexBuffer = [[device newBufferWithBytes:ib length:size options:MTLResourceStorageModeShared] autorelease];
+        indexBuffer = [[device newBufferWithLength:size options:MTLResourceStorageModeShared] autorelease];
         numIndices = ibSize;
         MESH_LOG(@"numIndices %lu", numIndices);
+    }
+
+    if (indexBuffer != nil) {
+        MESH_LOG(@"Updating IndexBuffer");
+        memcpy(indexBuffer.contents, ib, size);
     }
 
     MESH_LOG(@"MetalMesh->buildBuffers done");
@@ -138,11 +154,15 @@ typedef struct
 - (void) releaseVertexBuffer
 {
     MESH_LOG(@"MetalMesh->releaseVertexBuffer");
+    vertexBuffer = nil;
+    numVertices = 0;
 }
 
 - (void) releaseIndexBuffer
 {
     MESH_LOG(@"MetalMesh->releaseIndexBuffer");
+    indexBuffer = nil;
+    numIndices = 0;
 }
 
 - (id<MTLBuffer>) getVertexBuffer
