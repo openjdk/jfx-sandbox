@@ -61,6 +61,7 @@ public class MTLContext extends BaseShaderContext {
     public static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_ZERO          = 4; // MTLSamplerAddressModeClampToZero
     public static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_BORDER_COLOR  = 5; // MTLSamplerAddressModeClampToBorderColor
 
+    private Texture currentTexture;
     private State state;
     private final long pContext;
     private MTLRTTexture renderTarget;
@@ -228,8 +229,13 @@ public class MTLContext extends BaseShaderContext {
         if (checkDisposed()) return;
         if (tex != null) {
             tex.assertLocked();
-            flushVertexBuffer();
+
+            if (tex != currentTexture) {
+                flushVertexBuffer();
+            }
             updateTexture(texUnit, tex);
+
+            currentTexture = tex;
         }
     }
 
