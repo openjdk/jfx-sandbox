@@ -69,6 +69,12 @@ typedef enum VertexInputIndex {
     id<MTLRenderPipelineState> currentPipeState;
     id<MTLBuffer> currentFragArgBuffer;
     MetalShader* currentShader;
+    // TODO: MTL: Currently this argBufArray is used to keep a track of all the MTLBuffers that are used
+    // as argument buffers for each drawIndexedQuads call that get accumulated in a single MTLCommandBuffer.
+    // All these buffers are released once the MTLCommandBuffer completes.
+    // This should be improved to reduce un-necessary allocations and release. Ideally by using a
+    // MTLHeap of size 1 to 2 MB. [Refer MetalShader.getArgumentBuffer()]
+    NSMutableArray* argBufArray;
 
     MetalResourceFactory* resourceFactory;
 
@@ -96,9 +102,8 @@ typedef enum VertexInputIndex {
 - (void) setCurrentPipeState:(id<MTLRenderPipelineState>) pipeState;
 - (void) setCurrentArgumentBuffer:(id<MTLBuffer>) argBuffer;
 
+- (void) commitCurrentCommandBuffer;
 - (id<MTLDevice>) getDevice;
-- (id<MTLCommandBuffer>) newCommandBuffer;
-- (id<MTLCommandBuffer>) newCommandBuffer:(NSString*)label;
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer;
 - (void) resetRenderPass;
 

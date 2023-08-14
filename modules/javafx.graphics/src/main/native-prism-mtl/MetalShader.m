@@ -53,6 +53,8 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     return result;
 }
 
+static id<MTLHeap> argumentBufferHeap;
+
 @implementation MetalShader
 
 - (id) initWithContext:(MetalContext*)ctx withFragFunc:(NSString*) fragName
@@ -78,12 +80,17 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
         fragFuncName = fragName;
         fragmentFunction = [[context getPipelineManager] getFunction:fragFuncName];
-        argumentEncoder = [fragmentFunction newArgumentEncoderWithBufferIndex:0];
-        NSUInteger argumentBufferLength = argumentEncoder.encodedLength;
-        SHADER_LOG(@"-> Native: MTLShader.initWithContext()  argumentBufferLength = %lu", argumentBufferLength);
-        argumentBuffer = [[context getDevice] newBufferWithLength:argumentBufferLength options:0];
-        argumentBuffer.label = [NSString stringWithFormat:@"JFX Argument Buffer for fragmentFunction %@", fragFuncName];
-        [argumentEncoder setArgumentBuffer:argumentBuffer offset:0];
+        NSString* key = (NSString*)[[fragArgIndicesDict allKeys] objectAtIndex:0];
+        if ([fragArgIndicesDict count] == 1 && [key isEqualToString:@"UNUSED"]) {
+            argumentBufferLength = 0;
+        } else {
+            argumentEncoder = [fragmentFunction newArgumentEncoderWithBufferIndex:0];
+            argumentBufferLength = argumentEncoder.encodedLength;
+            SHADER_LOG(@"-> Native: MTLShader.initWithContext()  argumentBufferLength = %lu", argumentBufferLength);
+            argumentBuffer = [[context getDevice] newBufferWithLength:argumentBufferLength options:0];
+            argumentBuffer.label = [NSString stringWithFormat:@"JFX Argument Buffer for fragmentFunction %@", fragFuncName];
+            [argumentEncoder setArgumentBuffer:argumentBuffer offset:0];
+        }
         pipeState = [[context getPipelineManager] getPipeStateWithFragFunc:fragmentFunction];
         SHADER_LOG(@"<<<< MetalShader.initWithContext()\n");
     }
@@ -156,7 +163,20 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 {
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.getArgumentBuffer()----> fragFuncName: %@", fragFuncName);
-    return argumentBuffer;
+    if (argumentBufferLength == 0) return nil;
+
+    // TODO: MTL: Change this implementation to allocate MTLBuffer from a MTLHeap
+    // This method is called from MetalContext.drawIndexedQuads(), hence it results in
+    // allocating a buffer very freuently. Currently it looks like we cannot avoid
+    // creating a new buffer for each draw call hence we should reduce the cost of this method.
+    id<MTLBuffer> buf = argumentBuffer;
+    argumentBuffer = [[context getDevice] newBufferWithBytes:[buf contents]
+                                                      length:argumentBufferLength
+                                                     options:0];
+    [argumentEncoder setArgumentBuffer:argumentBuffer
+                                offset:0];
+    return buf;
+
     SHADER_LOG(@"<<<< MetalShader.getArgumentBuffer()\n");
 }
 

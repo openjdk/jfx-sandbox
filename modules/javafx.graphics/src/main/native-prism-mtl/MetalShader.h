@@ -45,6 +45,7 @@
 
     id<MTLArgumentEncoder> argumentEncoder;
     id<MTLBuffer> argumentBuffer;
+    NSUInteger argumentBufferLength;
 }
 
 - (jobject) getUniformNameIdMap:(JNIEnv*)env;

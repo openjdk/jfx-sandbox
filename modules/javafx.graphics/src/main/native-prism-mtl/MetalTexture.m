@@ -138,6 +138,7 @@
         texDescriptor.textureType = type;
         texDescriptor.pixelFormat = pixelFormat;
         texDescriptor.sampleCount = 1;
+        texDescriptor.hazardTrackingMode = MTLHazardTrackingModeTracked;
 
         id<MTLDevice> device = [context getDevice];
 
@@ -202,7 +203,7 @@
 {
     TEX_LOG(@">>>> MetalTexture.getPixelBuffer()");
 
-    id<MTLCommandBuffer> commandBuffer = [blitQueue commandBuffer];
+    id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
     id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
     [blitEncoder synchronizeTexture:texture slice:0 level:0];
@@ -217,9 +218,7 @@
             destinationBytesPerImage:(NSUInteger)texture.width * texture.height * 4];
 
     [blitEncoder endEncoding];
-
-    [commandBuffer commit];
-    [commandBuffer waitUntilCompleted];
+    [context commitCurrentCommandBuffer];
 
     return pixelBuffer;
 }

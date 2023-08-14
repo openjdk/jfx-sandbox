@@ -383,7 +383,12 @@ public class MTLContext extends BaseShaderContext {
         nDrawIndexedQuads(getContextHandle(), coordArray, colorArray, numVertices);
     }
 
+    public void commitCurrentCommandBuffer() {
+        nCommitCurrentCommandBuffer(pContext);
+    }
+
     native private static long nInitialize(String shaderLibPathStr);
+    native private static void nCommitCurrentCommandBuffer(long context);
     native private static int  nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
     native private static void nUpdateRenderTarget(long context, long texPtr, boolean depthTest);
     native private static int  nResetTransform(long context);

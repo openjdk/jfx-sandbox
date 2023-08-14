@@ -57,6 +57,7 @@
     self = [super init];
     if (self) {
         isScissorEnabled = false;
+        argBufArray = [[NSMutableArray alloc] init];
 
         device = MTLCreateSystemDefaultDevice();
         commandQueue = [device newCommandQueue];
@@ -92,33 +93,30 @@
     return device;
 }
 
-- (id<MTLCommandBuffer>) newCommandBuffer
+- (void) commitCurrentCommandBuffer
 {
-    CTX_LOG(@"MetalContext.newCommandBuffer()");
-    currentCommandBuffer = [self newCommandBuffer:@"Command Buffer"];
-    return currentCommandBuffer;
-}
-
-- (id<MTLCommandBuffer>) newCommandBuffer:(NSString*)label
-{
-    CTX_LOG(@"MetalContext.newCommandBufferWithLabel()");
-    currentCommandBuffer = [commandQueue commandBuffer];
-    currentCommandBuffer.label = label;
-    [currentCommandBuffer addScheduledHandler:^(id<MTLCommandBuffer> cb) {
-         CTX_LOG(@"------------------> Native: commandBuffer Scheduled");
-    }];
-    [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
-         currentCommandBuffer = nil;
-         CTX_LOG(@"------------------> Native: commandBuffer Completed");
-    }];
-    return currentCommandBuffer;
+    [currentCommandBuffer commit];
+    [currentCommandBuffer waitUntilCompleted];
+    for (id argBuf in argBufArray) {
+        [argBuf release];
+    }
+    [argBufArray removeAllObjects];
 }
 
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer
 {
     CTX_LOG(@"MetalContext.getCurrentCommandBuffer() --- current value = %p", currentCommandBuffer);
-    if (currentCommandBuffer == nil) {
-        return [self newCommandBuffer];
+    if (currentCommandBuffer == nil
+                || currentCommandBuffer.status != MTLCommandBufferStatusNotEnqueued) {
+        currentCommandBuffer = [commandQueue commandBuffer];
+        currentCommandBuffer.label = @"JFX Command Buffer";
+        [currentCommandBuffer addScheduledHandler:^(id<MTLCommandBuffer> cb) {
+             CTX_LOG(@"------------------> Native: commandBuffer Scheduled");
+        }];
+        [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
+             currentCommandBuffer = nil;
+             CTX_LOG(@"------------------> Native: commandBuffer Completed");
+        }];
     }
     return currentCommandBuffer;
 }
@@ -148,6 +146,7 @@
     }
 
     id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:rttPassDesc];
+    id<MTLBuffer> currentShaderArgBuffer = [[self getCurrentShader] getArgumentBuffer];
 
     [renderEncoder setRenderPipelineState:currentPipeState];
 
@@ -155,9 +154,12 @@
                                length:sizeof(mvpMatrix)
                               atIndex:VertexInputMatrixMVP];
 
-    [renderEncoder setFragmentBuffer:currentFragArgBuffer
-                              offset:0
-                             atIndex:0];
+    if (currentShaderArgBuffer != nil) {
+        [renderEncoder setFragmentBuffer:currentShaderArgBuffer
+                                  offset:0
+                                 atIndex:0];
+        [argBufArray addObject:currentShaderArgBuffer];
+    }
 
     NSMutableDictionary* texturesDict = [[self getCurrentShader] getTexutresDict];
     if ([texturesDict count] > 0) {
@@ -214,9 +216,6 @@
     }
 
     [renderEncoder endEncoding];
-
-    [commandBuffer commit];
-    [commandBuffer waitUntilCompleted];
 
     [self resetRenderPass];
 
@@ -337,9 +336,6 @@
                       vertexCount:6];
 
     [renderEncoder endEncoding];
-
-    [commandBuffer commit];
-    [commandBuffer waitUntilCompleted];
 }
 
 - (void) clearRTT:(int)color red:(float)red
@@ -665,6 +661,15 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRelease
     }
     contextPtr = NULL;
     CTX_LOG(@"<<<< MTLContext_nRelease");
+}
+
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nCommitCurrentCommandBuffer
+  (JNIEnv *env, jclass jClass, jlong context)
+{
+    CTX_LOG(@">>>> MTLContext_nCommitCurrentCommandBuffer");
+    MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
+    [mtlContext commitCurrentCommandBuffer];
+    CTX_LOG(@"<<<< MTLContext_nCommitCurrentCommandBuffer");
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
@@ -1207,8 +1212,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
             destinationLevel:(NSUInteger)0
             destinationOrigin:MTLOriginMake(0, 0, 0)];
     [blitEncoder endEncoding];
-    [commandBuffer commit];
-    [commandBuffer waitUntilCompleted];
     return;
 }
 
