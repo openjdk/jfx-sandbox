@@ -82,6 +82,12 @@
     pipeDesc.fragmentFunction = func;
     pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
 
+    if ([[context getRTT] isMSAAEnabled]) {
+        pipeDesc.sampleCount = 4;
+    } else {
+        pipeDesc.sampleCount = 1;
+    }
+
     [self setPipelineCompositeBlendMode:pipeDesc];
 
     id<MTLRenderPipelineState> pipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];

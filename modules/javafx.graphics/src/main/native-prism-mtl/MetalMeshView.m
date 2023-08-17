@@ -200,6 +200,9 @@
     if (wireframe) {
         [phongEncoder setTriangleFillMode:MTLTriangleFillModeLines];
     }
+    if ([context isScissorEnabled]) {
+        [phongEncoder setScissorRect:[context getScissorRect]];
+    }
     vsUniforms.mvp_matrix = [context getMVPMatrix];
     vsUniforms.world_matrix = [context getWorldMatrix];
     vsUniforms.cameraPos = [context getCameraPosition];

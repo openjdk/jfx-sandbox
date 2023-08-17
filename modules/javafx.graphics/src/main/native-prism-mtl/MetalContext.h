@@ -157,7 +157,9 @@ typedef enum VertexInputIndex {
 - (void) setCameraPosition:(float)x
         y:(float)y z:(float)z;
 - (vector_float4) getCameraPosition;
+- (MTLScissorRect) getScissorRect;
 - (bool) isDepthEnabled;
+- (bool) isScissorEnabled;
 - (void) dealloc;
 
 @end
