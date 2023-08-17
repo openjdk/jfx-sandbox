@@ -43,8 +43,7 @@
     int compositeMode;
 
     id<MTLRenderPipelineState> solidColorPipeState;
-
-
+    id<MTLRenderPipelineState> solidColorPipeMSAAState;
     /*
     MTLRenderPipelineDescriptor* pipeDesc;
     id<MTLRenderPipelineState> pipeState;
