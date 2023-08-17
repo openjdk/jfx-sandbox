@@ -59,6 +59,7 @@ typedef enum VertexInputIndex {
 
 @interface MetalContext : NSObject
 {
+    float byteToFloatTable[256];
     simd_float4x4 mvpMatrix;
     simd_float4x4 worldMatrix;
     VS_INPUT vertices[85];//TODO: MTL: this should not exceed 4KB if we need to use setVertexBytes

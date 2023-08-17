@@ -68,6 +68,10 @@
         rttPassDesc = [MTLRenderPassDescriptor new];
         rttPassDesc.colorAttachments[0].clearColor  = MTLClearColorMake(1, 1, 1, 1); // make this programmable
         rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
+
+        for (short i = 0; i < 256; i++) {
+            byteToFloatTable[i] = ((float)i) / 255.0f;
+        }
     }
     return self;
 }
@@ -203,7 +207,7 @@
         CTX_LOG(@"Quads in this iteration =========== %d", quads);
 
         [self fillVB:pSrcXYZUVs + (i * 4)
-              colors:pSrcColors + (i * 4 * 4)
+              colors:pSrcColors + (i * 16)
               numVertices:quads * 4];
 
         [renderEncoder setVertexBytes:vertices
@@ -212,7 +216,7 @@
 
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
                           vertexStart:0
-                          vertexCount:quads * 2 * 3];
+                          vertexCount:quads * 6];
     }
 
     [renderEncoder endEncoding];
@@ -441,24 +445,24 @@
                  numVertices:(int)numVerts
 {
     VS_INPUT* pVert = vertices;
-    numTriangles = numVerts / 2;
-    int numQuads = numTriangles / 2;
+    numTriangles = numVerts >> 1;
+    int numQuads = numTriangles >> 1;
 
 
     CTX_LOG(@"fillVB : numVerts = %d, numTriangles = %lu, numQuads = %d", numVerts, numTriangles, numQuads);
 
     for (int i = 0; i < numQuads; i++) {
-        unsigned char const* colors = (unsigned char*)(pSrcColors + i * 4 * 4);
+        unsigned char const* colors = (unsigned char*)(pSrcColors + i * 16);
         struct PrismSourceVertex const * inVerts = pSrcXYZUVs + i * 4;
         for (int k = 0; k < 2; k++) {
             for (int j = 0; j < 3; j++) {
                 pVert->position.x = inVerts->x;
                 pVert->position.y = inVerts->y;
 
-                pVert->color.r = ((float)(*(colors)))/255.0f;
-                pVert->color.g = ((float)(*(colors + 1)))/255.0f;
-                pVert->color.b = ((float)(*(colors + 2)))/255.0f;
-                pVert->color.a = ((float)(*(colors + 3)))/255.0f;
+                pVert->color.r = byteToFloatTable[*(colors)];
+                pVert->color.g = byteToFloatTable[*(colors+1)];
+                pVert->color.b = byteToFloatTable[*(colors+2)];
+                pVert->color.a = byteToFloatTable[*(colors+3)];
 
                 pVert->texCoord0.x = inVerts->tu1;
                 pVert->texCoord0.y = inVerts->tv1;
@@ -471,7 +475,7 @@
                 pVert++;
             }
             inVerts -= 2;
-            colors -= 4; colors -= 4;
+            colors -= 8;
         }
     }
 }
