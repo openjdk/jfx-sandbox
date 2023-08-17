@@ -67,6 +67,7 @@ typedef enum VertexInputIndex {
     id<MTLDevice> device;
     id<MTLCommandQueue> commandQueue;
     id<MTLCommandBuffer> currentCommandBuffer;
+    id<MTLRenderCommandEncoder> currentRenderEncoder;
     id<MTLRenderPipelineState> currentPipeState;
     id<MTLBuffer> currentFragArgBuffer;
     MetalShader* currentShader;
@@ -106,6 +107,8 @@ typedef enum VertexInputIndex {
 - (void) commitCurrentCommandBuffer;
 - (id<MTLDevice>) getDevice;
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer;
+- (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder;
+- (void) endCurrentRenderEncoder;
 - (void) resetRenderPass;
 
 - (void) setRTT:(MetalRTTexture*)rttPtr;

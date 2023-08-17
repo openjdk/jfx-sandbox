@@ -203,6 +203,8 @@
 {
     TEX_LOG(@">>>> MetalTexture.getPixelBuffer()");
 
+    [context endCurrentRenderEncoder];
+
     id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
     id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
@@ -228,12 +230,12 @@
     TEX_LOG(@">>>> MetalTexture.generateMipMap()");
     if (mipmapped) {
         TEX_LOG(@">>>> MetalTexture.generateMipMap() needed");
+        [context endCurrentRenderEncoder];
         id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
         [blitEncoder generateMipmapsForTexture: [self getTexture]];
         [blitEncoder endEncoding];
-        [commandBuffer commit];
-        [commandBuffer waitUntilCompleted];
+        [context commitCurrentCommandBuffer];
     } else {
         TEX_LOG(@">>>> MetalTexture.generateMipMap() no-op");
     }
@@ -411,6 +413,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateYUV422
 
         [srcBuff didModifyRange:NSMakeRange(0, srcBuff.length)];
 
+        [context endCurrentRenderEncoder];
 
         MTLSize _threadgroupSize = MTLSizeMake(2, 1, 1);
 
@@ -438,8 +441,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateYUV422
                        threadsPerThreadgroup:_threadgroupSize];
 
         [computeEncoder endEncoding];
-        [commandBuffer commit];
-        [commandBuffer waitUntilCompleted];
+
+        [context commitCurrentCommandBuffer];
     }
 
     pixels = p;

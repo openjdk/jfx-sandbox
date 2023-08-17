@@ -182,6 +182,8 @@
         }
     }
 
+    [context endCurrentRenderEncoder];
+
     id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
     MTLRenderPassDescriptor* phongRPD = [context getPhongRPD];
     id<MTLRenderCommandEncoder> phongEncoder = [commandBuffer renderCommandEncoderWithDescriptor:phongRPD];

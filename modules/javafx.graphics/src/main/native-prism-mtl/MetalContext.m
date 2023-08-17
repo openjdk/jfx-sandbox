@@ -58,6 +58,7 @@
     if (self) {
         isScissorEnabled = false;
         argBufArray = [[NSMutableArray alloc] init];
+        currentRenderEncoder = nil;
 
         device = MTLCreateSystemDefaultDevice();
         commandQueue = [device newCommandQueue];
@@ -78,6 +79,9 @@
 
 - (void) setRTT:(MetalRTTexture*)rttPtr
 {
+    if (rtt != rttPtr) {
+        [self endCurrentRenderEncoder];
+    }
     rtt = rttPtr;
     CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
                     [rtt getTexture].width, [rtt getTexture].height);
@@ -107,6 +111,8 @@
 
 - (void) commitCurrentCommandBuffer
 {
+    [self endCurrentRenderEncoder];
+
     [currentCommandBuffer commit];
     [currentCommandBuffer waitUntilCompleted];
     for (id argBuf in argBufArray) {
@@ -133,6 +139,23 @@
     return currentCommandBuffer;
 }
 
+- (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder
+{
+    if (currentRenderEncoder == nil) {
+        currentRenderEncoder = [[self getCurrentCommandBuffer] renderCommandEncoderWithDescriptor:rttPassDesc];
+    }
+    return currentRenderEncoder;
+}
+
+- (void) endCurrentRenderEncoder
+{
+    if (currentRenderEncoder != nil) {
+        [currentRenderEncoder endEncoding];
+       currentRenderEncoder = nil;
+    }
+}
+
+
 - (MetalResourceFactory*) getResourceFactory
 {
     CTX_LOG(@"MetalContext.getResourceFactory()");
@@ -148,16 +171,8 @@
 
     CTX_LOG(@"numVerts = %lu", numVerts);
 
-    id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
-    if (!rttCleared) {
-        // RTT must be cleared before drawing into it for the first time,
-        // after drawing first time the loadAction shall be set to MTLLoadActionLoad
-        // so that it becomes a stable rtt.
-        // loadAction is set to MTLLoadActionLoad in [resetRenderPass]
-        rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
-    }
 
-    id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:rttPassDesc];
+    id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
     id<MTLBuffer> currentShaderArgBuffer = [[self getCurrentShader] getArgumentBuffer];
 
     [renderEncoder setRenderPipelineState:currentPipeState];
@@ -226,10 +241,6 @@
                           vertexStart:0
                           vertexCount:quads * 6];
     }
-
-    [renderEncoder endEncoding];
-
-    [self resetRenderPass];
 
     return 1;
 }
@@ -323,8 +334,7 @@
 {
     CTX_LOG(@"MetalContext.drawClearRect()");
 
-    id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
-    id<MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:rttPassDesc];
+    id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
     id<MTLRenderPipelineState> pipeline = [pipelineManager getPipeStateWithFragFuncName:@"Solid_Color"];
 
     [renderEncoder setRenderPipelineState:pipeline];
@@ -347,7 +357,6 @@
                       vertexStart:0
                       vertexCount:6];
 
-    [renderEncoder endEncoding];
 }
 
 - (void) clearRTT:(int)color red:(float)red
@@ -362,6 +371,7 @@
 
     MTLRegion clearRegion = MTLRegionMake2D(0, 0, 0, 0);
     if (!isScissorEnabled) {
+        [self endCurrentRenderEncoder];
         CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
         rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(red, green, blue, alpha);
         rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
@@ -398,6 +408,7 @@
     clearColor[3] = alpha;
 
     if (!isScissorEnabled) {
+        [self endCurrentRenderEncoder];
         CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
         rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
     }
@@ -495,6 +506,9 @@
 
 - (void) setCurrentPipeState:(id<MTLRenderPipelineState>) pipeState
 {
+    if (currentPipeState != pipeState) {
+        [self endCurrentRenderEncoder];
+    }
     currentPipeState = pipeState;
 }
 
@@ -668,7 +682,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRelease
 {
     CTX_LOG(@">>>> MTLContext_nRelease");
 
-    MetalContext *contextPtr = jlong_to_ptr(context);
+    MetalContext *contextPtr = (MetalContext *)jlong_to_ptr(context);
 
     if (contextPtr != NULL) {
         [contextPtr dealloc];
@@ -1211,6 +1225,8 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
 
     id<MTLTexture> src = [srcRTT getTexture];
     id<MTLTexture> dst = [dstRTT getTexture];
+
+    [pCtx endCurrentRenderEncoder];
 
     id<MTLCommandBuffer> commandBuffer = [pCtx getCurrentCommandBuffer];
     id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
