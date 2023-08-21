@@ -163,16 +163,20 @@ public class MTLShader implements Shader  {
         // TODO: MTL: This change to commit command buffer is added to remove visual artifacts seen
         // with single command buffer. Artifacts occur if we reuse a texture for different shaders
         // that are encoded in a single command buffer. We need to identify a better way to remove the artifacts.
-        if (!currentEnabledShader.shaderTextures.contains(mtlTex)) {
-            currentEnabledShader.shaderTextures.add(mtlTex);
-        }
+        // The glyph texture is a read-only texture, hence it's content won't be modified during render passes,
+        // hence reuse check is not required.
+        if (currentEnabledShader.context.getResourceFactory().getGlyphTexture() != mtlTex) {
+            if (!currentEnabledShader.shaderTextures.contains(mtlTex)) {
+                currentEnabledShader.shaderTextures.add(mtlTex);
+            }
 
-        if (allTextures.contains(mtlTex)) {
-            currentEnabledShader.context.commitCurrentCommandBuffer();
-            allTextures.clear();
-            allTextures.addAll(currentEnabledShader.shaderTextures);
-        } else {
-            allTextures.add(mtlTex);
+            if (allTextures.contains(mtlTex)) {
+                currentEnabledShader.context.commitCurrentCommandBuffer();
+                allTextures.clear();
+                allTextures.addAll(currentEnabledShader.shaderTextures);
+            } else {
+                allTextures.add(mtlTex);
+            }
         }
         nSetTexture(currentEnabledShader.nMetalShaderRef, texUnit,
                 currentEnabledShader.uniformNameIdMap.get(currentEnabledShader.samplers.get(texUnit)),
