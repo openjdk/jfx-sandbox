@@ -71,6 +71,8 @@ typedef enum VertexInputIndex {
     id<MTLRenderPipelineState> currentPipeState;
     id<MTLBuffer> currentFragArgBuffer;
     MetalShader* currentShader;
+    NSMutableDictionary* linearSamplerDict;
+    NSMutableDictionary* nonLinearSamplerDict;
     // TODO: MTL: Currently this argBufArray is used to keep a track of all the MTLBuffers that are used
     // as argument buffers for each drawIndexedQuads call that get accumulated in a single MTLCommandBuffer.
     // All these buffers are released once the MTLCommandBuffer completes.
@@ -164,6 +166,8 @@ typedef enum VertexInputIndex {
 - (bool) isDepthEnabled;
 - (bool) isScissorEnabled;
 - (void) dealloc;
+- (id<MTLSamplerState>) getSampler:(bool)isLinear wrapMode:(int)wrapMode;
+- (id<MTLSamplerState>) createSampler:(bool)isLinear wrapMode:(int)wrapMode;
 
 @end
 

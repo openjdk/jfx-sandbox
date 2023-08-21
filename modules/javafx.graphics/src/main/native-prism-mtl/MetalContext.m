@@ -59,6 +59,8 @@
         isScissorEnabled = false;
         argBufArray = [[NSMutableArray alloc] init];
         currentRenderEncoder = nil;
+        linearSamplerDict = [[NSMutableDictionary alloc] init];
+        nonLinearSamplerDict = [[NSMutableDictionary alloc] init];
 
         device = MTLCreateSystemDefaultDevice();
         commandQueue = [device newCommandQueue];
@@ -101,6 +103,41 @@
 {
     CTX_LOG(@"-> Native: MetalContext.getRTT()");
     return rtt;
+}
+
+- (id<MTLSamplerState>) getSampler:(bool)isLinear
+                          wrapMode:(int)wrapMode
+{
+    NSMutableDictionary* samplerDict;
+    if (isLinear) {
+        samplerDict = linearSamplerDict;
+    } else {
+        samplerDict = nonLinearSamplerDict;
+    }
+    NSNumber *keyWrapMode = [NSNumber numberWithInt:wrapMode];
+    id<MTLSamplerState> sampler = samplerDict[keyWrapMode];
+    if (sampler == nil) {
+        sampler = [self createSampler:isLinear wrapMode:wrapMode];
+        [samplerDict setObject:sampler forKey:keyWrapMode];
+    }
+    return sampler;
+}
+
+- (id<MTLSamplerState>) createSampler:(bool)isLinear
+                             wrapMode:(int)wrapMode
+{
+    MTLSamplerDescriptor *samplerDescriptor = [MTLSamplerDescriptor new];
+    if (isLinear) {
+        samplerDescriptor.minFilter = MTLSamplerMinMagFilterLinear;
+        samplerDescriptor.magFilter = MTLSamplerMinMagFilterLinear;
+    }
+    if (wrapMode != -1) {
+        samplerDescriptor.sAddressMode = wrapMode;
+        samplerDescriptor.tAddressMode = wrapMode;
+    }
+    id<MTLSamplerState> sampler = [[self getDevice] newSamplerStateWithDescriptor:samplerDescriptor];
+    [samplerDescriptor release];
+    return sampler;
 }
 
 - (id<MTLDevice>) getDevice
@@ -655,6 +692,15 @@
         [phongRPD release];
         phongRPD = nil;
     }
+
+    for (NSNumber *keyWrapMode in linearSamplerDict) {
+        [linearSamplerDict[keyWrapMode] release];
+    }
+    for (NSNumber *keyWrapMode in nonLinearSamplerDict) {
+        [nonLinearSamplerDict[keyWrapMode] release];
+    }
+    [linearSamplerDict release];
+    [nonLinearSamplerDict release];
 
     device = nil;
 

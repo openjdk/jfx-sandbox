@@ -259,17 +259,7 @@ static id<MTLHeap> argumentBufferHeap;
 
     [argumentEncoder setTexture:texture atIndex:uniformID];
 
-    // Create and store sampler for this texture
-    MTLSamplerDescriptor *samplerDescriptor = [[MTLSamplerDescriptor new] autorelease];
-    if (isLinear) {
-        samplerDescriptor.minFilter = MTLSamplerMinMagFilterLinear;
-        samplerDescriptor.magFilter = MTLSamplerMinMagFilterLinear;
-    }
-    if (wrapMode != -1) {
-        samplerDescriptor.sAddressMode = wrapMode;
-        samplerDescriptor.tAddressMode = wrapMode;
-    }
-    id<MTLSamplerState> sampler = [[context getDevice] newSamplerStateWithDescriptor:samplerDescriptor];
+    id<MTLSamplerState> sampler = [context getSampler:isLinear wrapMode:wrapMode];
     [fragTexSamplerDict setObject:sampler forKey:[NSNumber numberWithInt:texID]];
 
     SHADER_LOG(@"<<<< MetalShader.setTexture()");
