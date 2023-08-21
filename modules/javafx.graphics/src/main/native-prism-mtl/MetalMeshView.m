@@ -243,7 +243,7 @@
 
     [phongEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
         indexCount:[mesh getNumIndices]
-        indexType:MTLIndexTypeUInt16
+        indexType:[mesh getIndexType]
         indexBuffer:[mesh getIndexBuffer]
         indexBufferOffset:0];
     [phongEncoder endEncoding];

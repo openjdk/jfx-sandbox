@@ -47,6 +47,7 @@ typedef struct
         vertexBuffer = NULL;
         numVertices = 0;
         numIndices = 0;
+        indexType = MTLIndexTypeUInt16;
     }
     return self;
 }
@@ -105,8 +106,8 @@ typedef struct
         MESH_LOG(@"Updating IndexBuffer");
         memcpy(indexBuffer.contents, ib, size);
     }
-
-    MESH_LOG(@"MetalMesh->buildBuffers done");
+    indexType = MTLIndexTypeUInt16;
+    MESH_LOG(@"MetalMesh->buildBuffersShort done");
     return true;
 }
 
@@ -147,7 +148,8 @@ typedef struct
         memcpy(indexBuffer.contents, ib, size);
     }
 
-    MESH_LOG(@"MetalMesh->buildBuffers done");
+    indexType = MTLIndexTypeUInt32;
+    MESH_LOG(@"MetalMesh->buildBuffersInt done");
     return true;
 }
 
@@ -183,5 +185,10 @@ typedef struct
 - (NSUInteger) getNumIndices
 {
     return numIndices;
+}
+
+- (NSUInteger) getIndexType
+{
+    return indexType;
 }
 @end // MetalMesh

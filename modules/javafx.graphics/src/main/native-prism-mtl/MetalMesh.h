@@ -40,6 +40,7 @@
     id<MTLBuffer> vertexBuffer;
     NSUInteger numVertices;
     NSUInteger numIndices;
+    NSUInteger indexType;
 }
 
 - (id) createMesh:(MetalContext*)ctx;
@@ -57,6 +58,7 @@
 - (id<MTLBuffer>) getIndexBuffer;
 - (NSUInteger) getNumVertices;
 - (NSUInteger) getNumIndices;
+- (NSUInteger) getIndexType;
 @end
 
 #endif
