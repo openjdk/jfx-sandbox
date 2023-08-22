@@ -966,12 +966,12 @@ public class RenderPerfTest {
             if (!startupLatch.await(20, TimeUnit.SECONDS)) {
                 throw new RuntimeException("Timeout waiting for stage to load.");
             }
-            frameRateMeter.start();
+            Platform.runLater(() -> frameRateMeter.start());
 
             if (!stopLatch.await(20, TimeUnit.SECONDS)) {
                 throw new RuntimeException("Timeout waiting for test execution completion.");
             }
-            frameRateMeter.stop();
+            Platform.runLater(() -> frameRateMeter.stop());
 
             reportFPS(startTime, endTime);
             Platform.runLater(() -> {
