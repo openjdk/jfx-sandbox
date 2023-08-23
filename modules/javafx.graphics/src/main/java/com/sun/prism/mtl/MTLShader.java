@@ -165,7 +165,8 @@ public class MTLShader implements Shader  {
         // that are encoded in a single command buffer. We need to identify a better way to remove the artifacts.
         // The glyph texture is a read-only texture, hence it's content won't be modified during render passes,
         // hence reuse check is not required.
-        if (currentEnabledShader.context.getResourceFactory().getGlyphTexture() != mtlTex) {
+        if (currentEnabledShader.context.getResourceFactory().getGlyphTexture() != mtlTex
+            && currentEnabledShader.context.getResourceFactory().getRegionTexture() != mtlTex) {
             if (!currentEnabledShader.shaderTextures.contains(mtlTex)) {
                 currentEnabledShader.shaderTextures.add(mtlTex);
             }
