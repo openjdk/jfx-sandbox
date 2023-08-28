@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -79,10 +79,16 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
         return context;
     }
 
+    // TODO: We don't handle mipmap in shared texture yet.
+    private MTLTexture(MTLTexture sharedTex, WrapMode newMode) {
+        super(sharedTex, newMode, false);
+        this.context = sharedTex.context;
+        this.texPtr = sharedTex.texPtr;
+    }
+
     @Override
     protected Texture createSharedTexture(WrapMode newMode) {
-        // TODO: MTL: Complete implementation
-        return null;
+        return new MTLTexture(this, newMode);
     }
 
     native private static void nUpdate(long contextHandle, long pResource,
