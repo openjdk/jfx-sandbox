@@ -29,6 +29,11 @@
 #include "PhongVS2PS.h"
 using namespace metal;
 
+#define SPEC_NONE 0
+#define SPEC_TEX 1
+#define SPEC_CLR 2
+#define SPEC_MIX 3
+
 float NTSC_Gray(float3 color) {
     return dot(color, float3(0.299, 0.587, 0.114));
 }
@@ -75,18 +80,15 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
     // specular
     float4 tSpec = float4(0, 0, 0, 0);
     float specPower = 0;
-    if (psUniforms.isSpecColor || psUniforms.isSpecMap) {
+    if (psUniforms.specType > 0) {
         specPower = psUniforms.specColor.a;
-        if (psUniforms.isSpecColor) { // Color
+        if (psUniforms.specType != SPEC_CLR) { // Texture or Mix
+            tSpec = mapSpecular.sample(nonMipmapSampler, texD);
+            specPower *= NTSC_Gray(tSpec.rgb);
+        } else { // Color
             tSpec.rgb = psUniforms.specColor.rgb;
         }
-        if (psUniforms.isSpecMap) { // Texture
-            tSpec = mapSpecular.sample(nonMipmapSampler, texD);
-            specPower *= NTSC_Gray(tSpec.rgb);
-        }
-        if (psUniforms.isSpecColor && psUniforms.isSpecMap) { // Mix
-            tSpec = mapSpecular.sample(nonMipmapSampler, texD);
-            specPower *= NTSC_Gray(tSpec.rgb);
+        if (psUniforms.specType == SPEC_MIX) {
             tSpec.rgb *= psUniforms.specColor.rgb;
         }
     }

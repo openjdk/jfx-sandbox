@@ -218,14 +218,9 @@
                               atIndex:1];
     psUniforms.diffuseColor = [material getDiffuseColor];
     psUniforms.ambientLightColor = ambientLightColor;
+    psUniforms.specColor = [material getSpecularColor];
 
-    if ([material isSpecularColor]) {
-        psUniforms.isSpecColor = true;
-        psUniforms.specColor = [material getSpecularColor];
-    } else {
-        psUniforms.isSpecColor = false;
-    }
-    psUniforms.isSpecMap = [material isSpecularMap] ? true : false;
+    psUniforms.specType = [material getSpecType];
     psUniforms.isBumpMap = [material isBumpMap] ? true : false;
     psUniforms.isIlluminated = [material isSelfIllumMap] ? true : false;
 

@@ -36,6 +36,11 @@
 #define BUMP 2
 #define SELFILLUMINATION 3
 
+#define SPEC_NONE 0
+#define SPEC_TEX 1
+#define SPEC_CLR 2
+#define SPEC_MIX 3
+
 @interface MetalPhongMaterial : NSObject
 {
     MetalContext* context;
@@ -61,6 +66,7 @@
 - (bool) isSpecularMap;
 - (bool) isSpecularColor;
 - (bool) isBumpMap;
+- (int) getSpecType;
 - (bool) isSelfIllumMap;
 - (void) setMap:(int)mapID
             map:(id<MTLTexture>)texMap;

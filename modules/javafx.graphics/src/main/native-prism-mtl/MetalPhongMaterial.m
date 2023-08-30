@@ -102,6 +102,14 @@
     return specularColorSet;
 }
 
+- (int) getSpecType
+{
+    if ([self isSpecularMap]) {
+        return [self isSpecularColor] ? SPEC_MIX : SPEC_TEX;
+    }
+    return [self isSpecularColor] ? SPEC_CLR : SPEC_NONE;
+}
+
 - (bool) isBumpMap
 {
     return map[BUMP] ? true : false;

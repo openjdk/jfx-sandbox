@@ -33,8 +33,7 @@ struct PS_PHONG_UNIFORMS {
     float lightsAttenuation[MAX_NUM_LIGHTS * 4];
     float lightsRange[MAX_NUM_LIGHTS * 4];
     float spotLightsFactors[MAX_NUM_LIGHTS * 4];
-    bool isSpecColor;
-    bool isSpecMap;
+    int specType;
     bool isBumpMap;
     bool isIlluminated;
 };
