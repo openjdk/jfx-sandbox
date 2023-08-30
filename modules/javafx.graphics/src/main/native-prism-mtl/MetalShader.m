@@ -145,17 +145,24 @@ static id<MTLHeap> argumentBufferHeap;
 {
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.enable()----> fragFuncName: %@", fragFuncName);
-    [context setCurrentPipeState:pipeState];
-    [context setCurrentArgumentBuffer:argumentBuffer];
     [context setCurrentShader:self];
     SHADER_LOG(@"<<<< MetalShader.enable()\n");
 }
 
-- (id<MTLRenderPipelineState>) getPipeState
+- (id<MTLRenderPipelineState>) getPipelineState:(bool)isMSAA
 {
     SHADER_LOG(@"\n");
-    SHADER_LOG(@">>>> MetalShader.getPipeState()----> fragFuncName: %@", fragFuncName);
-    return pipeState;
+    SHADER_LOG(@">>>> MetalShader.getPipelineState()----> fragFuncName: %@", fragFuncName);
+    if (isMSAA) {
+        SHADER_LOG(@">>>> MetalShader.getPipelineState()----> isMSAA");
+        if (pipeStateMSAA == nil) {
+            pipeStateMSAA = [[context getPipelineManager]
+                getPipeStateWithFragFunc:fragmentFunction];
+        }
+        return pipeStateMSAA;
+    } else {
+        return pipeState;
+    }
     SHADER_LOG(@"<<<< MetalShader.getPipeState()\n");
 }
 

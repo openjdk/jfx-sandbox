@@ -68,8 +68,6 @@ typedef enum VertexInputIndex {
     id<MTLCommandQueue> commandQueue;
     id<MTLCommandBuffer> currentCommandBuffer;
     id<MTLRenderCommandEncoder> currentRenderEncoder;
-    id<MTLRenderPipelineState> currentPipeState;
-    id<MTLBuffer> currentFragArgBuffer;
     MetalShader* currentShader;
     NSMutableDictionary* linearSamplerDict;
     NSMutableDictionary* nonLinearSamplerDict;

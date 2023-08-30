@@ -212,7 +212,8 @@
     id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
     id<MTLBuffer> currentShaderArgBuffer = [[self getCurrentShader] getArgumentBuffer];
 
-    [renderEncoder setRenderPipelineState:currentPipeState];
+    [renderEncoder setRenderPipelineState:
+        [[self getCurrentShader] getPipelineState:[rtt isMSAAEnabled]]];
 
     [renderEncoder setVertexBytes:&mvpMatrix
                                length:sizeof(mvpMatrix)
@@ -539,19 +540,6 @@
 - (MetalPipelineManager*) getPipelineManager
 {
     return pipelineManager;
-}
-
-- (void) setCurrentPipeState:(id<MTLRenderPipelineState>) pipeState
-{
-    if (currentPipeState != pipeState) {
-        [self endCurrentRenderEncoder];
-    }
-    currentPipeState = pipeState;
-}
-
-- (void) setCurrentArgumentBuffer:(id<MTLBuffer>) argBuffer
-{
-    currentFragArgBuffer = argBuffer;
 }
 
 - (MetalShader*) getCurrentShader
