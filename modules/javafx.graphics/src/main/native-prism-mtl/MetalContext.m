@@ -549,6 +549,9 @@
 
 - (void) setCurrentShader:(MetalShader*) shader
 {
+    if (currentShader != shader) {
+        [self endCurrentRenderEncoder];
+    }
     currentShader = shader;
 }
 
