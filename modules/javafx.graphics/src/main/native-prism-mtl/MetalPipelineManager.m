@@ -251,6 +251,8 @@
         [shaderLib release];
         shaderLib = nil;
     }
+
+    [super dealloc];
 }
 
 @end // MetalPipelineManager

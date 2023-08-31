@@ -101,8 +101,6 @@ typedef enum VertexInputIndex {
 - (MetalPipelineManager*) getPipelineManager;
 - (MetalShader*) getCurrentShader;
 - (void) setCurrentShader:(MetalShader*) shader;
-- (void) setCurrentPipeState:(id<MTLRenderPipelineState>) pipeState;
-- (void) setCurrentArgumentBuffer:(id<MTLBuffer>) argBuffer;
 
 - (void) commitCurrentCommandBuffer;
 - (id<MTLDevice>) getDevice;

@@ -92,7 +92,6 @@ typedef struct PS_PHONG_UNIFORMS {
 - (MetalMesh*) getMesh;
 - (int) getCullingMode;
 - (void) render;
-- (int) getSpecType;
 @end
 
 #endif
