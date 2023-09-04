@@ -237,10 +237,7 @@ public class MSLBackend extends SLBackend {
                 // Add 4 sampler variables and "device <Uniforms>& uniforms" as the parameter to all user defined functions.
                 if (!CoreSymbols.getFunctions().contains(getFuncName(d.getFunction().getName())) &&
                         !libraryFunctionsUsedInShader.contains(getFuncName(d.getFunction().getName()))) {
-                    output("\n"+
-                           "sampler sampler0, sampler sampler1,\n" +
-                           "sampler sampler2, sampler sampler3,\n" +
-                           "device " + uniformStructName + "& uniforms,\n");
+                    output("sampler sampler0, sampler sampler1, sampler sampler2, sampler sampler3, device " + uniformStructName + "& uniforms,\n");
                 }
                 first = false;
             } else {
@@ -447,9 +444,12 @@ public class MSLBackend extends SLBackend {
         uniformsForShaderFile = uniformsForShaderFile.replace(" float3", " vector_float3");
         uniformsForShaderFile = uniformsForShaderFile.replace(" float4", " vector_float4");
         header.append("typedef struct " + uniformStructName + " {\n" + uniformsForShaderFile + "} " + uniformStructName + ";\n\n");
-        header.append("float4 " + sampleTexFuncName + "(sampler textureSampler, texture2d<float> colorTexture, float2 texCoord) {\n");
-        header.append("    return colorTexture.sample(textureSampler, texCoord);\n");
-        header.append("}\n\n");
+
+        if (hasTextureVar) {
+            header.append("float4 " + sampleTexFuncName + "(sampler textureSampler, texture2d<float> colorTexture, float2 texCoord) {\n");
+            header.append("    return colorTexture.sample(textureSampler, texCoord);\n");
+            header.append("}\n\n");
+        }
 
         return header.toString();
     }
@@ -459,11 +459,11 @@ public class MSLBackend extends SLBackend {
         String shader = super.getShader();
         updateCommonHeaders();
         String fragmentFunctionDef = "\n[[fragment]] float4 " + shaderFunctionName + "(VS_OUTPUT in [[ stage_in ]],";
-        fragmentFunctionDef += "\n    device " + uniformStructName + "& uniforms [[ buffer(0) ]],";
-        fragmentFunctionDef += "\n    sampler sampler0 [[ sampler(0) ]],";
-        fragmentFunctionDef += "\n    sampler sampler1 [[ sampler(1) ]],";
-        fragmentFunctionDef += "\n    sampler sampler2 [[ sampler(2) ]],";
-        fragmentFunctionDef += "\n    sampler sampler3 [[ sampler(3) ]]) {";
+        fragmentFunctionDef += "\n    device " + uniformStructName + "& uniforms [[ buffer(0) ]]";
+        for (int i = 0; i < texSamplerMap.size(); i++) {
+            fragmentFunctionDef += ",\n    sampler sampler"+i+" [[ sampler("+i+") ]]";
+        }
+        fragmentFunctionDef += ") {";
 
         fragmentFunctionDef += "\n\nfloat4 outFragColor;";
 
@@ -476,10 +476,16 @@ public class MSLBackend extends SLBackend {
         for (String helperFunction : helperFunctions) {
             shader = shader.replaceAll("\\b" + helperFunction + "\\b", shaderFunctionName + "_" + helperFunction);
         }
-        shader = shader.replaceAll("\\bsampleTex\\b", sampleTexFuncName);
-        for (Map.Entry<String,String> entry : texSamplerMap.entrySet()) {
-            shader = shader.replaceAll("\\b" + sampleTexFuncName + "\\(uniforms." + entry.getKey() + "\\b",
-                sampleTexFuncName + "(" + entry.getValue() + ", uniforms." + entry.getKey());
+        if (hasTextureVar) {
+            shader = shader.replaceAll("\\bsampleTex\\b", sampleTexFuncName);
+            for (Map.Entry<String,String> entry : texSamplerMap.entrySet()) {
+                shader = shader.replaceAll("\\b" + sampleTexFuncName + "\\(uniforms." + entry.getKey() + "\\b",
+                    sampleTexFuncName + "(" + entry.getValue() + ", uniforms." + entry.getKey());
+            }
+        }
+        for (int i = texSamplerMap.size(); i < 4; i++) {
+            shader = shader.replaceAll("sampler sampler" + i + ", ", "");
+            shader = shader.replaceAll("sampler" + i + ", ", "");
         }
 
         return shader;
