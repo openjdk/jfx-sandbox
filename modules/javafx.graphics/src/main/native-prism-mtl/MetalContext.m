@@ -259,25 +259,26 @@
     // FillVB methods fills 84 vertices in vertex batch from 56 given vertices
     // Send 56 vertices at max in each iteration
 
-    for (int i = 0; i < numQuads; i += MAX_QUADS_IN_A_BATCH) {
+    while (numQuads > 0) {
+        int quadsInBatch = numQuads > MAX_QUADS_IN_A_BATCH ? MAX_QUADS_IN_A_BATCH : numQuads;
+        int vertsInBatch = quadsInBatch * 6;
+        CTX_LOG(@"Quads in this iteration =========== %d", quadsInBatch);
 
-        int quads = MAX_QUADS_IN_A_BATCH;
-        if ((i + MAX_QUADS_IN_A_BATCH) > numQuads) {
-            quads = numQuads - i;
-        }
-        CTX_LOG(@"Quads in this iteration =========== %d", quads);
-
-        [self fillVB:pSrcXYZUVs + (i * 4)
-              colors:pSrcColors + (i * 16)
-              numVertices:quads * 4];
+        [self fillVB:pSrcXYZUVs
+              colors:pSrcColors
+              numVertices:quadsInBatch * 4];
 
         [renderEncoder setVertexBytes:vertices
-                               length:sizeof(vertices)
+                               length:sizeof(VS_INPUT) * vertsInBatch
                               atIndex:VertexInputIndexVertices];
 
         [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
                           vertexStart:0
-                          vertexCount:quads * 6];
+                          vertexCount:vertsInBatch];
+
+        numQuads   -= quadsInBatch;
+        pSrcXYZUVs += quadsInBatch * 4;
+        pSrcColors += quadsInBatch * 16;
     }
 
     return 1;
