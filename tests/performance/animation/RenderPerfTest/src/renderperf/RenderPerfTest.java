@@ -45,12 +45,20 @@ import javafx.scene.paint.PhongMaterial;
 import javafx.scene.paint.RadialGradient;
 import javafx.scene.paint.Stop;
 import javafx.scene.shape.Arc;
+import javafx.scene.shape.ArcTo;
 import javafx.scene.shape.ArcType;
 import javafx.scene.shape.Box;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.CubicCurve;
+import javafx.scene.shape.CubicCurveTo;
 import javafx.scene.shape.Ellipse;
+import javafx.scene.shape.Line;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
+import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.QuadCurve;
+import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.Group;
@@ -289,6 +297,22 @@ public class RenderPerfTest {
         }
     }
 
+    static class OpenArcRenderer extends ArcRenderer {
+        OpenArcRenderer(int n, double r) {
+            super(n, r);
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            super.addComponents(node, n, x, y, vx, vy);
+            for (int id = 0; id < n; id++) {
+                arc[id].setType(ArcType.OPEN);
+                arc[id].setFill(null);
+                arc[id].setStroke(colors[id % colors.length]);
+            }
+        }
+    }
+
     static class CubicCurveRenderer extends FlatParticleRenderer {
         CubicCurve[] cubicCurve;
 
@@ -326,6 +350,44 @@ public class RenderPerfTest {
         public void releaseResource() {
             super.releaseResource();
             cubicCurve = null;
+        }
+    }
+
+    static class QuadCurveRenderer extends FlatParticleRenderer {
+        QuadCurve[] quadCurve;
+
+        QuadCurveRenderer(int n, double r) {
+            super(n, r);
+            quadCurve = new QuadCurve[n];
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                quadCurve[id] = new QuadCurve();
+
+                quadCurve[id].setStartX(0);
+                quadCurve[id].setStartY(50);
+                quadCurve[id].setControlX(25);
+                quadCurve[id].setControlY(0);
+                quadCurve[id].setEndX(100);
+                quadCurve[id].setEndY(50);
+                quadCurve[id].setFill(colors[id % colors.length]);
+                node.getChildren().add(quadCurve[id]);
+            }
+
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                quadCurve[id].setTranslateX(x[id] - r);
+                quadCurve[id].setTranslateY(y[id] - (2 * r));
+            }
+        }
+
+        public void releaseResource() {
+            super.releaseResource();
+            quadCurve = null;
         }
     }
 
@@ -512,6 +574,99 @@ public class RenderPerfTest {
         }
     }
 
+    static class LineRenderer extends FlatParticleRenderer {
+        Line[] line;
+
+        LineRenderer(int n, double r) {
+            super(n, r);
+            line = new Line[n];
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                line[id] = new Line();
+
+                line[id].setStartX(0);
+                line[id].setStartY(0);
+                line[id].setEndX(50);
+                line[id].setEndY(50);
+                line[id].setStroke(colors[id % colors.length]);
+                node.getChildren().add(line[id]);
+            }
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                line[id].setTranslateX(x[id] - r);
+                line[id].setTranslateY(y[id] - r);
+            }
+        }
+
+        public void releaseResource() {
+            super.releaseResource();
+            line = null;
+        }
+    }
+
+    static class PathRenderer extends FlatParticleRenderer {
+        Path[] path;
+
+        PathRenderer(int n, double r) {
+            super(n, r);
+            path = new Path[n];
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                MoveTo moveTo = new MoveTo();
+                moveTo.setX(0);
+                moveTo.setY(0);
+
+                CubicCurveTo cubicCurveTo = new CubicCurveTo();
+                cubicCurveTo.setX(40);
+                cubicCurveTo.setY(45);
+                cubicCurveTo.setControlX1(0);
+                cubicCurveTo.setControlY1(0);
+                cubicCurveTo.setControlX2(30);
+                cubicCurveTo.setControlY2(80);
+
+                QuadCurveTo quadCurveTo = new QuadCurveTo();
+                quadCurveTo.setX(60);
+                quadCurveTo.setY(45);
+                quadCurveTo.setControlX(50);
+                quadCurveTo.setControlY(0);
+
+                ArcTo arcTo = new ArcTo();
+                arcTo.setX(80);
+                arcTo.setY(45);
+                arcTo.setRadiusX(20);
+                arcTo.setRadiusY(40);
+                arcTo.setLargeArcFlag(true);
+                arcTo.setSweepFlag(true);
+
+                path[id] = new Path();
+                path[id].setStroke(colors[id % colors.length]);
+                path[id].getElements().addAll(moveTo, cubicCurveTo, quadCurveTo, arcTo);
+
+                node.getChildren().add(path[id]);
+            }
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                path[id].setTranslateX(x[id] - r);
+                path[id].setTranslateY(y[id] - r);
+            }
+        }
+
+        public void releaseResource() {
+            super.releaseResource();
+            path = null;
+        }
+    }
+
     static class RectangleRenderer extends FlatParticleRenderer {
         Rectangle[] rectangle;
 
@@ -575,6 +730,61 @@ public class RenderPerfTest {
             for (int id = 0; id < n; id++) {
                 rectangle[id].setFill(null);
                 rectangle[id].setStroke(colors[id % colors.length]);
+            }
+        }
+    }
+
+    static class PolygonRenderer extends FlatParticleRenderer {
+        Polygon[] polygon;
+
+        PolygonRenderer(int n, double r) {
+            super(n, r);
+            polygon = new Polygon[n];
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                polygon[id] = new Polygon();
+
+                polygon[id].getPoints().addAll(new Double[]{
+                    0.0, 20.0,
+                    20.0, 0.0,
+                    40.0, 20.0,
+                    40.0, 40.0,
+                    20.0, 60.0,
+                    0.0, 40.0
+                });
+                polygon[id].setFill(colors[id % colors.length]);
+                node.getChildren().add(polygon[id]);
+            }
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                polygon[id].setTranslateX(x[id] - r);
+                polygon[id].setTranslateY(y[id] - r);
+            }
+        }
+
+        public void releaseResource() {
+            super.releaseResource();
+            polygon = null;
+        }
+    }
+
+    static class StrokedPolygonRenderer extends PolygonRenderer {
+
+        StrokedPolygonRenderer(int n, double r) {
+            super(n, r);
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            super.addComponents(node, n, x, y, vx, vy);
+            for (int id = 0; id < n; id++) {
+                polygon[id].setFill(null);
+                polygon[id].setStroke(colors[id % colors.length]);
             }
         }
     }
@@ -1008,8 +1218,16 @@ public class RenderPerfTest {
         (new PerfMeter("Arc")).exec(createPR(new ArcRenderer(objectCount, R)));
     }
 
+    public void testOpenArc() throws Exception {
+        (new PerfMeter("OpenArc")).exec(createPR(new OpenArcRenderer(objectCount, R)));
+    }
+
     public void testCubicCurve() throws Exception {
         (new PerfMeter("CubicCurve")).exec(createPR(new CubicCurveRenderer(objectCount, R)));
+    }
+
+    public void testQuadCurve() throws Exception {
+        (new PerfMeter("QuadCurve")).exec(createPR(new QuadCurveRenderer(objectCount, R)));
     }
 
     public void testCircle() throws Exception {
@@ -1048,6 +1266,14 @@ public class RenderPerfTest {
         (new PerfMeter("Ellipse")).exec(createPR(new EllipseRenderer(objectCount, R)));
     }
 
+    public void testLine() throws Exception {
+        (new PerfMeter("Line")).exec(createPR(new LineRenderer(objectCount, R)));
+    }
+
+    public void testPath() throws Exception {
+        (new PerfMeter("Path")).exec(createPR(new PathRenderer(objectCount, R)));
+    }
+
     public void testRectangle() throws Exception {
         (new PerfMeter("Rectangle")).exec(createPR(new RectangleRenderer(objectCount, R)));
     }
@@ -1058,6 +1284,14 @@ public class RenderPerfTest {
 
     public void testStrokedRectangle() throws Exception {
         (new PerfMeter("StrokedRectangle")).exec(createPR(new StrokedRectangleRenderer(objectCount, R)));
+    }
+
+    public void testPolygon() throws Exception {
+        (new PerfMeter("Polygon")).exec(createPR(new PolygonRenderer(objectCount, R)));
+    }
+
+    public void testStrokedPolygon() throws Exception {
+        (new PerfMeter("StrokedPolygon")).exec(createPR(new StrokedPolygonRenderer(objectCount, R)));
     }
 
     public void testWhiteText() throws Exception {
