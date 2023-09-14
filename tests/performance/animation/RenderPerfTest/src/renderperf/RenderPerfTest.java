@@ -48,19 +48,26 @@ import javafx.scene.shape.Arc;
 import javafx.scene.shape.ArcTo;
 import javafx.scene.shape.ArcType;
 import javafx.scene.shape.Box;
+import javafx.scene.shape.Cylinder;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.CubicCurve;
 import javafx.scene.shape.CubicCurveTo;
+import javafx.scene.shape.CullFace;
+import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Line;
+import javafx.scene.shape.MeshView;
 import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.Sphere;
+import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.QuadCurve;
 import javafx.scene.shape.QuadCurveTo;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import javafx.scene.transform.Rotate;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
@@ -828,6 +835,189 @@ public class RenderPerfTest {
         }
     }
 
+    static class CylinderRenderer extends FlatParticleRenderer {
+        Cylinder[] cylinder;
+
+        CylinderRenderer(int n, double r) {
+            super(n, r);
+            cylinder = new Cylinder[n];
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                cylinder[id] = new Cylinder(r, 2 * r);
+
+                PhongMaterial material = new PhongMaterial();
+                material.setDiffuseColor(colors[id % colors.length]);
+                cylinder[id].setMaterial(material);
+
+                cylinder[id].setRotationAxis(new Point3D(1, 1, 1));
+                cylinder[id].setRotate(45);
+                node.getChildren().add(cylinder[id]);
+            }
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                cylinder[id].setTranslateX(x[id]);
+                cylinder[id].setTranslateY(y[id]);
+            }
+        }
+
+        public void releaseResource() {
+            super.releaseResource();
+            cylinder = null;
+        }
+    }
+
+    static class SphereRenderer extends FlatParticleRenderer {
+        Sphere[] sphere;
+
+        SphereRenderer(int n, double r) {
+            super(n, r);
+            sphere = new Sphere[n];
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                sphere[id] = new Sphere(r);
+
+                PhongMaterial material = new PhongMaterial();
+                material.setDiffuseColor(colors[id % colors.length]);
+                sphere[id].setMaterial(material);
+
+                node.getChildren().add(sphere[id]);
+            }
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                sphere[id].setTranslateX(x[id]);
+                sphere[id].setTranslateY(y[id]);
+            }
+        }
+
+        public void releaseResource() {
+            super.releaseResource();
+            sphere = null;
+        }
+    }
+
+    static class MeshRenderer extends FlatParticleRenderer {
+        MeshView[] meshView;
+
+        final static float minX = -10;
+        final static float minY = -10;
+        final static float maxX = 10;
+        final static float maxY = 10;
+        final int pointSize = 3;
+        final int texCoordSize = 2;
+        final int faceSize = 6;
+        final int scale = 3;
+
+        MeshRenderer(int n, double r) {
+            super(n, r);
+            meshView = new MeshView[n];
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            int subDivX = 2;
+            int subDivY = 2;
+            int numDivX = subDivX + 1;
+            int numVerts = (subDivY + 1) * numDivX;
+            float points[] = new float[numVerts * pointSize];
+            float texCoords[] = new float[numVerts * texCoordSize];
+            int faceCount = subDivX * subDivY * 2;
+            int faces[] = new int[ faceCount * faceSize];
+
+            // Create points and texture coordinates
+            for (int i = 0; i <= subDivY; i++) {
+                float dy = (float) i / subDivY;
+                double fy = (1 - dy) * minY + dy * maxY;
+                for (int j = 0; j <= subDivX; j++) {
+                    float dx = (float) j / subDivX;
+                    double fx = (1 - dx) * minX + dx * maxX;
+                    int index = i * numDivX * pointSize + (j * pointSize);
+                    points[index] = (float) fx * scale;
+                    points[index + 1] = (float) fy * scale;
+                    points[index + 2] = (float) getSinDivX(fx, fy) * scale;
+                    index = i * numDivX * texCoordSize + (j * texCoordSize);
+                    texCoords[index] = dx;
+                    texCoords[index + 1] = dy;
+                }
+            }
+
+            // Create faces
+            for (int i = 0; i < subDivY; i++) {
+                for (int j = 0; j < subDivX; j++) {
+                    int p00 = i * numDivX + j;
+                    int p01 = p00 + 1;
+                    int p10 = p00 + numDivX;
+                    int p11 = p10 + 1;
+                    int tc00 = i * numDivX + j;
+                    int tc01 = tc00 + 1;
+                    int tc10 = tc00 + numDivX;
+                    int tc11 = tc10 + 1;
+
+                    int index = (i * subDivX * faceSize + (j * faceSize)) * 2;
+                    faces[index + 0] = p00;
+                    faces[index + 1] = tc00;
+                    faces[index + 2] = p10;
+                    faces[index + 3] = tc10;
+                    faces[index + 4] = p11;
+                    faces[index + 5] = tc11;
+                    index += faceSize;
+                    faces[index + 0] = p11;
+                    faces[index + 1] = tc11;
+                    faces[index + 2] = p01;
+                    faces[index + 3] = tc01;
+                    faces[index + 4] = p00;
+                    faces[index + 5] = tc00;
+                }
+            }
+
+            TriangleMesh triangleMesh = new TriangleMesh();
+            triangleMesh.getPoints().setAll(points);
+            triangleMesh.getTexCoords().setAll(texCoords);
+            triangleMesh.getFaces().setAll(faces);
+
+            for (int id = 0; id < n; id++) {
+                PhongMaterial material = new PhongMaterial();
+                material.setDiffuseColor(colors[id % colors.length]);
+                material.setSpecularColor(colors[id % colors.length]);
+                String url = RenderPerfTest.class.getResource("duke.png").toString();
+                material.setDiffuseMap(new Image(url));
+
+                meshView[id] = new MeshView(triangleMesh);
+                meshView[id].setMaterial(material);
+                meshView[id].setDrawMode(DrawMode.FILL);
+                meshView[id].setCullFace(CullFace.BACK);
+
+                node.getChildren().add(meshView[id]);
+            }
+        }
+
+        private double getSinDivX(double x, double y) {
+            float funcValue = -30.0f;
+            double r = Math.sqrt(x*x + y*y);
+            return funcValue * (r == 0 ? 1 : Math.sin(r) / r);
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                meshView[id].setTranslateX(x[id]);
+                meshView[id].setTranslateY(y[id]);
+            }
+        }
+
+        public void releaseResource() {
+            super.releaseResource();
+            meshView = null;
+        }
+    }
 
     static class WhiteTextRenderer implements ParticleRenderer {
         double r;
@@ -1320,6 +1510,18 @@ public class RenderPerfTest {
 
     public void test3DBox() throws Exception {
         (new PerfMeter("3DBox")).exec(createPR(new Box3DRenderer(objectCount, R)));
+    }
+
+    public void test3DCylinder() throws Exception {
+        (new PerfMeter("3DCylinder")).exec(createPR(new CylinderRenderer(objectCount, R)));
+    }
+
+    public void test3DSphere() throws Exception {
+        (new PerfMeter("3DSphere")).exec(createPR(new SphereRenderer(objectCount, R)));
+    }
+
+    public void test3DMesh() throws Exception {
+        (new PerfMeter("3DMesh")).exec(createPR(new MeshRenderer(objectCount, R)));
     }
 
     public void testMultiShape() throws Exception {
