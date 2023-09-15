@@ -24,6 +24,7 @@
 package renderperf;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
@@ -1369,7 +1370,7 @@ public class RenderPerfTest {
             Platform.runLater(() -> frameRateMeter.start());
 
             if (!stopLatch.await(20, TimeUnit.SECONDS)) {
-                throw new RuntimeException("Timeout waiting for test execution completion.");
+                throw new RuntimeException("Timeout waiting for test execution completion.\n" + name + ": Test workload could be too high. Try running the test with lesser number of objects.");
             }
             Platform.runLater(() -> frameRateMeter.stop());
 
@@ -1638,6 +1639,8 @@ public class RenderPerfTest {
         } catch (NoSuchMethodException e) {
             System.out.println("\nIncorrect Test Name!");
             printTests();
+        } catch (InvocationTargetException e) {
+            System.out.println(e.getCause().getMessage());
         } catch (Exception e) {
             System.out.println("\nUnexpected error occurred");
             e.printStackTrace();
