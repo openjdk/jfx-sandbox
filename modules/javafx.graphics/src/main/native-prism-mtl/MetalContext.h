@@ -52,6 +52,15 @@ typedef struct VS_INPUT {
     vector_float2 texCoord1;
 } VS_INPUT;
 
+typedef struct PrismSourceClearVertex {
+    float x, y;
+} PrismSourceClearVertex;
+
+typedef struct CLEAR_VS_INPUT {
+    vector_float2 position;
+    vector_float4 color;
+} CLEAR_VS_INPUT;
+
 typedef enum VertexInputIndex {
     VertexInputIndexVertices = 0,
     VertexInputMatrixMVP = 1,
@@ -64,6 +73,7 @@ typedef enum VertexInputIndex {
     simd_float4x4 worldMatrix;
     VS_INPUT vertices[85];//TODO: MTL: this should not exceed 4KB if we need to use setVertexBytes
     NSUInteger numTriangles;
+    CLEAR_VS_INPUT clearVertices[6];
     id<MTLDevice> device;
     id<MTLCommandQueue> commandQueue;
     id<MTLCommandBuffer> currentCommandBuffer;
@@ -96,8 +106,12 @@ typedef enum VertexInputIndex {
     MTLRenderPassDescriptor* phongRPD;
     vector_float4 cPos;
     bool depthEnabled;
+
+    int compositeMode;
 }
 
+- (void) setCompositeMode:(int) mode;
+- (int) getCompositeMode;
 - (MetalPipelineManager*) getPipelineManager;
 - (MetalShader*) getCurrentShader;
 - (void) setCurrentShader:(MetalShader*) shader;
@@ -118,12 +132,16 @@ typedef enum VertexInputIndex {
 
 - (void) fillVB:(struct PrismSourceVertex const *)pSrcFloats colors:(char const *)pSrcColors
                   numVertices:(int)numVerts;
+
+- (void) fillClearRectVB:(PrismSourceClearVertex const *)inVerts
+                     red:(float)red
+                   green:(float)green
+                    blue:(float)blue
+                   alpha:(float)alpha;
+
 - (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
                       ofColors:(char const *)pSrcColors
                    vertexCount:(NSUInteger)numVerts;
-- (void) drawClearRect:(struct PrismSourceVertex const *)pSrcXYZUVs
-              ofColors:(char const *)pSrcColors
-           vertexCount:(NSUInteger)numVerts;
 
 - (void) resetProjViewMatrix;
 - (void) setProjViewMatrix:(bool)isOrtho

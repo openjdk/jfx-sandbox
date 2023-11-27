@@ -66,6 +66,8 @@ static id<MTLHeap> argumentBufferHeap;
         SHADER_LOG(@">>>> MetalShader.initWithContext()----> fragFuncName: %@", fragName);
         fragTexArgsDict    = [[NSMutableDictionary alloc] init];
         fragTexSamplerDict = [[NSMutableDictionary alloc] init];
+        pipeStateDict = [[NSMutableDictionary alloc] init];
+        pipeStateMSAADict = [[NSMutableDictionary alloc] init];
         fragArgIndicesDict = getPRISMDict(fragName);
         if (fragArgIndicesDict == nil) {
             fragArgIndicesDict = getDECORADict(fragName);
@@ -91,7 +93,6 @@ static id<MTLHeap> argumentBufferHeap;
             argumentBuffer.label = [NSString stringWithFormat:@"JFX Argument Buffer for fragmentFunction %@", fragFuncName];
             [argumentEncoder setArgumentBuffer:argumentBuffer offset:0];
         }
-        pipeState = [[context getPipelineManager] getPipeStateWithFragFunc:fragmentFunction];
         SHADER_LOG(@"<<<< MetalShader.initWithContext()\n");
     }
     return self;
@@ -150,20 +151,25 @@ static id<MTLHeap> argumentBufferHeap;
 }
 
 - (id<MTLRenderPipelineState>) getPipelineState:(bool)isMSAA
+                                  compositeMode:(int)compositeMode;
 {
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.getPipelineState()----> fragFuncName: %@", fragFuncName);
+    NSMutableDictionary *psDict;
     if (isMSAA) {
-        SHADER_LOG(@">>>> MetalShader.getPipelineState()----> isMSAA");
-        if (pipeStateMSAA == nil) {
-            pipeStateMSAA = [[context getPipelineManager]
-                getPipeStateWithFragFunc:fragmentFunction];
-        }
-        return pipeStateMSAA;
+        psDict = pipeStateMSAADict;
     } else {
-        return pipeState;
+        psDict = pipeStateDict;
+    }
+    NSNumber *keyCompMode = [NSNumber numberWithInt:compositeMode];
+    id<MTLRenderPipelineState> pipeState = psDict[keyCompMode];
+    if (pipeState == nil) {
+        pipeState = [[context getPipelineManager] getPipeStateWithFragFunc:fragmentFunction
+                                                             compositeMode:compositeMode];
+        [psDict setObject:pipeState forKey:keyCompMode];
     }
     SHADER_LOG(@"<<<< MetalShader.getPipeState()\n");
+    return pipeState;
 }
 
 - (id<MTLBuffer>) getArgumentBuffer

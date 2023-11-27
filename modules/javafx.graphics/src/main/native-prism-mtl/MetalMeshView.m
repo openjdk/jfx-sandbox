@@ -188,7 +188,8 @@
     MTLRenderPassDescriptor* phongRPD = [context getPhongRPD];
     id<MTLRenderCommandEncoder> phongEncoder = [commandBuffer renderCommandEncoderWithDescriptor:phongRPD];
     id<MTLRenderPipelineState> phongPipelineState =
-        [[context getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"];
+        [[context getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"
+                                                          compositeMode:[context getCompositeMode]];
     [phongEncoder setRenderPipelineState:phongPipelineState];
     id<MTLDepthStencilState> depthStencilState =
         [[context getPipelineManager] getDepthStencilState];

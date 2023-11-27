@@ -38,8 +38,10 @@
     MetalContext *context;
     NSString* fragFuncName;
     id<MTLFunction> fragmentFunction;
-    id<MTLRenderPipelineState> pipeState;
-    id<MTLRenderPipelineState> pipeStateMSAA;
+
+    NSMutableDictionary *pipeStateDict;
+    NSMutableDictionary *pipeStateMSAADict;
+
     NSDictionary* fragArgIndicesDict;
     NSMutableDictionary* fragTexArgsDict;
     NSMutableDictionary* fragTexSamplerDict;
@@ -51,7 +53,8 @@
 
 - (jobject) getUniformNameIdMap:(JNIEnv*)env;
 - (id) initWithContext:(MetalContext*)ctx withFragFunc:(NSString*) fragName;
-- (id<MTLRenderPipelineState>) getPipelineState:(bool)isMSAA;
+- (id<MTLRenderPipelineState>) getPipelineState:(bool) isMSAA
+                                  compositeMode:(int) compositeMode;
 - (id<MTLBuffer>) getArgumentBuffer;
 - (NSMutableDictionary*) getTexutresDict;
 - (NSMutableDictionary*) getSamplersDict;

@@ -40,42 +40,22 @@
     id<MTLLibrary> shaderLib;
     id<MTLFunction> vertexFunction;
     MetalContext *context;
-    int compositeMode;
-
-    id<MTLRenderPipelineState> solidColorPipeState;
-    id<MTLRenderPipelineState> solidColorPipeMSAAState;
-    /*
-    MTLRenderPipelineDescriptor* pipeDesc;
-    id<MTLRenderPipelineState> pipeState;
-    NSMutableArray<id<MTLRenderPipelineState>> *pipelineStates;
-    */
-
-    // TODO: MTL: This should be controlled from Java class MTLPipelineManager
-    // See MTLPipelineManager class TODOs for more info
-    NSMutableDictionary *pipeStateDict;
-
-    // Maintain a set of MTLRenderPipelineStates, based on combination of
-    // Vertex and Fragment function
-    // MTLRenderCommandEncoder is constructed using two major objects
-    // 1. MTLRenderPassDescriptor
-    // 2. MTLRenderPipelineState -> Vertex and Fragment function
-    // We intend to reuse the MTLRenderPipelineState objects.
-    // It is better to keep a reference to each native object on java side
-    // for resource management and source maintenance. and hence most of the
-    // management should be moved to java side. and this interface should
-    // contain helper methods to accomplish the same.
+    NSMutableDictionary *clearRttPipeStateDict;
 }
 
 - (void) init:(MetalContext*) ctx libPath:(NSString*) libPath;
 - (id<MTLFunction>) getFunction:(NSString*) funcName;
-- (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>) fragFunc;
-- (id<MTLRenderPipelineState>) getPipeStateWithFragFuncName:(NSString*) funcName;
-- (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFunc:(id<MTLFunction>) fragFunc;
-- (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFuncName:(NSString*) funcName;
+- (id<MTLRenderPipelineState>) getClearRttPipeState;
+- (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>) fragFunc
+                                          compositeMode:(int) compositeMode;
+- (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFunc:(id<MTLFunction>) fragFunc
+                                               compositeMode:(int) compositeMode;
+- (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFuncName:(NSString*) funcName
+                                                   compositeMode:(int) compositeMode;
 - (id<MTLComputePipelineState>) getComputePipelineStateWithFunc:(NSString*) funcName;
 - (id<MTLDepthStencilState>) getDepthStencilState;
-- (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*) pipeDesc;
-- (void) setCompositeBlendMode:(int) mode;
+- (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*) pipeDesc
+                         compositeMode:(int) compositeMode;
 - (void) dealloc;
 @end
 

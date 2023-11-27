@@ -61,6 +61,7 @@
         currentRenderEncoder = nil;
         linearSamplerDict = [[NSMutableDictionary alloc] init];
         nonLinearSamplerDict = [[NSMutableDictionary alloc] init];
+        compositeMode = com_sun_prism_mtl_MTLContext_MTL_COMPMODE_SRCOVER; //default
 
         device = MTLCreateSystemDefaultDevice();
         commandQueue = [device newCommandQueue];
@@ -213,7 +214,8 @@
     id<MTLBuffer> currentShaderArgBuffer = [[self getCurrentShader] getArgumentBuffer];
 
     [renderEncoder setRenderPipelineState:
-        [[self getCurrentShader] getPipelineState:[rtt isMSAAEnabled]]];
+        [[self getCurrentShader] getPipelineState:[rtt isMSAAEnabled]
+                                    compositeMode:compositeMode]];
 
     [renderEncoder setVertexBytes:&mvpMatrix
                                length:sizeof(mvpMatrix)
@@ -367,37 +369,6 @@
     rttCleared = true;
 }
 
-- (void) drawClearRect:(struct PrismSourceVertex const *)pSrcXYZUVs
-              ofColors:(char const *)pSrcColors
-           vertexCount:(NSUInteger)numVerts
-{
-    CTX_LOG(@"MetalContext.drawClearRect()");
-
-    id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
-    id<MTLRenderPipelineState> pipeline = [pipelineManager getPipeStateWithFragFuncName:@"Solid_Color"];
-
-    [renderEncoder setRenderPipelineState:pipeline];
-
-    if (isScissorEnabled) {
-        [renderEncoder setScissorRect:scissorRect];
-    }
-
-    [renderEncoder setVertexBytes:&mvpMatrix
-                           length:sizeof(mvpMatrix)
-                          atIndex:VertexInputMatrixMVP];
-
-    [self fillVB:pSrcXYZUVs colors:pSrcColors numVertices:4];
-
-    [renderEncoder setVertexBytes:vertices
-                           length:sizeof(VS_INPUT) * 6
-                          atIndex:VertexInputIndexVertices];
-
-    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
-                      vertexStart:0
-                      vertexCount:6];
-
-}
-
 - (void) clearRTT:(int)color red:(float)red
                            green:(float)green
                             blue:(float)blue
@@ -426,20 +397,39 @@
     CTX_LOG(@"     MetalContext.clearRTT() clearRegion.x = %lu, clearRegion.y = %lu, clearRegion.width = %lu, clearRegion.height = %lu, color = %u",
                     clearRegion.origin.x, clearRegion.origin.y, clearRegion.size.width, clearRegion.size.height);
 
-    struct PrismSourceVertex scissorRectVertices[4] = {
-        {clearRegion.origin.x,  clearRegion.origin.y, 0, 0, 0, 0}, // 0, 0
-        {clearRegion.origin.x,  clearRegion.origin.y  + clearRegion.size.height, 0, 0, 0, 0}, // 0, h
-        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y, 0, 0, 0, 0},    // w, 0
-        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y + clearRegion.size.height, 0, 0, 0, 0} // w, h
+    PrismSourceClearVertex clearRectVertices[4] = {
+        {clearRegion.origin.x,  clearRegion.origin.y}, // 0, 0
+        {clearRegion.origin.x,  clearRegion.origin.y  + clearRegion.size.height}, // 0, h
+        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y},    // w, 0
+        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y + clearRegion.size.height} // w, h
     };
 
-    char r = red   * 0xFF;
-    char g = green * 0xFF;
-    char b = blue  * 0xFF;
-    char a = alpha * 0xFF;
-    char colors[] = {r, g, b, a, r, g, b, a, r, g, b, a, r, g, b, a};
+    id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
+    id<MTLRenderPipelineState> pipeline = [pipelineManager getClearRttPipeState];
 
-    [self drawClearRect:scissorRectVertices ofColors:colors vertexCount:4];
+    [renderEncoder setRenderPipelineState:pipeline];
+    if (isScissorEnabled) {
+        [renderEncoder setScissorRect:scissorRect];
+    }
+
+    [renderEncoder setVertexBytes:&mvpMatrix
+                           length:sizeof(mvpMatrix)
+                          atIndex:VertexInputMatrixMVP];
+
+    [self fillClearRectVB:clearRectVertices
+                      red:red
+                    green:green
+                     blue:blue
+                    alpha:alpha];
+
+    [renderEncoder setVertexBytes:clearVertices
+                           length:sizeof(CLEAR_VS_INPUT) * 6
+                          atIndex:VertexInputIndexVertices];
+
+    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
+                      vertexStart:0
+                      vertexCount:6];
+
     clearDepthTexture = clearDepth;
     clearColor[0] = red;
     clearColor[1] = green;
@@ -538,6 +528,30 @@
     }
 }
 
+- (void) fillClearRectVB:(PrismSourceClearVertex const *)inVerts
+                     red:(float)red
+                   green:(float)green
+                    blue:(float)blue
+                   alpha:(float)alpha
+{
+    CLEAR_VS_INPUT* pVert = clearVertices;
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 3; j++) {
+            pVert->position.x = inVerts->x;
+            pVert->position.y = inVerts->y;
+
+            pVert->color.r = red;
+            pVert->color.g = green;
+            pVert->color.b = blue;
+            pVert->color.a = alpha;
+
+            inVerts++;
+            pVert++;
+        }
+        inVerts -= 2;
+    }
+}
+
 - (MetalPipelineManager*) getPipelineManager
 {
     return pipelineManager;
@@ -595,6 +609,17 @@
         phongShader = ([[MetalPhongShader alloc] createPhongShader:self]);
     }*/
     return 1;
+}
+
+- (void) setCompositeMode:(int) mode
+{
+    CTX_LOG(@"-> Native: MetalContext.setCompositeMode(): mode = %d", mode);
+    compositeMode = mode;
+}
+
+- (int) getCompositeMode
+{
+    return compositeMode;
 }
 
 - (void) setCameraPosition:(float)x
@@ -1319,11 +1344,7 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor
 */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCompositeMode(JNIEnv *env, jclass jClass, jlong context, jint mode)
 {
-    MetalContext* mtlCtx = (MetalContext*)jlong_to_ptr(context);
-
-    MetalPipelineManager* pipeLineMgr = [mtlCtx getPipelineManager];
-
-    [pipeLineMgr setCompositeBlendMode:mode];
-
+    MetalContext* pCtx = (MetalContext*)jlong_to_ptr(context);
+    [pCtx setCompositeMode:mode];
     return;
 }

@@ -48,9 +48,7 @@ typedef struct VS_OUTPUT
                       constant float4x4 & mvp_matrix [[ buffer(1) ]])
 {
     VS_OUTPUT out;
-    out.position = vector_float4(0.0, 0.0, 0.0, 1.0);
-    out.position.xy = v_in[v_id].position.xy;
-    out.position = out.position * mvp_matrix;
+    out.position  = vector_float4(v_in[v_id].position.xy, 0.0, 1.0) * mvp_matrix;
     out.fragColor = v_in[v_id].color;
     out.texCoord0 = v_in[v_id].texCoord0;
     out.texCoord1 = v_in[v_id].texCoord1;
@@ -59,5 +57,34 @@ typedef struct VS_OUTPUT
 
 // TODO: MTL: Cleanup: For testing purpose only, JavaFX does not use this fragment function.
 fragment float4 passThroughFragmentFunction(VS_OUTPUT in [[ stage_in ]]) {
+    return in.fragColor;
+}
+
+
+// Following two clearVF/FF functions are used only for drawing a clear rectangle.
+// These are specific to metal implementation and not present for D3D/ES2.
+
+typedef struct CLEAR_VS_INPUT {
+    vector_float2 position;
+    vector_float4 color;
+} CLEAR_VS_INPUT;
+
+typedef struct CLEAR_VS_OUTPUT
+{
+    vector_float4 position  [[position]];
+    vector_float4 fragColor [[flat]];
+} CLEAR_VS_OUTPUT;
+
+[[vertex]] CLEAR_VS_OUTPUT clearVF(const uint  v_id [[ vertex_id ]],
+                      constant CLEAR_VS_INPUT* v_in [[ buffer(0) ]],
+                      constant float4x4& mvp_matrix [[ buffer(1) ]])
+{
+    CLEAR_VS_OUTPUT out;
+    out.position  = vector_float4(v_in[v_id].position.xy, 0.0, 1.0) * mvp_matrix;
+    out.fragColor = v_in[v_id].color;
+    return out;
+}
+
+[[fragment]] float4 clearFF(CLEAR_VS_OUTPUT in [[ stage_in ]]) {
     return in.fragColor;
 }

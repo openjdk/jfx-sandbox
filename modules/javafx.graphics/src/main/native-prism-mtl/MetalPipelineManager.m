@@ -35,31 +35,14 @@
 {
     context = ctx;
     NSError *error = nil;
-    pipeStateDict = [[NSMutableDictionary alloc] init];
     shaderLib = [[context getDevice] newLibraryWithFile:path error:&error];
-    vertexFunction = [self getFunction:@"passThrough"];
-    compositeMode = com_sun_prism_mtl_MTLContext_MTL_COMPMODE_SRCOVER; //default
 
     if (shaderLib != nil) {
-        NSArray<NSString *> *functionNames = [shaderLib functionNames];
-        //pipelineStates = [[NSMutableArray alloc] initWithCapacity:[functionNames count]];
-
-        METAL_LOG(@"-> Shader library created, number of the functions in library %lu", [functionNames count]);
-
-        for (NSString *name in functionNames) {
-            if ([name isEqualToString:@"passThrough"]) {
-                // passThrough is the vertex function
-            } else {
-                //pipeStateDict[name] = [self getPipeStateWithFragFuncName:name];
-            }
-        }
-        /*for (NSString *name in functionNames)
-        {
-            METAL_LOG(@" printing from dictionary %@", ((MTLRenderPipelineDescriptor*)pipeStateDict[name]).label);
-        }*/
+        vertexFunction = [self getFunction:@"passThrough"];
     } else {
-        METAL_LOG(@"-> Failed to create shader library");
+        METAL_LOG(@"-> MetalPipelineManager.init: Failed to create shader library");
     }
+    clearRttPipeStateDict = [[NSMutableDictionary alloc] init];
 }
 
 - (id<MTLFunction>) getFunction:(NSString*) funcName
@@ -68,14 +51,36 @@
     return [shaderLib newFunctionWithName:funcName];
 }
 
+- (id<MTLRenderPipelineState>) getClearRttPipeState
+{
+    METAL_LOG(@">>>> MetalPipelineManager.getClearRttPipeState()");
+
+    int sampleCount = 1;
+    if ([[context getRTT] isMSAAEnabled]) {
+        sampleCount = 4;
+    }
+    NSNumber *keySampleCount = [NSNumber numberWithInt:sampleCount];
+    id<MTLRenderPipelineState> clearRttPipeState = clearRttPipeStateDict[keySampleCount];
+    if (clearRttPipeState == nil) {
+        MTLRenderPipelineDescriptor* pipeDesc = [[[MTLRenderPipelineDescriptor alloc] init] autorelease];
+        pipeDesc.vertexFunction   = [self getFunction:@"clearVF"];;
+        pipeDesc.fragmentFunction = [self getFunction:@"clearFF"];
+        pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //[[context getRTT] getPixelFormat]; //rtt.pixelFormat
+        pipeDesc.sampleCount = sampleCount;
+
+        NSError* error;
+        clearRttPipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
+        NSAssert(clearRttPipeState, @"Failed to create clear pipeline state: %@", error);
+        [clearRttPipeStateDict setObject:clearRttPipeState forKey:keySampleCount];
+    }
+    METAL_LOG(@"<<<< MetalPipelineManager.getClearRttPipeState()\n");
+    return clearRttPipeState;
+}
+
 - (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>) func
+                                          compositeMode:(int) compositeMode
 {
     METAL_LOG(@"MetalPipelineManager.getPipeStateWithFragFunc()");
-    if (pipeStateDict[func] != nil) {
-        METAL_LOG(@"MetalPipelineManager.getPipeStateWithFragFunc()  return from Dict");
-        // TODO: MTL: This decision making should be moved to java side.
-        //return pipeStateDict[func];
-    }
     NSError* error;
     MTLRenderPipelineDescriptor* pipeDesc = [[[MTLRenderPipelineDescriptor alloc] init] autorelease];
     pipeDesc.vertexFunction = vertexFunction;
@@ -88,32 +93,13 @@
         pipeDesc.sampleCount = 1;
     }
 
-    [self setPipelineCompositeBlendMode:pipeDesc];
+    [self setPipelineCompositeBlendMode:pipeDesc
+                          compositeMode:compositeMode];
 
     id<MTLRenderPipelineState> pipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
     NSAssert(pipeState, @"Failed to create pipeline state to render to texture: %@", error);
-    //pipeStateDict[func] = pipeState;
 
     return pipeState;
-}
-
-- (id<MTLRenderPipelineState>) getPipeStateWithFragFuncName:(NSString*) funcName
-{
-
-    if ([funcName isEqualToString:@"Solid_Color"]) {
-        if (![[context getRTT] isMSAAEnabled]) {
-            if (solidColorPipeState == nil) {
-                solidColorPipeState = [self getPipeStateWithFragFunc:[self getFunction:funcName]];
-            }
-            return solidColorPipeState;
-        } else {
-            if (solidColorPipeMSAAState == nil) {
-                solidColorPipeMSAAState = [self getPipeStateWithFragFunc:[self getFunction:funcName]];
-            }
-            return solidColorPipeMSAAState;
-        }
-    }
-    return [self getPipeStateWithFragFunc:[self getFunction:funcName]];
 }
 
 - (id<MTLComputePipelineState>) getComputePipelineStateWithFunc:(NSString*) funcName
@@ -132,6 +118,7 @@
 
 
 - (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFunc:(id<MTLFunction>) func
+                                               compositeMode:(int) compositeMode
 {
     METAL_LOG(@"MetalPipelineManager.getPhongPipeStateWithFragFunc()");
     NSError* error;
@@ -164,7 +151,8 @@
     vertDesc.layouts[0].stepRate = 1;
     vertDesc.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
     pipeDesc.vertexDescriptor = vertDesc;*/
-    [self setPipelineCompositeBlendMode:pipeDesc];
+    [self setPipelineCompositeBlendMode:pipeDesc
+                          compositeMode:compositeMode];
     id<MTLRenderPipelineState> pipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
     NSAssert(pipeState, @"Failed to create pipeline state for phong shader: %@", error);
 
@@ -172,8 +160,10 @@
 }
 
 - (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFuncName:(NSString*) funcName
+                                                   compositeMode:(int) compositeMode;
 {
-    return [self getPhongPipeStateWithFragFunc:[self getFunction:funcName]];
+    return [self getPhongPipeStateWithFragFunc:[self getFunction:funcName]
+                                 compositeMode:compositeMode];
 }
 
 - (id<MTLDepthStencilState>) getDepthStencilState
@@ -190,13 +180,8 @@
     return depthStencilState;
 }
 
-- (void) setCompositeBlendMode:(int) mode
-{
-    METAL_LOG(@"-> Native: MetalPipelineManager setCompositeBlendMode --- mode = %d", mode);
-    compositeMode = mode;
-}
-
-- (void) setPipelineCompositeBlendMode: (MTLRenderPipelineDescriptor*) pipeDesc
+- (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*) pipeDesc
+                         compositeMode:(int) compositeMode
 {
     MTLBlendFactor srcFactor;
     MTLBlendFactor dstFactor;
