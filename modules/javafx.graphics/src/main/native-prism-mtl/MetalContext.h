@@ -78,6 +78,8 @@ typedef enum VertexInputIndex {
     id<MTLCommandQueue> commandQueue;
     id<MTLCommandBuffer> currentCommandBuffer;
     id<MTLRenderCommandEncoder> currentRenderEncoder;
+    id<MTLRenderCommandEncoder> phongEncoder;
+    id<MTLRenderPipelineState> phongPipelineState;
     MetalShader* currentShader;
     NSMutableDictionary* linearSamplerDict;
     NSMutableDictionary* nonLinearSamplerDict;
@@ -121,6 +123,9 @@ typedef enum VertexInputIndex {
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer;
 - (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder;
 - (void) endCurrentRenderEncoder;
+- (id<MTLRenderCommandEncoder>) getPhongEncoder;
+- (void) endPhongEncoder;
+- (id<MTLRenderPipelineState>) getPhongPipelineState;
 - (void) resetRenderPass;
 
 - (void) setRTT:(MetalRTTexture*)rttPtr;
@@ -168,6 +173,7 @@ typedef enum VertexInputIndex {
         m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
         m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33;
 
+- (NSInteger) setDeviceParametersFor2D;
 - (NSInteger) setDeviceParametersFor3D;
 - (void) updatePhongLoadAction;
 - (MTLRenderPassDescriptor*) getPhongRPD;

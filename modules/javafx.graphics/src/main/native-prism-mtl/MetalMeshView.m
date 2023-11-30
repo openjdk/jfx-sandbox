@@ -184,13 +184,8 @@
 
     [context endCurrentRenderEncoder];
 
-    id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
-    MTLRenderPassDescriptor* phongRPD = [context getPhongRPD];
-    id<MTLRenderCommandEncoder> phongEncoder = [commandBuffer renderCommandEncoderWithDescriptor:phongRPD];
-    id<MTLRenderPipelineState> phongPipelineState =
-        [[context getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"
-                                                          compositeMode:[context getCompositeMode]];
-    [phongEncoder setRenderPipelineState:phongPipelineState];
+    id<MTLRenderCommandEncoder> phongEncoder = [context getPhongEncoder];
+    [phongEncoder setRenderPipelineState:[context getPhongPipelineState]];
     id<MTLDepthStencilState> depthStencilState =
         [[context getPipelineManager] getDepthStencilState];
     [phongEncoder setDepthStencilState:depthStencilState];
@@ -242,10 +237,6 @@
         indexType:[mesh getIndexType]
         indexBuffer:[mesh getIndexBuffer]
         indexBufferOffset:0];
-    [phongEncoder endEncoding];
-
-    [commandBuffer commit];
-    [commandBuffer waitUntilCompleted];
     [context updatePhongLoadAction];
 }
 

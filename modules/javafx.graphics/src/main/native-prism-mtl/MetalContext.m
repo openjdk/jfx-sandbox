@@ -84,6 +84,7 @@
 {
     if (rtt != rttPtr) {
         [self endCurrentRenderEncoder];
+        [self endPhongEncoder];
     }
     rtt = rttPtr;
     CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
@@ -150,6 +151,7 @@
 - (void) commitCurrentCommandBuffer
 {
     [self endCurrentRenderEncoder];
+    [self endPhongEncoder];
 
     [currentCommandBuffer commit];
     [currentCommandBuffer waitUntilCompleted];
@@ -193,6 +195,31 @@
     }
 }
 
+- (id<MTLRenderCommandEncoder>) getPhongEncoder
+{
+    if (phongEncoder == nil) {
+        phongEncoder = [[self getCurrentCommandBuffer] renderCommandEncoderWithDescriptor:phongRPD];
+    }
+    return phongEncoder;
+}
+
+- (void) endPhongEncoder
+{
+    if (phongEncoder != nil) {
+        [phongEncoder endEncoding];
+       phongEncoder = nil;
+    }
+}
+
+- (id<MTLRenderPipelineState>) getPhongPipelineState
+{
+    if (phongPipelineState == nil) {
+        phongPipelineState =
+            [[self getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"
+                                                          compositeMode:[self getCompositeMode]];
+    }
+    return phongPipelineState;
+}
 
 - (MetalResourceFactory*) getResourceFactory
 {
@@ -379,6 +406,7 @@
     CTX_LOG(@">>>> MetalContext.clearRTT() %f, %f, %f, %f", red, green, blue, alpha);
     CTX_LOG(@">>>> MetalContext.clearRTT() %d, %d", clearDepth, ignoreScissor);
 
+    [self endPhongEncoder];
     MTLRegion clearRegion = MTLRegionMake2D(0, 0, 0, 0);
     if (!isScissorEnabled) {
         [self endCurrentRenderEncoder];
@@ -570,9 +598,17 @@
     currentShader = shader;
 }
 
+- (NSInteger) setDeviceParametersFor2D
+{
+    CTX_LOG(@"MetalContext_setDeviceParametersFor2D()");
+    [self endPhongEncoder];
+    return 1;
+}
+
 - (NSInteger) setDeviceParametersFor3D
 {
     CTX_LOG(@"MetalContext_setDeviceParametersFor3D()");
+    [self endPhongEncoder];
     id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
     phongRPD = [MTLRenderPassDescriptor new];
     phongRPD.colorAttachments[0].loadAction = MTLLoadActionLoad;
@@ -603,6 +639,10 @@
             phongRPD.depthAttachment.resolveTexture = nil;
         }
     }
+
+    phongPipelineState =
+        [[self getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"
+                                                          compositeMode:[self getCompositeMode]];
 
     // TODO: MTL: Check whether we need to do shader initialization here
     /*if (!phongShader) {
@@ -1290,6 +1330,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
     id<MTLTexture> dst = [dstRTT getTexture];
 
     [pCtx endCurrentRenderEncoder];
+    [pCtx endPhongEncoder];
 
     id<MTLCommandBuffer> commandBuffer = [pCtx getCurrentCommandBuffer];
     id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
@@ -1322,6 +1363,20 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCameraPosition
 
     return [pCtx setCameraPosition:x
             y:y z:z];
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetDeviceParametersFor2D
+ */
+
+JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor2D
+  (JNIEnv *env, jclass jClass, jlong ctx)
+{
+    CTX_LOG(@"MTLContext_nSetDeviceParametersFor2D");
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+
+    return [pCtx setDeviceParametersFor2D];
 }
 
 /*

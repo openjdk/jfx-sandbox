@@ -204,6 +204,7 @@
     TEX_LOG(@">>>> MetalTexture.getPixelBuffer()");
 
     [context endCurrentRenderEncoder];
+    [context endPhongEncoder];
 
     id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
     id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
@@ -231,6 +232,7 @@
     if (mipmapped) {
         TEX_LOG(@">>>> MetalTexture.generateMipMap() needed");
         [context endCurrentRenderEncoder];
+        [context endPhongEncoder];
         id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
         [blitEncoder generateMipmapsForTexture: [self getTexture]];

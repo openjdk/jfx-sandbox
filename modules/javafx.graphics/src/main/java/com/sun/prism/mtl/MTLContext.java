@@ -414,6 +414,7 @@ public class MTLContext extends BaseShaderContext {
                                                   double m10, double m11, double m12, double m13,
                                                   double m20, double m21, double m22, double m23,
                                                   double m30, double m31, double m32, double m33);
+    private static native int nSetDeviceParametersFor2D(long pContext);
     private static native int nSetDeviceParametersFor3D(long pContext);
     private static native void nSetCameraPosition(long pContext, double x, double y, double z);
     private static native long nCreateMTLMesh(long pContext);
@@ -451,6 +452,13 @@ public class MTLContext extends BaseShaderContext {
                                      int dstX0, int dstY0, int dstX1, int dstY1);
 
     private static native void nRelease(long pContext);
+
+    @Override
+    public void setDeviceParametersFor2D() {
+        if (checkDisposed()) return;
+        MTLLog.Debug("2D : MTLContext:setDeviceParametersFor2D()");
+        nSetDeviceParametersFor2D(pContext);
+    }
 
     @Override
     protected void setDeviceParametersFor3D() {
