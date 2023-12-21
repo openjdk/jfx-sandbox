@@ -52,6 +52,7 @@
                 vSize:(unsigned int)vbSize
               iBuffer:(unsigned int*)ib
                 iSize:(unsigned int)ibSize;
+- (void) release;
 - (void) releaseVertexBuffer;
 - (void) releaseIndexBuffer;
 - (id<MTLBuffer>) getVertexBuffer;

@@ -153,6 +153,14 @@ typedef struct
     return true;
 }
 
+- (void) release
+{
+    MESH_LOG(@"MetalMesh->release");
+    [self releaseVertexBuffer];
+    [self releaseIndexBuffer];
+    context = nil;
+}
+
 - (void) releaseVertexBuffer
 {
     MESH_LOG(@"MetalMesh->releaseVertexBuffer");
