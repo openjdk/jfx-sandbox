@@ -111,14 +111,35 @@
     MESH_LOG(@"MetalMeshView_setLight()");
     // NOTE: We only support up to 3 point lights at the present
     if (index >= 0 && index <= MAX_NUM_LIGHTS - 1) {
-        MetalLight* light = ([[MetalLight alloc] createLight:x y:y z:z
+        if (lights[index] == nil) {
+            MetalLight* light = ([[MetalLight alloc] createLight:x y:y z:z
             r:r g:g b:b w:w
             ca:ca la:la qa:qa
             isA:isAttenuated range:range
             dirX:dirX dirY:dirY dirZ:dirZ
             inA:innerAngle outA:outerAngle
             falloff:falloff]);
-        lights[index] = light;
+            lights[index] = light;
+        } else {
+            lights[index]->position[0] = x;
+            lights[index]->position[1] = y;
+            lights[index]->position[2] = z;
+            lights[index]->color[0] = r;
+            lights[index]->color[1] = g;
+            lights[index]->color[2] = b;
+            lights[index]->lightOn = w;
+            lights[index]->attenuation[0] = ca;
+            lights[index]->attenuation[1] = la;
+            lights[index]->attenuation[2] = qa;
+            lights[index]->attenuation[3] = isAttenuated;
+            lights[index]->maxRange = range;
+            lights[index]->direction[0] = dirX;
+            lights[index]->direction[1] = dirY;
+            lights[index]->direction[2] = dirZ;
+            lights[index]->inAngle = innerAngle;
+            lights[index]->outAngle = outerAngle;
+            lights[index]->foff = falloff;
+        }
         lightsDirty = TRUE;
     }
 }
@@ -238,6 +259,16 @@
         indexBuffer:[mesh getIndexBuffer]
         indexBufferOffset:0];
     [context updatePhongLoadAction];
+}
+
+- (void) release
+{
+    for (int i = 0; i < MAX_NUM_LIGHTS; i++) {
+        if (lights[i] != nil) {
+            [lights[i] release];
+            lights[i] = nil;
+        }
+    }
 }
 
 @end // MetalMeshView

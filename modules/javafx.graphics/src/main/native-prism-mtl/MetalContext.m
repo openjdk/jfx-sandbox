@@ -610,6 +610,7 @@
     CTX_LOG(@"MetalContext_setDeviceParametersFor3D()");
     [self endPhongEncoder];
     id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
+    // TODO: MTL: Find a way to release phongRPD when we are done using it
     phongRPD = [MTLRenderPassDescriptor new];
     phongRPD.colorAttachments[0].loadAction = MTLLoadActionLoad;
 

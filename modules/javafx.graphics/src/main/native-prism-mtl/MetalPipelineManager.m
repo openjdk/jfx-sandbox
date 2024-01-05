@@ -153,7 +153,8 @@
     pipeDesc.vertexDescriptor = vertDesc;*/
     [self setPipelineCompositeBlendMode:pipeDesc
                           compositeMode:compositeMode];
-    id<MTLRenderPipelineState> pipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
+    id<MTLRenderPipelineState> pipeState = [[[context getDevice]
+        newRenderPipelineStateWithDescriptor:pipeDesc error:&error] autorelease];
     NSAssert(pipeState, @"Failed to create pipeline state for phong shader: %@", error);
 
     return pipeState;
@@ -168,7 +169,7 @@
 
 - (id<MTLDepthStencilState>) getDepthStencilState
 {
-    MTLDepthStencilDescriptor *depthStencilDescriptor = [MTLDepthStencilDescriptor new];
+    MTLDepthStencilDescriptor *depthStencilDescriptor = [[MTLDepthStencilDescriptor new] autorelease];
     if ([context isDepthEnabled]) {
         depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionLess;
         depthStencilDescriptor.depthWriteEnabled = YES;
