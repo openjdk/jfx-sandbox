@@ -1256,6 +1256,97 @@ public class RenderPerfTest {
         }
     }
 
+    static class MultiShape2D3DRenderer extends FlatParticleRenderer {
+        Circle[] circle;
+        Sphere[] sphere;
+        Rectangle[] rectangle;
+        Box[] box;
+
+
+        MultiShape2D3DRenderer(int n, double r) {
+            super(n, r);
+            circle = new Circle[n / 4];
+            sphere = new Sphere[n / 4];
+            rectangle = new Rectangle[n / 4];
+            box = new Box[n / 4];
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            int index =0;
+             for (int id = 0; id < n / 4; id++) {
+                circle[id] = new Circle();
+
+                circle[id].setCenterX(x[index]);
+                circle[id].setCenterY(y[index]);
+                circle[id].setRadius(r);
+                circle[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(circle[id]);
+                index++;
+
+                sphere[id] = new Sphere(r);
+
+                PhongMaterial materialSphere = new PhongMaterial();
+                materialSphere.setDiffuseColor(colors[index % colors.length]);
+                sphere[id].setMaterial(materialSphere);
+                node.getChildren().add(sphere[id]);
+                index++;
+
+                rectangle[id] = new Rectangle();
+
+                rectangle[id].setX(x[index] - r);
+                rectangle[id].setY(y[index] - r);
+                rectangle[id].setWidth(2 * r);
+                rectangle[id].setHeight(2 * r);
+                rectangle[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(rectangle[id]);
+                index++;
+
+                box[id] = new Box(2 * r, 2 * r, 2 * r);
+
+                box[id].setTranslateX(x[index]);
+                box[id].setTranslateY(y[index]);
+
+                PhongMaterial materialBox = new PhongMaterial();
+                materialBox.setDiffuseColor(colors[index % colors.length]);
+                box[id].setMaterial(materialBox);
+
+                box[id].setRotationAxis(new Point3D(1, 1, 1));
+                box[id].setRotate(45);
+                node.getChildren().add(box[id]);
+                index++;
+            }
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            int index = 0;
+            for (int id = 0; id < n / 4; id++) {
+                circle[id].setCenterX(x[index]);
+                circle[id].setCenterY(y[index]);
+                index++;
+
+                sphere[id].setTranslateX(x[index]);
+                sphere[id].setTranslateY(y[index]);
+                index++;
+
+                rectangle[id].setX(x[index] - r);
+                rectangle[id].setY(y[index] - r);
+                index++;
+
+                box[id].setTranslateX(x[index]);
+                box[id].setTranslateY(y[index]);
+                index++;
+            }
+        }
+
+        public void releaseResource() {
+            circle = null;
+            sphere = null;
+            rectangle = null;
+            box = null;
+        }
+    }
+
     static class ButtonRenderer implements ParticleRenderer {
         double r;
         Button[] button;
@@ -1527,6 +1618,10 @@ public class RenderPerfTest {
 
     public void testMultiShape() throws Exception {
         (new PerfMeter("MultiShape")).exec(createPR(new MultiShapeRenderer(objectCount, R)));
+    }
+
+    public void testMultiShape2D3D() throws Exception {
+        (new PerfMeter("MultiShape2D3D")).exec(createPR(new MultiShape2D3DRenderer(objectCount, R)));
     }
 
     public void testButton() throws Exception {
