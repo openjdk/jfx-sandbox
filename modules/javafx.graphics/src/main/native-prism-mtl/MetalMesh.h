@@ -36,8 +36,8 @@
 @interface MetalMesh : NSObject
 {
     MetalContext *context;
-    id<MTLBuffer> indexBuffer;
-    id<MTLBuffer> vertexBuffer;
+    id<MTLBuffer> indexBuffer[3];
+    id<MTLBuffer> vertexBuffer[3];
     NSUInteger numVertices;
     NSUInteger numIndices;
     NSUInteger indexType;
@@ -53,7 +53,9 @@
               iBuffer:(unsigned int*)ib
                 iSize:(unsigned int)ibSize;
 - (void) release;
+- (void) createVertexBuffer:(unsigned int)size;
 - (void) releaseVertexBuffer;
+- (void) createIndexBuffer:(unsigned int)size;;
 - (void) releaseIndexBuffer;
 - (id<MTLBuffer>) getVertexBuffer;
 - (id<MTLBuffer>) getIndexBuffer;

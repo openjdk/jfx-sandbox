@@ -39,6 +39,8 @@
 @class MetalPhongMaterial;
 @class MetalMeshView;
 
+#define BUFFER_SIZE 3
+
 struct PrismSourceVertex {
     float x, y, z;
     float tu1, tv1;
@@ -79,6 +81,7 @@ typedef enum VertexInputIndex {
     id<MTLCommandBuffer> currentCommandBuffer;
     id<MTLRenderCommandEncoder> currentRenderEncoder;
     id<MTLRenderCommandEncoder> phongEncoder;
+    id<MTLRenderCommandEncoder> lastPhongEncoder;
     id<MTLRenderPipelineState> phongPipelineState;
     MetalShader* currentShader;
     NSMutableDictionary* linearSamplerDict;
@@ -108,6 +111,8 @@ typedef enum VertexInputIndex {
     MTLRenderPassDescriptor* phongRPD;
     vector_float4 cPos;
     bool depthEnabled;
+    dispatch_semaphore_t tripleBufferSemaphore;
+    NSUInteger currentBufferIndex;
 
     int compositeMode;
 }
@@ -122,6 +127,7 @@ typedef enum VertexInputIndex {
 - (id<MTLDevice>) getDevice;
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer;
 - (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder;
+- (NSUInteger) getCurrentBufferIndex;
 - (void) endCurrentRenderEncoder;
 - (id<MTLRenderCommandEncoder>) getPhongEncoder;
 - (void) endPhongEncoder;

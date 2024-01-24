@@ -64,6 +64,8 @@
         compositeMode = com_sun_prism_mtl_MTLContext_MTL_COMPMODE_SRCOVER; //default
 
         device = MTLCreateSystemDefaultDevice();
+        tripleBufferSemaphore = nil;
+        currentBufferIndex = 0;
         commandQueue = [device newCommandQueue];
         commandQueue.label = @"The only MTLCommandQueue";
         pipelineManager = [MetalPipelineManager alloc];
@@ -195,10 +197,23 @@
     }
 }
 
+- (NSUInteger) getCurrentBufferIndex
+{
+    return currentBufferIndex;
+}
+
 - (id<MTLRenderCommandEncoder>) getPhongEncoder
 {
     if (phongEncoder == nil) {
+        CTX_LOG(@"Jay: MetalContext.getPhongEncoder()");
         phongEncoder = [[self getCurrentCommandBuffer] renderCommandEncoderWithDescriptor:phongRPD];
+        if (lastPhongEncoder != nil &&
+            lastPhongEncoder != phongEncoder) {
+            currentBufferIndex = (currentBufferIndex + 1) % BUFFER_SIZE;
+            dispatch_semaphore_wait(tripleBufferSemaphore,
+                    DISPATCH_TIME_FOREVER);
+            lastPhongEncoder = phongEncoder;
+        }
     }
     return phongEncoder;
 }
@@ -206,8 +221,11 @@
 - (void) endPhongEncoder
 {
     if (phongEncoder != nil) {
+        CTX_LOG(@"Jay: MetalContext.endPhongEncoder()");
         [phongEncoder endEncoding];
        phongEncoder = nil;
+       lastPhongEncoder = phongEncoder;
+       dispatch_semaphore_signal(tripleBufferSemaphore);
     }
 }
 
@@ -602,6 +620,8 @@
 {
     CTX_LOG(@"MetalContext_setDeviceParametersFor2D()");
     [self endPhongEncoder];
+    tripleBufferSemaphore = nil;
+    currentBufferIndex = 0;
     return 1;
 }
 
@@ -609,6 +629,9 @@
 {
     CTX_LOG(@"MetalContext_setDeviceParametersFor3D()");
     [self endPhongEncoder];
+    currentBufferIndex = 0;
+    lastPhongEncoder = nil;
+    tripleBufferSemaphore = dispatch_semaphore_create(BUFFER_SIZE);
     id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
     // TODO: MTL: Find a way to release phongRPD when we are done using it
     phongRPD = [MTLRenderPassDescriptor new];

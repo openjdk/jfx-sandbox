@@ -43,8 +43,6 @@ typedef struct
     if (self) {
         MESH_LOG(@"MetalMesh->createMesh()");
         context = ctx;
-        indexBuffer = NULL;
-        vertexBuffer = NULL;
         numVertices = 0;
         numIndices = 0;
         indexType = MTLIndexTypeUInt16;
@@ -83,28 +81,29 @@ typedef struct
 
     if (numVertices != vbCount) {
         [self releaseVertexBuffer];
-        vertexBuffer = [[device newBufferWithLength:size options:MTLResourceStorageModeShared] autorelease];
+        [self createVertexBuffer:size];
         numVertices = vbCount;
         MESH_LOG(@"numVertices %lu", numVertices);
     }
 
-    if (vertexBuffer != nil) {
+    NSUInteger currentIndex = [context getCurrentBufferIndex];
+    if (vertexBuffer[currentIndex] != nil) {
         MESH_LOG(@"Updating VertexBuffer");
-        memcpy(vertexBuffer.contents, vb, size);
+        memcpy(vertexBuffer[currentIndex].contents, vb, size);
     }
 
     size = ibSize * sizeof (unsigned short);
     MESH_LOG(@"IndexBuffer size %d", size);
     if (numIndices != ibSize) {
         [self releaseIndexBuffer];
-        indexBuffer = [[device newBufferWithLength:size options:MTLResourceStorageModeShared] autorelease];
+        [self createIndexBuffer:size];
         numIndices = ibSize;
         MESH_LOG(@"numIndices %lu", numIndices);
     }
 
-    if (indexBuffer != nil) {
+    if (indexBuffer[currentIndex] != nil) {
         MESH_LOG(@"Updating IndexBuffer");
-        memcpy(indexBuffer.contents, ib, size);
+        memcpy(indexBuffer[currentIndex].contents, ib, size);
     }
     indexType = MTLIndexTypeUInt16;
     MESH_LOG(@"MetalMesh->buildBuffersShort done");
@@ -124,28 +123,29 @@ typedef struct
 
     if (numVertices != vbCount) {
         [self releaseVertexBuffer];
-        vertexBuffer = [[device newBufferWithLength:size options:MTLResourceStorageModeShared] autorelease];
+        [self createVertexBuffer:size];
         numVertices = vbCount;
         MESH_LOG(@"numVertices %lu", numVertices);
     }
 
-    if (vertexBuffer != nil) {
+    NSUInteger currentIndex = [context getCurrentBufferIndex];
+    if (vertexBuffer[currentIndex] != nil) {
         MESH_LOG(@"Updating VertexBuffer");
-        memcpy(vertexBuffer.contents, vb, size);
+        memcpy(vertexBuffer[currentIndex].contents, vb, size);
     }
 
     size = ibSize * sizeof (unsigned int);
     MESH_LOG(@"IndexBuffer size %d", size);
     if (numIndices != ibSize) {
         [self releaseIndexBuffer];
-        indexBuffer = [[device newBufferWithLength:size options:MTLResourceStorageModeShared] autorelease];
+        [self createIndexBuffer:size];
         numIndices = ibSize;
         MESH_LOG(@"numIndices %lu", numIndices);
     }
 
-    if (indexBuffer != nil) {
+    if (indexBuffer[currentIndex] != nil) {
         MESH_LOG(@"Updating IndexBuffer");
-        memcpy(indexBuffer.contents, ib, size);
+        memcpy(indexBuffer[currentIndex].contents, ib, size);
     }
 
     indexType = MTLIndexTypeUInt32;
@@ -161,28 +161,52 @@ typedef struct
     context = nil;
 }
 
+- (void) createVertexBuffer:(unsigned int)size;
+{
+    MESH_LOG(@"MetalMesh->createVertexBuffer");
+    id<MTLDevice> device = [context getDevice];
+    for (int i = 0; i < BUFFER_SIZE; i++) {
+        vertexBuffer[i] = [[device newBufferWithLength:size
+            options:MTLResourceStorageModeShared] autorelease];
+    }
+}
+
 - (void) releaseVertexBuffer
 {
     MESH_LOG(@"MetalMesh->releaseVertexBuffer");
-    vertexBuffer = nil;
+    for (int i = 0; i < BUFFER_SIZE; i++) {
+        vertexBuffer[i] = nil;
+    }
     numVertices = 0;
+}
+
+- (void) createIndexBuffer:(unsigned int)size;
+{
+    MESH_LOG(@"MetalMesh->createIndexBuffer");
+    id<MTLDevice> device = [context getDevice];
+    for (int i = 0; i < BUFFER_SIZE; i++) {
+        indexBuffer[i] = [[device newBufferWithLength:size
+            options:MTLResourceStorageModeShared] autorelease];
+    }
 }
 
 - (void) releaseIndexBuffer
 {
     MESH_LOG(@"MetalMesh->releaseIndexBuffer");
-    indexBuffer = nil;
-    numIndices = 0;
+    for (int i = 0; i < BUFFER_SIZE; i++) {
+        indexBuffer[i] = nil;
+    }
+    numVertices = 0;
 }
 
 - (id<MTLBuffer>) getVertexBuffer
 {
-    return vertexBuffer;
+    return vertexBuffer[[context getCurrentBufferIndex]];
 }
 
 - (id<MTLBuffer>) getIndexBuffer
 {
-    return indexBuffer;
+    return indexBuffer[[context getCurrentBufferIndex]];
 }
 
 - (NSUInteger) getNumVertices

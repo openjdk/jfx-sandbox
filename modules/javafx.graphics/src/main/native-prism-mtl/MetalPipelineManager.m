@@ -126,6 +126,10 @@
     pipeDesc.vertexFunction = [self getFunction:@"PhongVS"];
     pipeDesc.fragmentFunction = func;
     pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
+    // Not seeing further increase in performance after making 3D MTLBuffers immutable
+    // with triple buffer implementation. Keeping the property as a comment
+    // for future exploration.
+    //pipeDesc.vertexBuffers[0].mutability = MTLMutabilityImmutable;
     if ([context isDepthEnabled]) {
         pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
     }
