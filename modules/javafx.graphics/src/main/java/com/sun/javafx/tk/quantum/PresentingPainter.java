@@ -55,6 +55,7 @@ final class PresentingPainter extends ViewPainter {
                     System.err.println("PresentingPainter: validateStageGraphics failed");
                 }
                 paintImpl(null);
+
                 return;
             }
 
@@ -104,7 +105,9 @@ final class PresentingPainter extends ViewPainter {
 
                 /* present for vsync buffer swap */
                 if (vs.getDoPresent()) {
+
                     if (!presentable.present()) {
+
                         disposePresentable();
                         sceneState.getScene().entireSceneNeedsRepaint();
                     }
