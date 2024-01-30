@@ -39,6 +39,7 @@ import com.sun.javafx.tk.RenderJob;
 
 import static com.sun.javafx.logging.PulseLogger.PULSE_LOGGING_ENABLED;
 import com.sun.javafx.logging.PulseLogger;
+import com.sun.javafx.tk.Toolkit;
 
 /**
  * Manages the collection and rendering of dirty scenes. This class has
@@ -406,7 +407,11 @@ final class PaintCollector implements CompletionListener {
                     if (!PlatformUtil.useEGL() || i == (n - 1)) {
                         // for platforms without a native window manager, we only want to do the
                         // swap to the screen after the last window has been rendered
-                        vs.setDoPresent(true);
+                        if (Application.GetApplication().getClass().toString().indexOf("Headless") > -1) {
+                            vs.setDoPresent(false);
+                        } else {
+                            vs.setDoPresent(true);
+                        }
                     } else {
                         vs.setDoPresent(false);
                     }
