@@ -28,6 +28,33 @@
 #import "MetalPipelineManager.h"
 #include "com_sun_prism_mtl_MTLContext.h"
 
+// ---------------------------- Debug helper for Developers -------------------------
+// Note : TODO: MTL: Remove this functionality before integrating Metal pipeline code to the mainline.
+//
+// This implementation is to utilize "Metal Debuger" present in Xcode.
+// See - https://developer.apple.com/documentation/xcode/capturing-a-metal-workload-programmatically
+//
+// Limitation - Attaching to a java process and debugging frame by frame is not possible.
+//
+// Currently, this debug helper can capture each frame related data to a file.
+// It is configured to capture frame data from MTLDevice for entire lifetime of the application.
+// This creates a trace file which is in GBs. So, please use this debug helper judiciously
+// (i.e. with applications running for a short time and with less animation.)
+// The generated trace file can be opened in Xcode and replayed.
+//
+// If needed, this can be changed in future to capture only "scope of interest" as explained at -
+// https://developer.apple.com/documentation/xcode/creating-and-using-custom-capture-scopes
+//
+// Prerequisites:
+// 1. MacOS 14 (Sonoma)
+// 2. On terminal, set environment variable MTL_CAPTURE_ENABLED=1.
+//
+// Uncomment below line to capture Metal GPU Debug Trace to file GPUTraceFilename specified below.
+//#define JFX_MTL_DEBUG_CAPTURE
+#ifdef JFX_MTL_DEBUG_CAPTURE
+NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
+#endif
+// ---------------------------- Debug helper for Developers -------------------------
 
 @implementation MetalPipelineManager
 
@@ -43,6 +70,29 @@
         METAL_LOG(@"-> MetalPipelineManager.init: Failed to create shader library");
     }
     clearRttPipeStateDict = [[NSMutableDictionary alloc] init];
+
+#ifdef JFX_MTL_DEBUG_CAPTURE
+
+    if (@available(macOS 14, *)) {
+        @autoreleasepool {
+            NSLog(@"JFX_MTL_DEBUG_CAPTURE is enabled");
+
+            MTLCaptureManager* captureManager = [MTLCaptureManager sharedCaptureManager];
+            if (![captureManager supportsDestination:MTLCaptureDestinationGPUTraceDocument]) {
+                NSLog(@" MTLCaptureDestinationGPUTraceDocument destination is not supported.");
+            } else {
+                NSLog(@"MTLCaptureDestinationGPUTraceDocument destination is supported.");
+                MTLCaptureDescriptor* captureDescriptor = [MTLCaptureDescriptor new];
+                [captureDescriptor setCaptureObject: [context getDevice]];
+                [captureDescriptor setDestination:MTLCaptureDestinationGPUTraceDocument];
+
+                NSURL* url = [NSURL URLWithString:GPUTraceFilename];
+                [captureDescriptor setOutputURL:url];
+                [captureManager startCaptureWithDescriptor:captureDescriptor error:nil];
+            }
+        }
+    }
+#endif
 }
 
 - (id<MTLFunction>) getFunction:(NSString*) funcName
@@ -236,6 +286,14 @@
 - (void) dealloc
 {
     METAL_LOG(@"MetalPipelineManager.dealloc ----- releasing native resources");
+
+#ifdef JFX_MTL_DEBUG_CAPTURE
+    if (@available(macOS 14, *)) {
+        NSLog(@"stopping capture...");
+        MTLCaptureManager* captureManager = [MTLCaptureManager sharedCaptureManager];
+        [captureManager stopCapture];
+    }
+#endif
 
     if (shaderLib != nil) {
         [shaderLib release];
