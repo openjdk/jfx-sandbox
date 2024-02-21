@@ -66,7 +66,7 @@ public class MTLGraphics extends BaseShaderGraphics {
 
     @Override
     public void sync() {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        context.commitCurrentCommandBuffer();
     }
 
     private static native int nClear(long pContext, int color, float red, float green, float blue, float alpha, boolean clearDepth, boolean ignoreScissor);

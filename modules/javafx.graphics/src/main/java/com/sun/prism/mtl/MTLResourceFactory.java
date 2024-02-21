@@ -391,8 +391,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public boolean isCompatibleTexture(Texture tex) {
-        // TODO: MTL: Complete implementation
-        return false;
+        return tex instanceof MTLTexture;
     }
 
     @Override
