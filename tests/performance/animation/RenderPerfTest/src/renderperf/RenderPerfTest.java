@@ -1165,13 +1165,13 @@ public class RenderPerfTest {
         }
     }
 
-    static class MultiShapeRenderer extends FlatParticleRenderer {
+    static class MultiShapeRendererInterleaved extends FlatParticleRenderer {
         Circle[] circle;
         Rectangle[] rectangle;
         Arc[] arc;
         Ellipse[] ellipse;
 
-        MultiShapeRenderer(int n, double r) {
+        MultiShapeRendererInterleaved(int n, double r) {
             super(n, r);
             circle = new Circle[n / 4];
             rectangle = new Rectangle[n / 4];
@@ -1256,14 +1256,103 @@ public class RenderPerfTest {
         }
     }
 
-    static class MultiShape2D3DRenderer extends FlatParticleRenderer {
+    static class MultiShapeRenderer extends MultiShapeRendererInterleaved {
+
+        MultiShapeRenderer(int n, double r) {
+            super(n, r);
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            int index =0;
+             for (int id = 0; id < n / 4; id++) {
+                circle[id] = new Circle();
+
+                circle[id].setCenterX(x[index]);
+                circle[id].setCenterY(y[index]);
+                circle[id].setRadius(r);
+                circle[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(circle[id]);
+                index++;
+            }
+
+            for (int id = 0; id < n / 4; id++) {
+
+                rectangle[id] = new Rectangle();
+
+                rectangle[id].setX(x[index] - r);
+                rectangle[id].setY(y[index] - r);
+                rectangle[id].setWidth(2 * r);
+                rectangle[id].setHeight(2 * r);
+                rectangle[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(rectangle[id]);
+                index++;
+            }
+
+            for (int id = 0; id < n / 4; id++) {
+
+                arc[id] = new Arc();
+
+                arc[id].setCenterX(x[index]);
+                arc[id].setCenterY(y[index]);
+                arc[id].setRadiusX(r);
+                arc[id].setRadiusY(r);
+                arc[id].setStartAngle(random.nextDouble(100));
+                arc[id].setLength(random.nextDouble(360));
+                arc[id].setType(ArcType.ROUND);
+                arc[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(arc[id]);
+                index++;
+            }
+            for (int id = 0; id < n / 4; id++) {
+
+                ellipse[id] = new Ellipse();
+
+                ellipse[id].setCenterX(x[index]);
+                ellipse[id].setCenterY(y[index]);
+                ellipse[id].setRadiusX(2 * r);
+                ellipse[id].setRadiusY(r);
+                ellipse[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(ellipse[id]);
+                index++;
+            }
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            int index = 0;
+            for (int id = 0; id < n / 4; id++) {
+                circle[id].setCenterX(x[index]);
+                circle[id].setCenterY(y[index]);
+                index++;
+            }
+            for (int id = 0; id < n / 4; id++) {
+                rectangle[id].setX(x[index] - r);
+                rectangle[id].setY(y[index] - r);
+                index++;
+            }
+
+            for (int id = 0; id < n / 4; id++) {
+                arc[id].setCenterX(x[index]);
+                arc[id].setCenterY(y[index]);
+                index++;
+            }
+
+            for (int id = 0; id < n / 4; id++) {
+                ellipse[id].setCenterX(x[index]);
+                ellipse[id].setCenterY(y[index]);
+                index++;
+            }
+        }
+    }
+
+    static class MultiShape2D3DRendererInterleaved extends FlatParticleRenderer {
         Circle[] circle;
         Sphere[] sphere;
         Rectangle[] rectangle;
         Box[] box;
 
 
-        MultiShape2D3DRenderer(int n, double r) {
+        MultiShape2D3DRendererInterleaved(int n, double r) {
             super(n, r);
             circle = new Circle[n / 4];
             sphere = new Sphere[n / 4];
@@ -1344,6 +1433,94 @@ public class RenderPerfTest {
             sphere = null;
             rectangle = null;
             box = null;
+        }
+    }
+
+    static class MultiShape2D3DRenderer extends MultiShape2D3DRendererInterleaved {
+        MultiShape2D3DRenderer(int n, double r) {
+            super(n, r);
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            int index =0;
+            for (int id = 0; id < n / 4; id++) {
+                circle[id] = new Circle();
+
+                circle[id].setCenterX(x[index]);
+                circle[id].setCenterY(y[index]);
+                circle[id].setRadius(r);
+                circle[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(circle[id]);
+                index++;
+            }
+
+            for (int id = 0; id < n / 4; id++) {
+                sphere[id] = new Sphere(r);
+
+                PhongMaterial materialSphere = new PhongMaterial();
+                materialSphere.setDiffuseColor(colors[index % colors.length]);
+                sphere[id].setMaterial(materialSphere);
+                node.getChildren().add(sphere[id]);
+                index++;
+            }
+
+            for (int id = 0; id < n / 4; id++) {
+
+                rectangle[id] = new Rectangle();
+
+                rectangle[id].setX(x[index] - r);
+                rectangle[id].setY(y[index] - r);
+                rectangle[id].setWidth(2 * r);
+                rectangle[id].setHeight(2 * r);
+                rectangle[id].setFill(colors[index % colors.length]);
+                node.getChildren().add(rectangle[id]);
+                index++;
+            }
+
+            for (int id = 0; id < n / 4; id++) {
+
+                box[id] = new Box(2 * r, 2 * r, 2 * r);
+
+                box[id].setTranslateX(x[index]);
+                box[id].setTranslateY(y[index]);
+
+                PhongMaterial materialBox = new PhongMaterial();
+                materialBox.setDiffuseColor(colors[index % colors.length]);
+                box[id].setMaterial(materialBox);
+
+                box[id].setRotationAxis(new Point3D(1, 1, 1));
+                box[id].setRotate(45);
+                node.getChildren().add(box[id]);
+                index++;
+            }
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            int index = 0;
+            for (int id = 0; id < n / 4; id++) {
+                circle[id].setCenterX(x[index]);
+                circle[id].setCenterY(y[index]);
+                index++;
+            }
+
+            for (int id = 0; id < n / 4; id++) {
+                sphere[id].setTranslateX(x[index]);
+                sphere[id].setTranslateY(y[index]);
+                index++;
+            }
+
+            for (int id = 0; id < n / 4; id++) {
+                rectangle[id].setX(x[index] - r);
+                rectangle[id].setY(y[index] - r);
+                index++;
+            }
+
+            for (int id = 0; id < n / 4; id++) {
+                box[id].setTranslateX(x[index]);
+                box[id].setTranslateY(y[index]);
+                index++;
+            }
         }
     }
 
@@ -1616,8 +1793,16 @@ public class RenderPerfTest {
         (new PerfMeter("3DMesh")).exec(createPR(new MeshRenderer(objectCount, R)));
     }
 
+    public void testMultiShapeInt() throws Exception {
+        (new PerfMeter("MultiShapeInt")).exec(createPR(new MultiShapeRendererInterleaved(objectCount, R)));
+    }
+
     public void testMultiShape() throws Exception {
         (new PerfMeter("MultiShape")).exec(createPR(new MultiShapeRenderer(objectCount, R)));
+    }
+
+    public void testMultiShape2D3DInt() throws Exception {
+        (new PerfMeter("MultiShape2D3DInt")).exec(createPR(new MultiShape2D3DRendererInterleaved(objectCount, R)));
     }
 
     public void testMultiShape2D3D() throws Exception {
