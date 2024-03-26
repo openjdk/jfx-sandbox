@@ -186,7 +186,7 @@ public class HeadlessApplication extends Application {
     }
 
     @Override
-    protected int _getKeyCodeForChar(char c) {
+    protected int _getKeyCodeForChar(char c, int hint) {
         throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
 
