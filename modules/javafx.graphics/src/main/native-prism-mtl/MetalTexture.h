@@ -67,8 +67,8 @@
 - (MetalTexture*) createTexture:(MetalContext*)context ofUsage:(MTLTextureUsage)texUsage ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h msaa:(bool)msaa;
 - (void) createDepthTexture;
 - (id<MTLBuffer>) getPixelBuffer;
-- (void) generateMipMap;
 - (bool) isMSAAEnabled;
+- (bool) isMipmapped;
 - (void)dealloc;
 
 //- (void) blitTo:(MetalTexture*) tex;

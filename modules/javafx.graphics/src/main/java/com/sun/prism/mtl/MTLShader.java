@@ -41,9 +41,7 @@ public class MTLShader implements Shader  {
     private final long nMetalShaderRef;
     private final Map<Integer, String> samplers = new HashMap<>();
     private final Map<String, Integer> uniformNameIdMap;
-    private final ArrayList<MTLTexture> shaderTextures = new ArrayList<MTLTexture>();
 
-    private static ArrayList<MTLTexture> allTextures = new ArrayList<MTLTexture>();
     private static Map<String, MTLShader> shaderMap = new HashMap<>();
     private static MTLShader currentEnabledShader;
 
@@ -132,7 +130,6 @@ public class MTLShader implements Shader  {
     public void enable() {
         MTLLog.Debug(">> MTLShader.enable()  fragFuncName = " + fragmentFunctionName);
         currentEnabledShader = this;
-        shaderTextures.clear();
         nEnable(nMetalShaderRef);
     }
 
@@ -152,33 +149,10 @@ public class MTLShader implements Shader  {
         }
     }
 
-    public static void clearTexCache() {
-        allTextures.clear();
-    }
-
     public static void setTexture(int texUnit, Texture tex, boolean isLinear, int wrapMode) {
         //MTLLog.Debug(">>> MTLShader.setTexture() : fragmentFunctionName : " + currentEnabledShader.fragmentFunctionName);
         //MTLLog.Debug("    MTLShader.setTexture() texUnit = " + texUnit + ", isLinear = " + isLinear + ", wrapMode = " + wrapMode);
         MTLTexture mtlTex = (MTLTexture)tex;
-        // TODO: MTL: This change to commit command buffer is added to remove visual artifacts seen
-        // with single command buffer. Artifacts occur if we reuse a texture for different shaders
-        // that are encoded in a single command buffer. We need to identify a better way to remove the artifacts.
-        // The glyph texture is a read-only texture, hence it's content won't be modified during render passes,
-        // hence reuse check is not required.
-        if (/* currentEnabledShader.context.getResourceFactory().getGlyphTexture() != mtlTex && */
-            currentEnabledShader.context.getResourceFactory().getRegionTexture() != mtlTex) {
-            if (!currentEnabledShader.shaderTextures.contains(mtlTex)) {
-                currentEnabledShader.shaderTextures.add(mtlTex);
-            }
-
-            if (allTextures.contains(mtlTex)) {
-                currentEnabledShader.context.commitCurrentCommandBuffer();
-                allTextures.clear();
-                allTextures.addAll(currentEnabledShader.shaderTextures);
-            } else {
-                allTextures.add(mtlTex);
-            }
-        }
         nSetTexture(currentEnabledShader.nMetalShaderRef, texUnit,
                 currentEnabledShader.uniformNameIdMap.get(currentEnabledShader.samplers.get(texUnit)),
                 mtlTex.getNativeHandle(), isLinear, wrapMode);

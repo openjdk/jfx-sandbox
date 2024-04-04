@@ -135,7 +135,6 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     public int[] getPixels() {
         //MTLLog.Debug("MTLRTTexture.getPixels()");
         nReadPixels(nTexPtr, pixels);
-        MTLShader.clearTexCache();
         return pixels;
     }
 
@@ -146,7 +145,6 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
         if (pix instanceof IntBuffer) {
             //MTLLog.Debug("MTLRTTexture(): readPixels -- IntBuffer.");
             nReadPixelsFromContextRTT(nTexPtr, (IntBuffer)pix);
-            MTLShader.clearTexCache();
             //pix = IntBuffer.wrap(pixels);
             return true;
         }

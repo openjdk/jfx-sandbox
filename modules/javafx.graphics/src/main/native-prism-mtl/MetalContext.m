@@ -291,6 +291,13 @@
 
     if (isScissorEnabled) {
         [renderEncoder setScissorRect:scissorRect];
+    } else {
+        scissorRect.x = 0;
+        scissorRect.y = 0;
+        id<MTLTexture> currRtt = rttPassDesc.colorAttachments[0].texture;
+        scissorRect.width  = currRtt.width;
+        scissorRect.height = currRtt.height;
+        [renderEncoder setScissorRect:scissorRect];
     }
 
     int numQuads = numVerts/4;
@@ -610,9 +617,6 @@
 
 - (void) setCurrentShader:(MetalShader*) shader
 {
-    if (currentShader != shader) {
-        [self endCurrentRenderEncoder];
-    }
     currentShader = shader;
 }
 
