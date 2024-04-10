@@ -37,6 +37,17 @@ public class HeadlessApplication extends Application {
     }
 
     @Override
+    protected void finishTerminating() {
+        if (processor != null) {
+            processor.stopProcessing();
+        }
+        final Thread eventThread = getEventThread();
+        if (eventThread != null) {
+            setEventThread(null);
+        }
+        super.finishTerminating();
+    }
+    @Override
     protected void _invokeAndWait(Runnable runnable) {
         throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }

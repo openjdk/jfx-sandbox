@@ -39,6 +39,12 @@ public class NestedRunnableProcessor implements Runnable {
         }
     }
 
+    void stopProcessing() {
+        for (RunLoopEntry entry : activeRunLoops) {
+            runnableQueue.add(() -> entry.active = false);
+        }
+    }
+
     public Object newRunLoop() {
         RunLoopEntry entry = new RunLoopEntry();
 
