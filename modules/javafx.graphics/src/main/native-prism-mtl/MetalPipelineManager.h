@@ -43,7 +43,7 @@
     NSMutableDictionary *clearRttPipeStateDict;
 }
 
-- (void) init:(MetalContext*) ctx libPath:(NSString*) libPath;
+- (void) init:(MetalContext*) ctx libData:(dispatch_data_t) libData;
 - (id<MTLFunction>) getFunction:(NSString*) funcName;
 - (id<MTLRenderPipelineState>) getClearRttPipeState;
 - (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>) fragFunc

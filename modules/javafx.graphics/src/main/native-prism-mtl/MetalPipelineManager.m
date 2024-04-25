@@ -58,11 +58,11 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 
 @implementation MetalPipelineManager
 
-- (void) init:(MetalContext*) ctx  libPath:(NSString*) path
+- (void) init:(MetalContext*) ctx  libData:(dispatch_data_t) libData
 {
     context = ctx;
     NSError *error = nil;
-    shaderLib = [[context getDevice] newLibraryWithFile:path error:&error];
+    shaderLib = [[context getDevice] newLibraryWithData:libData error:&error];
 
     if (shaderLib != nil) {
         vertexFunction = [self getFunction:@"passThrough"];

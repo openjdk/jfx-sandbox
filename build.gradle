@@ -2709,9 +2709,6 @@ project(":graphics") {
         processResources.dependsOn linkMSLShader
 
         // Copy metallib file as resource
-        // TODO: MTL: Depending on which option we go with to load the
-        // metallib file, this might be removed. See MTLContext.java:
-        // this copy is needed for option 'B'
         def copyMetalLib = project.task("copyMetalLib", type: Copy, dependsOn: linkMSLShader) {
             from "$buildDir/msl/jfxshaders.metallib"
             into "${project.moduleDir}/com/sun/prism/mtl/msl"
@@ -2737,6 +2734,17 @@ project(":graphics") {
     project.cleanNativeAllTask.dependsOn cleanNativeDecora
     assemble.dependsOn nativeDecora
     processResources.dependsOn processDecoraShaders, processPrismShaders
+
+    if (IS_MAC) {
+        def copyShimsMetalLibTask = project.task("copyShimsMetalLib", type: Copy,
+                dependsOn: [project.tasks.getByName("compileFullJava"),
+                            project.tasks.getByName("processResources")]) {
+            from project.moduleDir
+            into project.moduleShimsDir
+            include "**/jfxshaders.metallib"
+        }
+        processShimsResources.dependsOn(copyShimsMetalLibTask)
+    }
 
     test {
         def cssDir = file("$buildDir/classes/java/main/${moduleName}/javafx")
@@ -5394,14 +5402,6 @@ compileTargets { t ->
                 targetProperties.WinSDKDLLs.each { winsdklib ->
                     from ("$winsdklib");
                 }
-            }
-
-            // Copy metallib file to lib dir.
-            // TODO: MTL: Depending on which option we go with to load the
-            // metallib file, this might be removed. See MTLContext.java:
-            // this copy is needed for option 'A'
-            if (IS_MAC) {
-                from "${graphicsProject.buildDir}/msl/jfxshaders.metallib"
             }
 
             if (doStrip) {

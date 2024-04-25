@@ -51,7 +51,7 @@
 #define MAX_QUADS_IN_A_BATCH 14
 @implementation MetalContext
 
-- (id) createContext:(NSString*)shaderLibPath
+- (id) createContext:(dispatch_data_t)shaderLibData
 {
     CTX_LOG(@"-> MetalContext.createContext()");
     self = [super init];
@@ -69,7 +69,7 @@
         commandQueue = [device newCommandQueue];
         commandQueue.label = @"The only MTLCommandQueue";
         pipelineManager = [MetalPipelineManager alloc];
-        [pipelineManager init:self libPath:shaderLibPath];
+        [pipelineManager init:self libData:shaderLibData];
 
         rttPassDesc = [MTLRenderPassDescriptor new];
         rttPassDesc.colorAttachments[0].clearColor  = MTLClearColorMake(1, 1, 1, 1); // make this programmable
@@ -795,14 +795,44 @@
 @end // MetalContext
 
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nInitialize
+ * Signature: (Ljava/nio/ByteBuffer;)J
+ */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nInitialize
-  (JNIEnv *env, jclass jClass, jstring shaderLibPathStr)
+  (JNIEnv *env, jclass jClass, jobject shaderLibBuffer)
 {
     CTX_LOG(@">>>> MTLContext_nInitialize");
     jlong jContextPtr = 0L;
-    NSString* shaderLibPath = [MetalContext nsStringWithJavaString:shaderLibPathStr withEnv:env];
-    CTX_LOG(@"----> shaderLibPath: %@", shaderLibPath);
-    jContextPtr = ptr_to_jlong([[MetalContext alloc] createContext:shaderLibPath]);
+
+    // Create data object from direct byte buffer
+    const void* dataPtr = (*env)->GetDirectBufferAddress(env, shaderLibBuffer);
+    if (dataPtr == NULL) {
+        NSLog(@"MTLContext_nInitialize: shaderLibBuffer addr = NULL");
+        return 0L;
+    }
+
+    const jlong numBytes = (*env)->GetDirectBufferCapacity(env, shaderLibBuffer);
+    if (numBytes <= 0) {
+        NSLog(@"MTLContext_nInitialize: shaderLibBuffer invalid capacity");
+        return 0L;
+    }
+
+    CTX_LOG(@"shaderLibBuffer :: addr: 0x%p, numBytes: %ld", dataPtr, numBytes);
+
+    // We use a no-op destructor because the direct ByteBuffer is managed on the
+    // Java side. We must not free it here.
+    dispatch_data_t shaderLibData = dispatch_data_create(dataPtr, numBytes,
+            DISPATCH_QUEUE_SERIAL,
+            ^(void) {});
+
+    if (shaderLibData == nil) {
+        NSLog(@"MTLContext_nInitialize: Unable to create a dispatch_data object");
+        return 0L;
+    }
+
+    jContextPtr = ptr_to_jlong([[MetalContext alloc] createContext:shaderLibData]);
     CTX_LOG(@"<<<< MTLContext_nInitialize");
     return jContextPtr;
 }

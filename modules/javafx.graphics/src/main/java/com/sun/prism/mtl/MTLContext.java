@@ -37,8 +37,9 @@ import com.sun.prism.*;
 import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.impl.ps.BaseShaderContext;
 import com.sun.prism.ps.Shader;
-import java.io.File;
-import java.net.URI;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 public class MTLContext extends BaseShaderContext {
 
@@ -80,67 +81,26 @@ public class MTLContext extends BaseShaderContext {
 
     private static double[] tempAdjustClipSpaceMat = new double[16];
 
-    private static final String shaderLibPath;
+    private static final ByteBuffer shaderLibBuffer;
+
     public final static int CULL_BACK                  = 110;
     public final static int CULL_FRONT                 = 111;
     public final static int CULL_NONE                  = 112;
-    /*
-     * Locate the shader library on disk
-     *
-     * TODO: MTL: The loading of jfxshaders.metallib needs an adjustment
-     * going forward:
-     *
-     *    The existing code won't locate the shader library file in all
-     *    cases. There are two approaches we can take:
-     *
-     *    A. Treat it like a library (i.e., like a dylib). This would
-     *       require a small refactoring and a new method in
-     *       NativeLibLoader to return the path to a file on disk (it
-     *       has all the pieces needed to do that, but the only method it
-     *       provides is one that calls System.load or System.loadLibrary
-     *       after locating it).
-     *
-     *    B. Treat it like a resource in the jar file in the same
-     *       manner that .frag files for GLSL shaders are done. We would
-     *       need to create a temporary file and write the resource to
-     *       that file every time we start up (presuming there is no way
-     *       to pass a memory copy of the metallib file to the Metal APIs,
-     *       which I don't think there is).
-     *
-     *    Option A is probably best, since it will be faster on startup
-     *    and takes advantage of existing code.
-     */
+
     static {
-        final String shaderLibName = "jfxshaders.metallib";
+        final String shaderLibName = "msl/jfxshaders.metallib";
+        final Class clazz = MTLContext.class;
 
-        // Load the native library from the same directory as the jar file
-        // containing this class. This currently only works when running
-        // from the SDK (see "TODO" note above).
-
+        // Get the native shader library as a stream resource and read it into
+        // an NIO ByteBuffer. This will be passed to the native MTLContext
+        // initialization, which will load the shader library for each device.
         try {
-            // Get the URL for this class, if it is a jar URL, then get
-            // the filename associated with it.
-            String theClassFile = "MTLContext.class";
-            Class theClass = MTLContext.class;
-            String classUrlString = theClass.getResource(theClassFile).toString();
-            if (!classUrlString.startsWith("jar:file:") || classUrlString.indexOf('!') == -1) {
-                throw new UnsatisfiedLinkError("Invalid URL for class: " + classUrlString);
+            try (var in = new BufferedInputStream(clazz.getResourceAsStream(shaderLibName))) {
+                byte[] data = in.readAllBytes();
+                shaderLibBuffer = ByteBuffer.allocateDirect(data.length);
+                shaderLibBuffer.put(data);
             }
-            // Strip out the "jar:" and everything after and including the "!"
-            String tmpStr = classUrlString.substring(4, classUrlString.lastIndexOf('!'));
-            // Strip everything after the last "/" to get rid of the jar filename
-            int lastIndexOfSlash = tmpStr.lastIndexOf('/');
-
-            // Location of native libraries relative to jar file
-            String libDirUrlString = tmpStr.substring(0, lastIndexOfSlash);
-            File libDir = new File(new URI(libDirUrlString).getPath());
-
-            File libFile = new File(libDir, shaderLibName);
-            if (!libFile.canRead()) {
-                throw new UnsatisfiedLinkError("Cannot load: " + libFile);
-            }
-            shaderLibPath = libFile.getCanonicalPath();
-        } catch (Exception ex) {
+        } catch (IOException ex) {
             throw new RuntimeException(ex);
         }
     }
@@ -156,7 +116,7 @@ public class MTLContext extends BaseShaderContext {
     MTLContext(Screen screen, MTLResourceFactory factory) {
         super(screen, factory, NUM_QUADS);
         resourceFactory = factory;
-        pContext = nInitialize(shaderLibPath);
+        pContext = nInitialize(shaderLibBuffer);
         state = new State();
     }
 
@@ -384,7 +344,7 @@ public class MTLContext extends BaseShaderContext {
         nCommitCurrentCommandBuffer(pContext);
     }
 
-    native private static long nInitialize(String shaderLibPathStr);
+    native private static long nInitialize(ByteBuffer shaderLibPathStr);
     native private static void nCommitCurrentCommandBuffer(long context);
     native private static int  nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
     native private static void nUpdateRenderTarget(long context, long texPtr, boolean depthTest);
