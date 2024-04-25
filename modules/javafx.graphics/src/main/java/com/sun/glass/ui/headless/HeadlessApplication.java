@@ -13,16 +13,25 @@ import com.sun.glass.ui.Window;
 import java.io.File;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.Objects;
 
 public class HeadlessApplication extends Application {
 
-    private NestedRunnableProcessor processor = new NestedRunnableProcessor();
-    private Window window;
+    private final NestedRunnableProcessor processor = new NestedRunnableProcessor();
+    private HeadlessWindow window;
     private HeadlessCursor cursor;
 
     private final int MULTICLICK_MAX_X = 20;
     private final int MULTICLICK_MAX_Y = 20;
     private final long MULTICLICK_TIME = 500;
+    private HeadlessRobot robot;
+    private Screen[] screens = null;
+
+    protected HeadlessApplication() {
+        super();
+    }
 
     @Override
     protected void runLoop(Runnable launchable) {
@@ -59,18 +68,17 @@ public class HeadlessApplication extends Application {
 
     @Override
     protected Object _enterNestedEventLoop() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return processor.newRunLoop();
     }
 
     @Override
     protected void _leaveNestedEventLoop(Object retValue) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        processor.leaveCurrentLoop(retValue);
     }
 
     @Override
     public Window createWindow(Window owner, Screen screen, int styleMask) {
-        this.window = new HeadlessWindow(owner, screen, styleMask);
-        return this.window;
+        return new HeadlessWindow(owner, screen, styleMask);
     }
 
     @Override
@@ -100,7 +108,7 @@ public class HeadlessApplication extends Application {
 
     @Override
     protected Size staticCursor_getBestSize(int width, int height) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return new Size(16,16);
     }
 
     @Override
@@ -130,7 +138,8 @@ public class HeadlessApplication extends Application {
 
     @Override
     public GlassRobot createRobot() {
-        return new HeadlessRobot(this, (HeadlessWindow) this.window);
+        this.robot = new HeadlessRobot(this, (HeadlessWindow) this.window);
+        return this.robot;
     }
 
     @Override
@@ -140,10 +149,21 @@ public class HeadlessApplication extends Application {
 
     @Override
     protected Screen[] staticScreen_getScreens() {
-        Screen screen = new Screen(0, 32, 0, 0, 1000, 1000, 0, 0, 1000, 1000, 0, 0, 1000, 1000, 100, 100, 1f, 1f, 1f, 1f);
-        Screen[] answer = new Screen[1];
-        answer[0] = screen;
-        return answer;
+        if (this.screens == null) {
+            float scaleX = 1.f;
+            float scaleY = 1.f;
+            String scale = AccessController.doPrivileged((PrivilegedAction<String>) ()
+                    -> System.getProperty("glass.gtk.uiScale"));
+            if (scale != null && !scale.isBlank()) {
+                float scaleFloat = Float.parseFloat(scale);
+                scaleX = scaleFloat;
+                scaleY = scaleFloat;
+            }
+            Screen screen = new Screen(0, 32, 0, 0, 1000, 1000, 0, 0, 1000, 1000, 0, 0, 1000, 1000, 100, 100, 1f, 1f, scaleX, scaleY);
+            this.screens = new Screen[1];
+            this.screens[0] = screen;
+        }
+        return this.screens;
     }
 
     @Override

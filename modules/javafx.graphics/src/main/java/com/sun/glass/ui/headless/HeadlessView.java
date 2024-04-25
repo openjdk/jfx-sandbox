@@ -64,11 +64,12 @@ public class HeadlessView extends View {
 
     @Override
     protected void _uploadPixels(long ptr, Pixels pixels) {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
     protected boolean _enterFullscreen(long ptr, boolean animate, boolean keepRatio, boolean hideCursor) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return true;
     }
 
     @Override
@@ -121,4 +122,10 @@ public class HeadlessView extends View {
     protected void notifyDragEnd(int performedAction) {
         super.notifyDragEnd(performedAction);
     }
+
+    @Override
+    public void uploadPixels(Pixels pixels) {
+        throw new UnsupportedOperationException();
+    }
+
 }

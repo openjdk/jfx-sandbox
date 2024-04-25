@@ -26,6 +26,7 @@
 package test.com.sun.glass.ui.gtk;
 
 import com.sun.javafx.PlatformUtil;
+import java.util.List;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -49,7 +50,12 @@ public class Gtk2Removal1Test extends Gtk2RemovalCommon {
     @Test
     public void testDeprecationMessage() throws Exception {
         assumeTrue(PlatformUtil.isLinux());
-
+        List<String> excluded = List.of("com.sun.glass.ui.headless.HeadlessPlatformFactory");
+        String platformFactory = com.sun.glass.ui.PlatformFactory.getPlatformFactory().getClass().getName();
+        if (excluded.contains(platformFactory)) {
+            System.err.println("Glass platform not using GTK");
+            return;
+        }
         final String output = out.toString();
         System.err.println(output);
         assertTrue(output.contains("WARNING"), "Missing warning message");

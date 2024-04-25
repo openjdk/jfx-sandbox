@@ -4,6 +4,9 @@ import com.sun.glass.events.KeyEvent;
 import com.sun.glass.events.MouseEvent;
 import com.sun.glass.ui.Application;
 import com.sun.glass.ui.GlassRobot;
+import com.sun.glass.ui.Window;
+import java.util.ArrayList;
+import java.util.List;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.paint.Color;
@@ -13,7 +16,6 @@ public class HeadlessRobot extends GlassRobot {
     private final HeadlessApplication application;
     private final MouseInput mouseInput;
 
-    private HeadlessWindow window;
     private NestedRunnableProcessor processor;
 
     private double mouseX, mouseY;
@@ -22,7 +24,6 @@ public class HeadlessRobot extends GlassRobot {
     public HeadlessRobot(HeadlessApplication application, HeadlessWindow window) {
         this.application = application;
         this.mouseInput = new MouseInput(application, window);
-        this.window = window;
     }
 
     @Override
@@ -55,29 +56,39 @@ public class HeadlessRobot extends GlassRobot {
 
     @Override
     public void mouseMove(double x, double y) {
-        this.mouseX = mouseX + x;
-        this.mouseY = mouseY + y;
-        MouseState state = new MouseState();
-        mouseInput.getState(state);
-        state.setX((int) x);
-        state.setY((int) y);
-        mouseInput.setState(state, false);
+        this.mouseX = x;
+        this.mouseY = y;
+        checkWindowEnterExit();
+        if (activeWindow == null) return;
+        HeadlessView view = (HeadlessView)activeWindow.getView();
+        if (view == null) return;
+        int wx = activeWindow.getX();
+        int wy = activeWindow.getY();
+        view.notifyMouse(MouseEvent.MOVE, MouseEvent.BUTTON_NONE, (int)mouseX-wx, (int)mouseY-wy, (int)mouseX, (int)mouseY, modifiers, false, false);
     }
 
     @Override
     public void mousePress(MouseButton... buttons) {
         Application.checkEventThread();
-        MouseState state = new MouseState();
-        mouseInput.getState(state);
-        mouseInput.setState(convertToMouseState(true, state, buttons), false);
+        HeadlessView view = (HeadlessView)activeWindow.getView();
+        if (view == null) {
+            view = (HeadlessView)activeWindow.getView();
+            if (view == null) {
+                System.err.println("no view for this window, return");
+            }
+        }
+        int wx = activeWindow.getX();
+        int wy = activeWindow.getY();
+        view.notifyMouse(MouseEvent.DOWN, MouseEvent.BUTTON_LEFT, (int)mouseX-wx, (int)mouseY-wy, (int)mouseX, (int)mouseY, modifiers, true, true);
     }
 
     @Override
     public void mouseRelease(MouseButton... buttons) {
         Application.checkEventThread();
-        MouseState state = new MouseState();
-        mouseInput.getState(state);
-        mouseInput.setState(convertToMouseState(false, state, buttons), false);
+        HeadlessView view = (HeadlessView) activeWindow.getView();
+        int wx = activeWindow.getX();
+        int wy = activeWindow.getY();
+        view.notifyMouse(MouseEvent.UP, MouseEvent.BUTTON_LEFT, (int) mouseX - wx, (int) mouseY - wy, (int) mouseX, (int) mouseY, modifiers, true, true);
     }
 
     @Override
@@ -160,4 +171,37 @@ public class HeadlessRobot extends GlassRobot {
         return state;
     }
 
+    private Window activeWindow = null;
+    private void checkWindowEnterExit() {
+        Window oldWindow = activeWindow;
+        this.activeWindow = getTargetWindow(this.mouseX, this.mouseY);
+
+        if (this.activeWindow == null) return;
+        int wx = activeWindow.getX();
+        int wy = activeWindow.getY();
+
+        if (activeWindow != oldWindow) {
+            HeadlessView view = (HeadlessView)activeWindow.getView();
+            view.notifyMouse(MouseEvent.ENTER, MouseEvent.BUTTON_NONE, (int)mouseX-wx, (int)mouseY-wy, (int)mouseX, (int)mouseY, modifiers, true, true);
+            if (oldWindow != null) {
+                HeadlessView oldView = (HeadlessView)oldWindow.getView();
+                if (oldView != null) {
+                    int owx = oldWindow.getX();
+                    int owy = oldWindow.getY();
+                    oldView.notifyMouse(MouseEvent.EXIT, MouseEvent.BUTTON_NONE, (int)mouseX-owx, (int)mouseY-owy, (int)mouseX, (int)mouseY, modifiers, true, true);
+                }
+            }
+        }
+    }
+
+    private HeadlessWindow getTargetWindow(double x, double y) {
+        List<Window> windows = Window.getWindows().stream()
+                .filter(win -> win.getView()!= null)
+                .filter(win -> !win.isClosed())
+                .filter(win -> (x > win.getX() && x < win.getX() + win.getWidth()
+                        && y > win.getY() && y < win.getY()+ win.getHeight())).toList();
+        if (windows.isEmpty()) return null;
+        if (windows.size() == 1) return (HeadlessWindow)windows.get(0);
+        return (HeadlessWindow)windows.get(windows.size() -1);
+    }
 }

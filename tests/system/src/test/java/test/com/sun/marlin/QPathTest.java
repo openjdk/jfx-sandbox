@@ -132,6 +132,7 @@ public class QPathTest {
 
         @Override
         public void start(Stage primaryStage) throws Exception {
+            javafx.application.Platform.setImplicitExit(false);
             this.stage = primaryStage;
             launchLatch.countDown();
         }

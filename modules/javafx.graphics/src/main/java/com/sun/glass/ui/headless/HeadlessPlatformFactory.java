@@ -1,14 +1,17 @@
 package com.sun.glass.ui.headless;
 
 import com.sun.glass.ui.Application;
+import com.sun.glass.ui.Clipboard;
 import com.sun.glass.ui.Menu;
 import com.sun.glass.ui.MenuBar;
 import com.sun.glass.ui.MenuItem;
 import com.sun.glass.ui.PlatformFactory;
+import com.sun.glass.ui.SystemClipboard;
 import com.sun.glass.ui.delegate.ClipboardDelegate;
 import com.sun.glass.ui.delegate.MenuBarDelegate;
 import com.sun.glass.ui.delegate.MenuDelegate;
 import com.sun.glass.ui.delegate.MenuItemDelegate;
+import java.util.HashMap;
 
 public class HeadlessPlatformFactory extends PlatformFactory {
 
@@ -34,7 +37,53 @@ public class HeadlessPlatformFactory extends PlatformFactory {
 
     @Override
     public ClipboardDelegate createClipboardDelegate() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return (String clipboardName) -> {
+            if (Clipboard.SYSTEM.equals(clipboardName)) {
+                return new HeadlessSystemClipboard();
+            } else {
+                throw new IllegalArgumentException("No support for " + clipboardName + " clipboard in headless");
+            }
+        };
     }
 
+    class HeadlessSystemClipboard extends SystemClipboard {
+
+        HashMap<String, Object> cacheData;
+        int supportedActions;
+
+        HeadlessSystemClipboard() {
+            super(Clipboard.SYSTEM);
+        }
+
+        @Override
+        protected boolean isOwner() {
+            return true;
+        }
+
+        @Override
+        protected void pushToSystem(HashMap<String, Object> cacheData, int supportedActions) {
+            this.cacheData = cacheData;
+            this.supportedActions = supportedActions;
+        }
+
+        @Override
+        protected void pushTargetActionToSystem(int actionDone) {
+            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        }
+
+        @Override
+        protected Object popFromSystem(String mimeType) {
+            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        }
+
+        @Override
+        protected int supportedSourceActionsFromSystem() {
+            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        }
+
+        @Override
+        protected String[] mimesFromSystem() {
+            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        }
+    }
 }

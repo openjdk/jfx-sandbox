@@ -55,11 +55,17 @@ public class NestedRunnableProcessor implements Runnable {
             try {
                 runnableQueue.take().run();
             } catch (Throwable e) {
+                e.printStackTrace();
                 Application.reportException(e);
             }
         }
-
         return entry.returnValue;
+    }
+
+    public void leaveCurrentLoop(Object returnValue) {
+        RunLoopEntry entry = activeRunLoops.pop();
+        entry.active = false;
+        entry.returnValue = returnValue;
     }
 
     private static class RunLoopEntry {

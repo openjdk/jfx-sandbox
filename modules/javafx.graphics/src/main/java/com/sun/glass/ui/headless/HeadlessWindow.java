@@ -6,23 +6,32 @@ import com.sun.glass.ui.Pixels;
 import com.sun.glass.ui.Screen;
 import com.sun.glass.ui.View;
 import com.sun.glass.ui.Window;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class HeadlessWindow extends Window {
 
-    private int minWidth, maxWidth;
-    private int minHeight, maxHeight;
+    private int minWidth;
+    private int minHeight;
+    private int maxWidth = -1;
+    private int maxHeight = -1;
+    private int originalX, originalY, originalWidth, originalHeight;
+    private boolean closed = false;
 
+    private static final AtomicInteger ptrCount = new AtomicInteger(0);
     public HeadlessWindow(Window owner, Screen screen, int styleMask) {
         super(owner, screen, styleMask);
     }
 
     @Override
     protected long _createWindow(long ownerPtr, long screenPtr, int mask) {
-        return 1;
+        int ptr = ptrCount.incrementAndGet();
+        return ptr;
     }
 
     @Override
     protected boolean _close(long ptr) {
+        this.closed = true;
+        this.notifyDestroy();
         return true;
     }
 
@@ -42,12 +51,31 @@ public class HeadlessWindow extends Window {
 
     @Override
     protected boolean _minimize(long ptr, boolean minimize) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return true;
     }
 
     @Override
     protected boolean _maximize(long ptr, boolean maximize, boolean wasMaximized) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        int newX = 0;
+        int newY = 0;
+        if (maximize && !wasMaximized) {
+            this.originalHeight = this.height;
+            this.originalWidth = this.width;
+            this.originalX = this.x;
+            this.originalY = this.y;
+            newX = 0;
+            newY = 0;
+            setState(State.MAXIMIZED);
+        } else if (!maximize && wasMaximized) {
+            this.height = this.originalHeight;
+            this.width = this.originalWidth;
+            newX = this.originalX;
+            newY = this.originalY;
+            setState(State.NORMAL);
+        }
+        notifyResizeAndMove(newX, newY, width, height);
+
+        return maximize;
     }
 
     @Override
@@ -89,7 +117,6 @@ public class HeadlessWindow extends Window {
         }
         newWidth = Math.max(newWidth, minWidth);
         newHeight = Math.max(newHeight, minHeight);
-
         notifyResizeAndMove(x, y, newWidth, newHeight);
     }
 
@@ -118,7 +145,8 @@ public class HeadlessWindow extends Window {
 
     @Override
     protected boolean _requestFocus(long ptr, int event) {
-        return true;
+        this.notifyFocus(event);
+        return this.isFocused();
     }
 
     @Override
@@ -127,12 +155,11 @@ public class HeadlessWindow extends Window {
 
     @Override
     protected boolean _grabFocus(long ptr) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return true;
     }
 
     @Override
     protected void _ungrabFocus(long ptr) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
 
     @Override
