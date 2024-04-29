@@ -92,6 +92,20 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
                 contentWidth, contentHeight, msaa);
     }
 
+    static MTLRTTexture create(MTLContext context, long pTex, int width, int height) {
+        long nPtr = nCreateRT2(context.getContextHandle(), pTex, width, height);
+
+        MTLTextureData textData = new MTLRTTextureData(context, nPtr);
+        MTLTextureResource resource = new MTLTextureResource(textData);
+        //return new MTLRTTexture(context, resource);
+
+        return new MTLRTTexture(context, resource, WrapMode.CLAMP_NOT_NEEDED,
+                width, height,
+                0, 0,
+                width, height,
+                width, height, false);
+    }
+
     public long getNativeHandle() {
         return nTexPtr;
     }
@@ -127,12 +141,15 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
 
     native private static long nCreateRT(long context, int pw, int ph, int cw, int ch,
                                          WrapMode wrapMode, boolean msaa);
+    native private static long nCreateRT2(long context, long pTex, int pw, int ph);
     native private static void nReadPixels(long nativeHandle, int[] pixBuffer);
     native private static void nReadPixelsFromContextRTT(long nativeHandle, IntBuffer pixBuffer);
     native private static long nGetPixelDataPtr(long nativeHandle);
 
     @Override
     public int[] getPixels() {
+        // Flush the VB before reading the pixels.
+        getContext().flushVertexBuffer();
         //MTLLog.Debug("MTLRTTexture.getPixels()");
         nReadPixels(nTexPtr, pixels);
         return pixels;

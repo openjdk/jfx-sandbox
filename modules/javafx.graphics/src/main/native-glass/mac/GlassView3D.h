@@ -24,14 +24,12 @@
  */
 
 #import <Cocoa/Cocoa.h>
-#import <OpenGL/gl.h>
-#import <OpenGL/OpenGL.h>
+#import <Metal/Metal.h>
 
 #import "GlassView.h"
 #import "GlassOffscreen.h"
 
-// 3D version of Glass providing OpenGL context through CAOpenGLLayer
-@interface GlassView3D : NSOpenGLView <GlassView, NSTextInputClient>
+@interface GlassView3D : NSView <GlassView, NSTextInputClient>
 {
     GlassViewDelegate   *_delegate;
 
@@ -39,9 +37,9 @@
 
     NSTrackingArea      *_trackingArea;
 
-    GLuint              _texture;
-    GLuint              _textureWidth;
-    GLuint              _textureHeight;
+    id<MTLTexture>      _texture;
+    unsigned int        _textureWidth;
+    unsigned int        _textureHeight;
 
     CGFloat             _backgroundR;
     CGFloat             _backgroundG;
@@ -57,5 +55,6 @@
 
 - (id)initWithFrame:(NSRect)frame withJview:(jobject)jView withJproperties:(jobject)jproperties;
 - (void)setFrameOrigin:(NSPoint)newOrigin;
+- (void) updateLayer;
 
 @end

@@ -123,9 +123,7 @@ final class PresentingPainter extends ViewPainter {
             ViewScene viewScene = (ViewScene)sceneState.getScene();
             viewScene.setPainting(false);
 
-            // TODO: MTL: This is a temporary change. It should be reverted back
-            // along with the implementation of SwapChain and CAMetalLayer.
-            if (factory != null && factory.getTextureResourcePool() != null) {
+            if (factory != null) {
                 factory.getTextureResourcePool().freeDisposalRequestedAndCheckResources(errored);
             }
 

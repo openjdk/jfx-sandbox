@@ -34,6 +34,7 @@
 #import "GlassView3D.h"
 #import "GlassLayer3D.h"
 #import "GlassApplication.h"
+#import "GlassScreen.h"
 
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
@@ -80,7 +81,7 @@
 
 @implementation GlassView3D
 
-- (CGLPixelFormatObj)_createPixelFormatWithDepth:(CGLPixelFormatAttribute)depth
+/*- (CGLPixelFormatObj)_createPixelFormatWithDepth:(CGLPixelFormatAttribute)depth
 {
     CGLPixelFormatObj pix = NULL;
     {
@@ -112,7 +113,9 @@
     }
     return pix;
 }
+*/
 
+/*
 - (CGLContextObj)_createContextWithShared:(CGLContextObj)share withFormat:(CGLPixelFormatObj)format
 {
     CGLContextObj ctx = NULL;
@@ -125,10 +128,12 @@
     }
     return ctx;
 }
+*/
 
 - (void)_initialize3dWithJproperties:(jobject)jproperties
 {
     GET_MAIN_JENV;
+    long mtlCommandQueuePtr = 0l;
 
     int depthBits = 0;
     if (jproperties != NULL)
@@ -144,7 +149,7 @@
         }
     }
 
-    CGLContextObj sharedCGL = NULL;
+    /*CGLContextObj sharedCGL = NULL;
     if (jproperties != NULL)
     {
         jobject sharedContextPtrKey = (*env)->NewStringUTF(env, "shareContextPtr");
@@ -160,15 +165,17 @@
                 sharedCGL = [sharedContextNS CGLContextObj];
             }
         }
-    }
+    }*/
 
-    CGLContextObj clientCGL = NULL;
-    BOOL isSwPipe = NO;
+    //CGLContextObj clientCGL = NULL;
+    //BOOL isSwPipe = NO;
 
     if (jproperties != NULL)
     {
         jobject contextPtrKey = (*env)->NewStringUTF(env, "contextPtr");
         jobject contextPtrValue = (*env)->CallObjectMethod(env, jproperties, jMapGetMethod, contextPtrKey);
+        //NSLog(@"---- contextPtrKey = %p", contextPtrKey);
+        //NSLog(@"---- contextPtrValue = %p", contextPtrValue);
         GLASS_CHECK_EXCEPTION(env);
         if (contextPtrValue != NULL)
         {
@@ -176,63 +183,36 @@
             GLASS_CHECK_EXCEPTION(env);
             if (jcontextPtr != 0)
             {
-                NSOpenGLContext *clientContextNS = (NSOpenGLContext*)jlong_to_ptr(jcontextPtr);
-                clientCGL = [clientContextNS CGLContextObj];
+                //NSLog(@"--- GLASS metal command queue ptr = %ld", jcontextPtr);
+
+                //TODO: MTL: This enables sharing of MTLCommandQueue between PRISM and GLASS, if needed.
+                //Note : Currently, PRISM and GLASS create their own dedicated MTLCommandQueue
+                mtlCommandQueuePtr = jcontextPtr;
             }
         }
     }
-    if (clientCGL == NULL)
-    {
-        CGLPixelFormatObj clientPixelFormat = [self _createPixelFormatWithDepth:(CGLPixelFormatAttribute)depthBits];
-        clientCGL = [self _createContextWithShared:sharedCGL withFormat:clientPixelFormat];
-    }
-    if (sharedCGL == NULL)
-    {
-        // this can happen in Rain or clients other than Prism (ie. device details do not have the shared context set)
-        sharedCGL = clientCGL;
-        isSwPipe = YES;
-    }
 
-    self->isHiDPIAware = NO;
-    if (jproperties != NULL)
-    {
-        jobject kHiDPIAwareKey = (*env)->NewObject(env, jIntegerClass, jIntegerInitMethod, com_sun_glass_ui_View_Capability_kHiDPIAwareKeyValue);
-        GLASS_CHECK_EXCEPTION(env);
-        jobject kHiDPIAwareValue = (*env)->CallObjectMethod(env, jproperties, jMapGetMethod, kHiDPIAwareKey);
-        GLASS_CHECK_EXCEPTION(env);
-        if (kHiDPIAwareValue != NULL)
-        {
-            self->isHiDPIAware = (*env)->CallBooleanMethod(env, kHiDPIAwareValue, jBooleanValueMethod) ? YES : NO;
-            GLASS_CHECK_EXCEPTION(env);
-        }
-    }
-
-    GlassLayer3D *layer = [[GlassLayer3D alloc] initWithSharedContext:sharedCGL andClientContext:clientCGL withHiDPIAware:self->isHiDPIAware withIsSwPipe:isSwPipe];
+    GlassLayer3D *layer = [[GlassLayer3D alloc] init:mtlCommandQueuePtr];
 
     // https://developer.apple.com/library/mac/documentation/Cocoa/Reference/ApplicationKit/Classes/nsview_Class/Reference/NSView.html#//apple_ref/occ/instm/NSView/setWantsLayer:
     // the order of the following 2 calls is important: here we indicate we want a layer-hosting view
     {
+        [self setLayerContentsRedrawPolicy: NSViewLayerContentsRedrawOnSetNeedsDisplay];
         [self setLayer:layer];
         [self setWantsLayer:YES];
+        //[self setWantsUpdateLayer:YES];
     }
+}
+
+- (BOOL) wantsUpdateLayer {
+    return TRUE;
 }
 
 - (id)initWithFrame:(NSRect)frame withJview:(jobject)jView withJproperties:(jobject)jproperties
 {
     LOG("GlassView3D initWithFrame:withJview:withJproperties");
 
-    NSOpenGLPixelFormatAttribute pixelFormatAttributes[] =
-    {
-        NSOpenGLPFAAllowOfflineRenderers, // Lets OpenGL know this context is offline renderer aware
-        (NSOpenGLPixelFormatAttribute)0
-    };
-    NSOpenGLPixelFormat *pFormat = [[[NSOpenGLPixelFormat alloc] initWithAttributes:pixelFormatAttributes] autorelease];
-    if (!pFormat)
-    {
-        pFormat = [NSOpenGLView defaultPixelFormat];
-        LOG("GlassView3D initWithFrame: initWithAttributes failed! Set pixel format to default pixel format");
-    }
-    self = [super initWithFrame:frame pixelFormat:pFormat];
+    self = [super initWithFrame: frame];
     if (self != nil)
     {
         [self _initialize3dWithJproperties:jproperties];
@@ -255,7 +235,7 @@
 
 - (void)dealloc
 {
-    if (self->_texture != 0)
+    /*if (self->_texture != 0)
     {
         GlassLayer3D *layer = (GlassLayer3D*)[self layer];
         [[layer getPainterOffscreen] bindForWidth:(GLuint)[self bounds].size.width andHeight:(GLuint)[self bounds].size.height];
@@ -263,7 +243,7 @@
             glDeleteTextures(1, &self->_texture);
         }
         [[layer getPainterOffscreen] unbind];
-    }
+    }*/
 
     [[self layer] release];
     [self->_delegate release];
@@ -327,11 +307,11 @@
 // also called when closing window, when [self window] == nil
 - (void)viewDidMoveToWindow
 {
-    if ([self window] != nil)
+    /*if ([self window] != nil)
     {
         GlassLayer3D *layer = (GlassLayer3D*)[self layer];
         [[layer getPainterOffscreen] setBackgroundColor:[[[self window] backgroundColor] colorUsingColorSpaceName:NSDeviceRGBColorSpace]];
-    }
+    }*/
 
     [self->_delegate viewDidMoveToWindow];
 }
@@ -346,6 +326,19 @@
 {
     [super setFrameSize:newSize];
     [self->_delegate setFrameSize:newSize];
+
+
+    GlassLayer3D *layer = (GlassLayer3D*)[self layer];
+
+    CGFloat scale = GetScreenScaleFactor([[NSScreen screens] objectAtIndex:0]);
+
+    int width = newSize.width * scale;
+    int height = newSize.height * scale;
+
+    CGSize s = {width, height};
+    [layer setDrawableSize:s];
+
+    //NSLog(@"newSize View frame width x height (%f, %f)", [self frame].size.width, [self frame].size.height);
 }
 
 - (void)setFrame:(NSRect)frameRect
@@ -608,113 +601,60 @@
 - (void)begin
 {
     LOG("begin");
-    assert(self->_drawCounter >= 0);
+    //assert(self->_drawCounter >= 0);
 
-    if (self->_drawCounter == 0)
+    //if (self->_drawCounter == 0)
     {
         GlassLayer3D *layer = (GlassLayer3D*)[self layer];
         NSRect bounds = (self->isHiDPIAware && [self respondsToSelector:@selector(convertRectToBacking:)]) ?
             [self convertRectToBacking:[self bounds]] : [self bounds];
-        [[layer getPainterOffscreen] bindForWidth:(GLuint)bounds.size.width andHeight:(GLuint)bounds.size.height];
+
+
+        CGFloat scale = GetScreenScaleFactor([[NSScreen screens] objectAtIndex:0]);
+
+        int width = bounds.size.width * scale;
+        int height = bounds.size.height * scale;
+        [[layer getPainterOffscreen] bindForWidth:width andHeight:height];
+
+        //CGSize s = {width, height};
+        //[layer setDrawableSize:s];
+
+        //[[layer getPainterOffscreen] bindForWidth:(GLuint)bounds.size.width andHeight:(GLuint)bounds.size.height];
     }
-    self->_drawCounter++;
+    //self->_drawCounter++;
 }
 
 - (void)end
 {
-    assert(self->_drawCounter > 0);
+    //assert(self->_drawCounter > 0);
 
-    self->_drawCounter--;
-    if (self->_drawCounter == 0)
+    //self->_drawCounter--;
+    //if (self->_drawCounter == 0)
     {
         GlassLayer3D *layer = (GlassLayer3D*)[self layer];
-        [[layer getPainterOffscreen] unbind];
+        //[[layer getPainterOffscreen] unbind];
         [layer flush];
+        //self.needsDisplay = YES;
     }
     LOG("end");
 }
 
 - (void)drawRect:(NSRect)dirtyRect
 {
+    //NSLog(@"GlassView3D ---------- drawRect! invoked!");
+
     [self->_delegate drawRect:dirtyRect];
+}
+
+- (void)updateLayer
+{
+    //NSLog(@"GlassView3D ---------- updateLayer invoked!");
 }
 
 - (void)pushPixels:(void*)pixels withWidth:(GLuint)width withHeight:(GLuint)height withScaleX:(GLfloat)scalex withScaleY:(GLfloat)scaley withEnv:(JNIEnv *)env
 {
-    assert(self->_drawCounter > 0);
-
-    if (self->_texture == 0)
-    {
-        glGenTextures(1, &self->_texture);
-    }
-
-    BOOL uploaded = NO;
-    if ((self->_textureWidth != width) || (self->_textureHeight != height))
-    {
-        uploaded = YES;
-
-        self->_textureWidth = width;
-        self->_textureHeight = height;
-
-        // GL_EXT_texture_rectangle is defined in OS X 10.6 GL headers, so we can depend on GL_TEXTURE_RECTANGLE_EXT being available
-        glBindTexture(GL_TEXTURE_RECTANGLE_EXT, self->_texture);
-        glTexParameteri(GL_TEXTURE_RECTANGLE_EXT, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_RECTANGLE_EXT, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_RECTANGLE_EXT, GL_TEXTURE_WRAP_S, GL_CLAMP);
-        glTexParameteri(GL_TEXTURE_RECTANGLE_EXT, GL_TEXTURE_WRAP_T, GL_CLAMP);
-        glTexImage2D(GL_TEXTURE_RECTANGLE_EXT, 0, GL_RGBA8, (GLsizei)self->_textureWidth, (GLsizei)self->_textureHeight, 0, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, pixels);
-    }
-
-    glEnable(GL_TEXTURE_RECTANGLE_EXT);
-    glBindTexture(GL_TEXTURE_RECTANGLE_EXT, self->_texture);
-    {
-        if (uploaded == NO)
-        {
-            glTexSubImage2D(GL_TEXTURE_RECTANGLE_EXT, 0, 0, 0, (GLsizei)self->_textureWidth, (GLsizei)self->_textureHeight, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, pixels);
-        }
-
-        GLfloat w = self->_textureWidth;
-        GLfloat h = self->_textureHeight;
-
-        NSSize size = [self bounds].size;
-        size.width *= scalex;
-        size.height *= scaley;
-        if ((size.width != w) || (size.height != h))
-        {
-            // This could happen on live resize, clear the FBO to avoid rendering garbage
-            glClear(GL_COLOR_BUFFER_BIT);
-        }
-
-        glMatrixMode(GL_PROJECTION);
-        glPushMatrix();
-        glLoadIdentity();
-        glOrtho(0.0f, size.width, size.height, 0.0f, -1.0f, 1.0f);
-        {
-            glMatrixMode(GL_MODELVIEW);
-            glPushMatrix();
-            glLoadIdentity();
-            {
-                glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE); // copy
-
-                glBegin(GL_QUADS);
-                {
-                    glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, 0.0f);
-                    glTexCoord2f(   w, 0.0f); glVertex2f(   w, 0.0f);
-                    glTexCoord2f(   w,    h); glVertex2f(   w,    h);
-                    glTexCoord2f(0.0f,    h); glVertex2f(0.0f,    h);
-                }
-                glEnd();
-            }
-            glMatrixMode(GL_MODELVIEW);
-            glPopMatrix();
-        }
-        glMatrixMode(GL_PROJECTION);
-        glPopMatrix();
-    }
-    glBindTexture(GL_TEXTURE_RECTANGLE_EXT, 0);
-    glDisable(GL_TEXTURE_RECTANGLE_EXT);
-
-    glFinish();
+    GlassLayer3D *layer = (GlassLayer3D*)[self layer];
+    [layer updateOffscreenTexture:pixels layerWidth: width layerHeight:height];
 
     // The layer will be notified about redraw in _end()
 }
@@ -870,7 +810,7 @@
 - (void)notifyScaleFactorChanged:(CGFloat)scale
 {
     GlassLayer3D *layer = (GlassLayer3D*)[self layer];
-    [layer notifyScaleFactorChanged:scale];
+    //TODO MTL: [layer notifyScaleFactorChanged:scale];
 }
 
 /* Accessibility support */

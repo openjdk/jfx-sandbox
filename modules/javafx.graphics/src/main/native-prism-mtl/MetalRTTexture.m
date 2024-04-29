@@ -45,6 +45,21 @@
     return self;
 }
 
+- (MetalRTTexture*) createTexture : (MetalContext*) ctx
+                              tex : (long)pTex
+                          ofWidth : (NSUInteger) w
+                         ofHeight : (NSUInteger) h
+{
+    TEX_LOG(@"-> MetalRTTexture.createTexture()");
+    self = [super init];
+    if (self) {
+        pw = w;
+        ph = h;
+        [super createTexture:ctx mtlTex:pTex ofWidth:w ofHeight:h];
+    }
+    return self;
+}
+
 - (void) createDepthTexture
 {
     TEX_LOG(@"-> MetalRTTexture.createDepthTexture()");
@@ -99,6 +114,17 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalRTTexture* rtt = [[MetalRTTexture alloc] createTexture:context ofWidth:pw ofHeight:ph msaa:msaa];
     [rtt setContentDimensions:cw height:ch];
+    jlong rtt_ptr = ptr_to_jlong(rtt);
+    return rtt_ptr;
+}
+
+JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT2
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong pTex, jint pw, jint ph)
+{
+    TEX_LOG(@"-> Native: MTLRTTexture_nCreateRT pw: %d, ph: %d, cw: %d, ch: %d", pw, ph, cw, ch);
+    MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
+    MetalRTTexture* rtt = [[MetalRTTexture alloc] createTexture:context tex:pTex ofWidth:pw ofHeight:ph];
+    //[rtt setContentDimensions:cw height:ch];
     jlong rtt_ptr = ptr_to_jlong(rtt);
     return rtt_ptr;
 }

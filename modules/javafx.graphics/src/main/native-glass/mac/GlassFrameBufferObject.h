@@ -24,6 +24,25 @@
  */
 
 #import <Foundation/Foundation.h>
+#import "GlassOffscreen.h"
+
+@interface GlassFrameBufferObject : NSObject <GlassOffscreenProtocol>
+{
+    unsigned int _width;
+    unsigned int _height;
+
+    id<MTLTexture> _texture;
+    BOOL   _isSwPipe;
+}
+
+- (void)blitFromFBO:(GlassFrameBufferObject*)other_fbo;
+- (id<MTLTexture>)texture;
+- (void)setIsSwPipe:(BOOL)isSwPipe;
+
+@end
+
+/*
+#import <Foundation/Foundation.h>
 
 #import <OpenGL/gl.h>
 #import <OpenGL/OpenGL.h>
@@ -47,3 +66,4 @@
 - (void)setIsSwPipe:(BOOL)isSwPipe;
 
 @end
+*/

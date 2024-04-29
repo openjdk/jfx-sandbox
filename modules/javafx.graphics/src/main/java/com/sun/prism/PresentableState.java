@@ -44,7 +44,7 @@ public abstract class PresentableState {
     protected View view;
 
     // Captured state
-    protected int nativeFrameBuffer;
+    protected long nativeFrameBuffer;
     protected int windowX, windowY;
     protected float windowAlpha;
     protected long nativeWindowHandle;
@@ -271,7 +271,7 @@ public abstract class PresentableState {
      *
      * May be called on any thread.
      */
-    public int getNativeFrameBuffer() {
+    public long getNativeFrameBuffer() {
         return nativeFrameBuffer;
     }
 

@@ -352,8 +352,7 @@ public final class PrismSettings {
         superShader = getBoolean(systemProperties, "prism.supershader", true);
 
         // Force uploading painter (e.g., to avoid Linux live-resize jittering)
-        // TODO: MTL: This is a temporary change for Metal POCs. It should be reverted back in future.
-        forceUploadingPainter = getBoolean(systemProperties, "prism.forceUploadingPainter", true);
+        forceUploadingPainter = getBoolean(systemProperties, "prism.forceUploadingPainter", false);
         if (verbose) {
             printBooleanOption(forceUploadingPainter, "Forcing UploadingPainter");
         }

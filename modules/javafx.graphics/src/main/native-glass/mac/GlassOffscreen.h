@@ -23,57 +23,53 @@
  * questions.
  */
 
+#import "common.h"
 #import <Cocoa/Cocoa.h>
-
-#import <OpenGL/gl.h>
-#import <OpenGL/OpenGL.h>
+#import <Metal/Metal.h>
+#import <QuartzCore/CAMetalLayer.h>
 
 @protocol GlassOffscreenProtocol
 
 // as destination (to draw into)
-- (void)bindForWidth:(GLuint)width andHeight:(GLuint)height;
-- (void)unbind;
+- (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height;
+//- (void)unbind;
 
 // as source (to show)
-- (GLuint)texture;
-- (void)blitForWidth:(GLuint)width andHeight:(GLuint)height;
+- (id<MTLTexture>) texture;
+- (void)blitForWidth:(unsigned int)width andHeight:(unsigned int)height;
 
-- (GLuint)width;
-- (GLuint)height;
-- (GLuint)fbo;
+- (unsigned int)width;
+- (unsigned int)height;
 
 @end
 
 @interface GlassOffscreen : NSObject <GlassOffscreenProtocol>
 {
-    CGLContextObj               _ctx;
-    CGLContextObj               _ctxToRestore;
+   id<GlassOffscreenProtocol>  _offscreen;
 
-    id<GlassOffscreenProtocol>  _offscreen;
+    bool                      _dirty;
 
-    GLboolean                   _dirty;
+    float                     _backgroundR;
+    float                     _backgroundG;
+    float                     _backgroundB;
+    float                     _backgroundA;
 
-    GLfloat                     _backgroundR;
-    GLfloat                     _backgroundG;
-    GLfloat                     _backgroundB;
-    GLfloat                     _backgroundA;
-
-    CAOpenGLLayer*              _layer;
+    CAMetalLayer*              _layer;
 }
 
-- (id)initWithContext:(CGLContextObj)ctx
+- (id)initWithContext:(id<MTLDevice>) device
             andIsSwPipe:(BOOL)isSwPipe;
-- (CGLContextObj)getContext;
 
 - (void)setBackgroundColor:(NSColor*)color;
 
 - (void)blit;
-- (GLuint)texture;
+- (id<MTLTexture>)texture;
 
-- (CAOpenGLLayer*)getLayer;
-- (void)setLayer:(CAOpenGLLayer*)new_layer;
+- (CAMetalLayer*)getLayer;
+- (void)setLayer:(CAMetalLayer*)new_layer;
 
-- (GLboolean)isDirty;
+- (bool)isDirty;
+- (jlong)fbo;
 
 - (void)blitFromOffscreen:(GlassOffscreen*) other_offscreen;
 

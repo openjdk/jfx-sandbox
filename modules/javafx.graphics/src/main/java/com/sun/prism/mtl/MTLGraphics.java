@@ -66,6 +66,7 @@ public class MTLGraphics extends BaseShaderGraphics {
 
     @Override
     public void sync() {
+        context.flushVertexBuffer();
         context.commitCurrentCommandBuffer();
     }
 

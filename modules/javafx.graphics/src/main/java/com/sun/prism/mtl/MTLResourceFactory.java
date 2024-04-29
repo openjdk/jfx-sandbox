@@ -396,8 +396,11 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public Presentable createPresentable(PresentableState pState) {
-        // TODO: MTL: Complete implementation
-        return null;
+        if (checkDisposed()) {
+            return null;
+        }
+
+        return new MTLSwapChain(getContext(), pState);
     }
 
     @Override

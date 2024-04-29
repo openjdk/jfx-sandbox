@@ -194,6 +194,7 @@ typedef enum VertexInputIndex {
 - (void) dealloc;
 - (id<MTLSamplerState>) getSampler:(bool)isLinear wrapMode:(int)wrapMode;
 - (id<MTLSamplerState>) createSampler:(bool)isLinear wrapMode:(int)wrapMode;
+- (id<MTLCommandQueue>) getCommandQueue;
 
 @end
 

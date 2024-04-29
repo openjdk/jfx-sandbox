@@ -173,6 +173,27 @@
     return self;
 }
 
+- (MetalTexture*) createTexture : (MetalContext*) ctx
+                         mtlTex : (long) pTex
+                         ofWidth : (NSUInteger) w
+                        ofHeight : (NSUInteger) h
+{
+    width   = w;
+    height  = h;
+    context = ctx;
+    // usage   = texUsage;
+    // type    = MTLTextureType2D;
+    // pixelFormat = MTLPixelFormatBGRA8Unorm;
+    // storageMode = MTLResourceStorageModeShared;
+
+    id <MTLTexture> tex = (__bridge id<MTLTexture>)(jlong_to_ptr(pTex));
+
+    //NSLog(@"Prism ----- tex = %@", tex);
+
+    texture = tex;
+    return self;
+}
+
 - (void) createDepthTexture
 {
     TEX_LOG(@">>>> MetalTexture.createDepthTexture()");

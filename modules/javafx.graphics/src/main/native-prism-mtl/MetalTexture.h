@@ -65,6 +65,7 @@
 - (id<MTLTexture>) getMSAATexture;
 - (MetalTexture*) createTexture:(MetalContext*)context ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h pixelFormat:(NSUInteger) format useMipMap:(bool)useMipMap;
 - (MetalTexture*) createTexture:(MetalContext*)context ofUsage:(MTLTextureUsage)texUsage ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h msaa:(bool)msaa;
+- (MetalTexture*) createTexture : (MetalContext*) ctx mtlTex:(long)pTex ofWidth : (NSUInteger)w ofHeight : (NSUInteger)h;
 - (void) createDepthTexture;
 - (id<MTLBuffer>) getPixelBuffer;
 - (bool) isMSAAEnabled;

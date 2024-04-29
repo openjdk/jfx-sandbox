@@ -344,8 +344,14 @@ public class MTLContext extends BaseShaderContext {
         nCommitCurrentCommandBuffer(pContext);
     }
 
+    public long getMetalCommandQueue()
+    {
+        return nGetCommandQueue(pContext);
+    }
+
     native private static long nInitialize(ByteBuffer shaderLibPathStr);
     native private static void nCommitCurrentCommandBuffer(long context);
+    native private static long nGetCommandQueue(long context);
     native private static int  nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
     native private static void nUpdateRenderTarget(long context, long texPtr, boolean depthTest);
     native private static int  nResetTransform(long context);

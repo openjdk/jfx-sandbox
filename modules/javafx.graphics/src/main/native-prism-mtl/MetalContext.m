@@ -792,6 +792,11 @@
     [super dealloc];
 }
 
+- (id<MTLCommandQueue>) getCommandQueue
+{
+    return commandQueue;
+}
+
 @end // MetalContext
 
 
@@ -1460,4 +1465,20 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCompositeMode(JNIEn
     MetalContext* pCtx = (MetalContext*)jlong_to_ptr(context);
     [pCtx setCompositeMode:mode];
     return;
+}
+
+// TODO: MTL: This enables sharing of MTLCommandQueue between PRISM and GLASS, if needed.
+// Note : Currently, PRISM and GLASS create their own dedicated MTLCommandQueue
+// This method is unused
+JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nGetCommandQueue
+  (JNIEnv *env, jclass jClass, jlong context)
+{
+    CTX_LOG(@">>>> MTLContext_nGetCommandQueue");
+    MetalContext *contextPtr = (MetalContext *)jlong_to_ptr(context);
+
+    jlong jPtr = ptr_to_jlong((void *)[contextPtr getCommandQueue]);
+
+    //NSLog(@"Prism - Metal context : commandQueue = %ld", jPtr);
+    CTX_LOG(@"<<<< MTLContext_nGetCommandQueue");
+    return jPtr;
 }

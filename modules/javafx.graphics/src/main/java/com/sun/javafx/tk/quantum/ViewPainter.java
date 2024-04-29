@@ -51,6 +51,7 @@ import com.sun.prism.paint.Color;
 import com.sun.prism.paint.Paint;
 import com.sun.javafx.logging.PulseLogger;
 import static com.sun.javafx.logging.PulseLogger.PULSE_LOGGING_ENABLED;
+import com.sun.prism.mtl.MTLResource;
 
 /**
  * Responsible for "painting" a scene. It invokes as appropriate API on the root NGNode
@@ -419,6 +420,8 @@ abstract class ViewPainter implements Runnable {
     protected void disposePresentable() {
         if (presentable instanceof GraphicsResource) {
             ((GraphicsResource)presentable).dispose();
+        } else if (presentable instanceof MTLResource) {
+            ((MTLResource)presentable).dispose();
         }
         presentable = null;
     }

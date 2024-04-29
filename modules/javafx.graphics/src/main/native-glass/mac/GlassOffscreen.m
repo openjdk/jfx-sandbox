@@ -23,6 +23,8 @@
  * questions.
  */
 
+
+
 #import "GlassOffscreen.h"
 
 #import "GlassFrameBufferObject.h"
@@ -35,27 +37,27 @@
     #define LOG(MSG, ...) GLASS_LOG(MSG, ## __VA_ARGS__);
 #endif
 
-@interface GlassOffscreen ()
-- (void)setContext;
-- (void)unsetContext;
-@end
+// @interface GlassOffscreen ()
+// - (void)setContext;
+// - (void)unsetContext;
+// @end
 
 @implementation GlassOffscreen
 
-- (id)initWithContext:(CGLContextObj)ctx
+- (id)initWithContext:(id<MTLDevice>) device
             andIsSwPipe:(BOOL)isSwPipe;
 {
     self = [super init];
     if (self != nil)
     {
-        self->_ctx = CGLRetainContext(ctx);
+        //self->_ctx = CGLRetainContext(ctx);
 
         self->_backgroundR = 1.0f;
         self->_backgroundG = 1.0f;
         self->_backgroundB = 1.0f;
         self->_backgroundA = 1.0f;
 
-        [self setContext];
+        //[self setContext];
         {
             self->_offscreen = [[GlassFrameBufferObject alloc] init];
             if (self->_offscreen == nil)
@@ -65,27 +67,27 @@
             }
             [(GlassFrameBufferObject*)self->_offscreen setIsSwPipe:(BOOL)isSwPipe];
         }
-        [self unsetContext];
+        //[self unsetContext];
     }
     return self;
 }
 
-- (CGLContextObj)getContext;
-{
-    return self->_ctx;
-}
+// - (CGLContextObj)getContext;
+// {
+//     return self->_ctx;
+// }
 
 - (void)dealloc
 {
-    [self setContext];
+    //[self setContext];
     {
         [(NSObject*)self->_offscreen release];
         self->_offscreen = NULL;
     }
-    [self unsetContext];
+    //[self unsetContext];
 
-    CGLReleaseContext(self->_ctx);
-    self->_ctx = NULL;
+    // CGLReleaseContext(self->_ctx);
+    // self->_ctx = NULL;
 
     [super dealloc];
 }
@@ -98,73 +100,77 @@
     self->_backgroundA = (GLfloat)[color alphaComponent];
 }
 
-- (GLuint)width
+- (unsigned int)width
 {
     return [self->_offscreen width];
 }
 
-- (GLuint)height
+- (unsigned int)height
 {
     return [self->_offscreen height];
 }
 
-- (GLuint)fbo
+- (jlong)fbo
 {
-    return [self->_offscreen fbo];
+    //NSLog(@"Glass fbo = %@", [self->_offscreen texture]);
+    return ptr_to_jlong((void *)[self->_offscreen texture]);
+
+    //return [self->_offscreen fbo];
 }
 
-- (CAOpenGLLayer*)getLayer
+- (CAMetalLayer*)getLayer
 {
     return _layer;
 }
 
-- (void)setLayer:(CAOpenGLLayer*)new_layer
+- (void)setLayer:(CAMetalLayer*)new_layer
 {
     //Set a weak reference as layer owns offscreen
     self->_layer = new_layer;
 }
 
-- (void)setContext
-{
-    self->_ctxToRestore = CGLGetCurrentContext();
-    CGLLockContext(self->_ctx);
-    CGLSetCurrentContext(self->_ctx);
-}
+// - (void)setContext
+// {
+//     self->_ctxToRestore = CGLGetCurrentContext();
+//     CGLLockContext(self->_ctx);
+//     CGLSetCurrentContext(self->_ctx);
+// }
 
-- (void)unsetContext
-{
-    CGLSetCurrentContext(self->_ctxToRestore);
-    CGLUnlockContext(self->_ctx);
-}
+// - (void)unsetContext
+// {
+//     CGLSetCurrentContext(self->_ctxToRestore);
+//     CGLUnlockContext(self->_ctx);
+// }
 
-- (void)bindForWidth:(GLuint)width andHeight:(GLuint)height
+- (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height
 {
-    [self setContext];
+    //NSLog(@"GlassOffscreen -------- w x h : %d x %d", width, height);
+    //[self setContext];
     [self->_offscreen bindForWidth:width andHeight:height];
 }
 
-- (void)unbind
-{
-    [self->_offscreen unbind];
-    [self unsetContext];
-}
+// - (void)unbind
+// {
+//     [self->_offscreen unbind];
+//     [self unsetContext];
+// }
 
 - (void)blit
 {
     [self blitForWidth:[self->_offscreen width] andHeight:[self->_offscreen height]];
 }
 
-- (GLuint)texture
+- (id<MTLTexture>)texture
 {
     return [self->_offscreen texture];
 }
 
-- (void)blitForWidth:(GLuint)width andHeight:(GLuint)height
+- (void)blitForWidth:(unsigned int)width andHeight:(unsigned int)height
 {
     {
 #if 1
-        glClearColor(self->_backgroundR, self->_backgroundG, self->_backgroundB, self->_backgroundA);
-        glClear(GL_COLOR_BUFFER_BIT);
+        //glClearColor(self->_backgroundR, self->_backgroundG, self->_backgroundB, self->_backgroundA);
+        //glClear(GL_COLOR_BUFFER_BIT);
 #else
         // for debugging, change clear color every 0.5 seconds
         static int counterFps = 0;
@@ -190,23 +196,23 @@
 #endif
         [self->_offscreen blitForWidth:width andHeight:height];
 
-        self->_dirty = GL_FALSE;
+        self->_dirty = false;
     }
 }
 
-- (GLboolean)isDirty
+- (bool)isDirty
 {
     return self->_dirty;
 }
 
 - (void)blitFromOffscreen:(GlassOffscreen*) other_offscreen
 {
-    [self setContext];
+    //[self setContext];
     {
         [(GlassFrameBufferObject*)self->_offscreen blitFromFBO:(GlassFrameBufferObject*)other_offscreen->_offscreen];
-        self->_dirty = GL_TRUE;
+        self->_dirty = true;
     }
-    [self unsetContext];
+    //[self unsetContext];
 }
 
 @end

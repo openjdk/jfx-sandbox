@@ -23,6 +23,8 @@
  * questions.
  */
 
+//#import <Cocoa/Cocoa.h>
+
 #import "common.h"
 #import "com_sun_glass_ui_View.h"
 #import "com_sun_glass_ui_mac_MacView.h"
@@ -294,6 +296,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_glass_ui_mac_MacView__1create
         [hostView setAutoresizingMask:(NSViewWidthSizable|NSViewHeightSizable)];
         [hostView setAutoresizesSubviews:YES];
 
+        //NSLog(@"--- hostView bounds = (%f, %f) - (%f, %f)", [hostView bounds].origin.x, [hostView bounds].origin.y, [hostView bounds].size.width, [hostView bounds].size.height);
+
         NSView* view = [[GlassView3D alloc] initWithFrame:[hostView bounds] withJview:jView withJproperties:jCapabilities];
         [view setAutoresizingMask:(NSViewWidthSizable|NSViewHeightSizable)];
 
@@ -322,21 +326,21 @@ JNIEXPORT jlong JNICALL Java_com_sun_glass_ui_mac_MacView__1create
  * Method:    _getNativeFrameBuffer
  * Signature: (J)I
  */
-JNIEXPORT jint JNICALL Java_com_sun_glass_ui_mac_MacView__1getNativeFrameBuffer
+JNIEXPORT jlong JNICALL Java_com_sun_glass_ui_mac_MacView__1getNativeFrameBuffer
 (JNIEnv *env, jobject jView, jlong jPtr)
 {
     LOG("Java_com_sun_glass_ui_mac_MacView__1_getNativeFrameBuffer");
     LOG("   view: %p", jPtr);
     if (!jPtr) return 0L;
 
-    jint fb = 0;
+    jlong fb = 0;
 
     GLASS_ASSERT_MAIN_JAVA_THREAD(env);
     GLASS_POOL_ENTER;
     {
         NSView<GlassView> *view = getGlassView(env, jPtr);
         GlassLayer3D *layer = (GlassLayer3D*)[view layer];
-        fb = (jint) [[layer getPainterOffscreen] fbo];
+        fb = (jlong) [[layer getPainterOffscreen] fbo];
     }
     GLASS_POOL_EXIT;
     GLASS_CHECK_EXCEPTION(env);
@@ -492,9 +496,9 @@ JNIEXPORT void JNICALL Java_com_sun_glass_ui_mac_MacView__1begin
 
     GLASS_ASSERT_MAIN_JAVA_THREAD(env);
     NSView<GlassView> *view = getGlassView(env, jPtr);
-    GLASS_POOL_PUSH; // it will be popped by "_end"
+    //GLASS_POOL_PUSH; // it will be popped by "_end"
     {
-        [view retain];
+    //    [view retain];
 //        [view lockFocus];
         [view begin];
     }
@@ -516,9 +520,9 @@ JNIEXPORT void JNICALL Java_com_sun_glass_ui_mac_MacView__1end
     {
         [view end];
 //        [view unlockFocus];
-        [view release];
+    //    [view release];
     }
-    GLASS_POOL_POP; // it was pushed by "_begin"
+    //GLASS_POOL_POP; // it was pushed by "_begin"*/
 }
 
 /*

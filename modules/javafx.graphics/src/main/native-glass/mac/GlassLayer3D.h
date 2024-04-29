@@ -23,6 +23,34 @@
  * questions.
  */
 
+#import <Metal/Metal.h>
+#import <QuartzCore/CAMetalLayer.h>
+#import "GlassOffscreen.h"
+
+@interface GlassLayer3D : CAMetalLayer
+{
+    GlassOffscreen *_painterOffscreen;
+
+    BOOL isHiDPIAware;
+    id<MTLCommandQueue> _blitCommandQueue;
+}
+
+- (id) init:(long)mtlCommandQueuePtr;
+- (void)notifyScaleFactorChanged:(CGFloat)scale;
+- (void) updateOffscreenTexture:(void*)pixels
+                     layerWidth:(int)width
+                     layerHeight:(int)height;
+
+- (void) blitToScreen;
+
+- (GlassOffscreen*)getPainterOffscreen;
+- (void)flush;
+- (void)display;
+
+@end
+
+
+/*
 #import <OpenGL/gl.h>
 #import <OpenGL/OpenGL.h>
 
@@ -49,3 +77,4 @@
 - (void)notifyScaleFactorChanged:(CGFloat)scale;
 
 @end
+*/
