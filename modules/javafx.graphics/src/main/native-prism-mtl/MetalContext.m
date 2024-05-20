@@ -74,10 +74,27 @@
         rttPassDesc = [MTLRenderPassDescriptor new];
         rttPassDesc.colorAttachments[0].clearColor  = MTLClearColorMake(1, 1, 1, 1); // make this programmable
         rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
+        rttPassDesc.colorAttachments[0].loadAction  = MTLLoadActionLoad;
 
         for (short i = 0; i < 256; i++) {
             byteToFloatTable[i] = ((float)i) / 255.0f;
         }
+
+        // clearing rtt related initialization
+        identityMatrix = simd_matrix(
+            (simd_float4) { 1, 0, 0, 0 },
+            (simd_float4) { 0, 1, 0, 0 },
+            (simd_float4) { 0, 0, 1, 0 },
+            (simd_float4) { 0, 0, 0, 1 }
+        );
+
+        clearEntireRttVertices[0].position.x = -1; clearEntireRttVertices[0].position.y = -1;
+        clearEntireRttVertices[1].position.x = -1; clearEntireRttVertices[1].position.y =  1;
+        clearEntireRttVertices[2].position.x =  1; clearEntireRttVertices[2].position.y = -1;
+
+        clearEntireRttVertices[3].position.x = -1; clearEntireRttVertices[3].position.y =  1;
+        clearEntireRttVertices[4].position.x =  1; clearEntireRttVertices[4].position.y = -1;
+        clearEntireRttVertices[5].position.x =  1; clearEntireRttVertices[5].position.y =  1;
     }
     return self;
 }
@@ -289,16 +306,7 @@
         }
     }
 
-    if (isScissorEnabled) {
-        [renderEncoder setScissorRect:scissorRect];
-    } else {
-        scissorRect.x = 0;
-        scissorRect.y = 0;
-        id<MTLTexture> currRtt = rttPassDesc.colorAttachments[0].texture;
-        scissorRect.width  = currRtt.width;
-        scissorRect.height = currRtt.height;
-        [renderEncoder setScissorRect:scissorRect];
-    }
+    [renderEncoder setScissorRect:[self getScissorRect]];
 
     int numQuads = numVerts/4;
 
@@ -431,69 +439,48 @@
     CTX_LOG(@">>>> MetalContext.clearRTT() %f, %f, %f, %f", red, green, blue, alpha);
     CTX_LOG(@">>>> MetalContext.clearRTT() %d, %d", clearDepth, ignoreScissor);
 
-    [self endPhongEncoder];
-    MTLRegion clearRegion = MTLRegionMake2D(0, 0, 0, 0);
-    if (!isScissorEnabled) {
-        [self endCurrentRenderEncoder];
-        CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
-        rttPassDesc.colorAttachments[0].clearColor = MTLClearColorMake(red, green, blue, alpha);
-        rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionClear;
-        // clearRegion = MTLRegionMake2D(0, 0, [rtt getTexture].width, [rtt getTexture].height);
-    } else {
-        clearRegion = MTLRegionMake2D(scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height);
-    }
-
-    CTX_LOG(@"     MetalContext.clearRTT() scissorRect.x = %lu, scissorRect.y = %lu, scissorRect.width = %lu, scissorRect.height = %lu, color = %u",
-                    scissorRect.x, scissorRect.y, scissorRect.width, scissorRect.height, color);
-    CTX_LOG(@"     MetalContext.clearRTT() %lu , %lu", [rtt getTexture].width, [rtt getTexture].height);
-
-    CTX_LOG(@"     MetalContext.clearRTT() clearRegion.x = %lu, clearRegion.y = %lu, clearRegion.width = %lu, clearRegion.height = %lu, color = %u",
-                    clearRegion.origin.x, clearRegion.origin.y, clearRegion.size.width, clearRegion.size.height);
-
-    PrismSourceClearVertex clearRectVertices[4] = {
-        {clearRegion.origin.x,  clearRegion.origin.y}, // 0, 0
-        {clearRegion.origin.x,  clearRegion.origin.y  + clearRegion.size.height}, // 0, h
-        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y},    // w, 0
-        {clearRegion.origin.x + clearRegion.size.width, clearRegion.origin.y + clearRegion.size.height} // w, h
-    };
-
-    id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
-    id<MTLRenderPipelineState> pipeline = [pipelineManager getClearRttPipeState];
-
-    [renderEncoder setRenderPipelineState:pipeline];
-    if (isScissorEnabled) {
-        [renderEncoder setScissorRect:scissorRect];
-    }
-
-    [renderEncoder setVertexBytes:&mvpMatrix
-                           length:sizeof(mvpMatrix)
-                          atIndex:VertexInputMatrixMVP];
-
-    [self fillClearRectVB:clearRectVertices
-                      red:red
-                    green:green
-                     blue:blue
-                    alpha:alpha];
-
-    [renderEncoder setVertexBytes:clearVertices
-                           length:sizeof(CLEAR_VS_INPUT) * 6
-                          atIndex:VertexInputIndexVertices];
-
-    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
-                      vertexStart:0
-                      vertexCount:6];
-
     clearDepthTexture = clearDepth;
     clearColor[0] = red;
     clearColor[1] = green;
     clearColor[2] = blue;
     clearColor[3] = alpha;
 
-    if (!isScissorEnabled) {
-        [self endCurrentRenderEncoder];
+    [self endPhongEncoder];
+    id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
+
+    [renderEncoder setRenderPipelineState:[pipelineManager getClearRttPipeState]];
+
+    [renderEncoder setScissorRect:[self getScissorRect]];
+
+    if (isScissorEnabled) {
+        CTX_LOG(@"     MetalContext.clearRTT()     clearing scissor rect");
+
+        [renderEncoder setVertexBytes:&mvpMatrix
+                               length:sizeof(mvpMatrix)
+                              atIndex:VertexInputMatrixMVP];
+
+        [renderEncoder setVertexBytes:clearScissorRectVertices
+                               length:sizeof(clearScissorRectVertices)
+                              atIndex:VertexInputIndexVertices];
+    } else {
         CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
-        rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
+
+        [renderEncoder setVertexBytes:&identityMatrix
+                               length:sizeof(identityMatrix)
+                              atIndex:VertexInputMatrixMVP];
+
+        [renderEncoder setVertexBytes:clearEntireRttVertices
+                               length:sizeof(clearEntireRttVertices)
+                              atIndex:VertexInputIndexVertices];
     }
+
+    [renderEncoder setFragmentBytes:clearColor
+                             length:sizeof(clearColor)
+                            atIndex:VertexInputClearColor];
+
+    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
+                      vertexStart:0
+                      vertexCount:6];
 
     CTX_LOG(@"<<<< MetalContext.clearRTT()");
 }
@@ -517,6 +504,20 @@
         scissorRect.width  = width;
         scissorRect.height = height;
         isScissorEnabled = true;
+
+        clearScissorRectVertices[0].position.x = scissorRect.x;
+        clearScissorRectVertices[0].position.y = scissorRect.y;
+        clearScissorRectVertices[1].position.x = scissorRect.x;
+        clearScissorRectVertices[1].position.y = scissorRect.y + scissorRect.height;
+        clearScissorRectVertices[2].position.x = scissorRect.x + scissorRect.width;
+        clearScissorRectVertices[2].position.y = scissorRect.y;
+
+        clearScissorRectVertices[3].position.x = scissorRect.x;
+        clearScissorRectVertices[3].position.y = scissorRect.y + scissorRect.height;
+        clearScissorRectVertices[4].position.x = scissorRect.x + scissorRect.width;
+        clearScissorRectVertices[4].position.y = scissorRect.y;
+        clearScissorRectVertices[5].position.x = scissorRect.x + scissorRect.width;
+        clearScissorRectVertices[5].position.y = scissorRect.y + scissorRect.height;
     }
     CTX_LOG(@"<<<< MetalContext.setClipRect()");
 }
@@ -578,30 +579,6 @@
             inVerts -= 2;
             colors -= 8;
         }
-    }
-}
-
-- (void) fillClearRectVB:(PrismSourceClearVertex const *)inVerts
-                     red:(float)red
-                   green:(float)green
-                    blue:(float)blue
-                   alpha:(float)alpha
-{
-    CLEAR_VS_INPUT* pVert = clearVertices;
-    for (int i = 0; i < 2; i++) {
-        for (int j = 0; j < 3; j++) {
-            pVert->position.x = inVerts->x;
-            pVert->position.y = inVerts->y;
-
-            pVert->color.r = red;
-            pVert->color.g = green;
-            pVert->color.b = blue;
-            pVert->color.a = alpha;
-
-            inVerts++;
-            pVert++;
-        }
-        inVerts -= 2;
     }
 }
 
@@ -721,6 +698,13 @@
 
 - (MTLScissorRect) getScissorRect
 {
+    if (!isScissorEnabled) {
+        scissorRect.x = 0;
+        scissorRect.y = 0;
+        id<MTLTexture> currRtt = rttPassDesc.colorAttachments[0].texture;
+        scissorRect.width  = currRtt.width;
+        scissorRect.height = currRtt.height;
+    }
     return scissorRect;
 }
 

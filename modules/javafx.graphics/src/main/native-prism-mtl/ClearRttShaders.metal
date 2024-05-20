@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,35 +27,29 @@
 #include <simd/simd.h>
 using namespace metal;
 
-typedef struct VS_INPUT {
-    vector_float2 position;
-    vector_float4 color;
-    vector_float2 texCoord0;
-    vector_float2 texCoord1;
-} VS_INPUT;
+// Following two clearVF/FF functions are used only for drawing a clear rectangle.
+// These are specific to metal implementation and not present for D3D/ES2.
 
-typedef struct VS_OUTPUT
+typedef struct CLEAR_VS_INPUT
+{
+    vector_float2 position;
+} CLEAR_VS_INPUT;
+
+typedef struct CLEAR_VS_OUTPUT
 {
     vector_float4 position [[position]];
-    vector_float4 fragColor;
-    vector_float2 texCoord0;
-    vector_float2 texCoord1;
-} VS_OUTPUT;
+} CLEAR_VS_OUTPUT;
 
-
-[[vertex]] VS_OUTPUT passThrough(const uint v_id [[ vertex_id ]],
-                      constant VS_INPUT * v_in [[ buffer(0) ]],
-                      constant float4x4 & mvp_matrix [[ buffer(1) ]])
+[[vertex]] CLEAR_VS_OUTPUT clearVF(const    uint            v_id [[ vertex_id ]],
+                                   constant CLEAR_VS_INPUT* v_in [[ buffer(0) ]],
+                                   constant float4x4& mvp_matrix [[ buffer(1) ]])
 {
-    VS_OUTPUT out;
-    out.position  = vector_float4(v_in[v_id].position.xy, 0.0, 1.0) * mvp_matrix;
-    out.fragColor = v_in[v_id].color;
-    out.texCoord0 = v_in[v_id].texCoord0;
-    out.texCoord1 = v_in[v_id].texCoord1;
+    CLEAR_VS_OUTPUT out;
+    out.position = vector_float4(v_in[v_id].position.xy, 0.0, 1.0) * mvp_matrix;
     return out;
 }
 
-// TODO: MTL: Cleanup: For testing purpose only, JavaFX does not use this fragment function.
-fragment float4 passThroughFragmentFunction(VS_OUTPUT in [[ stage_in ]]) {
-    return in.fragColor;
+[[fragment]] float4 clearFF(constant float4& color [[ buffer(2) ]])
+{
+    return color;
 }
