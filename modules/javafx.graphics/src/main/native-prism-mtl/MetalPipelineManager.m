@@ -71,6 +71,17 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     }
     clearRttPipeStateDict = [[NSMutableDictionary alloc] init];
 
+    // Create and cache 2 possible depthStencilStates
+    @autoreleasepool {
+        MTLDepthStencilDescriptor *depthStencilDescriptor = [[MTLDepthStencilDescriptor new] autorelease];
+        depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionAlways;
+        depthStencilDescriptor.depthWriteEnabled = NO;
+        depthStencilState[0] = [[context getDevice] newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+
+        depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionLess;
+        depthStencilDescriptor.depthWriteEnabled = YES;
+        depthStencilState[1] = [[context getDevice] newDepthStencilStateWithDescriptor:depthStencilDescriptor];
+    }
 #ifdef JFX_MTL_DEBUG_CAPTURE
 
     if (@available(macOS 14, *)) {
@@ -223,16 +234,11 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 
 - (id<MTLDepthStencilState>) getDepthStencilState
 {
-    MTLDepthStencilDescriptor *depthStencilDescriptor = [[MTLDepthStencilDescriptor new] autorelease];
     if ([context isDepthEnabled]) {
-        depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionLess;
-        depthStencilDescriptor.depthWriteEnabled = YES;
+        return depthStencilState[1];
     } else {
-        depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionAlways;
-        depthStencilDescriptor.depthWriteEnabled = NO;
+        return depthStencilState[0];
     }
-    id<MTLDepthStencilState> depthStencilState = [[context getDevice] newDepthStencilStateWithDescriptor:depthStencilDescriptor];
-    return depthStencilState;
 }
 
 - (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*) pipeDesc
