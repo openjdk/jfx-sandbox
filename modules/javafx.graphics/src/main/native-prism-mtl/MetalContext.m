@@ -41,6 +41,7 @@
 #import "MetalPhongShader.h"
 #import "MetalMeshView.h"
 #import "MetalPhongMaterial.h"
+#import "MetalRingBuffer.h"
 
 #ifdef CTX_VERBOSE
 #define CTX_LOG NSLog
@@ -57,7 +58,6 @@
     self = [super init];
     if (self) {
         isScissorEnabled = false;
-        argBufArray = [[NSMutableArray alloc] init];
         currentRenderEncoder = nil;
         linearSamplerDict = [[NSMutableDictionary alloc] init];
         nonLinearSamplerDict = [[NSMutableDictionary alloc] init];
@@ -174,10 +174,7 @@
 
     [currentCommandBuffer commit];
     [currentCommandBuffer waitUntilCompleted];
-    for (id argBuf in argBufArray) {
-        [argBuf release];
-    }
-    [argBufArray removeAllObjects];
+    [[MetalRingBuffer getInstance] reset];
 }
 
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer
@@ -271,26 +268,25 @@
 
     CTX_LOG(@"numVerts = %lu", numVerts);
 
+    MetalShader* shader = [self getCurrentShader];
+    [shader copyArgBufferToRingBuffer];
 
     id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
-    id<MTLBuffer> currentShaderArgBuffer = [[self getCurrentShader] getArgumentBuffer];
 
-    [renderEncoder setRenderPipelineState:
-        [[self getCurrentShader] getPipelineState:[rtt isMSAAEnabled]
-                                    compositeMode:compositeMode]];
+    [renderEncoder setRenderPipelineState:[shader getPipelineState:[rtt isMSAAEnabled]
+                                                     compositeMode:compositeMode]];
 
     [renderEncoder setVertexBytes:&mvpMatrix
-                               length:sizeof(mvpMatrix)
-                              atIndex:VertexInputMatrixMVP];
+                           length:sizeof(mvpMatrix)
+                          atIndex:VertexInputMatrixMVP];
 
-    if (currentShaderArgBuffer != nil) {
-        [renderEncoder setFragmentBuffer:currentShaderArgBuffer
-                                  offset:0
+    if ([shader getArgumentBufferLength] != 0) {
+        [renderEncoder setFragmentBuffer:[[MetalRingBuffer getInstance] getBuffer]
+                                  offset:[shader getRingBufferOffset]
                                  atIndex:0];
-        [argBufArray addObject:currentShaderArgBuffer];
     }
 
-    NSMutableDictionary* texturesDict = [[self getCurrentShader] getTexutresDict];
+    NSMutableDictionary* texturesDict = [shader getTexutresDict];
     if ([texturesDict count] > 0) {
         for (NSString *key in texturesDict) {
             id<MTLTexture> tex = texturesDict[key];
@@ -298,7 +294,7 @@
             [renderEncoder useResource:tex usage:MTLResourceUsageRead];
         }
 
-        NSMutableDictionary* samplersDict = [[self getCurrentShader] getSamplersDict];
+        NSMutableDictionary* samplersDict = [shader getSamplersDict];
         for (NSNumber *key in samplersDict) {
             id<MTLSamplerState> sampler = samplersDict[key];
             CTX_LOG(@"    Value: %@ for key: %@", sampler, key);
@@ -760,6 +756,10 @@
     if (phongRPD != nil) {
         [phongRPD release];
         phongRPD = nil;
+    }
+
+    if ([MetalRingBuffer getInstance] != nil) {
+        [[MetalRingBuffer getInstance] dealloc];
     }
 
     for (NSNumber *keyWrapMode in linearSamplerDict) {

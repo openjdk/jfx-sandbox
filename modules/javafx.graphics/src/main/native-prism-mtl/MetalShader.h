@@ -49,13 +49,18 @@
     id<MTLArgumentEncoder> argumentEncoder;
     id<MTLBuffer> argumentBuffer;
     NSUInteger argumentBufferLength;
+    int currentRingBufferOffset; // offset in the MetalRingBuffer
 }
 
 - (jobject) getUniformNameIdMap:(JNIEnv*)env;
 - (id) initWithContext:(MetalContext*)ctx withFragFunc:(NSString*) fragName;
 - (id<MTLRenderPipelineState>) getPipelineState:(bool) isMSAA
                                   compositeMode:(int) compositeMode;
-- (id<MTLBuffer>) getArgumentBuffer;
+
+- (void) copyArgBufferToRingBuffer;
+- (NSUInteger) getArgumentBufferLength;
+- (int) getRingBufferOffset;
+
 - (NSMutableDictionary*) getTexutresDict;
 - (NSMutableDictionary*) getSamplersDict;
 

@@ -29,6 +29,7 @@
 #import "DecoraShaderCommon.h"
 #import "MetalShader.h"
 #import "com_sun_prism_mtl_MTLShader.h"
+#import "MetalRingBuffer.h"
 
 #ifdef SHADER_VERBOSE
 #define SHADER_LOG NSLog
@@ -52,8 +53,6 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     }
     return result;
 }
-
-static id<MTLHeap> argumentBufferHeap;
 
 @implementation MetalShader
 
@@ -80,6 +79,7 @@ static id<MTLHeap> argumentBufferHeap;
         }
 #endif
 
+        currentRingBufferOffset = -1;
         fragFuncName = fragName;
         fragmentFunction = [[context getPipelineManager] getFunction:fragFuncName];
         NSString* key = (NSString*)[[fragArgIndicesDict allKeys] objectAtIndex:0];
@@ -172,25 +172,29 @@ static id<MTLHeap> argumentBufferHeap;
     return pipeState;
 }
 
-- (id<MTLBuffer>) getArgumentBuffer
+- (NSUInteger) getArgumentBufferLength
 {
-    SHADER_LOG(@"\n");
-    SHADER_LOG(@">>>> MetalShader.getArgumentBuffer()----> fragFuncName: %@", fragFuncName);
-    if (argumentBufferLength == 0) return nil;
+    return argumentBufferLength;
+}
 
-    // TODO: MTL: Change this implementation to allocate MTLBuffer from a MTLHeap
-    // This method is called from MetalContext.drawIndexedQuads(), hence it results in
-    // allocating a buffer very freuently. Currently it looks like we cannot avoid
-    // creating a new buffer for each draw call hence we should reduce the cost of this method.
-    id<MTLBuffer> buf = argumentBuffer;
-    argumentBuffer = [[context getDevice] newBufferWithBytes:[buf contents]
-                                                      length:argumentBufferLength
-                                                     options:0];
-    [argumentEncoder setArgumentBuffer:argumentBuffer
-                                offset:0];
-    return buf;
+- (int) getRingBufferOffset
+{
+    return currentRingBufferOffset;
+}
 
-    SHADER_LOG(@"<<<< MetalShader.getArgumentBuffer()\n");
+- (void) copyArgBufferToRingBuffer
+{
+    if (argumentBufferLength != 0) {
+        currentRingBufferOffset = [[MetalRingBuffer getInstance] reserveBytes:argumentBufferLength];
+
+        if (currentRingBufferOffset < 0) {
+            [context commitCurrentCommandBuffer];
+            currentRingBufferOffset = [[MetalRingBuffer getInstance] reserveBytes:argumentBufferLength];
+        }
+
+        memcpy([[MetalRingBuffer getInstance] getBuffer].contents + currentRingBufferOffset,
+                    argumentBuffer.contents, argumentBufferLength);
+    }
 }
 
 - (NSMutableDictionary*) getTexutresDict

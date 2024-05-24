@@ -85,12 +85,6 @@ typedef enum VertexInputIndex {
     MetalShader* currentShader;
     NSMutableDictionary* linearSamplerDict;
     NSMutableDictionary* nonLinearSamplerDict;
-    // TODO: MTL: Currently this argBufArray is used to keep a track of all the MTLBuffers that are used
-    // as argument buffers for each drawIndexedQuads call that get accumulated in a single MTLCommandBuffer.
-    // All these buffers are released once the MTLCommandBuffer completes.
-    // This should be improved to reduce un-necessary allocations and release. Ideally by using a
-    // MTLHeap of size 1 to 2 MB. [Refer MetalShader.getArgumentBuffer()]
-    NSMutableArray* argBufArray;
 
     MetalResourceFactory* resourceFactory;
 
