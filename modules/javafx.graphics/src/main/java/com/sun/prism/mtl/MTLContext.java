@@ -133,6 +133,10 @@ public class MTLContext extends BaseShaderContext {
         return pContext;
     }
 
+    /**
+     * OpenGL projection transform use z-range of [-1, 1] while Metal expects it
+     * to be [0, 1], so we need to adjust the matrix .(comment from D3DContext see RT-32880.)
+     */
     private GeneralTransform3D adjustClipSpace(GeneralTransform3D projViewTx) {
         double[] m = projViewTx.get(tempAdjustClipSpaceMat);
         m[8] = (m[8] + m[12])/2;
@@ -158,8 +162,7 @@ public class MTLContext extends BaseShaderContext {
         // Need to validate the camera before getting its computed data.
         if (camera instanceof NGDefaultCamera) {
             ((NGDefaultCamera) camera).validate(targetWidth, targetHeight);
-            // TODO: MTL: Check whether we need to adjust clip space
-            projViewTx = camera.getProjViewTx(projViewTx);
+            projViewTx = adjustClipSpace(camera.getProjViewTx(projViewTx));
             MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:2:-->\n" + projViewTx);
         } else {
             projViewTx = adjustClipSpace(camera.getProjViewTx(projViewTx));
