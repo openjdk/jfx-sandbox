@@ -41,6 +41,7 @@
     id<MTLFunction> vertexFunction;
     MetalContext *context;
     NSMutableDictionary *clearRttPipeStateDict;
+    NSMutableDictionary *phongRttPipeStateDict;
     id<MTLDepthStencilState> depthStencilState[2]; //[0] - disabled, [1] enabled
 }
 

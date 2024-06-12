@@ -70,6 +70,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         METAL_LOG(@"-> MetalPipelineManager.init: Failed to create shader library");
     }
     clearRttPipeStateDict = [[NSMutableDictionary alloc] init];
+    phongRttPipeStateDict = [[NSMutableDictionary alloc] init];
 
     // Create and cache 2 possible depthStencilStates
     @autoreleasepool {
@@ -183,22 +184,6 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 {
     METAL_LOG(@"MetalPipelineManager.getPhongPipeStateWithFragFunc()");
     NSError* error;
-    MTLRenderPipelineDescriptor* pipeDesc = [[[MTLRenderPipelineDescriptor alloc] init] autorelease];
-    pipeDesc.vertexFunction = [self getFunction:@"PhongVS"];
-    pipeDesc.fragmentFunction = func;
-    pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
-    // Not seeing further increase in performance after making 3D MTLBuffers immutable
-    // with triple buffer implementation. Keeping the property as a comment
-    // for future exploration.
-    //pipeDesc.vertexBuffers[0].mutability = MTLMutabilityImmutable;
-    if ([context isDepthEnabled]) {
-        pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
-    }
-    if ([[context getRTT] isMSAAEnabled]) {
-        pipeDesc.sampleCount = 4;
-    } else {
-        pipeDesc.sampleCount = 1;
-    }
 
     // TODO: MTL: Cleanup this code in future if we think we don't need
     // to add padding to float3 data and use VertexDescriptor
@@ -216,13 +201,30 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     vertDesc.layouts[0].stepRate = 1;
     vertDesc.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
     pipeDesc.vertexDescriptor = vertDesc;*/
-    [self setPipelineCompositeBlendMode:pipeDesc
-                          compositeMode:compositeMode];
-    id<MTLRenderPipelineState> pipeState = [[[context getDevice]
-        newRenderPipelineStateWithDescriptor:pipeDesc error:&error] autorelease];
-    NSAssert(pipeState, @"Failed to create pipeline state for phong shader: %@", error);
 
-    return pipeState;
+    int sampleCount = 1;
+    if ([[context getRTT] isMSAAEnabled]) {
+        sampleCount = 4;
+    }
+    NSNumber *keySampleCount = [NSNumber numberWithInt:sampleCount];
+    id<MTLRenderPipelineState> phongRttPipeState = phongRttPipeStateDict[keySampleCount];
+    if (phongRttPipeState == nil) {
+        MTLRenderPipelineDescriptor* pipeDesc = [[[MTLRenderPipelineDescriptor alloc] init] autorelease];
+        pipeDesc.vertexFunction = [self getFunction:@"PhongVS"];
+        pipeDesc.fragmentFunction = func;
+        pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //[[context getRTT] getPixelFormat]; //rtt.pixelFormat
+        pipeDesc.sampleCount = sampleCount;
+        if ([context isDepthEnabled]) {
+        pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+        }
+        [self setPipelineCompositeBlendMode:pipeDesc
+                          compositeMode:compositeMode];
+        NSError* error;
+        phongRttPipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
+        NSAssert(phongRttPipeState, @"Failed to create phong pipeline state: %@", error);
+        [phongRttPipeStateDict setObject:phongRttPipeState forKey:keySampleCount];
+    }
+    return phongRttPipeState;
 }
 
 - (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFuncName:(NSString*) funcName

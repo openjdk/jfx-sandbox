@@ -245,12 +245,8 @@
 
 - (id<MTLRenderPipelineState>) getPhongPipelineState
 {
-    if (phongPipelineState == nil) {
-        phongPipelineState =
-            [[self getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"
-                                                          compositeMode:[self getCompositeMode]];
-    }
-    return phongPipelineState;
+    return [[self getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"
+                compositeMode:[self getCompositeMode]];
 }
 
 - (MetalResourceFactory*) getResourceFactory
@@ -640,10 +636,6 @@
             phongRPD.depthAttachment.resolveTexture = nil;
         }
     }
-
-    phongPipelineState =
-        [[self getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"
-                                                          compositeMode:[self getCompositeMode]];
 
     // TODO: MTL: Check whether we need to do shader initialization here
     /*if (!phongShader) {
