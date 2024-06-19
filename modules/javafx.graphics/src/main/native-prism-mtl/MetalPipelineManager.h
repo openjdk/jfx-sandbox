@@ -40,8 +40,12 @@
     id<MTLLibrary> shaderLib;
     id<MTLFunction> vertexFunction;
     MetalContext *context;
-    NSMutableDictionary *clearRttPipeStateDict;
-    NSMutableDictionary *phongRttPipeStateDict;
+    NSMutableDictionary *clearRttPipeStateNoDepthDict;
+    NSMutableDictionary *clearRttPipeStateDepthDict;
+    NSMutableDictionary *phongPipelineStateNonMSAANoDepthDict;
+    NSMutableDictionary *phongPipelineStateNonMSAADepthDict;
+    NSMutableDictionary *phongPipelineStateMSAANoDepthDict;
+    NSMutableDictionary *phongPipelineStateMSAADepthDict;
     id<MTLDepthStencilState> depthStencilState[2]; //[0] - disabled, [1] enabled
 }
 

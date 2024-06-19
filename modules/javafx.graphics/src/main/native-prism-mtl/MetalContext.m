@@ -102,8 +102,8 @@
 - (void) setRTT:(MetalRTTexture*)rttPtr
 {
     if (rtt != rttPtr) {
+        CTX_LOG(@"-> Native: MetalContext.setRTT() endCurrentRenderEncoder");
         [self endCurrentRenderEncoder];
-        [self endPhongEncoder];
     }
     rtt = rttPtr;
     CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
@@ -170,7 +170,6 @@
 - (void) commitCurrentCommandBuffer
 {
     [self endCurrentRenderEncoder];
-    [self endPhongEncoder];
 
     [currentCommandBuffer commit];
     [currentCommandBuffer waitUntilCompleted];
@@ -198,6 +197,7 @@
 - (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder
 {
     if (currentRenderEncoder == nil) {
+        CTX_LOG(@"MetalContext.getCurrentRenderEncoder() is nil");
         currentRenderEncoder = [[self getCurrentCommandBuffer] renderCommandEncoderWithDescriptor:rttPassDesc];
     }
     return currentRenderEncoder;
@@ -214,33 +214,6 @@
 - (NSUInteger) getCurrentBufferIndex
 {
     return currentBufferIndex;
-}
-
-- (id<MTLRenderCommandEncoder>) getPhongEncoder
-{
-    if (phongEncoder == nil) {
-        CTX_LOG(@"Jay: MetalContext.getPhongEncoder()");
-        phongEncoder = [[self getCurrentCommandBuffer] renderCommandEncoderWithDescriptor:phongRPD];
-        if (lastPhongEncoder != nil &&
-            lastPhongEncoder != phongEncoder) {
-            currentBufferIndex = (currentBufferIndex + 1) % BUFFER_SIZE;
-            dispatch_semaphore_wait(tripleBufferSemaphore,
-                    DISPATCH_TIME_FOREVER);
-            lastPhongEncoder = phongEncoder;
-        }
-    }
-    return phongEncoder;
-}
-
-- (void) endPhongEncoder
-{
-    if (phongEncoder != nil) {
-        CTX_LOG(@"Jay: MetalContext.endPhongEncoder()");
-        [phongEncoder endEncoding];
-       phongEncoder = nil;
-       lastPhongEncoder = phongEncoder;
-       dispatch_semaphore_signal(tripleBufferSemaphore);
-    }
 }
 
 - (id<MTLRenderPipelineState>) getPhongPipelineState
@@ -271,6 +244,9 @@
 
     [renderEncoder setRenderPipelineState:[shader getPipelineState:[rtt isMSAAEnabled]
                                                      compositeMode:compositeMode]];
+    [renderEncoder setFrontFacingWinding:MTLWindingClockwise];
+    [renderEncoder setCullMode:MTLCullModeNone];
+    [renderEncoder setTriangleFillMode:MTLTriangleFillModeFill];
 
     [renderEncoder setVertexBytes:&mvpMatrix
                            length:sizeof(mvpMatrix)
@@ -344,7 +320,7 @@
         m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
         m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33
 {
-    CTX_LOG(@"MetalContext.setProjViewMatrix()");
+    CTX_LOG(@"MetalContext.setProjViewMatrix() : depthTest %d", depthTest);
     mvpMatrix = simd_matrix(
         (simd_float4){ m00, m01, m02, m03 },
         (simd_float4){ m10, m11, m12, m13 },
@@ -353,10 +329,13 @@
     );
     if (depthTest &&
         ([rtt getDepthTexture] != nil)) {
+        CTX_LOG(@"MetalContext.setProjViewMatrix() enable depth testing");
         depthEnabled = true;
     } else {
+        CTX_LOG(@"MetalContext.setProjViewMatrix() disable depth testing");
         depthEnabled = false;
     }
+    [self updateDepthDetails:depthTest];
 }
 
 - (void) setProjViewMatrix:(float)m00
@@ -404,20 +383,13 @@
     );
 }
 
-- (void) updatePhongLoadAction
-{
-    CTX_LOG(@"MetalContext.updatePhongLoadAction()");
-    phongRPD.colorAttachments[0].loadAction = MTLLoadActionLoad;
-    if (depthEnabled) {
-        phongRPD.depthAttachment.loadAction = MTLLoadActionLoad;
-    }
-    rttCleared = true;
-}
-
 - (void) resetRenderPass
 {
     CTX_LOG(@"MetalContext.resetRenderPass()");
     rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
+    if (depthEnabled) {
+        rttPassDesc.depthAttachment.loadAction = MTLLoadActionLoad;
+    }
     rttCleared = true;
 }
 
@@ -437,10 +409,12 @@
     clearColor[2] = blue;
     clearColor[3] = alpha;
 
-    [self endPhongEncoder];
     id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
 
     [renderEncoder setRenderPipelineState:[pipelineManager getClearRttPipeState]];
+    [renderEncoder setFrontFacingWinding:MTLWindingClockwise];
+    [renderEncoder setCullMode:MTLCullModeNone];
+    [renderEncoder setTriangleFillMode:MTLTriangleFillModeFill];
 
     [renderEncoder setScissorRect:[self getScissorRect]];
 
@@ -473,6 +447,10 @@
     [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
                       vertexStart:0
                       vertexCount:6];
+
+    if (clearDepthTexture && !depthEnabled) {
+        [self endCurrentRenderEncoder];
+    }
 
     CTX_LOG(@"<<<< MetalContext.clearRTT()");
 }
@@ -592,49 +570,18 @@
 - (NSInteger) setDeviceParametersFor2D
 {
     CTX_LOG(@"MetalContext_setDeviceParametersFor2D()");
-    [self endPhongEncoder];
-    tripleBufferSemaphore = nil;
-    currentBufferIndex = 0;
     return 1;
 }
 
 - (NSInteger) setDeviceParametersFor3D
 {
     CTX_LOG(@"MetalContext_setDeviceParametersFor3D()");
-    [self endPhongEncoder];
-    currentBufferIndex = 0;
-    lastPhongEncoder = nil;
-    tripleBufferSemaphore = dispatch_semaphore_create(BUFFER_SIZE);
-    id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
-    // TODO: MTL: Find a way to release phongRPD when we are done using it
-    phongRPD = [MTLRenderPassDescriptor new];
-    phongRPD.colorAttachments[0].loadAction = MTLLoadActionLoad;
-
-    if ([[self getRTT] isMSAAEnabled]) {
-        phongRPD.colorAttachments[0].storeAction = MTLStoreActionStoreAndMultisampleResolve;
-        phongRPD.colorAttachments[0].texture = [rtt getMSAATexture];
-        phongRPD.colorAttachments[0].resolveTexture = [rtt getTexture];
+    if (clearDepthTexture) {
+        CTX_LOG(@"MetalContext_setDeviceParametersFor3D clearDepthTexture is true");
+        rttPassDesc.depthAttachment.clearDepth = 1.0;
+        rttPassDesc.depthAttachment.loadAction = MTLLoadActionClear;
     } else {
-        phongRPD.colorAttachments[0].storeAction = MTLStoreActionStore;
-        phongRPD.colorAttachments[0].texture = [rtt getTexture];
-        phongRPD.colorAttachments[0].resolveTexture = nil;
-    }
-    if (depthEnabled) {
-        phongRPD.depthAttachment.clearDepth = 1.0;
-        if (clearDepthTexture) {
-            phongRPD.depthAttachment.loadAction = MTLLoadActionClear;
-        } else {
-            phongRPD.depthAttachment.loadAction = MTLLoadActionLoad;
-        }
-        if ([[self getRTT] isMSAAEnabled]) {
-            phongRPD.depthAttachment.storeAction = MTLStoreActionStoreAndMultisampleResolve;
-            phongRPD.depthAttachment.texture = [rtt getDepthMSAATexture];
-            phongRPD.depthAttachment.resolveTexture = [rtt getDepthTexture];
-        } else {
-            phongRPD.depthAttachment.storeAction = MTLStoreActionStore;
-            phongRPD.depthAttachment.texture = [[self getRTT] getDepthTexture];
-            phongRPD.depthAttachment.resolveTexture = nil;
-        }
+        rttPassDesc.depthAttachment.loadAction = MTLLoadActionLoad;
     }
 
     // TODO: MTL: Check whether we need to do shader initialization here
@@ -642,6 +589,39 @@
         phongShader = ([[MetalPhongShader alloc] createPhongShader:self]);
     }*/
     return 1;
+}
+
+- (void) updateDepthDetails:(bool)depthTest
+{
+    CTX_LOG(@"MetalContext_updateDepthDetails");
+    if (depthTest) {
+        CTX_LOG(@"MetalContext_updateDepthDetails depthTest is true");
+        if ([[self getRTT] isMSAAEnabled]) {
+            CTX_LOG(@"MetalContext_updateDepthDetails MSAA");
+            rttPassDesc.depthAttachment.storeAction = MTLStoreActionStoreAndMultisampleResolve;
+            rttPassDesc.depthAttachment.texture = [rtt getDepthMSAATexture];
+            rttPassDesc.depthAttachment.resolveTexture = [rtt getDepthTexture];
+        } else {
+            CTX_LOG(@"MetalContext_updateDepthDetails non-MSAA");
+            rttPassDesc.depthAttachment.storeAction = MTLStoreActionStore;
+            rttPassDesc.depthAttachment.texture = [[self getRTT] getDepthTexture];
+            rttPassDesc.depthAttachment.resolveTexture = nil;
+        }
+    } else {
+        CTX_LOG(@"MetalContext_updateDepthDetails depthTest is false");
+        rttPassDesc.depthAttachment = nil;
+    }
+}
+
+- (void) verifyDepthTexture
+{
+    CTX_LOG(@"MetalContext_verifyDepthTexture");
+    id<MTLTexture> depthTexture = [rtt getDepthTexture];
+    if (depthTexture == nil) {
+        [rtt createDepthTexture];
+        rttPassDesc.depthAttachment.clearDepth = 1.0;
+        rttPassDesc.depthAttachment.loadAction = MTLLoadActionClear;
+    }
 }
 
 - (void) setCompositeMode:(int) mode
@@ -873,7 +853,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
     // if we see any performance/state impact we should move
     // depthTexture creation along with RTT creation.
     if (depthTest) {
-        [rtt createDepthTexture];
+        [mtlContext verifyDepthTexture];
     }
 }
 
@@ -1369,7 +1349,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
     id<MTLTexture> dst = [dstRTT getTexture];
 
     [pCtx endCurrentRenderEncoder];
-    [pCtx endPhongEncoder];
 
     id<MTLCommandBuffer> commandBuffer = [pCtx getCurrentCommandBuffer];
     id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];

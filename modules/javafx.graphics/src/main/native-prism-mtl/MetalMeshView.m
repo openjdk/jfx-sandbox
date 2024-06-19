@@ -156,6 +156,7 @@
 
 - (void) render
 {
+    MESH_LOG(@"MetalMeshView_render()");
     [self computeNumLights];
     VS_PHONG_UNIFORMS vsUniforms;
     PS_PHONG_UNIFORMS psUniforms;
@@ -203,9 +204,7 @@
         }
     }
 
-    [context endCurrentRenderEncoder];
-
-    id<MTLRenderCommandEncoder> phongEncoder = [context getPhongEncoder];
+    id<MTLRenderCommandEncoder> phongEncoder = [context getCurrentRenderEncoder];
     [phongEncoder setRenderPipelineState:[context getPhongPipelineState]];
     id<MTLDepthStencilState> depthStencilState =
         [[context getPipelineManager] getDepthStencilState];
@@ -258,7 +257,7 @@
         indexType:[mesh getIndexType]
         indexBuffer:[mesh getIndexBuffer]
         indexBufferOffset:0];
-    [context updatePhongLoadAction];
+    [context resetRenderPass];
 }
 
 - (void) release

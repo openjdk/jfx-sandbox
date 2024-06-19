@@ -199,7 +199,9 @@
     TEX_LOG(@">>>> MetalTexture.createDepthTexture()");
     id<MTLDevice> device = [context getDevice];
     if (depthTexture.width != width ||
-        depthTexture.height != height) {
+        depthTexture.height != height ||
+        lastDepthMSAA != isMSAA) {
+        lastDepthMSAA = isMSAA;
         MTLTextureDescriptor *depthDesc = [[MTLTextureDescriptor new] autorelease];
         depthDesc.width  = width;
         depthDesc.height = height;
@@ -225,7 +227,6 @@
     TEX_LOG(@">>>> MetalTexture.getPixelBuffer()");
 
     [context endCurrentRenderEncoder];
-    [context endPhongEncoder];
 
     id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
     id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
@@ -363,7 +364,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
     (*env)->ReleaseByteArrayElements(env, pixData, pixels, 0);
 
     [context endCurrentRenderEncoder];
-    [context endPhongEncoder];
 
     id<MTLBlitCommandEncoder> blitEncoder = [[context getCurrentCommandBuffer] blitCommandEncoder];
 
@@ -417,7 +417,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
     (*env)->ReleaseFloatArrayElements(env, pixData, pixels, 0);
 
     [context endCurrentRenderEncoder];
-    [context endPhongEncoder];
 
     id<MTLBlitCommandEncoder> blitEncoder = [[context getCurrentCommandBuffer] blitCommandEncoder];
 
@@ -472,7 +471,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
     (*env)->ReleaseIntArrayElements(env, pixData, pixels, 0);
 
     [context endCurrentRenderEncoder];
-    [context endPhongEncoder];
 
     id<MTLBlitCommandEncoder> blitEncoder = [[context getCurrentCommandBuffer] blitCommandEncoder];
 

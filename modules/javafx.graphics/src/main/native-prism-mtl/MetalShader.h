@@ -39,8 +39,10 @@
     NSString* fragFuncName;
     id<MTLFunction> fragmentFunction;
 
-    NSMutableDictionary *pipeStateDict;
-    NSMutableDictionary *pipeStateMSAADict;
+    NSMutableDictionary *pipeStateNonMSAANoDepthDict;
+    NSMutableDictionary *pipeStateNonMSAADepthDict;
+    NSMutableDictionary *pipeStateMSAANoDepthDict;
+    NSMutableDictionary *pipeStateMSAADepthDict;
 
     NSDictionary* fragArgIndicesDict;
     NSMutableDictionary* fragTexArgsDict;

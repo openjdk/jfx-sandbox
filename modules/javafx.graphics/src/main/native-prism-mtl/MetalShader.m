@@ -65,8 +65,10 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
         SHADER_LOG(@">>>> MetalShader.initWithContext()----> fragFuncName: %@", fragName);
         fragTexArgsDict    = [[NSMutableDictionary alloc] init];
         fragTexSamplerDict = [[NSMutableDictionary alloc] init];
-        pipeStateDict = [[NSMutableDictionary alloc] init];
-        pipeStateMSAADict = [[NSMutableDictionary alloc] init];
+        pipeStateNonMSAANoDepthDict = [[NSMutableDictionary alloc] init];
+        pipeStateNonMSAADepthDict = [[NSMutableDictionary alloc] init];
+        pipeStateMSAANoDepthDict = [[NSMutableDictionary alloc] init];
+        pipeStateMSAADepthDict = [[NSMutableDictionary alloc] init];
         fragArgIndicesDict = getPRISMDict(fragName);
         if (fragArgIndicesDict == nil) {
             fragArgIndicesDict = getDECORADict(fragName);
@@ -157,9 +159,17 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     SHADER_LOG(@">>>> MetalShader.getPipelineState()----> fragFuncName: %@", fragFuncName);
     NSMutableDictionary *psDict;
     if (isMSAA) {
-        psDict = pipeStateMSAADict;
+        if ([context isDepthEnabled]) {
+            psDict = pipeStateMSAADepthDict;
+        } else {
+            psDict = pipeStateMSAANoDepthDict;
+        }
     } else {
-        psDict = pipeStateDict;
+        if ([context isDepthEnabled]) {
+            psDict = pipeStateNonMSAADepthDict;
+        } else {
+            psDict = pipeStateNonMSAANoDepthDict;
+        }
     }
     NSNumber *keyCompMode = [NSNumber numberWithInt:compositeMode];
     id<MTLRenderPipelineState> pipeState = psDict[keyCompMode];

@@ -69,8 +69,13 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     } else {
         METAL_LOG(@"-> MetalPipelineManager.init: Failed to create shader library");
     }
-    clearRttPipeStateDict = [[NSMutableDictionary alloc] init];
-    phongRttPipeStateDict = [[NSMutableDictionary alloc] init];
+
+    clearRttPipeStateNoDepthDict = [[NSMutableDictionary alloc] init];
+    clearRttPipeStateDepthDict = [[NSMutableDictionary alloc] init];
+    phongPipelineStateNonMSAANoDepthDict = [[NSMutableDictionary alloc] init];
+    phongPipelineStateNonMSAADepthDict = [[NSMutableDictionary alloc] init];
+    phongPipelineStateMSAANoDepthDict = [[NSMutableDictionary alloc] init];
+    phongPipelineStateMSAADepthDict = [[NSMutableDictionary alloc] init];
 
     // Create and cache 2 possible depthStencilStates
     @autoreleasepool {
@@ -122,18 +127,32 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         sampleCount = 4;
     }
     NSNumber *keySampleCount = [NSNumber numberWithInt:sampleCount];
-    id<MTLRenderPipelineState> clearRttPipeState = clearRttPipeStateDict[keySampleCount];
+    id<MTLRenderPipelineState> clearRttPipeState;
+    if ([context isDepthEnabled]) {
+        clearRttPipeState = clearRttPipeStateDepthDict[keySampleCount];
+    } else {
+        clearRttPipeState = clearRttPipeStateNoDepthDict[keySampleCount];
+    }
     if (clearRttPipeState == nil) {
         MTLRenderPipelineDescriptor* pipeDesc = [[[MTLRenderPipelineDescriptor alloc] init] autorelease];
         pipeDesc.vertexFunction   = [self getFunction:@"clearVF"];;
         pipeDesc.fragmentFunction = [self getFunction:@"clearFF"];
         pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //[[context getRTT] getPixelFormat]; //rtt.pixelFormat
         pipeDesc.sampleCount = sampleCount;
+        if ([context isDepthEnabled]) {
+            pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+        } else {
+            pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
+        }
 
         NSError* error;
         clearRttPipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
         NSAssert(clearRttPipeState, @"Failed to create clear pipeline state: %@", error);
-        [clearRttPipeStateDict setObject:clearRttPipeState forKey:keySampleCount];
+        if ([context isDepthEnabled]) {
+            [clearRttPipeStateDepthDict setObject:clearRttPipeState forKey:keySampleCount];
+        } else {
+            [clearRttPipeStateNoDepthDict setObject:clearRttPipeState forKey:keySampleCount];
+        }
     }
     METAL_LOG(@"<<<< MetalPipelineManager.getClearRttPipeState()\n");
     return clearRttPipeState;
@@ -148,6 +167,12 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     pipeDesc.vertexFunction = vertexFunction;
     pipeDesc.fragmentFunction = func;
     pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
+
+    if ([context isDepthEnabled]) {
+        pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+    } else {
+        pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
+    }
 
     if ([[context getRTT] isMSAAEnabled]) {
         pipeDesc.sampleCount = 4;
@@ -183,8 +208,6 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
                                                compositeMode:(int) compositeMode
 {
     METAL_LOG(@"MetalPipelineManager.getPhongPipeStateWithFragFunc()");
-    NSError* error;
-
     // TODO: MTL: Cleanup this code in future if we think we don't need
     // to add padding to float3 data and use VertexDescriptor
     /*MTLVertexDescriptor* vertDesc = [[MTLVertexDescriptor alloc] init];
@@ -202,29 +225,48 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     vertDesc.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
     pipeDesc.vertexDescriptor = vertDesc;*/
 
-    int sampleCount = 1;
+    NSError* error;
+    NSMutableDictionary *psDict;
     if ([[context getRTT] isMSAAEnabled]) {
-        sampleCount = 4;
+        if ([context isDepthEnabled]) {
+            psDict = phongPipelineStateMSAADepthDict;
+        } else {
+            psDict = phongPipelineStateMSAANoDepthDict;
+        }
+    } else {
+        if ([context isDepthEnabled]) {
+            psDict = phongPipelineStateNonMSAADepthDict;
+        } else {
+            psDict = phongPipelineStateNonMSAANoDepthDict;
+        }
     }
-    NSNumber *keySampleCount = [NSNumber numberWithInt:sampleCount];
-    id<MTLRenderPipelineState> phongRttPipeState = phongRttPipeStateDict[keySampleCount];
-    if (phongRttPipeState == nil) {
+    NSNumber *keyCompMode = [NSNumber numberWithInt:compositeMode];
+    id<MTLRenderPipelineState> pipeState = psDict[keyCompMode];
+    if (pipeState == nil) {
+        METAL_LOG(@"MetalPipelineManager phong pipeline state is nil");
         MTLRenderPipelineDescriptor* pipeDesc = [[[MTLRenderPipelineDescriptor alloc] init] autorelease];
         pipeDesc.vertexFunction = [self getFunction:@"PhongVS"];
         pipeDesc.fragmentFunction = func;
-        pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //[[context getRTT] getPixelFormat]; //rtt.pixelFormat
-        pipeDesc.sampleCount = sampleCount;
+        pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
         if ([context isDepthEnabled]) {
-        pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+            pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
+        } else {
+            pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
+        }
+
+        if ([[context getRTT] isMSAAEnabled]) {
+            pipeDesc.sampleCount = 4;
+        } else {
+            pipeDesc.sampleCount = 1;
         }
         [self setPipelineCompositeBlendMode:pipeDesc
-                          compositeMode:compositeMode];
-        NSError* error;
-        phongRttPipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
-        NSAssert(phongRttPipeState, @"Failed to create phong pipeline state: %@", error);
-        [phongRttPipeStateDict setObject:phongRttPipeState forKey:keySampleCount];
+                compositeMode:compositeMode];
+        pipeState = [[[context getDevice]
+                newRenderPipelineStateWithDescriptor:pipeDesc error:&error] autorelease];
+        [psDict setObject:pipeState forKey:keyCompMode];
+        NSAssert(pipeState, @"Failed to create phong pipeline state: %@", error);
     }
-    return phongRttPipeState;
+    return pipeState;
 }
 
 - (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFuncName:(NSString*) funcName

@@ -58,6 +58,7 @@
     NSUInteger mipmapLevelCount;
     bool mipmapped;
     bool isMSAA;
+    bool lastDepthMSAA;
 }
 - (id<MTLTexture>) getTexture;
 - (id<MTLTexture>) getDepthTexture;
