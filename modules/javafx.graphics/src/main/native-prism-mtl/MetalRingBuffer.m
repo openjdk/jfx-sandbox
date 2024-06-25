@@ -66,12 +66,65 @@ static MetalRingBuffer* instance = nil;
     if (self) {
         currentOffset = 0;
         numReservedBytes = 0;
+        currentBufferIndex = 0;
 
-        buffer = [MTLCreateSystemDefaultDevice() newBufferWithLength:BUFFER_LENGTH
-                                                             options:MTLResourceStorageModeShared];
-        buffer.label = [NSString stringWithFormat:@"JFX Argument Buffer"];
+        for (int i = 0; i < NUM_BUFFERS; i++) {
+            isBufferInUse[i] = false;
+            buffer[i] = [MTLCreateSystemDefaultDevice() newBufferWithLength:BUFFER_LENGTH
+                                                                    options:MTLResourceStorageModeShared];
+            buffer[i].label = [NSString stringWithFormat:@"JFX Argument Buffer"];
+        }
     }
     return self;
+}
+
+- (bool) isBufferAvailable {
+    for (int i = 0; i < NUM_BUFFERS; i++) {
+        if (!isBufferInUse[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// This method assumes that caller has made sure that a buffer is available
+// by calling the method isBufferAvailable().
+// If there is no buffer available then the behavior is undefined and
+// should cause visual artefacts or may Metal validation may fail or crash.
+
+- (void) updateBufferInUse {
+    unsigned int prevBufferIndex = currentBufferIndex;
+    for (int i = currentBufferIndex + 1; i < NUM_BUFFERS; i++) {
+        if (!isBufferInUse[i]) {
+            currentBufferIndex = i;
+        }
+    }
+    if (prevBufferIndex == currentBufferIndex) {
+        for (int i = 0; i < currentBufferIndex; i++) {
+            if (!isBufferInUse[i]) {
+                currentBufferIndex = i;
+            }
+        }
+    }
+    isBufferInUse[currentBufferIndex] = true;
+    currentOffset = 0;
+    numReservedBytes = 0;
+}
+
+- (id<MTLBuffer>) getBuffer {
+    return [self getCurrentBuffer];
+}
+
+- (id<MTLBuffer>) getCurrentBuffer {
+    return buffer[currentBufferIndex];
+}
+
+- (unsigned int) getCurrentBufferIndex {
+    return currentBufferIndex;
+}
+
+- (void) resetBuffer:(unsigned int)index {
+    isBufferInUse[index] = false;
 }
 
 - (int) reserveBytes:(unsigned int)length {
@@ -96,21 +149,13 @@ static MetalRingBuffer* instance = nil;
     return currentOffset;
 }
 
-- (id<MTLBuffer>) getBuffer {
-    return buffer;
-}
-
-- (void) reset {
-    currentOffset = 0;
-    numReservedBytes = 0;
-}
-
 - (void) dealloc {
-    if (buffer != nil) {
-        [buffer release];
-        buffer = nil;
+    for (int i = 0; i < NUM_BUFFERS; i++) {
+        [buffer[i] release];
+        buffer[i] = nil;
     }
     [super dealloc];
+    instance = nil;
 }
 
 @end

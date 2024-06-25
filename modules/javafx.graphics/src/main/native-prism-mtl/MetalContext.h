@@ -116,6 +116,7 @@ typedef enum VertexInputIndex {
 - (void) setCurrentShader:(MetalShader*) shader;
 
 - (void) commitCurrentCommandBuffer;
+- (void) commitCurrentCommandBufferAndWait;
 - (id<MTLDevice>) getDevice;
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer;
 - (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder;

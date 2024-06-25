@@ -243,7 +243,7 @@
             destinationBytesPerImage:(NSUInteger)texture.width * texture.height * 4];
 
     [blitEncoder endEncoding];
-    [context commitCurrentCommandBuffer];
+    [context commitCurrentCommandBufferAndWait];
 
     return pixelBuffer;
 }

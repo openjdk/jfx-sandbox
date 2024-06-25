@@ -31,6 +31,8 @@
 // 2. Alternative approach for large textures(no ring buffer, different sized ring buffer)
 #define RING_BUFF_SIZE (8 * 1024 * 1024)
 
+#define NUM_BUFFERS (3)
+
 
 // TODO: MTL: The alignment varies for different platforms.
 // The alignment value can/should be retrived from device capabilities and updated accordingly.
@@ -51,16 +53,23 @@
 
 @interface MetalRingBuffer : NSObject
 {
-    id<MTLBuffer> buffer;
-    int currentOffset;
-    int numReservedBytes;
+    id<MTLBuffer> buffer[NUM_BUFFERS];
+    bool isBufferInUse[NUM_BUFFERS];
+    unsigned int currentBufferIndex;
+    unsigned int currentOffset;
+    unsigned int numReservedBytes;
 }
 
 + (instancetype) getInstance;
 
-- (int) reserveBytes:(unsigned int)length;
+- (bool) isBufferAvailable;
+- (void) updateBufferInUse;
 - (id<MTLBuffer>) getBuffer;
-- (void) reset;
+- (id<MTLBuffer>) getCurrentBuffer;
+- (unsigned int)  getCurrentBufferIndex;
+- (void) resetBuffer :(unsigned int)index;
+- (int)  reserveBytes:(unsigned int)length;
+
 - (void) dealloc;
 @end
 

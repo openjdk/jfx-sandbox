@@ -61,8 +61,8 @@ static NSArray *allModes = nil;
     [self setAnchorPoint:CGPointMake(0.0f, 0.0f)];
 
     self.device = MTLCreateSystemDefaultDevice();
-    //self->_blitCommandQueue = (id<MTLCommandQueue>)(jlong_to_ptr(mtlCommandQueuePtr))
-    self->_blitCommandQueue = [self.device newCommandQueue];
+    self->_blitCommandQueue = (id<MTLCommandQueue>)(jlong_to_ptr(mtlCommandQueuePtr));
+    // self->_blitCommandQueue = [self.device newCommandQueue];
 
     self.pixelFormat = MTLPixelFormatBGRA8Unorm;
     self.framebufferOnly = NO;

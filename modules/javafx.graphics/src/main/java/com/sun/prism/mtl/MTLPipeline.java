@@ -34,7 +34,7 @@ import com.sun.prism.impl.PrismSettings;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.List;
-//import java.util.HashMap;
+import java.util.HashMap;
 
 public class MTLPipeline extends GraphicsPipeline {
 
@@ -90,12 +90,10 @@ public class MTLPipeline extends GraphicsPipeline {
         if (mtlResourceFactory == null) {
             mtlResourceFactory = new MTLResourceFactory(screen);
 
-            /*
-            // TODO: MTL: This enables sharing of MTLCommandQueue between PRISM and GLASS, if needed.
-            // Note : Currently, PRISM and GLASS create their own dedicated MTLCommandQueue
+            // This enables sharing of MTLCommandQueue between PRISM and GLASS
             HashMap devDetails = new HashMap();
             devDetails.put("contextPtr", mtlResourceFactory.getContext().getMetalCommandQueue());
-            setDeviceDetails(devDetails);*/
+            setDeviceDetails(devDetails);
         }
         return mtlResourceFactory;
     }

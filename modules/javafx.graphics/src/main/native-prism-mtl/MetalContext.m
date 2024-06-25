@@ -172,8 +172,21 @@
     [self endCurrentRenderEncoder];
 
     [currentCommandBuffer commit];
+    if (![[MetalRingBuffer getInstance] isBufferAvailable]) {
+        [currentCommandBuffer waitUntilCompleted];
+    }
+    currentCommandBuffer = nil;
+    [[MetalRingBuffer getInstance] updateBufferInUse];
+}
+
+- (void) commitCurrentCommandBufferAndWait
+{
+    [self endCurrentRenderEncoder];
+
+    [currentCommandBuffer commit];
     [currentCommandBuffer waitUntilCompleted];
-    [[MetalRingBuffer getInstance] reset];
+    currentCommandBuffer = nil;
+    [[MetalRingBuffer getInstance] updateBufferInUse];
 }
 
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer
@@ -186,8 +199,12 @@
         [currentCommandBuffer addScheduledHandler:^(id<MTLCommandBuffer> cb) {
              CTX_LOG(@"------------------> Native: commandBuffer Scheduled");
         }];
+
+        unsigned int rbid = [[MetalRingBuffer getInstance] getCurrentBufferIndex];
         [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
-             currentCommandBuffer = nil;
+             if ([MetalRingBuffer getInstance] != nil) {
+                 [[MetalRingBuffer getInstance] resetBuffer:rbid];
+             }
              CTX_LOG(@"------------------> Native: commandBuffer Completed");
         }];
     }
