@@ -512,5 +512,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nSetConstants
     MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
     jfloat* values = (*env)->GetFloatArrayElements(env, valuesArray, 0);
     [mtlShader setConstants:uniformID values:values size:size];
+    (*env)->ReleaseFloatArrayElements(env, valuesArray, values, 0);
     return 1;
 }
