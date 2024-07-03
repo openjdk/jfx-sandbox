@@ -107,6 +107,7 @@ typedef enum VertexInputIndex {
     NSUInteger currentBufferIndex;
 
     int compositeMode;
+    int cullMode;
 }
 
 - (void) setCompositeMode:(int) mode;

@@ -49,7 +49,7 @@
         ambientLightColor.w = 0;
         numLights = 0;
         lightsDirty = TRUE;
-        cullMode = MTLCullModeNone;
+        cullMode = MTLCullModeBack;
         wireframe = FALSE;
     }
     return self;
@@ -213,14 +213,15 @@
     // we are getting is in CounterClockWise order, so we need to set
     // MTLWindingCounterClockwise explicitly
     [phongEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
+    MESH_LOG(@"MetalMeshView_render() cullmode : %d", cullMode);
     [phongEncoder setCullMode:cullMode];
     MESH_LOG(@"MetalMeshView_render() wireframe : %d", wireframe);
     if (wireframe) {
         [phongEncoder setTriangleFillMode:MTLTriangleFillModeLines];
+    } else {
+        [phongEncoder setTriangleFillMode:MTLTriangleFillModeFill];
     }
-    if ([context isScissorEnabled]) {
-        [phongEncoder setScissorRect:[context getScissorRect]];
-    }
+    [phongEncoder setScissorRect:[context getScissorRect]];
     vsUniforms.mvp_matrix = [context getMVPMatrix];
     vsUniforms.world_matrix = [context getWorldMatrix];
     vsUniforms.cameraPos = [context getCameraPosition];

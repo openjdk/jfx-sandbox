@@ -121,7 +121,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT2
   (JNIEnv *env, jclass jClass, jlong ctx, jlong pTex, jint pw, jint ph)
 {
-    TEX_LOG(@"-> Native: MTLRTTexture_nCreateRT pw: %d, ph: %d, cw: %d, ch: %d", pw, ph, cw, ch);
+    TEX_LOG(@"-> Native: MTLRTTexture_nCreateRT2 pw: %d, ph: %d", pw, ph);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalRTTexture* rtt = [[MetalRTTexture alloc] createTexture:context tex:pTex ofWidth:pw ofHeight:ph];
     //[rtt setContentDimensions:cw height:ch];
