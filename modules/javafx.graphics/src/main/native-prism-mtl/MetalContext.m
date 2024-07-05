@@ -57,6 +57,7 @@
     CTX_LOG(@"-> MetalContext.createContext()");
     self = [super init];
     if (self) {
+        buffersForCB = [[NSMutableArray alloc] init];
         isScissorEnabled = false;
         currentRenderEncoder = nil;
         linearSamplerDict = [[NSMutableDictionary alloc] init];
@@ -81,17 +82,24 @@
         }
 
         // clearing rtt related initialization
-        identityMatrix = simd_matrix(
+        identityMatrixBuf = [device newBufferWithLength:sizeof(simd_float4x4)
+                                                options:MTLResourceStorageModeShared];
+        simd_float4x4* identityMatrix = (simd_float4x4*)identityMatrixBuf.contents;
+
+        *identityMatrix = simd_matrix(
             (simd_float4) { 1, 0, 0, 0 },
             (simd_float4) { 0, 1, 0, 0 },
             (simd_float4) { 0, 0, 1, 0 },
             (simd_float4) { 0, 0, 0, 1 }
         );
 
+        clearEntireRttVerticesBuf = [device newBufferWithLength:sizeof(CLEAR_VS_INPUT) * 6
+                                                        options:MTLResourceStorageModeShared];
+        CLEAR_VS_INPUT* clearEntireRttVertices = (CLEAR_VS_INPUT*)clearEntireRttVerticesBuf.contents;
+
         clearEntireRttVertices[0].position.x = -1; clearEntireRttVertices[0].position.y = -1;
         clearEntireRttVertices[1].position.x = -1; clearEntireRttVertices[1].position.y =  1;
         clearEntireRttVertices[2].position.x =  1; clearEntireRttVertices[2].position.y = -1;
-
         clearEntireRttVertices[3].position.x = -1; clearEntireRttVertices[3].position.y =  1;
         clearEntireRttVertices[4].position.x =  1; clearEntireRttVertices[4].position.y = -1;
         clearEntireRttVertices[5].position.x =  1; clearEntireRttVertices[5].position.y =  1;
@@ -169,22 +177,35 @@
 
 - (void) commitCurrentCommandBuffer
 {
-    [self endCurrentRenderEncoder];
-
-    [currentCommandBuffer commit];
-    if (![[MetalRingBuffer getInstance] isBufferAvailable]) {
-        [currentCommandBuffer waitUntilCompleted];
-    }
-    currentCommandBuffer = nil;
-    [[MetalRingBuffer getInstance] updateBufferInUse];
+    [self commitCurrentCommandBuffer:false];
 }
 
 - (void) commitCurrentCommandBufferAndWait
 {
+    [self commitCurrentCommandBuffer:true];
+}
+
+- (void) commitCurrentCommandBuffer:(bool)waitUntilCompleted
+{
     [self endCurrentRenderEncoder];
 
+    NSMutableArray* bufsForCB = buffersForCB;
+    buffersForCB = [[NSMutableArray alloc] init];
+
+    [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
+         for (id buffer in bufsForCB) {
+            [buffer release];
+        }
+        [bufsForCB removeAllObjects];
+    }];
+
     [currentCommandBuffer commit];
-    [currentCommandBuffer waitUntilCompleted];
+
+    if (waitUntilCompleted ||
+            ![[MetalRingBuffer getInstance] isBufferAvailable]) {
+        [currentCommandBuffer waitUntilCompleted];
+    }
+
     currentCommandBuffer = nil;
     [[MetalRingBuffer getInstance] updateBufferInUse];
 }
@@ -254,6 +275,31 @@
 
     CTX_LOG(@"numVerts = %lu", numVerts);
 
+    int numQuads = numVerts / 4;
+    int numVertices = numQuads * 6;
+    int vbLength = sizeof(VS_INPUT) * numVertices;
+
+    id<MTLBuffer> vertexBuffer = nil;
+    int offset = [[MetalRingBuffer getInstance] reserveBytes:vbLength];
+
+    if (offset == -2) {
+        vertexBuffer = [device newBufferWithLength:vbLength
+                                           options:MTLResourceStorageModeShared];
+        offset = 0;
+        [buffersForCB addObject:vertexBuffer];
+    } else {
+        if (offset == -1) {
+            [self commitCurrentCommandBuffer];
+            offset = [[MetalRingBuffer getInstance] reserveBytes:vbLength];
+        }
+        vertexBuffer = [[MetalRingBuffer getInstance] getBuffer];
+    }
+
+    [self fillVB:pSrcXYZUVs
+          colors:pSrcColors
+        numQuads:numQuads
+              vb:(vertexBuffer.contents + offset)];
+
     MetalShader* shader = [self getCurrentShader];
     [shader copyArgBufferToRingBuffer];
 
@@ -293,40 +339,13 @@
 
     [renderEncoder setScissorRect:[self getScissorRect]];
 
-    int numQuads = numVerts/4;
+    [renderEncoder setVertexBuffer:vertexBuffer
+                            offset:offset
+                           atIndex:VertexInputIndexVertices];
 
-    // size of VS_INPUT is 48 bytes
-    // We can use setVertexBytes() method to pass a vertext buffer of max size 4KB
-    // 4096 / 48 = 85 vertices at a time.
-
-    // No of quads when represneted as 2 triangles of 3 vertices each = 85/6 = 14
-    // We can issue 14 quads draw from a single vertex buffer batch
-    // 14 quads ==> 14 * 4 vertices = 56 vertices
-
-    // FillVB methods fills 84 vertices in vertex batch from 56 given vertices
-    // Send 56 vertices at max in each iteration
-
-    while (numQuads > 0) {
-        int quadsInBatch = numQuads > MAX_QUADS_IN_A_BATCH ? MAX_QUADS_IN_A_BATCH : numQuads;
-        int vertsInBatch = quadsInBatch * 6;
-        CTX_LOG(@"Quads in this iteration =========== %d", quadsInBatch);
-
-        [self fillVB:pSrcXYZUVs
-              colors:pSrcColors
-              numVertices:quadsInBatch * 4];
-
-        [renderEncoder setVertexBytes:vertices
-                               length:sizeof(VS_INPUT) * vertsInBatch
-                              atIndex:VertexInputIndexVertices];
-
-        [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
-                          vertexStart:0
-                          vertexCount:vertsInBatch];
-
-        numQuads   -= quadsInBatch;
-        pSrcXYZUVs += quadsInBatch * 4;
-        pSrcColors += quadsInBatch * 16;
-    }
+    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
+                      vertexStart:0
+                      vertexCount:numVertices];
 
     return 1;
 }
@@ -448,13 +467,13 @@
     } else {
         CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
 
-        [renderEncoder setVertexBytes:&identityMatrix
-                               length:sizeof(identityMatrix)
-                              atIndex:VertexInputMatrixMVP];
+        [renderEncoder setVertexBuffer:identityMatrixBuf
+                                offset:0
+                               atIndex:VertexInputMatrixMVP];
 
-        [renderEncoder setVertexBytes:clearEntireRttVertices
-                               length:sizeof(clearEntireRttVertices)
-                              atIndex:VertexInputIndexVertices];
+        [renderEncoder setVertexBuffer:clearEntireRttVerticesBuf
+                                offset:0
+                               atIndex:VertexInputIndexVertices];
     }
 
     [renderEncoder setFragmentBytes:clearColor
@@ -530,15 +549,14 @@
     );
 }
 
-- (void) fillVB:(struct PrismSourceVertex const *)pSrcXYZUVs colors:(char const *)pSrcColors
-                 numVertices:(int)numVerts
+- (void) fillVB:(struct PrismSourceVertex const *)pSrcXYZUVs
+         colors:(char const *)pSrcColors
+       numQuads:(int)numQuads
+             vb:(void*)vb
 {
-    VS_INPUT* pVert = vertices;
-    numTriangles = numVerts >> 1;
-    int numQuads = numTriangles >> 1;
+    VS_INPUT* pVert = (VS_INPUT*)vb;
 
-
-    CTX_LOG(@"fillVB : numVerts = %d, numTriangles = %lu, numQuads = %d", numVerts, numTriangles, numQuads);
+    CTX_LOG(@"fillVB : numQuads = %d", numQuads);
 
     for (int i = 0; i < numQuads; i++) {
         unsigned char const* colors = (unsigned char*)(pSrcColors + i * 16);
@@ -759,6 +777,17 @@
     }
     [linearSamplerDict release];
     [nonLinearSamplerDict release];
+
+    if (identityMatrixBuf != nil) {
+        [identityMatrixBuf release];
+        identityMatrixBuf = nil;
+    }
+
+    if (clearEntireRttVerticesBuf != nil) {
+        [clearEntireRttVerticesBuf release];
+        clearEntireRttVerticesBuf = nil;
+    }
+
 
     device = nil;
 

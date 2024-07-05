@@ -69,11 +69,11 @@ typedef enum VertexInputIndex {
     float byteToFloatTable[256];
     simd_float4x4 mvpMatrix;
     simd_float4x4 worldMatrix;
-    simd_float4x4 identityMatrix;
-    VS_INPUT vertices[85];//TODO: MTL: this should not exceed 4KB if we need to use setVertexBytes
-    NSUInteger numTriangles;
+
+    // clear rtt
     CLEAR_VS_INPUT clearScissorRectVertices[6];
-    CLEAR_VS_INPUT clearEntireRttVertices[6];
+    id<MTLBuffer> clearEntireRttVerticesBuf;
+    id<MTLBuffer> identityMatrixBuf;
 
     id<MTLDevice> device;
     id<MTLCommandQueue> commandQueue;
@@ -108,6 +108,8 @@ typedef enum VertexInputIndex {
 
     int compositeMode;
     int cullMode;
+
+    NSMutableArray* buffersForCB;
 }
 
 - (void) setCompositeMode:(int) mode;
@@ -118,6 +120,8 @@ typedef enum VertexInputIndex {
 
 - (void) commitCurrentCommandBuffer;
 - (void) commitCurrentCommandBufferAndWait;
+- (void) commitCurrentCommandBuffer:(bool)waitUntilCompleted;
+
 - (id<MTLDevice>) getDevice;
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer;
 - (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder;
@@ -135,8 +139,10 @@ typedef enum VertexInputIndex {
 - (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height;
 - (void) resetClip;
 
-- (void) fillVB:(struct PrismSourceVertex const *)pSrcFloats colors:(char const *)pSrcColors
-                  numVertices:(int)numVerts;
+- (void) fillVB:(struct PrismSourceVertex const *)pSrcXYZUVs
+         colors:(char const *)pSrcColors
+       numQuads:(int)numQuads
+             vb:(void*)vb;
 
 - (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
                       ofColors:(char const *)pSrcColors
