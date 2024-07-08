@@ -496,15 +496,19 @@
     CTX_LOG(@">>>> MetalContext.setClipRect()");
     CTX_LOG(@"     MetalContext.setClipRect() x = %d, y = %d, width = %d, height = %d", x, y, width, height);
     id<MTLTexture> currRtt = [rtt getTexture];
-    if (x <= 0 && y <= 0 && width >= currRtt.width && height >= currRtt.height) {
+    int x1 = x + width;
+    int y1 = y + height;
+    if (x <= 0 && y <= 0 && x1 >= currRtt.width && y1 >= currRtt.height) {
         CTX_LOG(@"     MetalContext.setClipRect() 1 resetting clip, %lu, %lu", currRtt.width, currRtt.height);
         [self resetClip];
     } else {
         CTX_LOG(@"     MetalContext.setClipRect() 2");
-        if (x < 0)                        x = 0;
-        if (y < 0)                        y = 0;
-        if (width  > currRtt.width)  width  = currRtt.width;
-        if (height > currRtt.height) height = currRtt.height;
+        if (x < 0)                    x = 0;
+        if (y < 0)                    y = 0;
+        if (x1 > currRtt.width)  width  = currRtt.width - x;
+        if (y1 > currRtt.height) height = currRtt.height - y;
+        if (x > x1)              width  = x = 0;
+        if (y > y1)              height = y = 0;
         scissorRect.x = x;
         scissorRect.y = y;
         scissorRect.width  = width;
