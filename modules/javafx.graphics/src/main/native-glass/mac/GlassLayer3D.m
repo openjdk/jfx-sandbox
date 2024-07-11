@@ -166,8 +166,11 @@ static int nextDrawableCount = 0;
 
 - (void) blitToScreen
 {
-
     id<MTLTexture> backBufferTex = [self->_painterOffscreen texture];
+
+    if (backBufferTex == nil) {
+        return;
+    }
 
     int width = [self->_painterOffscreen width];
     int height = [self->_painterOffscreen height];
@@ -219,6 +222,12 @@ static int nextDrawableCount = 0;
       layerWidth: (int)width
       layerHeight:(int)height
 {
+    id<MTLTexture> backBufferTex = [self->_painterOffscreen texture];
+
+    if ((backBufferTex.width != width) ||
+        (backBufferTex.height != height)) {
+        return;
+    }
 
     @autoreleasepool {
         id<MTLCommandBuffer> commandBuf = [self->_blitCommandQueue commandBuffer];
@@ -227,8 +236,6 @@ static int nextDrawableCount = 0;
         }
 
         id <MTLBlitCommandEncoder> blitEncoder = [commandBuf blitCommandEncoder];
-
-        id<MTLTexture> backBufferTex = [self->_painterOffscreen texture];
 
         id<MTLBuffer> buff = [[self.device newBufferWithBytes:pixels
                                       length:width*height*4
