@@ -132,7 +132,7 @@ typedef enum VertexInputIndex {
 - (void) updateDepthDetails:(bool)depthTest;
 - (void) verifyDepthTexture;
 
-- (void) setRTT:(MetalRTTexture*)rttPtr;
+- (int) setRTT:(MetalRTTexture*)rttPtr;
 - (MetalRTTexture*) getRTT;
 - (void) clearRTT:(int)color red:(float)red green:(float)green blue:(float)blue alpha:(float)alpha
                         clearDepth:(bool)clearDepth ignoreScissor:(bool)ignoreScissor;

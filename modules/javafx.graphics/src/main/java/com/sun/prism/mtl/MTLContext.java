@@ -117,7 +117,6 @@ public class MTLContext extends BaseShaderContext {
         super(screen, factory, NUM_QUADS);
         resourceFactory = factory;
         pContext = nInitialize(shaderLibBuffer);
-        state = new State();
     }
 
     public MTLResourceFactory getResourceFactory() {
@@ -126,6 +125,7 @@ public class MTLContext extends BaseShaderContext {
 
     protected void initState() {
         super.init();
+        state = new State();
         nSetCompositeMode(getContextHandle(), MTL_COMPMODE_SRCOVER);
     }
 
@@ -152,9 +152,11 @@ public class MTLContext extends BaseShaderContext {
         MTLLog.Debug("MTLContext.updateRenderTarget() :target = " + target + ", camera = " + camera + ", depthTest = " + depthTest);
         MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:1:-->\n" + projViewTx);
         renderTarget = (MTLRTTexture)target;
-        nUpdateRenderTarget(pContext, renderTarget.getNativeHandle(), depthTest);
+        int res = nUpdateRenderTarget(pContext, renderTarget.getNativeHandle(), depthTest);
 
-        resetLastClip(state);
+        if (res != -1) {
+            resetLastClip(state);
+        }
 
         targetWidth = target.getPhysicalWidth();
         targetHeight = target.getPhysicalHeight();
@@ -356,7 +358,7 @@ public class MTLContext extends BaseShaderContext {
     native private static void nCommitCurrentCommandBuffer(long context);
     native private static long nGetCommandQueue(long context);
     native private static int  nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
-    native private static void nUpdateRenderTarget(long context, long texPtr, boolean depthTest);
+    native private static int  nUpdateRenderTarget(long context, long texPtr, boolean depthTest);
     native private static int  nResetTransform(long context);
     native private static int  nSetProjViewMatrix(long pContext, boolean isOrtho,
         double m00, double m01, double m02, double m03,

@@ -107,25 +107,28 @@
     return self;
 }
 
-- (void) setRTT:(MetalRTTexture*)rttPtr
+- (int) setRTT:(MetalRTTexture*)rttPtr
 {
     if (rtt != rttPtr) {
         CTX_LOG(@"-> Native: MetalContext.setRTT() endCurrentRenderEncoder");
         [self endCurrentRenderEncoder];
+
+        rtt = rttPtr;
+        CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
+                        [rtt getTexture].width, [rtt getTexture].height);
+        if ([rttPtr isMSAAEnabled]) {
+            rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStoreAndMultisampleResolve;
+            rttPassDesc.colorAttachments[0].texture = [rtt getMSAATexture];
+            rttPassDesc.colorAttachments[0].resolveTexture = [rtt getTexture];
+        } else {
+            rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
+            rttPassDesc.colorAttachments[0].texture = [rtt getTexture];
+            rttPassDesc.colorAttachments[0].resolveTexture = nil;
+        }
+        [self resetClipRect];
+        return 1;
     }
-    rtt = rttPtr;
-    CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
-                    [rtt getTexture].width, [rtt getTexture].height);
-    if ([rttPtr isMSAAEnabled]) {
-        rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStoreAndMultisampleResolve;
-        rttPassDesc.colorAttachments[0].texture = [rtt getMSAATexture];
-        rttPassDesc.colorAttachments[0].resolveTexture = [rtt getTexture];
-    } else {
-        rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
-        rttPassDesc.colorAttachments[0].texture = [rtt getTexture];
-        rttPassDesc.colorAttachments[0].resolveTexture = nil;
-    }
-    [self resetClip];
+    return -1;
 }
 
 - (MetalRTTexture*) getRTT
@@ -500,7 +503,7 @@
     int y1 = y + height;
     if (x <= 0 && y <= 0 && x1 >= currRtt.width && y1 >= currRtt.height) {
         CTX_LOG(@"     MetalContext.setClipRect() 1 resetting clip, %lu, %lu", currRtt.width, currRtt.height);
-        [self resetClip];
+        [self resetClipRect];
     } else {
         CTX_LOG(@"     MetalContext.setClipRect() 2");
         if (x < 0)                    x = 0;
@@ -532,9 +535,9 @@
     CTX_LOG(@"<<<< MetalContext.setClipRect()");
 }
 
-- (void) resetClip
+- (void) resetClipRect
 {
-    CTX_LOG(@">>>> MetalContext.resetClip()");
+    CTX_LOG(@">>>> MetalContext.resetClipRect()");
     isScissorEnabled = false;
     scissorRect.x = 0;
     scissorRect.y = 0;
@@ -891,13 +894,13 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
     return 1;
 }
 
-JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
+JNIEXPORT int JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
   (JNIEnv *env, jclass jClass, jlong context, jlong texPtr, jboolean depthTest)
 {
     CTX_LOG(@"MTLContext_nUpdateRenderTarget");
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     MetalRTTexture *rtt = (MetalRTTexture *)jlong_to_ptr(texPtr);
-    [mtlContext setRTT:rtt];
+    int ret = [mtlContext setRTT:rtt];
     // TODO: MTL: If we create depth texture while creating RTT
     // then also current implementation works fine. So in future
     // if we see any performance/state impact we should move
@@ -905,6 +908,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
     if (depthTest) {
         [mtlContext verifyDepthTexture];
     }
+    return ret;
 }
 
 /*
@@ -929,7 +933,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetClipRect
 {
     CTX_LOG(@"MTLContext_nResetClipRect");
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
-    [pCtx resetClip];
+    [pCtx resetClipRect];
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
