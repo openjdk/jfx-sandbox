@@ -80,8 +80,6 @@
         id<MTLDevice> device = [context getDevice];
         texture = [device newTextureWithDescriptor:texDescriptor];
 
-        blitQueue = nil; // Unused
-
         /*
         // for testing purpose
         unsigned char img[10*10*4];
@@ -162,13 +160,8 @@
 
         depthTexture = nil;
         depthMSAATexture = nil;
-        // Create buffer for reading - used in getPixelBuffer
-        pixelBuffer = [device newBufferWithLength: (width * height * 4) options: storageMode];
-
-        blitQueue = [device newCommandQueue];
     }
     TEX_LOG(@">>>> MetalTexture.createTexture()2  (buffer backed texture) -- width = %lu, height = %lu", width, height);
-    TEX_LOG(@">>>> MetalTexture.createTexture()2  PB length: %d", (int)([pixelBuffer length]));
     TEX_LOG(@">>>> MetalTexture.createTexture()2  created MetalTexture = %p", texture);
     return self;
 }
@@ -237,7 +230,7 @@
                 sourceLevel:(NSUInteger)0
                sourceOrigin:MTLOriginMake(0, 0, 0)
                 sourceSize:MTLSizeMake(texture.width, texture.height, texture.depth)
-                toBuffer:pixelBuffer
+                toBuffer:[context getPixelBuffer]
             destinationOffset:(NSUInteger)0
             destinationBytesPerRow:(NSUInteger)texture.width * 4
             destinationBytesPerImage:(NSUInteger)texture.width * texture.height * 4];
@@ -245,7 +238,7 @@
     [blitEncoder endEncoding];
     [context commitCurrentCommandBufferAndWait];
 
-    return pixelBuffer;
+    return [context getPixelBuffer];
 }
 
 - (id<MTLTexture>) getTexture
@@ -284,18 +277,6 @@
         TEX_LOG(@">>>> MetalTexture.dealloc -- releasing native MTLTexture");
         [texture release];
         texture = nil;
-    }
-
-    if (pixelBuffer != nil) {
-        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing native MTLBuffer");
-        [pixelBuffer release];
-        pixelBuffer = nil;
-    }
-
-    if (blitQueue != nil) {
-        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing blitQueue");
-        [blitQueue release];
-        blitQueue = nil;
     }
 
     if (depthTexture != nil) {
@@ -353,11 +334,10 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
     }
 
     id<MTLBuffer> pixelMTLBuf = nil;
-    id<MTLBuffer> nonRingMTLBuf = nil;
     int offset = copyPixelDataToRingBuffer(context, pixels, length);
     if (offset == -2) {
         TEX_LOG(@"MetalTexture_nUpdate -- creating non Ring Buffer");
-        nonRingMTLBuf = pixelMTLBuf = [[context getDevice] newBufferWithBytes:pixels length:length options:0];
+        pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length];
         offset = 0;
     } else {
         pixelMTLBuf = [[MetalRingBuffer getInstance] getBuffer];
@@ -385,11 +365,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
     }
 
     [blitEncoder endEncoding];
-    [[context getCurrentCommandBuffer] addCompletedHandler:^(id<MTLCommandBuffer> cb) {
-        if (nonRingMTLBuf != nil) {
-            [nonRingMTLBuf release];
-        }
-    }];
+
     // TODO: MTL: add error detection and return appropriate jlong
     return 0;
 }
@@ -411,13 +387,10 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
     }
 
     id<MTLBuffer> pixelMTLBuf = nil;
-    id<MTLBuffer> nonRingMTLBuf = nil;
     int offset = copyPixelDataToRingBuffer(context, pixels, length * sizeof(float));
     if (offset == -2) {
         TEX_LOG(@"MetalTexture_nUpdateFloat -- creating non Ring Buffer");
-        nonRingMTLBuf = pixelMTLBuf = [[context getDevice] newBufferWithBytes:pixels
-                                                        length:length * sizeof(float)
-                                                       options:0];
+        pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length * sizeof(float)];
         offset = 0;
     } else {
         pixelMTLBuf = [[MetalRingBuffer getInstance] getBuffer];
@@ -445,11 +418,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
     }
 
     [blitEncoder endEncoding];
-    [[context getCurrentCommandBuffer] addCompletedHandler:^(id<MTLCommandBuffer> cb) {
-        if (nonRingMTLBuf != nil) {
-            [nonRingMTLBuf release];
-        }
-    }];
 
     // TODO: MTL: add error detection and return appropriate jlong
     return 0;
@@ -472,13 +440,10 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
     }
 
     id<MTLBuffer> pixelMTLBuf = nil;
-    id<MTLBuffer> nonRingMTLBuf = nil;
     int offset = copyPixelDataToRingBuffer(context, pixels, length * sizeof(int));
     if (offset == -2) {
         TEX_LOG(@"MetalTexture_nUpdateInt -- creating non Ring Buffer");
-        nonRingMTLBuf = pixelMTLBuf = [[context getDevice] newBufferWithBytes:pixels
-                                                        length:length * sizeof(int)
-                                                       options:0];
+        pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length * sizeof(int)];
         offset = 0;
     } else {
         pixelMTLBuf = [[MetalRingBuffer getInstance] getBuffer];
@@ -506,11 +471,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
     }
 
     [blitEncoder endEncoding];
-    [[context getCurrentCommandBuffer] addCompletedHandler:^(id<MTLCommandBuffer> cb) {
-        if (nonRingMTLBuf != nil) {
-            [nonRingMTLBuf release];
-        }
-    }];
 
     // TODO: MTL: add error detection and return appropriate jlong
     return 0;

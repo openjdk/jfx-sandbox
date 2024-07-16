@@ -57,7 +57,7 @@
     CTX_LOG(@"-> MetalContext.createContext()");
     self = [super init];
     if (self) {
-        buffersForCB = [[NSMutableArray alloc] init];
+        transientBuffersForCB = [[NSMutableArray alloc] init];
         isScissorEnabled = false;
         currentRenderEncoder = nil;
         linearSamplerDict = [[NSMutableDictionary alloc] init];
@@ -80,6 +80,8 @@
         for (short i = 0; i < 256; i++) {
             byteToFloatTable[i] = ((float)i) / 255.0f;
         }
+
+        pixelBuffer = [device newBufferWithLength:4 options:MTLResourceStorageModeShared];
 
         // clearing rtt related initialization
         identityMatrixBuf = [device newBufferWithLength:sizeof(simd_float4x4)
@@ -114,6 +116,8 @@
         [self endCurrentRenderEncoder];
 
         rtt = rttPtr;
+        id<MTLTexture> mtlTex = [rtt getTexture];
+        [self validatePixelBuffer:(mtlTex.width * mtlTex.height * 4)];
         CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
                         [rtt getTexture].width, [rtt getTexture].height);
         if ([rttPtr isMSAAEnabled]) {
@@ -135,6 +139,36 @@
 {
     CTX_LOG(@"-> Native: MetalContext.getRTT()");
     return rtt;
+}
+
+- (void) validatePixelBuffer:(NSUInteger)length
+{
+    if ([pixelBuffer length] < length) {
+        [transientBuffersForCB addObject:pixelBuffer];
+        pixelBuffer = [device newBufferWithLength:length options:MTLResourceStorageModeShared];
+    }
+}
+
+- (id<MTLBuffer>) getPixelBuffer
+{
+    return pixelBuffer;
+}
+
+- (id<MTLBuffer>) getTransientBufferWithBytes:(const void *)pointer length:(NSUInteger)length
+{
+    id<MTLBuffer> transientBuf = [device newBufferWithBytes:pointer
+                                                     length:length
+                                                    options:MTLResourceStorageModeShared];
+    [transientBuffersForCB addObject:transientBuf];
+    return transientBuf;
+}
+
+- (id<MTLBuffer>) getTransientBufferWithLength:(NSUInteger)length
+{
+    id<MTLBuffer> transientBuf = [device newBufferWithLength:length
+                                                     options:MTLResourceStorageModeShared];
+    [transientBuffersForCB addObject:transientBuf];
+    return transientBuf;
 }
 
 - (id<MTLSamplerState>) getSampler:(bool)isLinear
@@ -192,8 +226,8 @@
 {
     [self endCurrentRenderEncoder];
 
-    NSMutableArray* bufsForCB = buffersForCB;
-    buffersForCB = [[NSMutableArray alloc] init];
+    NSMutableArray* bufsForCB = transientBuffersForCB;
+    transientBuffersForCB = [[NSMutableArray alloc] init];
 
     [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
          for (id buffer in bufsForCB) {
@@ -286,10 +320,8 @@
     int offset = [[MetalRingBuffer getInstance] reserveBytes:vbLength];
 
     if (offset == -2) {
-        vertexBuffer = [device newBufferWithLength:vbLength
-                                           options:MTLResourceStorageModeShared];
+        vertexBuffer = [self getTransientBufferWithLength:vbLength];
         offset = 0;
-        [buffersForCB addObject:vertexBuffer];
     } else {
         if (offset == -1) {
             [self commitCurrentCommandBuffer];
@@ -795,6 +827,10 @@
         clearEntireRttVerticesBuf = nil;
     }
 
+    if (pixelBuffer != nil) {
+        [pixelBuffer release];
+        pixelBuffer = nil;
+    }
 
     device = nil;
 

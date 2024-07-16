@@ -41,12 +41,10 @@
 {
     MetalContext *context;
 
-    id<MTLBuffer> pixelBuffer;
     id<MTLTexture> texture;
     id<MTLTexture> depthTexture;
     id<MTLTexture> depthMSAATexture;
     id<MTLTexture> msaaTexture;
-    id<MTLCommandQueue> blitQueue;
 
     // Specifying Texture Attributes: https://developer.apple.com/documentation/metal/mtltexturedescriptor
     NSUInteger width;

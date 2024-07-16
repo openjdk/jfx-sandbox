@@ -109,7 +109,8 @@ typedef enum VertexInputIndex {
     int compositeMode;
     int cullMode;
 
-    NSMutableArray* buffersForCB;
+    NSMutableArray* transientBuffersForCB;
+    id<MTLBuffer> pixelBuffer;
 }
 
 - (void) setCompositeMode:(int) mode;
@@ -137,7 +138,7 @@ typedef enum VertexInputIndex {
 - (void) clearRTT:(int)color red:(float)red green:(float)green blue:(float)blue alpha:(float)alpha
                         clearDepth:(bool)clearDepth ignoreScissor:(bool)ignoreScissor;
 - (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height;
-- (void) resetClip;
+- (void) resetClipRect;
 
 - (void) fillVB:(struct PrismSourceVertex const *)pSrcXYZUVs
          colors:(char const *)pSrcColors
@@ -188,6 +189,11 @@ typedef enum VertexInputIndex {
 - (id<MTLSamplerState>) getSampler:(bool)isLinear wrapMode:(int)wrapMode;
 - (id<MTLSamplerState>) createSampler:(bool)isLinear wrapMode:(int)wrapMode;
 - (id<MTLCommandQueue>) getCommandQueue;
+
+- (void) validatePixelBuffer:(NSUInteger)length;
+- (id<MTLBuffer>) getPixelBuffer;
+- (id<MTLBuffer>) getTransientBufferWithLength:(NSUInteger)length;
+- (id<MTLBuffer>) getTransientBufferWithBytes:(const void *)pointer length:(NSUInteger)length;
 
 @end
 
