@@ -234,6 +234,7 @@
             [buffer release];
         }
         [bufsForCB removeAllObjects];
+        [bufsForCB release];
     }];
 
     [currentCommandBuffer commit];
@@ -816,6 +817,7 @@
     }
     [linearSamplerDict release];
     [nonLinearSamplerDict release];
+    [transientBuffersForCB release];
 
     if (identityMatrixBuf != nil) {
         [identityMatrixBuf release];

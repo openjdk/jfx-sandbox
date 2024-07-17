@@ -72,7 +72,7 @@ static MetalRingBuffer* instance = nil;
             isBufferInUse[i] = false;
             buffer[i] = [MTLCreateSystemDefaultDevice() newBufferWithLength:BUFFER_LENGTH
                                                                     options:MTLResourceStorageModeShared];
-            buffer[i].label = [NSString stringWithFormat:@"JFX Argument Buffer"];
+            buffer[i].label = [NSString stringWithFormat:@"JFX Ring Buffer"];
         }
     }
     return self;
