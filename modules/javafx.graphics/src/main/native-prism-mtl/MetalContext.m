@@ -229,17 +229,12 @@
     NSMutableArray* bufsForCB = transientBuffersForCB;
     transientBuffersForCB = [[NSMutableArray alloc] init];
 
-    unsigned int rbid = [[MetalRingBuffer getInstance] getCurrentBufferIndex];
     [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
          for (id buffer in bufsForCB) {
             [buffer release];
         }
         [bufsForCB removeAllObjects];
         [bufsForCB release];
-        if ([MetalRingBuffer getInstance] != nil) {
-                [[MetalRingBuffer getInstance] resetBuffer:rbid];
-        }
-        [cb release];
     }];
 
     [currentCommandBuffer commit];
@@ -263,6 +258,14 @@
         [currentCommandBuffer addScheduledHandler:^(id<MTLCommandBuffer> cb) {
              CTX_LOG(@"------------------> Native: commandBuffer Scheduled");
         }];
+
+        unsigned int rbid = [[MetalRingBuffer getInstance] getCurrentBufferIndex];
+        [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
+            if ([MetalRingBuffer getInstance] != nil) {
+                [[MetalRingBuffer getInstance] resetBuffer:rbid];
+            }
+            CTX_LOG(@"------------------> Native: commandBuffer Completed");
+        }];
     }
     return currentCommandBuffer;
 }
@@ -280,7 +283,6 @@
 {
     if (currentRenderEncoder != nil) {
         [currentRenderEncoder endEncoding];
-        [currentRenderEncoder release];
         currentRenderEncoder = nil;
     }
 }
