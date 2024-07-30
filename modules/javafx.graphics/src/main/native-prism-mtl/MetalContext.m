@@ -315,18 +315,12 @@
     int numVertices = numQuads * 6;
     int vbLength = sizeof(VS_INPUT) * numVertices;
 
-    id<MTLBuffer> vertexBuffer = nil;
+    id<MTLBuffer> vertexBuffer = [[MetalRingBuffer getInstance] getBuffer];
     int offset = [[MetalRingBuffer getInstance] reserveBytes:vbLength];
 
-    if (offset == -2) {
+    if (offset < 0) {
         vertexBuffer = [self getTransientBufferWithLength:vbLength];
         offset = 0;
-    } else {
-        if (offset == -1) {
-            [self commitCurrentCommandBuffer];
-            offset = [[MetalRingBuffer getInstance] reserveBytes:vbLength];
-        }
-        vertexBuffer = [[MetalRingBuffer getInstance] getBuffer];
     }
 
     [self fillVB:pSrcXYZUVs
