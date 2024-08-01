@@ -114,25 +114,27 @@
     if (rtt != rttPtr) {
         CTX_LOG(@"-> Native: MetalContext.setRTT() endCurrentRenderEncoder");
         [self endCurrentRenderEncoder];
-
-        rtt = rttPtr;
-        id<MTLTexture> mtlTex = [rtt getTexture];
-        [self validatePixelBuffer:(mtlTex.width * mtlTex.height * 4)];
-        CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
-                        [rtt getTexture].width, [rtt getTexture].height);
-        if ([rttPtr isMSAAEnabled]) {
-            rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStoreAndMultisampleResolve;
-            rttPassDesc.colorAttachments[0].texture = [rtt getMSAATexture];
-            rttPassDesc.colorAttachments[0].resolveTexture = [rtt getTexture];
-        } else {
-            rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
-            rttPassDesc.colorAttachments[0].texture = [rtt getTexture];
-            rttPassDesc.colorAttachments[0].resolveTexture = nil;
-        }
-        [self resetClipRect];
-        return 1;
     }
-    return -1;
+    // TODO: MTL:
+    // The method can possibly be optmized(with no significant gain in FPS)
+    // to avoid updating RenderPassDescriptor if the render target
+    // is not being changed.
+    rtt = rttPtr;
+    id<MTLTexture> mtlTex = [rtt getTexture];
+    [self validatePixelBuffer:(mtlTex.width * mtlTex.height * 4)];
+    CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
+                    [rtt getTexture].width, [rtt getTexture].height);
+    if ([rttPtr isMSAAEnabled]) {
+        rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStoreAndMultisampleResolve;
+        rttPassDesc.colorAttachments[0].texture = [rtt getMSAATexture];
+        rttPassDesc.colorAttachments[0].resolveTexture = [rtt getTexture];
+    } else {
+        rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
+        rttPassDesc.colorAttachments[0].texture = [rtt getTexture];
+        rttPassDesc.colorAttachments[0].resolveTexture = nil;
+    }
+    [self resetClipRect];
+    return 1;
 }
 
 - (MetalRTTexture*) getRTT
