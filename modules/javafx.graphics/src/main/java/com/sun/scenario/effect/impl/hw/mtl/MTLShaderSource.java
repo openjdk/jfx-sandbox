@@ -34,7 +34,8 @@ public class MTLShaderSource implements ShaderSource {
     public InputStream loadSource(String name) {
         // MSL shaders are compilend and linked into a MTLLibrary at build time.
         // At runtime, shaders get loaded from that library as needed.
-        throw new UnsupportedOperationException("Metal shader source is not available at runtime.");
+        // throw new UnsupportedOperationException("Metal shader source is not available at runtime.");
+        return null;
     }
 
     public AccelType getAccelType() {

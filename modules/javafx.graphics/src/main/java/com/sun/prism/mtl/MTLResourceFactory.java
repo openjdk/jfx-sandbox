@@ -76,12 +76,11 @@ public class MTLResourceFactory extends BaseShaderFactory {
     }
 
     @Override
-    public Shader createShader(InputStream shaderNameStream, Map<String, Integer> samplers,
+    public Shader createShader(String pixelShaderName, InputStream pixelShaderCode, Map<String, Integer> samplers,
                                Map<String, Integer> params, int maxTexCoordIndex,
                                boolean isPixcoordUsed, boolean isPerVertexColorUsed) {
         try {
-            String shaderName = new String(shaderNameStream.readAllBytes());
-            return createShader(shaderName, samplers, params, maxTexCoordIndex,
+            return createShader(pixelShaderName, samplers, params, maxTexCoordIndex,
                                 isPixcoordUsed, isPerVertexColorUsed);
         } catch (Exception e) {
             throw new UnsupportedOperationException("Failed to create a prism shader");
@@ -115,9 +114,9 @@ public class MTLResourceFactory extends BaseShaderFactory {
                 System.out.println("MTLResourceFactory: Prism - createStockShader: " + shaderName);
             }
             Class klass = Class.forName("com.sun.prism.shader." + shaderName + "_Loader");
-            Method m = klass.getMethod("loadShader", new Class[] {ShaderFactory.class, InputStream.class});
+            Method m = klass.getMethod("loadShader", new Class[] {ShaderFactory.class, String.class, InputStream.class});
             InputStream nameStream = new ByteArrayInputStream(shaderName.getBytes());
-            return (Shader) m.invoke(null, new Object[]{this, nameStream});
+            return (Shader) m.invoke(null, new Object[]{this, shaderName, nameStream});
         } catch (Throwable e) {
             e.printStackTrace();
             throw new InternalError("Error loading stock shader " + shaderName);
