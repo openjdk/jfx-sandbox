@@ -36,8 +36,6 @@
 #import "GlassApplication.h"
 #import "GlassScreen.h"
 
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-
 //#define VERBOSE
 #ifndef VERBOSE
     #define LOG(MSG, ...)
@@ -310,7 +308,7 @@
     /*if ([self window] != nil)
     {
         GlassLayer3D *layer = (GlassLayer3D*)[self layer];
-        [[layer getPainterOffscreen] setBackgroundColor:[[[self window] backgroundColor] colorUsingColorSpaceName:NSDeviceRGBColorSpace]];
+        [[layer getPainterOffscreen] setBackgroundColor:[[[self window] backgroundColor] colorUsingColorSpace:NSColorSpace.sRGBColorSpace]];
     }*/
 
     [self->_delegate viewDidMoveToWindow];
