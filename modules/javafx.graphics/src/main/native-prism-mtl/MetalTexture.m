@@ -318,20 +318,25 @@ static int copyPixelDataToRingBuffer(MetalContext* context, void* pixels, unsign
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
-(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jbyteArray pixData, jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride) {
+(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
+    jbyteArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
+    jint w, jint h, jint scanStride)
+{
     TEX_LOG(@"\n");
     TEX_LOG(@"-> Native: MTLTexture_nUpdate srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 
-    id<MTLTexture> tex = [mtlTex getTexture];
-    jbyte *pixels = (*env)->GetByteArrayElements(env, pixData, 0);
+    jint length = pixData?
+        (*env)->GetArrayLength(env, pixData) :
+        (jint)((*env)->GetDirectBufferCapacity(env, buf));
+    length *= sizeof(jbyte);
 
-    jsize length = (*env)->GetArrayLength(env, pixData);
-    if (length == 0) {
-        (*env)->ReleaseByteArrayElements(env, pixData, pixels, 0);
-        return 0;
-    }
+    jbyte* pixels = (jbyte*)((pixData != NULL) ?
+        (*env)->GetPrimitiveArrayCritical(env, pixData, NULL) :
+        (*env)->GetDirectBufferAddress(env, buf));
+
+    id<MTLTexture> tex = [mtlTex getTexture];
 
     id<MTLBuffer> pixelMTLBuf = nil;
     int offset = copyPixelDataToRingBuffer(context, pixels, length);
@@ -343,7 +348,9 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
         pixelMTLBuf = [[MetalRingBuffer getInstance] getBuffer];
     }
 
-    (*env)->ReleaseByteArrayElements(env, pixData, pixels, 0);
+    if (pixData != NULL) {
+        (*env)->ReleasePrimitiveArrayCritical(env, pixData, pixels, 0);
+    }
 
     [context endCurrentRenderEncoder];
 
@@ -371,32 +378,39 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
-(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jfloatArray pixData, jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride) {
+(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
+    jfloatArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
+    jint w, jint h, jint scanStride)
+{
     TEX_LOG(@"\n");
     TEX_LOG(@"-> Native: MTLTexture_nUpdateFloat srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 
-    id<MTLTexture> tex = [mtlTex getTexture];
-    jfloat *pixels = (*env)->GetFloatArrayElements(env, pixData, 0);
+    jint length = pixData ?
+        (*env)->GetArrayLength(env, pixData) :
+        (jint)((*env)->GetDirectBufferCapacity(env, buf));
+    length *= sizeof(jfloat);
 
-    jsize length = (*env)->GetArrayLength(env, pixData);
-    if (length == 0) {
-        (*env)->ReleaseFloatArrayElements(env, pixData, pixels, 0);
-        return 0;
-    }
+    jfloat *pixels = (jfloat*)((pixData != NULL) ?
+        (*env)->GetPrimitiveArrayCritical(env, pixData, NULL) :
+        (*env)->GetDirectBufferAddress(env, buf));
+
+    id<MTLTexture> tex = [mtlTex getTexture];
 
     id<MTLBuffer> pixelMTLBuf = nil;
-    int offset = copyPixelDataToRingBuffer(context, pixels, length * sizeof(float));
+    int offset = copyPixelDataToRingBuffer(context, pixels, length);
     if (offset == -2) {
         TEX_LOG(@"MetalTexture_nUpdateFloat -- creating non Ring Buffer");
-        pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length * sizeof(float)];
+        pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length];
         offset = 0;
     } else {
         pixelMTLBuf = [[MetalRingBuffer getInstance] getBuffer];
     }
 
-    (*env)->ReleaseFloatArrayElements(env, pixData, pixels, 0);
+    if (pixData != NULL) {
+        (*env)->ReleasePrimitiveArrayCritical(env, pixData, pixels, 0);
+    }
 
     [context endCurrentRenderEncoder];
 
@@ -424,32 +438,40 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
-(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jintArray pixData, jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride) {
+(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
+    jintArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
+    jint w, jint h, jint scanStride)
+{
     TEX_LOG(@"\n");
     TEX_LOG(@"-> Native: MTLTexture_nUpdateInt srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 
     id<MTLTexture> tex = [mtlTex getTexture];
-    jint *pixels = (*env)->GetIntArrayElements(env, pixData, 0);
 
-    jsize length = (*env)->GetArrayLength(env, pixData);
-    if (length == 0) {
-        (*env)->ReleaseIntArrayElements(env, pixData, pixels, 0);
-        return 0;
-    }
+    jint length = pixData ?
+        (*env)->GetArrayLength(env, pixData) :
+        (jint)((*env)->GetDirectBufferCapacity(env, buf));
+    length *= sizeof(jint);
+
+    jint *pixels = (jint*)((pixData != NULL) ?
+        (*env)->GetPrimitiveArrayCritical(env, pixData, NULL) :
+        (*env)->GetDirectBufferAddress(env, buf));
+
 
     id<MTLBuffer> pixelMTLBuf = nil;
-    int offset = copyPixelDataToRingBuffer(context, pixels, length * sizeof(int));
+    int offset = copyPixelDataToRingBuffer(context, pixels, length);
     if (offset == -2) {
         TEX_LOG(@"MetalTexture_nUpdateInt -- creating non Ring Buffer");
-        pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length * sizeof(int)];
+        pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length];
         offset = 0;
     } else {
         pixelMTLBuf = [[MetalRingBuffer getInstance] getBuffer];
     }
 
-    (*env)->ReleaseIntArrayElements(env, pixData, pixels, 0);
+    if (pixData != NULL) {
+        (*env)->ReleasePrimitiveArrayCritical(env, pixData, pixels, 0);
+    }
 
     [context endCurrentRenderEncoder];
 
