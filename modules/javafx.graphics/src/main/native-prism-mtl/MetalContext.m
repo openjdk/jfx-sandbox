@@ -231,8 +231,12 @@
     NSMutableArray* bufsForCB = transientBuffersForCB;
     transientBuffersForCB = [[NSMutableArray alloc] init];
 
+    unsigned int rbid = [[MetalRingBuffer getInstance] getCurrentBufferIndex];
     [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
-         for (id buffer in bufsForCB) {
+        if ([MetalRingBuffer getInstance] != nil) {
+            [[MetalRingBuffer getInstance] resetBuffer:rbid];
+        }
+        for (id buffer in bufsForCB) {
             [buffer release];
         }
         [bufsForCB removeAllObjects];
@@ -257,17 +261,6 @@
                 || currentCommandBuffer.status != MTLCommandBufferStatusNotEnqueued) {
         currentCommandBuffer = [commandQueue commandBuffer];
         currentCommandBuffer.label = @"JFX Command Buffer";
-        [currentCommandBuffer addScheduledHandler:^(id<MTLCommandBuffer> cb) {
-             CTX_LOG(@"------------------> Native: commandBuffer Scheduled");
-        }];
-
-        unsigned int rbid = [[MetalRingBuffer getInstance] getCurrentBufferIndex];
-        [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
-            if ([MetalRingBuffer getInstance] != nil) {
-                [[MetalRingBuffer getInstance] resetBuffer:rbid];
-            }
-            CTX_LOG(@"------------------> Native: commandBuffer Completed");
-        }];
     }
     return currentCommandBuffer;
 }

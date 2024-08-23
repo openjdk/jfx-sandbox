@@ -254,10 +254,6 @@ static int nextDrawableCount = 0;
 
         [blitEncoder endEncoding];
 
-        [commandBuf addCompletedHandler:^(id <MTLCommandBuffer> commandBuf) {
-            //TODO
-        }];
-
         [commandBuf commit];
         [commandBuf waitUntilCompleted];
     }
