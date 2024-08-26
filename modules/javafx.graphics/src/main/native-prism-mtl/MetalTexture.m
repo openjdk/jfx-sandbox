@@ -222,20 +222,22 @@
     [context endCurrentRenderEncoder];
 
     id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
-    id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
+    @autoreleasepool {
+        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
-    [blitEncoder synchronizeTexture:texture slice:0 level:0];
-    [blitEncoder copyFromTexture:texture
+        [blitEncoder synchronizeTexture:texture slice:0 level:0];
+        [blitEncoder copyFromTexture:texture
                 sourceSlice:(NSUInteger)0
                 sourceLevel:(NSUInteger)0
-               sourceOrigin:MTLOriginMake(0, 0, 0)
+                sourceOrigin:MTLOriginMake(0, 0, 0)
                 sourceSize:MTLSizeMake(texture.width, texture.height, texture.depth)
                 toBuffer:[context getPixelBuffer]
-            destinationOffset:(NSUInteger)0
-            destinationBytesPerRow:(NSUInteger)texture.width * 4
-            destinationBytesPerImage:(NSUInteger)texture.width * texture.height * 4];
+                destinationOffset:(NSUInteger)0
+                destinationBytesPerRow:(NSUInteger)texture.width * 4
+                destinationBytesPerImage:(NSUInteger)texture.width * texture.height * 4];
 
-    [blitEncoder endEncoding];
+        [blitEncoder endEncoding];
+    }
     [context commitCurrentCommandBufferAndWait];
 
     return [context getPixelBuffer];
@@ -353,25 +355,27 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
     }
 
     [context endCurrentRenderEncoder];
+    id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
+    @autoreleasepool {
+        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
-    id<MTLBlitCommandEncoder> blitEncoder = [[context getCurrentCommandBuffer] blitCommandEncoder];
-
-    [blitEncoder synchronizeTexture:tex slice:0 level:0];
-    [blitEncoder copyFromBuffer:pixelMTLBuf
-                   sourceOffset:(NSUInteger)offset
-              sourceBytesPerRow:(NSUInteger)scanStride
-            sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
-                     sourceSize:MTLSizeMake(w, h, 1)
-                      toTexture:tex
-               destinationSlice:(NSUInteger)0
+        [blitEncoder synchronizeTexture:tex slice:0 level:0];
+        [blitEncoder copyFromBuffer:pixelMTLBuf
+                sourceOffset:(NSUInteger)offset
+                sourceBytesPerRow:(NSUInteger)scanStride
+                sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
+                sourceSize:MTLSizeMake(w, h, 1)
+                toTexture:tex
+        destinationSlice:(NSUInteger)0
                destinationLevel:(NSUInteger)0
               destinationOrigin:MTLOriginMake(dstx, dsty, 0)];
 
-    if ([mtlTex isMipmapped]) {
-        [blitEncoder generateMipmapsForTexture:tex];
-    }
+        if ([mtlTex isMipmapped]) {
+            [blitEncoder generateMipmapsForTexture:tex];
+        }
 
-    [blitEncoder endEncoding];
+        [blitEncoder endEncoding];
+    }
 
     // TODO: MTL: add error detection and return appropriate jlong
     return 0;
@@ -413,25 +417,28 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
     }
 
     [context endCurrentRenderEncoder];
+    id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
 
-    id<MTLBlitCommandEncoder> blitEncoder = [[context getCurrentCommandBuffer] blitCommandEncoder];
+    @autoreleasepool {
+        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
-    [blitEncoder synchronizeTexture:tex slice:0 level:0];
-    [blitEncoder copyFromBuffer:pixelMTLBuf
-                   sourceOffset:(NSUInteger)offset
-              sourceBytesPerRow:(NSUInteger)scanStride
-            sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
-                     sourceSize:MTLSizeMake(w, h, 1)
-                      toTexture:tex
-               destinationSlice:(NSUInteger)0
-               destinationLevel:(NSUInteger)0
-              destinationOrigin:MTLOriginMake(dstx, dsty, 0)];
+        [blitEncoder synchronizeTexture:tex slice:0 level:0];
+        [blitEncoder copyFromBuffer:pixelMTLBuf
+                sourceOffset:(NSUInteger)offset
+                sourceBytesPerRow:(NSUInteger)scanStride
+                sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
+                sourceSize:MTLSizeMake(w, h, 1)
+                toTexture:tex
+                destinationSlice:(NSUInteger)0
+                destinationLevel:(NSUInteger)0
+                destinationOrigin:MTLOriginMake(dstx, dsty, 0)];
 
-    if ([mtlTex isMipmapped]) {
-        [blitEncoder generateMipmapsForTexture:tex];
+        if ([mtlTex isMipmapped]) {
+            [blitEncoder generateMipmapsForTexture:tex];
+        }
+
+        [blitEncoder endEncoding];
     }
-
-    [blitEncoder endEncoding];
 
     // TODO: MTL: add error detection and return appropriate jlong
     return 0;
@@ -474,25 +481,28 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
     }
 
     [context endCurrentRenderEncoder];
+    id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
 
-    id<MTLBlitCommandEncoder> blitEncoder = [[context getCurrentCommandBuffer] blitCommandEncoder];
+    @autoreleasepool {
+        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
-    [blitEncoder synchronizeTexture:tex slice:0 level:0];
-    [blitEncoder copyFromBuffer:pixelMTLBuf
-                   sourceOffset:(NSUInteger)offset
-              sourceBytesPerRow:(NSUInteger)scanStride
-            sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
-                     sourceSize:MTLSizeMake(w, h, 1)
-                      toTexture:tex
-               destinationSlice:(NSUInteger)0
-               destinationLevel:(NSUInteger)0
-              destinationOrigin:MTLOriginMake(dstx, dsty, 0)];
+        [blitEncoder synchronizeTexture:tex slice:0 level:0];
+        [blitEncoder copyFromBuffer:pixelMTLBuf
+                sourceOffset:(NSUInteger)offset
+                sourceBytesPerRow:(NSUInteger)scanStride
+                sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
+                sourceSize:MTLSizeMake(w, h, 1)
+                toTexture:tex
+                destinationSlice:(NSUInteger)0
+                destinationLevel:(NSUInteger)0
+                destinationOrigin:MTLOriginMake(dstx, dsty, 0)];
 
-    if ([mtlTex isMipmapped]) {
-        [blitEncoder generateMipmapsForTexture:tex];
+        if ([mtlTex isMipmapped]) {
+            [blitEncoder generateMipmapsForTexture:tex];
+        }
+
+        [blitEncoder endEncoding];
     }
-
-    [blitEncoder endEncoding];
 
     // TODO: MTL: add error detection and return appropriate jlong
     return 0;
