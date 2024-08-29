@@ -250,6 +250,7 @@
         [currentCommandBuffer waitUntilCompleted];
     }
 
+    [currentCommandBuffer release];
     currentCommandBuffer = nil;
     [[MetalRingBuffer getInstance] updateBufferInUse];
 }
@@ -259,7 +260,14 @@
     CTX_LOG(@"MetalContext.getCurrentCommandBuffer() --- current value = %p", currentCommandBuffer);
     if (currentCommandBuffer == nil
                 || currentCommandBuffer.status != MTLCommandBufferStatusNotEnqueued) {
-        currentCommandBuffer = [commandQueue commandBuffer];
+
+        @autoreleasepool {
+            // The commandBuffer creation using commandQueue returns
+            // an autoreleased object. We need this object at a class level as it
+            // gets used in other class methods.
+            // Take up the ownership of this commandBuffer object using retain.
+            currentCommandBuffer = [[commandQueue commandBuffer] retain];
+        }
         currentCommandBuffer.label = @"JFX Command Buffer";
     }
     return currentCommandBuffer;
@@ -269,7 +277,15 @@
 {
     if (currentRenderEncoder == nil) {
         CTX_LOG(@"MetalContext.getCurrentRenderEncoder() is nil");
-        currentRenderEncoder = [[self getCurrentCommandBuffer] renderCommandEncoderWithDescriptor:rttPassDesc];
+        id<MTLCommandBuffer> cb = [self getCurrentCommandBuffer];
+
+        @autoreleasepool {
+            // The RenderEncoder creation using command buffer returns
+            // an autoreleased object. We need this object at a class level as it
+            // gets used in other class methods.
+            // Take up the ownership of this RenderEncoder object using retain.
+            currentRenderEncoder = [[cb renderCommandEncoderWithDescriptor:rttPassDesc] retain];
+        }
     }
     return currentRenderEncoder;
 }
@@ -278,6 +294,7 @@
 {
     if (currentRenderEncoder != nil) {
         [currentRenderEncoder endEncoding];
+        [currentRenderEncoder release];
         currentRenderEncoder = nil;
     }
 }
@@ -1432,19 +1449,21 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
     [pCtx endCurrentRenderEncoder];
 
     id<MTLCommandBuffer> commandBuffer = [pCtx getCurrentCommandBuffer];
-    id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
-    [blitEncoder synchronizeTexture:src slice:0 level:0];
-    [blitEncoder synchronizeTexture:dst slice:0 level:0];
-    [blitEncoder copyFromTexture:src
+    @autoreleasepool {
+        id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
+        [blitEncoder synchronizeTexture:src slice:0 level:0];
+        [blitEncoder synchronizeTexture:dst slice:0 level:0];
+        [blitEncoder copyFromTexture:src
                 sourceSlice:(NSUInteger)0
                 sourceLevel:(NSUInteger)0
-               sourceOrigin:MTLOriginMake(0, 0, 0)
+                sourceOrigin:MTLOriginMake(0, 0, 0)
                 sourceSize:MTLSizeMake(src.width, src.height, src.depth)
                 toTexture:dst
-            destinationSlice:(NSUInteger)0
-            destinationLevel:(NSUInteger)0
-            destinationOrigin:MTLOriginMake(0, 0, 0)];
-    [blitEncoder endEncoding];
+                destinationSlice:(NSUInteger)0
+                destinationLevel:(NSUInteger)0
+                destinationOrigin:MTLOriginMake(0, 0, 0)];
+        [blitEncoder endEncoding];
+    }
     return;
 }
 
