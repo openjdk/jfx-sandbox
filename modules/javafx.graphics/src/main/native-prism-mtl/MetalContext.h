@@ -40,6 +40,7 @@
 @class MetalMeshView;
 
 #define BUFFER_SIZE 1
+#define MAX_TRANS_BUFF_ALLOCATION_PER_CB (30 * 1024 * 1024)
 
 struct PrismSourceVertex {
     float x, y, z;
@@ -84,6 +85,9 @@ typedef enum VertexInputIndex {
     MetalShader* currentShader;
     NSMutableDictionary* linearSamplerDict;
     NSMutableDictionary* nonLinearSamplerDict;
+
+    int transBuffAllocationInCB;
+    bool commitOnDraw;
 
     MetalResourceFactory* resourceFactory;
 

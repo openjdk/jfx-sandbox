@@ -59,6 +59,8 @@
     if (self) {
         transientBuffersForCB = [[NSMutableArray alloc] init];
         isScissorEnabled = false;
+        commitOnDraw = false;
+        transBuffAllocationInCB = 0;
         currentRenderEncoder = nil;
         linearSamplerDict = [[NSMutableDictionary alloc] init];
         nonLinearSamplerDict = [[NSMutableDictionary alloc] init];
@@ -162,6 +164,10 @@
                                                      length:length
                                                     options:MTLResourceStorageModeShared];
     [transientBuffersForCB addObject:transientBuf];
+    transBuffAllocationInCB += length;
+    if (transBuffAllocationInCB > MAX_TRANS_BUFF_ALLOCATION_PER_CB) {
+        commitOnDraw = true;
+    }
     return transientBuf;
 }
 
@@ -170,6 +176,10 @@
     id<MTLBuffer> transientBuf = [device newBufferWithLength:length
                                                      options:MTLResourceStorageModeShared];
     [transientBuffersForCB addObject:transientBuf];
+    transBuffAllocationInCB += length;
+    if (transBuffAllocationInCB > MAX_TRANS_BUFF_ALLOCATION_PER_CB) {
+        commitOnDraw = true;
+    }
     return transientBuf;
 }
 
@@ -242,7 +252,8 @@
         [bufsForCB removeAllObjects];
         [bufsForCB release];
     }];
-
+    commitOnDraw = false;
+    transBuffAllocationInCB = 0;
     [currentCommandBuffer commit];
 
     if (waitUntilCompleted ||
@@ -329,6 +340,11 @@
     int numVertices = numQuads * 6;
     int vbLength = sizeof(VS_INPUT) * numVertices;
 
+    MetalShader* shader = [self getCurrentShader];
+    if ([shader getArgumentBufferLength] != 0) {
+        [shader copyArgBufferToRingBuffer];
+    }
+
     id<MTLBuffer> vertexBuffer = [[MetalRingBuffer getInstance] getBuffer];
     int offset = [[MetalRingBuffer getInstance] reserveBytes:vbLength];
 
@@ -341,9 +357,6 @@
           colors:pSrcColors
         numQuads:numQuads
               vb:(vertexBuffer.contents + offset)];
-
-    MetalShader* shader = [self getCurrentShader];
-    [shader copyArgBufferToRingBuffer];
 
     id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
 
@@ -389,6 +402,9 @@
                       vertexStart:0
                       vertexCount:numVertices];
 
+    if (commitOnDraw) {
+        [self commitCurrentCommandBuffer];
+    }
     return 1;
 }
 

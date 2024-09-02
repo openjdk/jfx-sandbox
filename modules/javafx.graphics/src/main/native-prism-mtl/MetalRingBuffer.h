@@ -29,7 +29,7 @@
 // TODO: MTL:
 // 1. Find the best size
 // 2. Alternative approach for large textures(no ring buffer, different sized ring buffer)
-#define RING_BUFF_SIZE (8 * 1024 * 1024)
+#define RING_BUFF_SIZE (16 * 1024 * 1024)
 
 #define NUM_BUFFERS (3)
 
