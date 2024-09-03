@@ -570,8 +570,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateYUV422
 
         [computeEncoder endEncoding];
 
-        [_computePipelineState release];
-
         [context commitCurrentCommandBuffer];
     }
 

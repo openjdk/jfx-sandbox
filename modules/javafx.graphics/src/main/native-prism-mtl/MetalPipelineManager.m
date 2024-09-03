@@ -76,6 +76,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     phongPipelineStateNonMSAADepthDict = [[NSMutableDictionary alloc] init];
     phongPipelineStateMSAANoDepthDict = [[NSMutableDictionary alloc] init];
     phongPipelineStateMSAADepthDict = [[NSMutableDictionary alloc] init];
+    uyvy422ToRGBAState = nil;
 
     // Create and cache 2 possible depthStencilStates
     @autoreleasepool {
@@ -195,12 +196,14 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 
     id<MTLFunction> kernelFunction = [shaderLib newFunctionWithName:funcName];
 
-    id<MTLComputePipelineState> pipeState =  [[context getDevice] newComputePipelineStateWithFunction:kernelFunction
+    if (uyvy422ToRGBAState == nil) {
+        uyvy422ToRGBAState =  [[context getDevice] newComputePipelineStateWithFunction:kernelFunction
                                                                        error:&error];
 
-    NSAssert(pipeState, @"Failed to create compute pipeline state: %@", error);
+        NSAssert(uyvy422ToRGBAState, @"Failed to create compute pipeline state: %@", error);
+    }
 
-    return pipeState;
+    return uyvy422ToRGBAState;
 }
 
 
@@ -348,6 +351,11 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     if (shaderLib != nil) {
         [shaderLib release];
         shaderLib = nil;
+    }
+
+    if (uyvy422ToRGBAState != nil) {
+        [uyvy422ToRGBAState release];
+        uyvy422ToRGBAState = nil;
     }
 
     [super dealloc];
