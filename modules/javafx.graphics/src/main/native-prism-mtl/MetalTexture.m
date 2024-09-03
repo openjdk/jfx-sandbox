@@ -70,15 +70,17 @@
             mipmapped = false;
         }
         TEX_LOG(@"useMipMap : %d", useMipMap);
-        MTLTextureDescriptor *texDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pixelFormat
+        @autoreleasepool {
+            MTLTextureDescriptor *texDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pixelFormat
                                                                                                  width:width
                                                                                                 height:height
                                                                                              mipmapped:mipmapped];
-        texDescriptor.usage = usage;
+            texDescriptor.usage = usage;
 
-        // Create buffer to store pixel data and then a texture using that buffer
-        id<MTLDevice> device = [context getDevice];
-        texture = [device newTextureWithDescriptor:texDescriptor];
+            // Create buffer to store pixel data and then a texture using that buffer
+            id<MTLDevice> device = [context getDevice];
+            texture = [device newTextureWithDescriptor:texDescriptor];
+        }
 
         /*
         // for testing purpose
@@ -129,37 +131,39 @@
         pixelFormat = MTLPixelFormatBGRA8Unorm;
         storageMode = MTLResourceStorageModeShared;
 
-        MTLTextureDescriptor *texDescriptor = [[MTLTextureDescriptor new] autorelease];
-        texDescriptor.usage  = usage;
-        texDescriptor.width  = width;
-        texDescriptor.height = height;
-        texDescriptor.textureType = type;
-        texDescriptor.pixelFormat = pixelFormat;
-        texDescriptor.sampleCount = 1;
-        texDescriptor.hazardTrackingMode = MTLHazardTrackingModeTracked;
+        @autoreleasepool {
+            MTLTextureDescriptor *texDescriptor = [MTLTextureDescriptor new];
+            texDescriptor.usage  = usage;
+            texDescriptor.width  = width;
+            texDescriptor.height = height;
+            texDescriptor.textureType = type;
+            texDescriptor.pixelFormat = pixelFormat;
+            texDescriptor.sampleCount = 1;
+            texDescriptor.hazardTrackingMode = MTLHazardTrackingModeTracked;
 
-        id<MTLDevice> device = [context getDevice];
+            id<MTLDevice> device = [context getDevice];
 
-        texture = [device newTextureWithDescriptor: texDescriptor];
-        if (msaa) {
-            TEX_LOG(@">>>> MetalTexture.createTexture()2 msaa texture");
-            MTLTextureDescriptor *msaaTexDescriptor = [[MTLTextureDescriptor new] autorelease];
-            msaaTexDescriptor.storageMode = MTLStorageModePrivate;
-            msaaTexDescriptor.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
-            msaaTexDescriptor.width  = width;
-            msaaTexDescriptor.height = height;
-            msaaTexDescriptor.textureType = MTLTextureType2DMultisample;
-            msaaTexDescriptor.pixelFormat = pixelFormat;
-            //By default all SoC's on macOS support 4 sample count
-            msaaTexDescriptor.sampleCount = 4;
-            msaaTexture = [device newTextureWithDescriptor: msaaTexDescriptor];
-        } else {
-            msaaTexture = nil;
+            texture = [device newTextureWithDescriptor: texDescriptor];
+            if (msaa) {
+                TEX_LOG(@">>>> MetalTexture.createTexture()2 msaa texture");
+                MTLTextureDescriptor *msaaTexDescriptor = [MTLTextureDescriptor new];
+                msaaTexDescriptor.storageMode = MTLStorageModePrivate;
+                msaaTexDescriptor.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
+                msaaTexDescriptor.width  = width;
+                msaaTexDescriptor.height = height;
+                msaaTexDescriptor.textureType = MTLTextureType2DMultisample;
+                msaaTexDescriptor.pixelFormat = pixelFormat;
+                //By default all SoC's on macOS support 4 sample count
+                msaaTexDescriptor.sampleCount = 4;
+                msaaTexture = [device newTextureWithDescriptor: msaaTexDescriptor];
+            } else {
+                msaaTexture = nil;
+            }
+            isMSAA = msaa;
+
+            depthTexture = nil;
+            depthMSAATexture = nil;
         }
-        isMSAA = msaa;
-
-        depthTexture = nil;
-        depthMSAATexture = nil;
     }
     TEX_LOG(@">>>> MetalTexture.createTexture()2  (buffer backed texture) -- width = %lu, height = %lu", width, height);
     TEX_LOG(@">>>> MetalTexture.createTexture()2  created MetalTexture = %p", texture);
@@ -195,22 +199,24 @@
         depthTexture.height != height ||
         lastDepthMSAA != isMSAA) {
         lastDepthMSAA = isMSAA;
-        MTLTextureDescriptor *depthDesc = [[MTLTextureDescriptor new] autorelease];
-        depthDesc.width  = width;
-        depthDesc.height = height;
-        depthDesc.pixelFormat = MTLPixelFormatDepth32Float;
-        depthDesc.textureType = MTLTextureType2D;
-        depthDesc.sampleCount = 1;
-        depthDesc.usage = MTLTextureUsageRenderTarget;
-        depthDesc.storageMode = MTLStorageModePrivate;
-        depthTexture = [device newTextureWithDescriptor: depthDesc];
-        if (isMSAA) {
-            TEX_LOG(@">>>> MetalTexture.createDepthMSAATexture()");
-            depthDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
-            depthDesc.textureType = MTLTextureType2DMultisample;
-            //By default all SoC's on macOS support 4 sample count
-            depthDesc.sampleCount = 4;
-            depthMSAATexture = [device newTextureWithDescriptor: depthDesc];
+        @autoreleasepool {
+            MTLTextureDescriptor *depthDesc = [MTLTextureDescriptor new];
+            depthDesc.width  = width;
+            depthDesc.height = height;
+            depthDesc.pixelFormat = MTLPixelFormatDepth32Float;
+            depthDesc.textureType = MTLTextureType2D;
+            depthDesc.sampleCount = 1;
+            depthDesc.usage = MTLTextureUsageRenderTarget;
+            depthDesc.storageMode = MTLStorageModePrivate;
+            depthTexture = [device newTextureWithDescriptor: depthDesc];
+            if (isMSAA) {
+                TEX_LOG(@">>>> MetalTexture.createDepthMSAATexture()");
+                depthDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
+                depthDesc.textureType = MTLTextureType2DMultisample;
+                //By default all SoC's on macOS support 4 sample count
+                depthDesc.sampleCount = 4;
+                depthMSAATexture = [device newTextureWithDescriptor: depthDesc];
+            }
         }
     }
 }
@@ -563,6 +569,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateYUV422
                        threadsPerThreadgroup:_threadgroupSize];
 
         [computeEncoder endEncoding];
+
+        [_computePipelineState release];
 
         [context commitCurrentCommandBuffer];
     }

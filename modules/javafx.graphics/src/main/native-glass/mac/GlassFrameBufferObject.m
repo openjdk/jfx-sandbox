@@ -56,18 +56,20 @@
     }
 
     if (self->_texture == nil) {
-        // Create a texture ----------
-        id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+        @autoreleasepool {
+            // Create a texture ----------
+            id<MTLDevice> device = MTLCreateSystemDefaultDevice();
 
-        MTLTextureDescriptor *texDescriptor =
-                [MTLTextureDescriptor texture2DDescriptorWithPixelFormat: MTLPixelFormatBGRA8Unorm
-                                                                 width:width
-                                                                height:height
-                                                             mipmapped:false];
+            MTLTextureDescriptor *texDescriptor =
+                    [MTLTextureDescriptor texture2DDescriptorWithPixelFormat: MTLPixelFormatBGRA8Unorm
+                                                                    width:width
+                                                                    height:height
+                                                                    mipmapped:false];
 
-        texDescriptor.usage = MTLTextureUsageRenderTarget;
+            texDescriptor.usage = MTLTextureUsageRenderTarget;
 
-        self->_texture = [device newTextureWithDescriptor:texDescriptor];
+            self->_texture = [device newTextureWithDescriptor:texDescriptor];
+        }
     }
 
     self->_width = width;
