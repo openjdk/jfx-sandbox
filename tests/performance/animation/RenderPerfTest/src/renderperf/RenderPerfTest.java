@@ -118,7 +118,7 @@ public class RenderPerfTest {
     private static Group group;
     private static Random random = new Random(100);
     private static int objectCount = 0;
-    private static long testLength = DEFAULT_TEST_TIME_SECONDS;
+    private static long testDuration = DEFAULT_TEST_TIME_SECONDS;
     private static ArrayList<String> testList = null;
 
     interface Renderable {
@@ -1894,8 +1894,6 @@ public class RenderPerfTest {
      * FPS is also tracked in this class.
      */
     static class PerfMeter {
-        private static boolean forceSkip = false;
-
         private String name;
 
         private int frames = 0;
@@ -1930,11 +1928,6 @@ public class RenderPerfTest {
          *          object of {@link Renderable}
          */
         void exec(final Renderable renderable) throws Exception {
-            if (forceSkip) {
-                System.out.println(String.format("%s: Test skipped", name));
-                return;
-            }
-
             final CountDownLatch startupLatch = new CountDownLatch(1);
             final CountDownLatch stopLatch = new CountDownLatch(1);
             final CountDownLatch stageHiddenLatch = new CountDownLatch(1);
@@ -1949,12 +1942,7 @@ public class RenderPerfTest {
                 stage.setAlwaysOnTop(true);
                 stage.setOnShown(event -> Platform.runLater(startupLatch::countDown));
                 stage.setOnHidden(event -> Platform.runLater(stageHiddenLatch::countDown));
-                stage.setOnCloseRequest(event -> {
-                    // User requested to close the tests - stop current test and
-                    // force other tests (if any) to be skipped
-                    Platform.runLater(stopLatch::countDown);
-                    forceSkip = true;
-                });
+                stage.setOnCloseRequest(event -> Platform.runLater(stopLatch::countDown));
 
                 stage.show();
 
@@ -2025,7 +2013,12 @@ public class RenderPerfTest {
             if (warmUp) {
                 System.out.println("Test stopped before warm-up was completed. Results not valid.");
             } else {
-                double totalTestTimeSeconds = (double)(lastTickTime - startTime) / SECOND_IN_NANOS;
+                long totalTestTime = testTimeNanos;
+                if (totalTestTime == 0) {
+                    // infinite run, we have to get the time from stop-start delta
+                    totalTestTime = (lastTickTime - startTime);
+                }
+                double totalTestTimeSeconds = (double)totalTestTime / SECOND_IN_NANOS;
                 double frameRate = frames / totalTestTimeSeconds;
                 System.out.println(String.format("%s (Objects Frames Time FPS): %d, %d, %.2f, %.2f", name, objectCount, frames, totalTestTimeSeconds, frameRate));
             }
@@ -2035,151 +2028,151 @@ public class RenderPerfTest {
 
 
     public void testArc() throws Exception {
-        (new PerfMeter("Arc", testLength)).exec(createPR(new ArcRenderer(objectCount, R)));
+        (new PerfMeter("Arc", testDuration)).exec(createPR(new ArcRenderer(objectCount, R)));
     }
 
     public void testOpenArc() throws Exception {
-        (new PerfMeter("OpenArc", testLength)).exec(createPR(new OpenArcRenderer(objectCount, R)));
+        (new PerfMeter("OpenArc", testDuration)).exec(createPR(new OpenArcRenderer(objectCount, R)));
     }
 
     public void testCubicCurve() throws Exception {
-        (new PerfMeter("CubicCurve", testLength)).exec(createPR(new CubicCurveRenderer(objectCount, R)));
+        (new PerfMeter("CubicCurve", testDuration)).exec(createPR(new CubicCurveRenderer(objectCount, R)));
     }
 
     public void testQuadCurve() throws Exception {
-        (new PerfMeter("QuadCurve", testLength)).exec(createPR(new QuadCurveRenderer(objectCount, R)));
+        (new PerfMeter("QuadCurve", testDuration)).exec(createPR(new QuadCurveRenderer(objectCount, R)));
     }
 
     public void testCircle() throws Exception {
-        (new PerfMeter("Circle", testLength)).exec(createPR(new CircleRenderer(objectCount, R)));
+        (new PerfMeter("Circle", testDuration)).exec(createPR(new CircleRenderer(objectCount, R)));
     }
 
     public void testCircleRH() throws Exception {
-        (new PerfMeter("CircleRH", testLength)).exec(createPR(new CircleRendererRH(objectCount, R)));
+        (new PerfMeter("CircleRH", testDuration)).exec(createPR(new CircleRendererRH(objectCount, R)));
     }
 
     public void testCircleBlendMultiply() throws Exception {
-        (new PerfMeter("CircleBlendMultiply", testLength)).exec(createPR(new CircleRendererBlendMultiply(objectCount, R)));
+        (new PerfMeter("CircleBlendMultiply", testDuration)).exec(createPR(new CircleRendererBlendMultiply(objectCount, R)));
     }
 
     public void testCircleBlendAdd() throws Exception {
-        (new PerfMeter("CircleBlendAdd", testLength)).exec(createPR(new CircleRendererBlendAdd(objectCount, R)));
+        (new PerfMeter("CircleBlendAdd", testDuration)).exec(createPR(new CircleRendererBlendAdd(objectCount, R)));
     }
 
     public void testCircleBlendDarken() throws Exception {
-        (new PerfMeter("CircleBlendDarken", testLength)).exec(createPR(new CircleRendererBlendDarken(objectCount, R)));
+        (new PerfMeter("CircleBlendDarken", testDuration)).exec(createPR(new CircleRendererBlendDarken(objectCount, R)));
     }
 
     public void testStrokedCircle() throws Exception {
-        (new PerfMeter("StrokedCircle", testLength)).exec(createPR(new StrokedCircleRenderer(objectCount, R)));
+        (new PerfMeter("StrokedCircle", testDuration)).exec(createPR(new StrokedCircleRenderer(objectCount, R)));
     }
 
     public void testLinGradCircle() throws Exception {
-        (new PerfMeter("LinGradCircle", testLength)).exec(createPR(new LinGradCircleRenderer(objectCount, R)));
+        (new PerfMeter("LinGradCircle", testDuration)).exec(createPR(new LinGradCircleRenderer(objectCount, R)));
     }
 
     public void testRadGradCircle() throws Exception {
-        (new PerfMeter("RadGradCircle", testLength)).exec(createPR(new RadGradCircleRenderer(objectCount, R)));
+        (new PerfMeter("RadGradCircle", testDuration)).exec(createPR(new RadGradCircleRenderer(objectCount, R)));
     }
 
     public void testEllipse() throws Exception {
-        (new PerfMeter("Ellipse", testLength)).exec(createPR(new EllipseRenderer(objectCount, R)));
+        (new PerfMeter("Ellipse", testDuration)).exec(createPR(new EllipseRenderer(objectCount, R)));
     }
 
     public void testLine() throws Exception {
-        (new PerfMeter("Line", testLength)).exec(createPR(new LineRenderer(objectCount, R)));
+        (new PerfMeter("Line", testDuration)).exec(createPR(new LineRenderer(objectCount, R)));
     }
 
     public void testPath() throws Exception {
-        (new PerfMeter("Path", testLength)).exec(createPR(new PathRenderer(objectCount, R)));
+        (new PerfMeter("Path", testDuration)).exec(createPR(new PathRenderer(objectCount, R)));
     }
 
     public void testRectangle() throws Exception {
-        (new PerfMeter("Rectangle", testLength)).exec(createPR(new RectangleRenderer(objectCount, R)));
+        (new PerfMeter("Rectangle", testDuration)).exec(createPR(new RectangleRenderer(objectCount, R)));
     }
 
     public void testRotatedRectangleRH() throws Exception {
-        (new PerfMeter("RotatedRectangleRH", testLength)).exec(createPR(new RectangleRendererRH(objectCount, R)));
+        (new PerfMeter("RotatedRectangleRH", testDuration)).exec(createPR(new RectangleRendererRH(objectCount, R)));
     }
 
     public void testStrokedRectangle() throws Exception {
-        (new PerfMeter("StrokedRectangle", testLength)).exec(createPR(new StrokedRectangleRenderer(objectCount, R)));
+        (new PerfMeter("StrokedRectangle", testDuration)).exec(createPR(new StrokedRectangleRenderer(objectCount, R)));
     }
 
     public void testPolygon() throws Exception {
-        (new PerfMeter("Polygon", testLength)).exec(createPR(new PolygonRenderer(objectCount, R)));
+        (new PerfMeter("Polygon", testDuration)).exec(createPR(new PolygonRenderer(objectCount, R)));
     }
 
     public void testStrokedPolygon() throws Exception {
-        (new PerfMeter("StrokedPolygon", testLength)).exec(createPR(new StrokedPolygonRenderer(objectCount, R)));
+        (new PerfMeter("StrokedPolygon", testDuration)).exec(createPR(new StrokedPolygonRenderer(objectCount, R)));
     }
 
     public void testWhiteText() throws Exception {
-        (new PerfMeter("WhiteText", testLength)).exec(createPR(new WhiteTextRenderer(objectCount, R)));
+        (new PerfMeter("WhiteText", testDuration)).exec(createPR(new WhiteTextRenderer(objectCount, R)));
     }
 
     public void testColorText() throws Exception {
-        (new PerfMeter("ColorText", testLength)).exec(createPR(new ColorTextRenderer(objectCount, R)));
+        (new PerfMeter("ColorText", testDuration)).exec(createPR(new ColorTextRenderer(objectCount, R)));
     }
 
     public void testLargeText() throws Exception {
-        (new PerfMeter("LargeText", testLength)).exec(createPR(new LargeTextRenderer(objectCount, R)));
+        (new PerfMeter("LargeText", testDuration)).exec(createPR(new LargeTextRenderer(objectCount, R)));
     }
 
     public void testLargeColorText() throws Exception {
-        (new PerfMeter("LargeColorText", testLength)).exec(createPR(new LargeColorTextRenderer(objectCount, R)));
+        (new PerfMeter("LargeColorText", testDuration)).exec(createPR(new LargeColorTextRenderer(objectCount, R)));
     }
 
     public void testImage() throws Exception {
-        (new PerfMeter("Image", testLength)).exec(createPR(new ImageRenderer(objectCount, R)));
+        (new PerfMeter("Image", testDuration)).exec(createPR(new ImageRenderer(objectCount, R)));
     }
 
     public void testImageRH() throws Exception {
-        (new PerfMeter("ImageRH", testLength)).exec(createPR(new ImageRendererRH(objectCount, R)));
+        (new PerfMeter("ImageRH", testDuration)).exec(createPR(new ImageRendererRH(objectCount, R)));
     }
 
     public void test3DBox() throws Exception {
-        (new PerfMeter("3DBox", testLength)).exec(createPR(new Box3DRenderer(objectCount, R)));
+        (new PerfMeter("3DBox", testDuration)).exec(createPR(new Box3DRenderer(objectCount, R)));
     }
 
     public void test3DCylinder() throws Exception {
-        (new PerfMeter("3DCylinder", testLength)).exec(createPR(new CylinderRenderer(objectCount, R)));
+        (new PerfMeter("3DCylinder", testDuration)).exec(createPR(new CylinderRenderer(objectCount, R)));
     }
 
     public void test3DSphere() throws Exception {
-        (new PerfMeter("3DSphere", testLength)).exec(createPR(new SphereRenderer(objectCount, R)));
+        (new PerfMeter("3DSphere", testDuration)).exec(createPR(new SphereRenderer(objectCount, R)));
     }
 
     public void test3DMesh() throws Exception {
-        (new PerfMeter("3DMesh", testLength)).exec(createPR(new MeshRenderer(objectCount, R)));
+        (new PerfMeter("3DMesh", testDuration)).exec(createPR(new MeshRenderer(objectCount, R)));
     }
 
     public void testMultiShape2DInterleaved() throws Exception {
-        (new PerfMeter("MultiShape2DInterleaved", testLength)).exec(createPR(new MultiShapeRendererInterleaved(objectCount, R)));
+        (new PerfMeter("MultiShape2DInterleaved", testDuration)).exec(createPR(new MultiShapeRendererInterleaved(objectCount, R)));
     }
 
     public void testMultiShape2D() throws Exception {
-        (new PerfMeter("MultiShape2D", testLength)).exec(createPR(new MultiShapeRenderer(objectCount, R)));
+        (new PerfMeter("MultiShape2D", testDuration)).exec(createPR(new MultiShapeRenderer(objectCount, R)));
     }
 
     public void testMultiShape3DInterleaved() throws Exception {
-        (new PerfMeter("MultiShape3DInterleaved", testLength)).exec(createPR(new MultiShape3DRendererInterleaved(objectCount, R)));
+        (new PerfMeter("MultiShape3DInterleaved", testDuration)).exec(createPR(new MultiShape3DRendererInterleaved(objectCount, R)));
     }
 
     public void testMultiShape3D() throws Exception {
-        (new PerfMeter("MultiShape3D", testLength)).exec(createPR(new MultiShape3DRenderer(objectCount, R)));
+        (new PerfMeter("MultiShape3D", testDuration)).exec(createPR(new MultiShape3DRenderer(objectCount, R)));
     }
 
     public void testMultiShape2D3DInterleaved() throws Exception {
-        (new PerfMeter("MultiShape2D3DInterleaved", testLength)).exec(createPR(new MultiShape2D3DRendererInterleaved(objectCount, R)));
+        (new PerfMeter("MultiShape2D3DInterleaved", testDuration)).exec(createPR(new MultiShape2D3DRendererInterleaved(objectCount, R)));
     }
 
     public void testMultiShape2D3D() throws Exception {
-        (new PerfMeter("MultiShape2D3D", testLength)).exec(createPR(new MultiShape2D3DRenderer(objectCount, R)));
+        (new PerfMeter("MultiShape2D3D", testDuration)).exec(createPR(new MultiShape2D3DRenderer(objectCount, R)));
     }
 
     public void testButton() throws Exception {
-        (new PerfMeter("Button", testLength)).exec(createPR(new ButtonRenderer(objectCount, R)));
+        (new PerfMeter("Button", testDuration)).exec(createPR(new ButtonRenderer(objectCount, R)));
     }
 
     /**
@@ -2225,12 +2218,12 @@ public class RenderPerfTest {
                     return false;
                 }
                 break;
-            case "-l":
+            case "-d":
                 try {
-                    testLength = Integer.parseInt(args[++i]);
+                    testDuration = Integer.parseInt(args[++i]);
                 }
                 catch (ArrayIndexOutOfBoundsException e) {
-                    System.out.println("\ntest_length_in_seconds not provided.");
+                    System.out.println("\ntest_duration_in_seconds not provided.");
                     return false;
                 }
                 break;
@@ -2254,11 +2247,11 @@ public class RenderPerfTest {
     }
 
     public static void printUsage() {
-        System.out.println("Usage: java @<path_to>/run.args RenderPerfTest [-t <test_name>...] [-n <number_of_objects>] [-l <test_length_in_seconds>] [-h]");
+        System.out.println("Usage: java @<path_to>/run.args RenderPerfTest [-t <test_name>...] [-n <number_of_objects>] [-d <test_duration_in_seconds>] [-h]");
         System.out.println("       Where test_name: Name of the test (or tests) to be executed.");
         System.out.println("             number_of_objects: Number of objects to be rendered in the test(s)");
-        System.out.println("             test_length_in_seconds: How many seconds should each test take (default and minimum 10, set 0 for infinite run)");
-        System.out.println("                                     NOTE: Tests have extra 5 seconds warmup time where performance is NOT measured.");
+        System.out.println("             test_duration_in_seconds: How many seconds should each test take (default 10, set 0 for infinite run)");
+        System.out.println("                                       NOTE: Tests have extra 5 seconds warmup time where performance is NOT measured.");
         System.out.println("             -h: help: print application usage");
         System.out.println("NOTE: Set JVM command line parameter -Djavafx.animation.fullspeed=true to run animation at full speed");
 
@@ -2281,11 +2274,8 @@ public class RenderPerfTest {
             test.objectCount = 1000;
         }
 
-        if (test.testLength == 0) {
+        if (test.testDuration == 0) {
             System.out.println("NOTE: Test length set to 0. Test will run indefinitely until Stage is closed.");
-        } else if (test.testLength < DEFAULT_TEST_TIME_SECONDS) {
-            System.out.println(String.format("NOTE: Test length less than minimum/default - adjusting to %d seconds", DEFAULT_TEST_TIME_SECONDS));
-            test.testLength = DEFAULT_TEST_TIME_SECONDS;
         }
 
         test.initializeRenderers(test.objectCount);
