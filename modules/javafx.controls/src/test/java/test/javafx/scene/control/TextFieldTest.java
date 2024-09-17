@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -614,6 +614,28 @@ public class TextFieldTest {
         char[] c = new char[]{0x7F, 0xA, 0x9, 0x00, 0x05, 0x10, 0x19};
         txtField.setText(String.valueOf(c));
         assertEquals("", txtField.getText());
+    }
+
+    //Test for JDK-8273657
+    @Test
+    public void testTextSelectionOnAddingTextField() {
+        initStage();
+        txtField.setSkin(new TextFieldSkin(txtField));
+        txtField.setText("A short text");
+        stage.show();
+
+        root.getChildren().add(txtField);
+        txtField.requestFocus();
+
+        assertEquals(0, txtField.getSelection().getStart());
+        assertEquals(txtField.getText().length(), txtField.getSelection().getEnd());
+
+        root.getChildren().remove(txtField);
+        root.getChildren().add(txtField);
+        txtField.requestFocus();
+
+        assertEquals(0, txtField.getSelection().getStart());
+        assertEquals(txtField.getText().length(), txtField.getSelection().getEnd());
     }
 
     private Change upperCase(Change change) {

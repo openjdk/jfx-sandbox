@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,8 +34,6 @@
 #import "GlassView3D.h"
 #import "GlassLayer3D.h"
 #import "GlassApplication.h"
-
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
 //#define VERBOSE
 #ifndef VERBOSE
@@ -330,7 +328,7 @@
     if ([self window] != nil)
     {
         GlassLayer3D *layer = (GlassLayer3D*)[self layer];
-        [[layer getPainterOffscreen] setBackgroundColor:[[[self window] backgroundColor] colorUsingColorSpaceName:NSDeviceRGBColorSpace]];
+        [[layer getPainterOffscreen] setBackgroundColor:[[[self window] backgroundColor] colorUsingColorSpace:NSColorSpace.sRGBColorSpace]];
     }
 
     [self->_delegate viewDidMoveToWindow];
@@ -584,7 +582,6 @@
 - (void)draggingEnded:(id <NSDraggingInfo>)sender
 {
     DNDLOG("draggingEnded");
-    [self->_delegate draggingEnded];
 }
 
 - (void)draggingExited:(id <NSDraggingInfo>)sender
@@ -742,7 +739,12 @@
 {
     IMLOG("finishInputMethodComposition called");
     [self unmarkText];
-    [self.inputContext discardMarkedText];
+    // If we call discardMarkedText on an input context that is not
+    // the current one the IM will get into a persistent state where
+    // it will not call setMarkedText or firstRectForCharacterRange.
+    if (self.inputContext == NSTextInputContext.currentInputContext) {
+        [self.inputContext discardMarkedText];
+    }
 }
 
 /*

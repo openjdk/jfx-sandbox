@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package test.javafx.css;
 
 import com.sun.javafx.css.SelectorPartitioning;
+import com.sun.javafx.css.SimpleSelector;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,8 +37,6 @@ import javafx.css.DeclarationShim;
 import javafx.css.Rule;
 import javafx.css.RuleShim;
 import javafx.css.Selector;
-import javafx.css.SimpleSelector;
-import javafx.css.SimpleSelectorShim;
 import javafx.css.Stylesheet;
 import javafx.scene.paint.Color;
 import org.junit.Test;
@@ -88,8 +87,7 @@ public class SelectorPartitioningTest {
                 ).toString());
             List<String> styleClasses =
                 styleClass != null ? Arrays.asList(styleClass.split("\\.")) : null;
-            this.selector =
-                SimpleSelectorShim.getSimpleSelector(type, styleClasses, null, id);
+            this.selector = new SimpleSelector(type, styleClasses, null, id);
             this.matches = matches;
         }
     }
@@ -212,7 +210,7 @@ public class SelectorPartitioningTest {
 
         SimpleSelector simple = simpleData.selector;
 
-        List<Selector> matched = instance.match(simple.getId(), simple.getName(), simple.getStyleClassSet());
+        List<Selector> matched = instance.match(simple.getId(), simple.getName(), simple.getStyleClassNames());
 
         assertEquals(1,matched.size());
         Selector selector = matched.get(0);
@@ -236,7 +234,7 @@ public class SelectorPartitioningTest {
 
         SimpleSelector simple = complexData.selector;
 
-        List<Selector> matched = instance.match(simple.getId(), simple.getName(), simple.getStyleClassSet());
+        List<Selector> matched = instance.match(simple.getId(), simple.getName(), simple.getStyleClassNames());
         assertEquals(complexData.matches, matched.size());
 
         for(Selector s1 : matched) {
