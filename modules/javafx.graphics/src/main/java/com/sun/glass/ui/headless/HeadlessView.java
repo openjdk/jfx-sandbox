@@ -2,6 +2,7 @@ package com.sun.glass.ui.headless;
 
 import com.sun.glass.ui.Pixels;
 import com.sun.glass.ui.View;
+import com.sun.glass.ui.Window;
 import java.util.Map;
 
 public class HeadlessView extends View {
@@ -69,6 +70,8 @@ public class HeadlessView extends View {
 
     @Override
     protected boolean _enterFullscreen(long ptr, boolean animate, boolean keepRatio, boolean hideCursor) {
+        Window window = this.getWindow();
+        window.maximize(true);
         return true;
     }
 

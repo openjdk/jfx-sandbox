@@ -16,6 +16,7 @@ public class HeadlessWindow extends Window {
     private int maxHeight = -1;
     private int originalX, originalY, originalWidth, originalHeight;
     private boolean closed = false;
+    private boolean visible = false;
 
     private static final AtomicInteger ptrCount = new AtomicInteger(0);
     public HeadlessWindow(Window owner, Screen screen, int styleMask) {
@@ -58,6 +59,8 @@ public class HeadlessWindow extends Window {
     protected boolean _maximize(long ptr, boolean maximize, boolean wasMaximized) {
         int newX = 0;
         int newY = 0;
+        int newWidth = 0;
+        int newHeight = 0;
         if (maximize && !wasMaximized) {
             this.originalHeight = this.height;
             this.originalWidth = this.width;
@@ -65,15 +68,17 @@ public class HeadlessWindow extends Window {
             this.originalY = this.y;
             newX = 0;
             newY = 0;
+            newWidth = screen.getWidth();
+            newHeight = screen.getHeight();
             setState(State.MAXIMIZED);
         } else if (!maximize && wasMaximized) {
-            this.height = this.originalHeight;
-            this.width = this.originalWidth;
+            newHeight = this.originalHeight;
+            newWidth = this.originalWidth;
             newX = this.originalX;
             newY = this.originalY;
             setState(State.NORMAL);
         }
-        notifyResizeAndMove(newX, newY, width, height);
+        notifyResizeAndMove(newX, newY, newWidth, newHeight);
 
         return maximize;
     }
@@ -135,7 +140,8 @@ public class HeadlessWindow extends Window {
 
     @Override
     protected boolean _setVisible(long ptr, boolean visible) {
-        return true;
+        this.visible = visible;
+        return this.visible;
     }
 
     @Override
