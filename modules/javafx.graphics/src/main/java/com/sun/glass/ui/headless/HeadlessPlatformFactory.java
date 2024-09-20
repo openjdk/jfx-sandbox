@@ -68,22 +68,21 @@ public class HeadlessPlatformFactory extends PlatformFactory {
 
         @Override
         protected void pushTargetActionToSystem(int actionDone) {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
         }
 
         @Override
         protected Object popFromSystem(String mimeType) {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            return null;
         }
 
         @Override
         protected int supportedSourceActionsFromSystem() {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            return Clipboard.ACTION_NONE;
         }
 
         @Override
         protected String[] mimesFromSystem() {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            return new String[0];
         }
     }
 }

@@ -79,8 +79,36 @@ public class HeadlessWindow extends Window {
             setState(State.NORMAL);
         }
         notifyResizeAndMove(newX, newY, newWidth, newHeight);
+        if (maximize) {
+            notifyResize(WindowEvent.MAXIMIZE, newWidth, newHeight);
+        }
 
         return maximize;
+    }
+
+    boolean setFullscreen(boolean full) {
+        int newX = 0;
+        int newY = 0;
+        int newWidth = 0;
+        int newHeight = 0;
+        if (full) {
+            this.originalHeight = this.height;
+            this.originalWidth = this.width;
+            this.originalX = this.x;
+            this.originalY = this.y;
+            newX = 0;
+            newY = 0;
+            newWidth = screen.getWidth();
+            newHeight = screen.getHeight();
+        } else  {
+            newHeight = this.originalHeight;
+            newWidth = this.originalWidth;
+            newX = this.originalX;
+            newY = this.originalY;
+        }
+        notifyResizeAndMove(newX, newY, newWidth, newHeight);
+
+        return full;
     }
 
     @Override

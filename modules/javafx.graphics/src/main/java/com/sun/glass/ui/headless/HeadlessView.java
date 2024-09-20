@@ -2,6 +2,7 @@ package com.sun.glass.ui.headless;
 
 import com.sun.glass.ui.Pixels;
 import com.sun.glass.ui.View;
+import com.sun.glass.events.ViewEvent;
 import com.sun.glass.ui.Window;
 import java.util.Map;
 
@@ -70,14 +71,19 @@ public class HeadlessView extends View {
 
     @Override
     protected boolean _enterFullscreen(long ptr, boolean animate, boolean keepRatio, boolean hideCursor) {
-        Window window = this.getWindow();
-        window.maximize(true);
+        HeadlessWindow window = (HeadlessWindow)this.getWindow();
+        window.setFullscreen(true);
+        notifyView(ViewEvent.FULLSCREEN_ENTER);
         return true;
     }
 
     @Override
     protected void _exitFullscreen(long ptr, boolean animate) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        HeadlessWindow window = (HeadlessWindow)this.getWindow();
+        if (window != null) {
+            window.setFullscreen(false);
+        }
+        notifyView(ViewEvent.FULLSCREEN_EXIT);
     }
 
     @Override
