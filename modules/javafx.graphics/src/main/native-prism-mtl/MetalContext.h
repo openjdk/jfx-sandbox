@@ -42,6 +42,10 @@
 #define BUFFER_SIZE 1
 #define MAX_TRANS_BUFF_ALLOCATION_PER_CB (30 * 1024 * 1024)
 
+#define MAX_NUM_QUADS   (4096) // refer MTLContext.NUM_QUADS
+#define INDICES_PER_IB  (MAX_NUM_QUADS * 6) // (4096 * 6 * 2 ) = 48 kb IndexBuffer
+#define VERTICES_PER_IB (MAX_NUM_QUADS * 4)
+
 struct PrismSourceVertex {
     float x, y, z;
     float tu1, tv1;
@@ -72,9 +76,10 @@ typedef enum VertexInputIndex {
     simd_float4x4 worldMatrix;
 
     // clear rtt
-    CLEAR_VS_INPUT clearScissorRectVertices[6];
+    CLEAR_VS_INPUT clearScissorRectVertices[4];
     id<MTLBuffer> clearEntireRttVerticesBuf;
     id<MTLBuffer> identityMatrixBuf;
+    id<MTLBuffer> indexBuffer;
 
     id<MTLDevice> device;
     id<MTLCommandQueue> commandQueue;
@@ -146,12 +151,12 @@ typedef enum VertexInputIndex {
 
 - (void) fillVB:(struct PrismSourceVertex const *)pSrcXYZUVs
          colors:(char const *)pSrcColors
-       numQuads:(int)numQuads
+    numVertices:(int)numVertices
              vb:(void*)vb;
 
 - (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
                       ofColors:(char const *)pSrcColors
-                   vertexCount:(NSUInteger)numVerts;
+                   vertexCount:(NSUInteger)numVertices;
 
 - (void) resetProjViewMatrix;
 - (void) setProjViewMatrix:(bool)isOrtho

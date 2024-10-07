@@ -87,8 +87,9 @@
 
         // clearing rtt related initialization
         identityMatrixBuf = [device newBufferWithLength:sizeof(simd_float4x4)
-                                                options:MTLResourceStorageModeShared];
-        simd_float4x4* identityMatrix = (simd_float4x4*)identityMatrixBuf.contents;
+                                                options:MTLResourceStorageModePrivate];
+        id<MTLBuffer> tMatBuf = [self getTransientBufferWithLength:sizeof(simd_float4x4)];
+        simd_float4x4* identityMatrix = (simd_float4x4*)tMatBuf.contents;
 
         *identityMatrix = simd_matrix(
             (simd_float4) { 1, 0, 0, 0 },
@@ -97,16 +98,56 @@
             (simd_float4) { 0, 0, 0, 1 }
         );
 
-        clearEntireRttVerticesBuf = [device newBufferWithLength:sizeof(CLEAR_VS_INPUT) * 6
-                                                        options:MTLResourceStorageModeShared];
-        CLEAR_VS_INPUT* clearEntireRttVertices = (CLEAR_VS_INPUT*)clearEntireRttVerticesBuf.contents;
+        clearEntireRttVerticesBuf = [device newBufferWithLength:sizeof(CLEAR_VS_INPUT) * 4
+                                                        options:MTLResourceStorageModePrivate];
+        id<MTLBuffer> tclearVertBuf = [self getTransientBufferWithLength:sizeof(CLEAR_VS_INPUT) * 4];
+        CLEAR_VS_INPUT* clearEntireRttVertices = (CLEAR_VS_INPUT*)tclearVertBuf.contents;
 
         clearEntireRttVertices[0].position.x = -1; clearEntireRttVertices[0].position.y = -1;
         clearEntireRttVertices[1].position.x = -1; clearEntireRttVertices[1].position.y =  1;
         clearEntireRttVertices[2].position.x =  1; clearEntireRttVertices[2].position.y = -1;
-        clearEntireRttVertices[3].position.x = -1; clearEntireRttVertices[3].position.y =  1;
-        clearEntireRttVertices[4].position.x =  1; clearEntireRttVertices[4].position.y = -1;
-        clearEntireRttVertices[5].position.x =  1; clearEntireRttVertices[5].position.y =  1;
+        clearEntireRttVertices[3].position.x =  1; clearEntireRttVertices[3].position.y =  1;
+
+        // Create Index Buffer
+        indexBuffer = [device newBufferWithLength:(INDICES_PER_IB * sizeof(unsigned short))
+                                          options:MTLResourceStorageModePrivate];
+        id<MTLBuffer> tIndexBuffer = [self getTransientBufferWithLength:
+                                               (INDICES_PER_IB * sizeof(unsigned short))];
+        unsigned short* indices = (unsigned short*)tIndexBuffer.contents;
+        for (unsigned short i = 0, j = 0; i < INDICES_PER_IB; j += 4, i += 6) {
+            indices[i + 0] = 0 + j; // 0, 4,  8, 12
+            indices[i + 1] = 1 + j; // 1, 5,  9, 13
+            indices[i + 2] = 2 + j; // 2, 6, 10, 14
+
+            indices[i + 3] = 1 + j; // 1, 5,  9, 13
+            indices[i + 4] = 2 + j; // 2, 6, 10, 14
+            indices[i + 5] = 3 + j; // 3, 7, 11, 15
+        }
+
+        id<MTLCommandBuffer> commandBuffer = [self getCurrentCommandBuffer];
+        @autoreleasepool {
+            id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
+            [blitEncoder copyFromBuffer:tIndexBuffer
+                           sourceOffset:(NSUInteger)0
+                               toBuffer:indexBuffer
+                      destinationOffset:(NSUInteger)0
+                                   size:tIndexBuffer.length];
+
+            [blitEncoder copyFromBuffer:tclearVertBuf
+                           sourceOffset:(NSUInteger)0
+                               toBuffer:clearEntireRttVerticesBuf
+                      destinationOffset:(NSUInteger)0
+                                   size:tclearVertBuf.length];
+
+            [blitEncoder copyFromBuffer:tMatBuf
+                           sourceOffset:(NSUInteger)0
+                               toBuffer:identityMatrixBuf
+                      destinationOffset:(NSUInteger)0
+                                   size:tMatBuf.length];
+
+            [blitEncoder endEncoding];
+        }
+        [self commitCurrentCommandBuffer:false];
     }
     return self;
 }
@@ -329,16 +370,16 @@
 
 - (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
                       ofColors:(char const *)pSrcColors
-                   vertexCount:(NSUInteger)numVerts
+                   vertexCount:(NSUInteger)numVertices
 {
 
     CTX_LOG(@"MetalContext.drawIndexedQuads()");
 
-    CTX_LOG(@"numVerts = %lu", numVerts);
+    CTX_LOG(@"numVertices = %lu", numVertices);
 
-    int numQuads = numVerts / 4;
-    int numVertices = numQuads * 6;
     int vbLength = sizeof(VS_INPUT) * numVertices;
+    int numQuads = numVertices / 4;
+    int numIndices = numQuads * 6;
 
     MetalShader* shader = [self getCurrentShader];
     if ([shader getArgumentBufferLength] != 0) {
@@ -355,7 +396,7 @@
 
     [self fillVB:pSrcXYZUVs
           colors:pSrcColors
-        numQuads:numQuads
+     numVertices:numVertices
               vb:(vertexBuffer.contents + offset)];
 
     id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
@@ -394,13 +435,18 @@
 
     [renderEncoder setScissorRect:[self getScissorRect]];
 
-    [renderEncoder setVertexBuffer:vertexBuffer
-                            offset:offset
-                           atIndex:VertexInputIndexVertices];
+    for (int i = 0; numIndices > 0; i++) {
+        [renderEncoder setVertexBuffer:vertexBuffer
+                                offset:(offset + (i * VERTICES_PER_IB * sizeof(VS_INPUT)))
+                               atIndex:VertexInputIndexVertices];
 
-    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
-                      vertexStart:0
-                      vertexCount:numVertices];
+        [renderEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                                  indexCount:((numIndices > INDICES_PER_IB) ? INDICES_PER_IB : numIndices)
+                                   indexType:MTLIndexTypeUInt16
+                                 indexBuffer:indexBuffer
+                           indexBufferOffset:0];
+        numIndices -= INDICES_PER_IB;
+    }
 
     if (commitOnDraw) {
         [self commitCurrentCommandBuffer];
@@ -538,9 +584,11 @@
                              length:sizeof(clearColor)
                             atIndex:VertexInputClearColor];
 
-    [renderEncoder drawPrimitives:MTLPrimitiveTypeTriangle
-                      vertexStart:0
-                      vertexCount:6];
+    [renderEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
+                              indexCount:6
+                               indexType:MTLIndexTypeUInt16
+                             indexBuffer:indexBuffer
+                       indexBufferOffset:0];
 
     if (clearDepthTexture && !depthEnabled) {
         [self endCurrentRenderEncoder];
@@ -579,13 +627,8 @@
         clearScissorRectVertices[1].position.y = scissorRect.y + scissorRect.height;
         clearScissorRectVertices[2].position.x = scissorRect.x + scissorRect.width;
         clearScissorRectVertices[2].position.y = scissorRect.y;
-
-        clearScissorRectVertices[3].position.x = scissorRect.x;
+        clearScissorRectVertices[3].position.x = scissorRect.x + scissorRect.width;
         clearScissorRectVertices[3].position.y = scissorRect.y + scissorRect.height;
-        clearScissorRectVertices[4].position.x = scissorRect.x + scissorRect.width;
-        clearScissorRectVertices[4].position.y = scissorRect.y;
-        clearScissorRectVertices[5].position.x = scissorRect.x + scissorRect.width;
-        clearScissorRectVertices[5].position.y = scissorRect.y + scissorRect.height;
     }
     CTX_LOG(@"<<<< MetalContext.setClipRect()");
 }
@@ -613,39 +656,33 @@
 
 - (void) fillVB:(struct PrismSourceVertex const *)pSrcXYZUVs
          colors:(char const *)pSrcColors
-       numQuads:(int)numQuads
+    numVertices:(int)numVertices
              vb:(void*)vb
 {
+    CTX_LOG(@"fillVB : numVertices = %d", numVertices);
+
     VS_INPUT* pVert = (VS_INPUT*)vb;
+    unsigned char const* colors = (unsigned char*)(pSrcColors);
+    struct PrismSourceVertex const * inVerts = pSrcXYZUVs;
 
-    CTX_LOG(@"fillVB : numQuads = %d", numQuads);
+    for (int i = 0; i < numVertices; i++) {
+        pVert->position.x = inVerts->x;
+        pVert->position.y = inVerts->y;
 
-    for (int i = 0; i < numQuads; i++) {
-        unsigned char const* colors = (unsigned char*)(pSrcColors + i * 16);
-        struct PrismSourceVertex const * inVerts = pSrcXYZUVs + i * 4;
-        for (int k = 0; k < 2; k++) {
-            for (int j = 0; j < 3; j++) {
-                pVert->position.x = inVerts->x;
-                pVert->position.y = inVerts->y;
+        pVert->color.r = byteToFloatTable[*(colors)];
+        pVert->color.g = byteToFloatTable[*(colors + 1)];
+        pVert->color.b = byteToFloatTable[*(colors + 2)];
+        pVert->color.a = byteToFloatTable[*(colors + 3)];
 
-                pVert->color.r = byteToFloatTable[*(colors)];
-                pVert->color.g = byteToFloatTable[*(colors+1)];
-                pVert->color.b = byteToFloatTable[*(colors+2)];
-                pVert->color.a = byteToFloatTable[*(colors+3)];
+        pVert->texCoord0.x = inVerts->tu1;
+        pVert->texCoord0.y = inVerts->tv1;
 
-                pVert->texCoord0.x = inVerts->tu1;
-                pVert->texCoord0.y = inVerts->tv1;
+        pVert->texCoord1.x = inVerts->tu2;
+        pVert->texCoord1.y = inVerts->tv2;
 
-                pVert->texCoord1.x = inVerts->tu2;
-                pVert->texCoord1.y = inVerts->tv2;
-
-                inVerts++;
-                colors += 4;
-                pVert++;
-            }
-            inVerts -= 2;
-            colors -= 8;
-        }
+        inVerts++;
+        colors += 4;
+        pVert++;
     }
 }
 
