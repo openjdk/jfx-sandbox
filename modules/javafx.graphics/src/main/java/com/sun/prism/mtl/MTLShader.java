@@ -62,6 +62,8 @@ public class MTLShader implements Shader  {
 
     native private static long nSetConstants(long nMetalShader, int uniformID, float[] values, int size);
 
+    native private static void nDispose(long nMetalShader);
+
     private MTLShader(MTLContext context, String fragmentFunctionName) {
         MTLLog.Debug(">>> MTLShader(): fragFuncName = " + fragmentFunctionName);
 
@@ -235,5 +237,6 @@ public class MTLShader implements Shader  {
     @Override
     public void dispose() {
         MTLLog.Debug(">>> MTLShader.dispose() : fragmentFunctionName : " + this.fragmentFunctionName);
+        nDispose(nMetalShaderRef);
     }
 }

@@ -63,15 +63,17 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     if (self) {
         context = ctx;
         SHADER_LOG(@">>>> MetalShader.initWithContext()----> fragFuncName: %@", fragName);
-        fragTexArgsDict    = [[NSMutableDictionary alloc] init];
-        fragTexSamplerDict = [[NSMutableDictionary alloc] init];
-        pipeStateNonMSAANoDepthDict = [[NSMutableDictionary alloc] init];
-        pipeStateNonMSAADepthDict = [[NSMutableDictionary alloc] init];
-        pipeStateMSAANoDepthDict = [[NSMutableDictionary alloc] init];
-        pipeStateMSAADepthDict = [[NSMutableDictionary alloc] init];
-        fragArgIndicesDict = getPRISMDict(fragName);
-        if (fragArgIndicesDict == nil) {
-            fragArgIndicesDict = getDECORADict(fragName);
+        @autoreleasepool {
+            fragTexArgsDict    = [[[NSMutableDictionary alloc] init] retain];
+            fragTexSamplerDict = [[[NSMutableDictionary alloc] init] retain];
+            pipeStateNonMSAANoDepthDict = [[[NSMutableDictionary alloc] init] retain];
+            pipeStateNonMSAADepthDict = [[[NSMutableDictionary alloc] init] retain];
+            pipeStateMSAANoDepthDict = [[[NSMutableDictionary alloc] init] retain];
+            pipeStateMSAADepthDict = [[[NSMutableDictionary alloc] init] retain];
+            fragArgIndicesDict = [getPRISMDict(fragName) retain];
+            if (fragArgIndicesDict == nil) {
+                fragArgIndicesDict = [getDECORADict(fragName) retain];
+            }
         }
 
 #ifdef SHADER_VERBOSE
@@ -391,6 +393,41 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     SHADER_LOG(@"<<<< MetalShader.setConstants()");
 }
 
+- (void) dispose
+{
+    SHADER_LOG(@"\n");
+    SHADER_LOG(@">>>> MetalShader.dispose()----> fragFuncName: %@", fragFuncName);
+    for (NSNumber *keyPipeState in pipeStateNonMSAANoDepthDict) {
+        [pipeStateNonMSAANoDepthDict[keyPipeState] release];
+    }
+    for (NSNumber *keyPipeState in pipeStateNonMSAADepthDict) {
+        [pipeStateNonMSAADepthDict[keyPipeState] release];
+    }
+    for (NSNumber *keyPipeState in pipeStateMSAANoDepthDict) {
+        [pipeStateMSAANoDepthDict[keyPipeState] release];
+    }
+    for (NSNumber *keyPipeState in pipeStateMSAADepthDict) {
+        [pipeStateMSAADepthDict[keyPipeState] release];
+    }
+    for (NSNumber *keyTexArg in fragTexArgsDict) {
+        [fragTexArgsDict[keyTexArg] release];
+    }
+    for (NSNumber *keyTexSampler in fragTexSamplerDict) {
+        [fragTexSamplerDict[keyTexSampler] release];
+    }
+    for (NSNumber *keyArgIndex in fragArgIndicesDict) {
+        [fragArgIndicesDict[keyArgIndex] release];
+    }
+    [pipeStateNonMSAANoDepthDict release];
+    [pipeStateNonMSAADepthDict release];
+    [pipeStateMSAANoDepthDict release];
+    [pipeStateMSAADepthDict release];
+    [fragTexArgsDict release];
+    [fragTexSamplerDict release];
+    [fragArgIndicesDict release];
+    SHADER_LOG(@"<<<< MetalShader.dispose()");
+}
+
 @end // MetalShader
 
 
@@ -514,4 +551,14 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nSetConstants
     [mtlShader setConstants:uniformID values:values size:size];
     (*env)->ReleaseFloatArrayElements(env, valuesArray, values, 0);
     return 1;
+}
+
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nDispose
+  (JNIEnv *env, jclass jClass, jlong shader)
+{
+    SHADER_LOG(@"\n");
+    SHADER_LOG(@"-> JNICALL Native: MTLShader_nDispose");
+    MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
+    [mtlShader dispose];
+    return;
 }
