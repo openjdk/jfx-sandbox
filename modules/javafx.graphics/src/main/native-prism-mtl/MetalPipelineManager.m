@@ -358,6 +358,31 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         uyvy422ToRGBAState = nil;
     }
 
+    for (NSNumber *keyPipeState in clearRttPipeStateNoDepthDict) {
+        [clearRttPipeStateNoDepthDict[keyPipeState] release];
+    }
+    for (NSNumber *keyPipeState in clearRttPipeStateDepthDict) {
+        [clearRttPipeStateDepthDict[keyPipeState] release];
+    }
+    for (NSNumber *keyPipeState in phongPipelineStateNonMSAANoDepthDict) {
+        [phongPipelineStateNonMSAANoDepthDict[keyPipeState] release];
+    }
+    for (NSNumber *keyPipeState in phongPipelineStateNonMSAADepthDict) {
+        [phongPipelineStateNonMSAADepthDict[keyPipeState] release];
+    }
+    for (NSNumber *keyPipeState in phongPipelineStateMSAANoDepthDict) {
+        [phongPipelineStateMSAANoDepthDict[keyPipeState] release];
+    }
+    for (NSNumber *keyPipeState in phongPipelineStateMSAADepthDict) {
+        [phongPipelineStateMSAADepthDict[keyPipeState] release];
+    }
+
+    [clearRttPipeStateNoDepthDict release];
+    [clearRttPipeStateDepthDict release];
+    [phongPipelineStateNonMSAANoDepthDict release];
+    [phongPipelineStateNonMSAADepthDict release];
+    [phongPipelineStateMSAANoDepthDict release];
+    [phongPipelineStateMSAADepthDict release];
     [super dealloc];
 }
 

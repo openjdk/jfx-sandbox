@@ -845,7 +845,7 @@
     }
 
     if (pipelineManager != nil) {
-        [pipelineManager dealloc];
+        [pipelineManager release];
         pipelineManager = nil;
     }
 
