@@ -27,50 +27,20 @@
 
 @implementation MetalRingBuffer
 
-static const unsigned int BUFFER_LENGTH = RING_BUFF_SIZE;
+static bool isBufferInUse[NUM_BUFFERS];
+static unsigned int currentBufferIndex;
 
-// start: making the class perfect Singleton
-static MetalRingBuffer* instance = nil;
-
-+ (instancetype) getInstance {
-    if (instance == nil) {
-        static dispatch_once_t onceToken;
-        dispatch_once(&onceToken, ^{
-            instance = [[self alloc] init];
-        });
-    }
-    return instance;
-}
-
-+ (instancetype) allocWithZone:(struct _NSZone *)zone {
-    if (instance == nil) {
-        static dispatch_once_t onceToken;
-        dispatch_once(&onceToken, ^{
-            instance = [super allocWithZone:zone];
-        });
-    }
-    return instance;
-}
-
-- (id) copyWithZone:(NSZone *)zone {
-    return self;
-}
-
-- (id) mutableCopyWithZone:(NSZone *)zone {
-    return self;
-}
-// end: making the class perfect Singleton
-
-- (instancetype) init {
+- (MetalRingBuffer*) init:(unsigned int)size {
     self = [super init];
     if (self) {
+        bufferSize = size;
         currentOffset = 0;
         numReservedBytes = 0;
         currentBufferIndex = 0;
 
         for (int i = 0; i < NUM_BUFFERS; i++) {
             isBufferInUse[i] = false;
-            buffer[i] = [MTLCreateSystemDefaultDevice() newBufferWithLength:BUFFER_LENGTH
+            buffer[i] = [MTLCreateSystemDefaultDevice() newBufferWithLength:bufferSize
                                                                     options:MTLResourceStorageModeShared];
             buffer[i].label = [NSString stringWithFormat:@"JFX Ring Buffer"];
         }
@@ -78,7 +48,7 @@ static MetalRingBuffer* instance = nil;
     return self;
 }
 
-- (bool) isBufferAvailable {
++ (bool) isBufferAvailable {
     for (int i = 0; i < NUM_BUFFERS; i++) {
         if (!isBufferInUse[i]) {
             return true;
@@ -90,9 +60,9 @@ static MetalRingBuffer* instance = nil;
 // This method assumes that caller has made sure that a buffer is available
 // by calling the method isBufferAvailable().
 // If there is no buffer available then the behavior is undefined and
-// should cause visual artefacts or may Metal validation may fail or crash.
+// should cause visual artefacts or Metal validation may fail or crash.
 
-- (void) updateBufferInUse {
++ (void) updateBufferInUse {
     unsigned int prevBufferIndex = currentBufferIndex;
     for (int i = currentBufferIndex + 1; i < NUM_BUFFERS; i++) {
         if (!isBufferInUse[i]) {
@@ -107,6 +77,18 @@ static MetalRingBuffer* instance = nil;
         }
     }
     isBufferInUse[currentBufferIndex] = true;
+}
+
++ (unsigned int) getCurrentBufferIndex {
+    return currentBufferIndex;
+}
+
++ (void) resetBuffer:(unsigned int)index {
+    isBufferInUse[index] = false;
+}
+
+- (void) resetOffsets
+{
     currentOffset = 0;
     numReservedBytes = 0;
 }
@@ -119,30 +101,17 @@ static MetalRingBuffer* instance = nil;
     return buffer[currentBufferIndex];
 }
 
-- (unsigned int) getCurrentBufferIndex {
-    return currentBufferIndex;
-}
-
-- (void) resetBuffer:(unsigned int)index {
-    isBufferInUse[index] = false;
-}
-
 - (int) reserveBytes:(unsigned int)length {
-    if (length > BUFFER_LENGTH * RESERVE_SIZE_THRESHOLD) {
-        // The requested length is too large. return -2 indicating
-        // that bytes are not reserved on the RingBuffer and
-        // caller should take care of allocating a separate buffer.
-        return -2;
-    }
+    int prevOffset = currentOffset;
     currentOffset = numReservedBytes;
     unsigned int remainder = currentOffset % BUFFER_OFFSET_ALIGNMENT;
     if (remainder != 0) {
         currentOffset = currentOffset + BUFFER_OFFSET_ALIGNMENT - remainder;
     }
 
-    if (currentOffset > BUFFER_LENGTH || length > (BUFFER_LENGTH - currentOffset)) {
+    if (currentOffset > bufferSize || length > (bufferSize - currentOffset)) {
         // RingBuffer overflows with requested length.
-        // Caller should commit the command buffer and reserve buffer again.
+        currentOffset = prevOffset;
         return -1;
     }
     numReservedBytes = currentOffset + length;
@@ -155,7 +124,6 @@ static MetalRingBuffer* instance = nil;
         buffer[i] = nil;
     }
     [super dealloc];
-    instance = nil;
 }
 
 @end

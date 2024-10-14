@@ -41,7 +41,6 @@
 #import "MetalPhongShader.h"
 #import "MetalMeshView.h"
 #import "MetalPhongMaterial.h"
-#import "MetalRingBuffer.h"
 
 #ifdef CTX_VERBOSE
 #define CTX_LOG NSLog
@@ -57,10 +56,12 @@
     CTX_LOG(@"-> MetalContext.createContext()");
     self = [super init];
     if (self) {
+        argsRingBuffer = [[MetalRingBuffer alloc] init:ARGS_BUFFER_SIZE];
+        dataRingBuffer = [[MetalRingBuffer alloc] init:DATA_BUFFER_SIZE];
         transientBuffersForCB = [[NSMutableArray alloc] init];
+        shadersUsedInCB = [[NSMutableSet alloc] init];
         isScissorEnabled = false;
         commitOnDraw = false;
-        transBuffAllocationInCB = 0;
         currentRenderEncoder = nil;
         linearSamplerDict = [[NSMutableDictionary alloc] init];
         nonLinearSamplerDict = [[NSMutableDictionary alloc] init];
@@ -199,16 +200,23 @@
     return pixelBuffer;
 }
 
+- (MetalRingBuffer*) getArgsRingBuffer
+{
+    return argsRingBuffer;
+}
+
+- (MetalRingBuffer*) getDataRingBuffer
+{
+    return dataRingBuffer;
+}
+
 - (id<MTLBuffer>) getTransientBufferWithBytes:(const void *)pointer length:(NSUInteger)length
 {
     id<MTLBuffer> transientBuf = [device newBufferWithBytes:pointer
                                                      length:length
                                                     options:MTLResourceStorageModeShared];
     [transientBuffersForCB addObject:transientBuf];
-    transBuffAllocationInCB += length;
-    if (transBuffAllocationInCB > MAX_TRANS_BUFF_ALLOCATION_PER_CB) {
-        commitOnDraw = true;
-    }
+    commitOnDraw = true;
     return transientBuf;
 }
 
@@ -217,10 +225,7 @@
     id<MTLBuffer> transientBuf = [device newBufferWithLength:length
                                                      options:MTLResourceStorageModeShared];
     [transientBuffersForCB addObject:transientBuf];
-    transBuffAllocationInCB += length;
-    if (transBuffAllocationInCB > MAX_TRANS_BUFF_ALLOCATION_PER_CB) {
-        commitOnDraw = true;
-    }
+    commitOnDraw = true;
     return transientBuf;
 }
 
@@ -282,11 +287,13 @@
     NSMutableArray* bufsForCB = transientBuffersForCB;
     transientBuffersForCB = [[NSMutableArray alloc] init];
 
-    unsigned int rbid = [[MetalRingBuffer getInstance] getCurrentBufferIndex];
+    for (MetalShader* shader in shadersUsedInCB) {
+        [shader setArgsUpdated:true];
+    }
+
+    unsigned int rbid = [MetalRingBuffer getCurrentBufferIndex];
     [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
-        if ([MetalRingBuffer getInstance] != nil) {
-            [[MetalRingBuffer getInstance] resetBuffer:rbid];
-        }
+        [MetalRingBuffer resetBuffer:rbid];
         for (id buffer in bufsForCB) {
             [buffer release];
         }
@@ -294,17 +301,17 @@
         [bufsForCB release];
     }];
     commitOnDraw = false;
-    transBuffAllocationInCB = 0;
     [currentCommandBuffer commit];
 
-    if (waitUntilCompleted ||
-            ![[MetalRingBuffer getInstance] isBufferAvailable]) {
+    if (waitUntilCompleted || ![MetalRingBuffer isBufferAvailable]) {
         [currentCommandBuffer waitUntilCompleted];
     }
 
     [currentCommandBuffer release];
     currentCommandBuffer = nil;
-    [[MetalRingBuffer getInstance] updateBufferInUse];
+    [MetalRingBuffer updateBufferInUse];
+    [argsRingBuffer resetOffsets];
+    [dataRingBuffer resetOffsets];
 }
 
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer
@@ -381,13 +388,8 @@
     int numQuads = numVertices / 4;
     int numIndices = numQuads * 6;
 
-    MetalShader* shader = [self getCurrentShader];
-    if ([shader getArgumentBufferLength] != 0) {
-        [shader copyArgBufferToRingBuffer];
-    }
-
-    id<MTLBuffer> vertexBuffer = [[MetalRingBuffer getInstance] getBuffer];
-    int offset = [[MetalRingBuffer getInstance] reserveBytes:vbLength];
+    id<MTLBuffer> vertexBuffer = [dataRingBuffer getBuffer];
+    int offset = [dataRingBuffer reserveBytes:vbLength];
 
     if (offset < 0) {
         vertexBuffer = [self getTransientBufferWithLength:vbLength];
@@ -401,8 +403,6 @@
 
     id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
 
-    [renderEncoder setRenderPipelineState:[shader getPipelineState:[rtt isMSAAEnabled]
-                                                     compositeMode:compositeMode]];
     [renderEncoder setFrontFacingWinding:MTLWindingClockwise];
     [renderEncoder setCullMode:MTLCullModeNone];
     [renderEncoder setTriangleFillMode:MTLTriangleFillModeFill];
@@ -411,25 +411,32 @@
                            length:sizeof(mvpMatrix)
                           atIndex:VertexInputMatrixMVP];
 
+    MetalShader* shader = [self getCurrentShader];
+    [shadersUsedInCB addObject:shader];
+
+    [renderEncoder setRenderPipelineState:[shader getPipelineState:[rtt isMSAAEnabled]
+                                                     compositeMode:compositeMode]];
+
     if ([shader getArgumentBufferLength] != 0) {
-        [renderEncoder setFragmentBuffer:[[MetalRingBuffer getInstance] getBuffer]
+        [shader copyArgBufferToRingBuffer];
+        [renderEncoder setFragmentBuffer:[shader getRingBuffer]
                                   offset:[shader getRingBufferOffset]
                                  atIndex:0];
-    }
 
-    NSMutableDictionary* texturesDict = [shader getTexutresDict];
-    if ([texturesDict count] > 0) {
-        for (NSString *key in texturesDict) {
-            id<MTLTexture> tex = texturesDict[key];
-            CTX_LOG(@"    Value: %@ for key: %@", tex, key);
-            [renderEncoder useResource:tex usage:MTLResourceUsageRead];
-        }
+        NSMutableDictionary* texturesDict = [shader getTexutresDict];
+        if ([texturesDict count] > 0) {
+            for (NSString *key in texturesDict) {
+                id<MTLTexture> tex = texturesDict[key];
+                CTX_LOG(@"    Value: %@ for key: %@", tex, key);
+                [renderEncoder useResource:tex usage:MTLResourceUsageRead];
+            }
 
-        NSMutableDictionary* samplersDict = [shader getSamplersDict];
-        for (NSNumber *key in samplersDict) {
-            id<MTLSamplerState> sampler = samplersDict[key];
-            CTX_LOG(@"    Value: %@ for key: %@", sampler, key);
-            [renderEncoder setFragmentSamplerState:sampler atIndex:[key integerValue]];
+            NSMutableDictionary* samplersDict = [shader getSamplersDict];
+            for (NSNumber *key in samplersDict) {
+                id<MTLSamplerState> sampler = samplersDict[key];
+                CTX_LOG(@"    Value: %@ for key: %@", sampler, key);
+                [renderEncoder setFragmentSamplerState:sampler atIndex:[key integerValue]];
+            }
         }
     }
 
@@ -864,8 +871,14 @@
         phongRPD = nil;
     }
 
-    if ([MetalRingBuffer getInstance] != nil) {
-        [[MetalRingBuffer getInstance] dealloc];
+    if (argsRingBuffer != nil) {
+        [argsRingBuffer dealloc];
+        argsRingBuffer = nil;
+    }
+
+    if (dataRingBuffer != nil) {
+        [dataRingBuffer dealloc];
+        dataRingBuffer = nil;
     }
 
     for (NSNumber *keyWrapMode in linearSamplerDict) {
@@ -876,7 +889,15 @@
     }
     [linearSamplerDict release];
     [nonLinearSamplerDict release];
-    [transientBuffersForCB release];
+
+    if (transientBuffersForCB != nil) {
+        for (id buffer in transientBuffersForCB) {
+            [buffer release];
+        }
+        [transientBuffersForCB removeAllObjects];
+        [transientBuffersForCB release];
+        transientBuffersForCB = nil;
+    }
 
     if (identityMatrixBuf != nil) {
         [identityMatrixBuf release];

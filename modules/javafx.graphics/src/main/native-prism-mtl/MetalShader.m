@@ -29,7 +29,6 @@
 #import "DecoraShaderCommon.h"
 #import "MetalShader.h"
 #import "com_sun_prism_mtl_MTLShader.h"
-#import "MetalRingBuffer.h"
 
 #ifdef SHADER_VERBOSE
 #define SHADER_LOG NSLog
@@ -62,6 +61,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     self = [super init];
     if (self) {
         context = ctx;
+        argsUpdated = false;
         SHADER_LOG(@">>>> MetalShader.initWithContext()----> fragFuncName: %@", fragName);
         @autoreleasepool {
             fragTexArgsDict    = [[[NSMutableDictionary alloc] init] retain];
@@ -100,6 +100,11 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
         SHADER_LOG(@"<<<< MetalShader.initWithContext()\n");
     }
     return self;
+}
+
+- (void) setArgsUpdated:(bool) updated
+{
+    argsUpdated = updated;
 }
 
 - (jobject) getUniformNameIdMap:(JNIEnv*)env
@@ -194,18 +199,26 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     return currentRingBufferOffset;
 }
 
+- (id<MTLBuffer>) getRingBuffer
+{
+    return argumentBufferForCB;
+}
+
 - (void) copyArgBufferToRingBuffer
 {
-    if (argumentBufferLength != 0) {
-        currentRingBufferOffset = [[MetalRingBuffer getInstance] reserveBytes:argumentBufferLength];
+    if (argumentBufferLength != 0 && argsUpdated) {
+        currentRingBufferOffset = [[context getArgsRingBuffer] reserveBytes:argumentBufferLength];
 
         if (currentRingBufferOffset < 0) {
-            [context commitCurrentCommandBuffer];
-            currentRingBufferOffset = [[MetalRingBuffer getInstance] reserveBytes:argumentBufferLength];
+            currentRingBufferOffset = 0;
+            argumentBufferForCB = [context getTransientBufferWithBytes:argumentBuffer.contents
+                                                                length:argumentBufferLength];
+        } else {
+            argumentBufferForCB = [[context getArgsRingBuffer] getBuffer];
+            memcpy(argumentBufferForCB.contents + currentRingBufferOffset,
+                                argumentBuffer.contents, argumentBufferLength);
+            argsUpdated = false;
         }
-
-        memcpy([[MetalRingBuffer getInstance] getBuffer].contents + currentRingBufferOffset,
-                    argumentBuffer.contents, argumentBufferLength);
     }
 }
 
@@ -248,6 +261,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
 - (void) setInt:(int)uniformID i0:(int) i0
 {
+    argsUpdated = true;
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.setInt() : uniformID = %d, i0= %d", uniformID, i0);
     SHADER_LOG(@"     MetalShader.setInt()----> fragFuncName: %@", fragFuncName);
@@ -271,6 +285,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
            isLinear:(bool)isLinear
            wrapMode:(int)wrapMode
 {
+    argsUpdated = true;
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.setTexture() : uniformID = %d, texture = %p", uniformID, texture);
     SHADER_LOG(@"     MetalShader.setTexture()----> fragFuncName: %@", fragFuncName);
@@ -296,6 +311,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
 - (void) setFloat1:(int)uniformID f0:(float) f0
 {
+    argsUpdated = true;
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.setFloat() : uniformID = %d, f0= %f", uniformID, f0);
     SHADER_LOG(@"     MetalShader.setFloat()----> fragFuncName: %@", fragFuncName);
@@ -314,6 +330,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
 - (void) setFloat2:(int)uniformID f0:(float) f0 f1:(float) f1
 {
+    argsUpdated = true;
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.setFloat2() : uniformID = %d, f0= %f, f1= %f", uniformID, f0, f1);
     SHADER_LOG(@"     MetalShader.setFloat2()----> fragFuncName: %@", fragFuncName);
@@ -333,6 +350,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
 - (void) setFloat3:(int)uniformID f0:(float) f0 f1:(float) f1 f2:(float) f2
 {
+    argsUpdated = true;
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.setFloat3() : uniformID = %d, f0= %f, f1= %f, f2= %f", uniformID, f0, f1, f2);
     SHADER_LOG(@"     MetalShader.setFloat3()----> fragFuncName: %@", fragFuncName);
@@ -353,6 +371,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
 - (void) setFloat4:(int)uniformID f0:(float) f0 f1:(float) f1 f2:(float) f2  f3:(float) f3
 {
+    argsUpdated = true;
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.setFloat4() : uniformID = %d, f0= %f, f1= %f, f2= %f, f3= %f",
                 uniformID, f0, f1, f2, f3);
@@ -375,6 +394,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
 - (void) setConstants:(int)uniformID values:(float[]) values size:(int) size
 {
+    argsUpdated = true;
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.setConstants() : uniformID = %d, size = %d", uniformID, size);
     SHADER_LOG(@"     MetalShader.setConstants()----> fragFuncName: %@", fragFuncName);

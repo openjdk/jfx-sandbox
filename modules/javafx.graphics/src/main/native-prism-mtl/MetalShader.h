@@ -35,6 +35,7 @@
 
 @interface MetalShader : NSObject
 {
+    bool argsUpdated;
     MetalContext *context;
     NSString* fragFuncName;
     id<MTLFunction> fragmentFunction;
@@ -52,8 +53,10 @@
     id<MTLBuffer> argumentBuffer;
     NSUInteger argumentBufferLength;
     int currentRingBufferOffset; // offset in the MetalRingBuffer
+    id<MTLBuffer> argumentBufferForCB;
 }
 
+- (void) setArgsUpdated:(bool) updated;
 - (jobject) getUniformNameIdMap:(JNIEnv*)env;
 - (id) initWithContext:(MetalContext*)ctx withFragFunc:(NSString*) fragName;
 - (id<MTLRenderPipelineState>) getPipelineState:(bool) isMSAA
@@ -62,6 +65,7 @@
 - (void) copyArgBufferToRingBuffer;
 - (NSUInteger) getArgumentBufferLength;
 - (int) getRingBufferOffset;
+- (id<MTLBuffer>) getRingBuffer;
 
 - (NSMutableDictionary*) getTexutresDict;
 - (NSMutableDictionary*) getSamplersDict;

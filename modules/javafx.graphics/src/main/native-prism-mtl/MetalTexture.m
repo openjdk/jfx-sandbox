@@ -26,7 +26,6 @@
 #import <jni.h>
 #import "MetalTexture.h"
 #import "MetalPipelineManager.h"
-#import "MetalRingBuffer.h"
 
 @implementation MetalTexture
 
@@ -308,20 +307,14 @@
     [super dealloc];
 }
 
-
 @end // MetalTexture
 
 static int copyPixelDataToRingBuffer(MetalContext* context, void* pixels, unsigned int length)
 {
-    int offset = [[MetalRingBuffer getInstance] reserveBytes:length];
-    if (offset == -2) {
-        return offset;
+    int offset = [[context getDataRingBuffer] reserveBytes:length];
+    if (offset >= 0) {
+        memcpy([[context getDataRingBuffer] getBuffer].contents + offset, pixels, length);
     }
-    if (offset == -1) {
-        [context commitCurrentCommandBuffer];
-        offset = [[MetalRingBuffer getInstance] reserveBytes:length];
-    }
-    memcpy([[MetalRingBuffer getInstance] getBuffer].contents + offset, pixels, length);
     return offset;
 }
 
@@ -348,12 +341,12 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
 
     id<MTLBuffer> pixelMTLBuf = nil;
     int offset = copyPixelDataToRingBuffer(context, pixels, length);
-    if (offset == -2) {
+    if (offset < 0) {
         TEX_LOG(@"MetalTexture_nUpdate -- creating non Ring Buffer");
         pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length];
         offset = 0;
     } else {
-        pixelMTLBuf = [[MetalRingBuffer getInstance] getBuffer];
+        pixelMTLBuf = [[context getDataRingBuffer] getBuffer];
     }
 
     if (pixData != NULL) {
@@ -410,12 +403,12 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
 
     id<MTLBuffer> pixelMTLBuf = nil;
     int offset = copyPixelDataToRingBuffer(context, pixels, length);
-    if (offset == -2) {
+    if (offset < 0) {
         TEX_LOG(@"MetalTexture_nUpdateFloat -- creating non Ring Buffer");
         pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length];
         offset = 0;
     } else {
-        pixelMTLBuf = [[MetalRingBuffer getInstance] getBuffer];
+        pixelMTLBuf = [[context getDataRingBuffer] getBuffer];
     }
 
     if (pixData != NULL) {
@@ -474,12 +467,12 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
 
     id<MTLBuffer> pixelMTLBuf = nil;
     int offset = copyPixelDataToRingBuffer(context, pixels, length);
-    if (offset == -2) {
+    if (offset < 0) {
         TEX_LOG(@"MetalTexture_nUpdateInt -- creating non Ring Buffer");
         pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length];
         offset = 0;
     } else {
-        pixelMTLBuf = [[MetalRingBuffer getInstance] getBuffer];
+        pixelMTLBuf = [[context getDataRingBuffer] getBuffer];
     }
 
     if (pixData != NULL) {

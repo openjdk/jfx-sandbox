@@ -26,13 +26,7 @@
 #ifndef METAL_RING_BUFFER_H
 #define METAL_RING_BUFFER_H
 
-// TODO: MTL:
-// 1. Find the best size
-// 2. Alternative approach for large textures(no ring buffer, different sized ring buffer)
-#define RING_BUFF_SIZE (16 * 1024 * 1024)
-
 #define NUM_BUFFERS (3)
-
 
 // TODO: MTL: The alignment varies for different platforms.
 // The alignment value can/should be retrived from device capabilities and updated accordingly.
@@ -45,7 +39,6 @@
 //
 // For more details see metal feature set table and doc of BlitEncoder.copyFromBuffer
 #define BUFFER_OFFSET_ALIGNMENT (32)
-#define RESERVE_SIZE_THRESHOLD (0.75)
 
 #import "MetalCommon.h"
 #import <Metal/Metal.h>
@@ -54,23 +47,24 @@
 @interface MetalRingBuffer : NSObject
 {
     id<MTLBuffer> buffer[NUM_BUFFERS];
-    bool isBufferInUse[NUM_BUFFERS];
-    unsigned int currentBufferIndex;
     unsigned int currentOffset;
     unsigned int numReservedBytes;
+    unsigned int bufferSize;
 }
 
-+ (instancetype) getInstance;
-
-- (bool) isBufferAvailable;
-- (void) updateBufferInUse;
+- (MetalRingBuffer*) init:(unsigned int)size;
+- (void) resetOffsets;
 - (id<MTLBuffer>) getBuffer;
 - (id<MTLBuffer>) getCurrentBuffer;
-- (unsigned int)  getCurrentBufferIndex;
-- (void) resetBuffer :(unsigned int)index;
 - (int)  reserveBytes:(unsigned int)length;
 
 - (void) dealloc;
+
++ (unsigned int)  getCurrentBufferIndex;
++ (void) resetBuffer :(unsigned int)index;
++ (bool) isBufferAvailable;
++ (void) updateBufferInUse;
+
 @end
 
 #endif

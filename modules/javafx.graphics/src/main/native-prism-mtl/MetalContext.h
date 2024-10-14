@@ -30,6 +30,8 @@
 #import <Metal/Metal.h>
 #import <Foundation/Foundation.h>
 
+#import "MetalRingBuffer.h"
+
 @class MetalTexture;
 @class MetalRTTexture;
 @class MetalResourceFactory;
@@ -40,7 +42,8 @@
 @class MetalMeshView;
 
 #define BUFFER_SIZE 1
-#define MAX_TRANS_BUFF_ALLOCATION_PER_CB (30 * 1024 * 1024)
+#define ARGS_BUFFER_SIZE (8  * 1024 * 1024)
+#define DATA_BUFFER_SIZE (20 * 1024 * 1024)
 
 #define MAX_NUM_QUADS   (4096) // refer MTLContext.NUM_QUADS
 #define INDICES_PER_IB  (MAX_NUM_QUADS * 6) // (4096 * 6 * 2 ) = 48 kb IndexBuffer
@@ -91,8 +94,11 @@ typedef enum VertexInputIndex {
     NSMutableDictionary* linearSamplerDict;
     NSMutableDictionary* nonLinearSamplerDict;
 
-    int transBuffAllocationInCB;
     bool commitOnDraw;
+    MetalRingBuffer* argsRingBuffer;
+    MetalRingBuffer* dataRingBuffer;
+    NSMutableArray*  transientBuffersForCB;
+    NSMutableSet*    shadersUsedInCB;
 
     MetalResourceFactory* resourceFactory;
 
@@ -118,7 +124,6 @@ typedef enum VertexInputIndex {
     int compositeMode;
     int cullMode;
 
-    NSMutableArray* transientBuffersForCB;
     id<MTLBuffer> pixelBuffer;
 }
 
@@ -127,6 +132,9 @@ typedef enum VertexInputIndex {
 - (MetalPipelineManager*) getPipelineManager;
 - (MetalShader*) getCurrentShader;
 - (void) setCurrentShader:(MetalShader*) shader;
+
+- (MetalRingBuffer*) getArgsRingBuffer;
+- (MetalRingBuffer*) getDataRingBuffer;
 
 - (void) commitCurrentCommandBuffer;
 - (void) commitCurrentCommandBufferAndWait;
