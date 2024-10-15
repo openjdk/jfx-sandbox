@@ -421,6 +421,8 @@ public class MTLContext extends BaseShaderContext {
 
     private static native void nRelease(long pContext);
 
+    private static native void nDisposeShader(long nMetalShaderRef);
+
     @Override
     public void setDeviceParametersFor2D() {
         if (checkDisposed()) return;
@@ -622,6 +624,9 @@ public class MTLContext extends BaseShaderContext {
         rawMatrix[15] = (float)src.get(15);
     }
 
+    public void disposeShader(long nMetalShaderRef) {
+        nDisposeShader(nMetalShaderRef);
+    }
 
     @Override
     public void dispose() {

@@ -72,6 +72,7 @@
 
 - (NSUInteger) getArgumentID:(NSString*) name;
 - (void) enable;
+- (void) disable;
 
 - (void) setTexture:(int)texID
           uniformID:(int)uniformID
@@ -87,6 +88,7 @@
 - (void) setFloat4:(int)uniformID f0:(float) f0 f1:(float) f1 f2:(float) f2  f3:(float) f3;
 
 - (void) setConstants:(int)uniformID values:(float[]) values size:(int) size;
+- (void) dealloc;
 
 @end
 

@@ -290,6 +290,7 @@
     for (MetalShader* shader in shadersUsedInCB) {
         [shader setArgsUpdated:true];
     }
+    [shadersUsedInCB removeAllObjects];
 
     unsigned int rbid = [MetalRingBuffer getCurrentBufferIndex];
     [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
@@ -899,6 +900,11 @@
         transientBuffersForCB = nil;
     }
 
+    if (shadersUsedInCB != nil) {
+        [shadersUsedInCB removeAllObjects];
+        [shadersUsedInCB release];
+        shadersUsedInCB = nil;
+    }
     if (identityMatrixBuf != nil) {
         [identityMatrixBuf release];
         identityMatrixBuf = nil;
@@ -969,6 +975,17 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nInitialize
     return jContextPtr;
 }
 
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDisposeShader
+  (JNIEnv *env, jclass jClass, jlong shaderRef)
+{
+    CTX_LOG(@">>>> MTLContext_nDisposeShader");
+
+    MetalShader *shaderPtr = (MetalShader *)jlong_to_ptr(shaderRef);
+    if (shaderPtr != NULL) {
+        [shaderPtr release];
+    }
+    CTX_LOG(@"<<<< MTLContext_nDisposeShader");
+}
 
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRelease
   (JNIEnv *env, jclass jClass, jlong context)

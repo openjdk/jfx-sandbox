@@ -159,6 +159,14 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     SHADER_LOG(@"<<<< MetalShader.enable()\n");
 }
 
+- (void) disable
+{
+    SHADER_LOG(@"\n");
+    SHADER_LOG(@">>>> MetalShader.disable()----> fragFuncName: %@", fragFuncName);
+    [context setCurrentShader:NULL];
+    SHADER_LOG(@"<<<< MetalShader.disable()\n");
+}
+
 - (id<MTLRenderPipelineState>) getPipelineState:(bool)isMSAA
                                   compositeMode:(int)compositeMode;
 {
@@ -413,7 +421,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     SHADER_LOG(@"<<<< MetalShader.setConstants()");
 }
 
-- (void) dispose
+- (void) dealloc
 {
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.dispose()----> fragFuncName: %@", fragFuncName);
@@ -490,7 +498,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nDisable
     SHADER_LOG(@"\n");
     SHADER_LOG(@"-> JNICALL Native: MTLShader_nDisable");
     MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
-    //[mtlShader disable];
+    [mtlShader disable];
     return 1;
 }
 
@@ -571,14 +579,4 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nSetConstants
     [mtlShader setConstants:uniformID values:values size:size];
     (*env)->ReleaseFloatArrayElements(env, valuesArray, values, 0);
     return 1;
-}
-
-JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nDispose
-  (JNIEnv *env, jclass jClass, jlong shader)
-{
-    SHADER_LOG(@"\n");
-    SHADER_LOG(@"-> JNICALL Native: MTLShader_nDispose");
-    MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
-    [mtlShader dispose];
-    return;
 }

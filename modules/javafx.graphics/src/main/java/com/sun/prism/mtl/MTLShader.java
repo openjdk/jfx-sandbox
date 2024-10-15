@@ -62,8 +62,6 @@ public class MTLShader implements Shader  {
 
     native private static long nSetConstants(long nMetalShader, int uniformID, float[] values, int size);
 
-    native private static void nDispose(long nMetalShader);
-
     private MTLShader(MTLContext context, String fragmentFunctionName) {
         MTLLog.Debug(">>> MTLShader(): fragFuncName = " + fragmentFunctionName);
 
@@ -138,6 +136,10 @@ public class MTLShader implements Shader  {
     @Override
     public void disable() {
         MTLLog.Debug("MTLShader.disable()  fragFuncName = " + fragmentFunctionName);
+        // TODO: MTL: There are no disable calls coming from BaseShaderContext.
+        // So this is a no-op. We can call disable on lastShader in
+        // BaseShaderContext.checkState() but that will be a common change for
+        // all pipelines.
         nDisable(nMetalShaderRef);
     }
 
@@ -237,6 +239,6 @@ public class MTLShader implements Shader  {
     @Override
     public void dispose() {
         MTLLog.Debug(">>> MTLShader.dispose() : fragmentFunctionName : " + this.fragmentFunctionName);
-        nDispose(nMetalShaderRef);
+        context.disposeShader(nMetalShaderRef);
     }
 }
