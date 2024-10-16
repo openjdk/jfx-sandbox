@@ -74,7 +74,8 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     static MTLRTTexture create(MTLContext context,
                                int physicalWidth, int physicalHeight,
                                int contentWidth, int contentHeight,
-                               WrapMode wrapMode, boolean msaa) {
+                               WrapMode wrapMode, boolean msaa,
+                               long size) {
         // TODO: MTL: Implement support for MSAA texture
         MTLLog.Debug("MTLRTTexture.create()  physicalWidth = " + physicalWidth +
                 ", physicalHeight = " + physicalHeight + ", contentWidth = " + contentWidth +
@@ -83,7 +84,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
                 physicalWidth, physicalHeight,
                 contentWidth, contentHeight,
                 wrapMode, msaa);
-        MTLTextureData textData = new MTLRTTextureData(context, nPtr);
+        MTLTextureData textData = new MTLRTTextureData(context, nPtr, size);
         MTLTextureResource resource = new MTLTextureResource(textData);
         return new MTLRTTexture(context, resource, wrapMode,
                 physicalWidth, physicalHeight,
@@ -92,10 +93,10 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
                 contentWidth, contentHeight, msaa);
     }
 
-    static MTLRTTexture create(MTLContext context, long pTex, int width, int height) {
+    static MTLRTTexture create(MTLContext context, long pTex, int width, int height, long size) {
         long nPtr = nCreateRT2(context.getContextHandle(), pTex, width, height);
 
-        MTLTextureData textData = new MTLRTTextureData(context, nPtr);
+        MTLTextureData textData = new MTLRTTextureData(context, nPtr, size);
         MTLTextureResource resource = new MTLTextureResource(textData);
         //return new MTLRTTexture(context, resource);
 

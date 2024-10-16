@@ -171,7 +171,12 @@ public class MTLSwapChain extends MTLResource
 
             long pTex = pState.getNativeFrameBuffer();
 
-            stableBackbuffer = (MTLRTTexture)MTLRTTexture.create(getContext(), pTex, w, h);
+            MTLVramPool pool = MTLVramPool.getInstance();
+            long size = pool.estimateRTTextureSize(w, h, false);
+            if (!pool.prepareForAllocation(size)) {
+                return null;
+            }
+            stableBackbuffer = (MTLRTTexture)MTLRTTexture.create(getContext(), pTex, w, h, size);
             if (PrismSettings.dirtyOptsEnabled) {
                 stableBackbuffer.contentsUseful();
             }

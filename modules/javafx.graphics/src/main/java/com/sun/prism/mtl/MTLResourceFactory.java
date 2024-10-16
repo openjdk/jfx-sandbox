@@ -183,7 +183,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
             return null;
         }
 
-        MTLTextureData textData = new MTLTextureData(context, pResource);
+        MTLTextureData textData = new MTLTextureData(context, pResource, size);
         MTLTextureResource resource = new MTLTextureResource(textData);
 
         // TODO: MTL: contentX and contentY is set as 0 - please see ES2/D3D path and try to match it
@@ -215,14 +215,6 @@ public class MTLResourceFactory extends BaseShaderFactory {
         if (texWidth >= (Integer.MAX_VALUE / texHeight / bpp)) {
             frame.releaseFrame();
             throw new RuntimeException("Illegal texture dimensions (" + texWidth + "x" + texHeight + ")");
-        }
-
-        MTLVramPool pool = MTLVramPool.getInstance();
-        long size = pool.estimateTextureSize(texWidth, texHeight, texFormat);
-        if (!pool.prepareForAllocation(size)) {
-            frame.releaseFrame();
-            MTLLog.Debug("MTLVramPool prepareForAllocation returned false.");
-            return null;
         }
 
         if (texFormat == PixelFormat.MULTI_YCbCr_420) {
@@ -384,7 +376,13 @@ public class MTLResourceFactory extends BaseShaderFactory {
         //createw = nextPowerOf64(createw, 8192);
         //createh = nextPowerOf64(createh, 8192);
 
-        MTLRTTexture rtt = MTLRTTexture.create(context, createw, createh, width, height, wrapMode, msaa);
+        MTLVramPool pool = MTLVramPool.getInstance();
+        long size = pool.estimateRTTextureSize(createw, createh, false);
+        if (!pool.prepareForAllocation(size)) {
+            return null;
+        }
+
+        MTLRTTexture rtt = MTLRTTexture.create(context, createw, createh, width, height, wrapMode, msaa, size);
         return rtt;
     }
 

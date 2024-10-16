@@ -32,7 +32,7 @@ import java.util.Objects;
 public class MTLTextureData implements Disposer.Record {
     private final MTLContext mtlContext;
     private long pTexture;
-    private int size;
+    private long size;
 
     // MTLBuffer used to store the pixel data of this texture
     // private long nTexPixelData;
@@ -41,13 +41,14 @@ public class MTLTextureData implements Disposer.Record {
         mtlContext = null;
     }
 
-    MTLTextureData(MTLContext context, long texPtr) {
+    MTLTextureData(MTLContext context, long texPtr, long textureSize) {
         Objects.requireNonNull(context);
         if (texPtr <= 0) {
             throw new IllegalArgumentException("Texture cannot be null");
         }
         mtlContext = context;
         pTexture = texPtr;
+        size = textureSize;
     }
 
     public void setResource(long resource) {
@@ -64,9 +65,9 @@ public class MTLTextureData implements Disposer.Record {
 
     @Override
     public void dispose() {
-        if (pTexture != 0) {
+        if (pTexture != 0L) {
             MTLResourceFactory.releaseTexture(mtlContext, pTexture);
-            pTexture = 0;
+            pTexture = 0L;
         }
     }
 }
