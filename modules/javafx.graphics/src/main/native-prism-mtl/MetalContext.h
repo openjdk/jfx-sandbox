@@ -34,7 +34,6 @@
 
 @class MetalTexture;
 @class MetalRTTexture;
-@class MetalResourceFactory;
 @class MetalPipelineManager;
 @class MetalShader;
 @class MetalPhongShader;
@@ -100,25 +99,18 @@ typedef enum VertexInputIndex {
     NSMutableArray*  transientBuffersForCB;
     NSMutableSet*    shadersUsedInCB;
 
-    MetalResourceFactory* resourceFactory;
-
     MTLScissorRect scissorRect;
     bool isScissorEnabled;
     MetalRTTexture* rtt;
-    bool rttCleared;
     bool clearDepthTexture;
     float clearColor[4];
     MTLRenderPassDescriptor* rttPassDesc;
-    MTLLoadAction rttLoadAction;
-    //MTLRenderPipelineDescriptor* passThroughPipeDesc;
-    //id<MTLRenderPipelineState> passThroughPipeState;
 
     MetalPipelineManager* pipelineManager;
     MetalPhongShader *phongShader;
     MTLRenderPassDescriptor* phongRPD;
     vector_float4 cPos;
     bool depthEnabled;
-    dispatch_semaphore_t tripleBufferSemaphore;
     NSUInteger currentBufferIndex;
 
     int compositeMode;
@@ -143,17 +135,23 @@ typedef enum VertexInputIndex {
 - (id<MTLDevice>) getDevice;
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer;
 - (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder;
-- (NSUInteger) getCurrentBufferIndex;
 - (void) endCurrentRenderEncoder;
+
 - (id<MTLRenderPipelineState>) getPhongPipelineState;
+- (NSUInteger) getCurrentBufferIndex;
+
 - (void) resetRenderPass;
 - (void) updateDepthDetails:(bool)depthTest;
 - (void) verifyDepthTexture;
 
 - (int) setRTT:(MetalRTTexture*)rttPtr;
 - (MetalRTTexture*) getRTT;
-- (void) clearRTT:(int)color red:(float)red green:(float)green blue:(float)blue alpha:(float)alpha
-                        clearDepth:(bool)clearDepth ignoreScissor:(bool)ignoreScissor;
+- (void) clearRTT:(float)red
+            green:(float)green
+             blue:(float)blue
+            alpha:(float)alpha
+       clearDepth:(bool)clearDepth;
+
 - (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height;
 - (void) resetClipRect;
 
@@ -185,11 +183,7 @@ typedef enum VertexInputIndex {
         m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
         m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33;
 
-- (void) setWorldTransformIdentityMatrix:(float)m00
-        m01:(float)m01 m02:(float)m02 m03:(float)m03
-        m10:(float)m10 m11:(float)m11 m12:(float)m12 m13:(float)m13
-        m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
-        m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33;
+- (void) setWorldTransformIdentityMatrix;
 
 - (NSInteger) setDeviceParametersFor2D;
 - (NSInteger) setDeviceParametersFor3D;

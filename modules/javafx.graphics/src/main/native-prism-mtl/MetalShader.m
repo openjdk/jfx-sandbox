@@ -454,6 +454,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     [fragTexSamplerDict release];
     [fragArgIndicesDict release];
     SHADER_LOG(@"<<<< MetalShader.dispose()");
+    [super dealloc];
 }
 
 @end // MetalShader

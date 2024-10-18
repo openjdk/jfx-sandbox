@@ -33,7 +33,6 @@
 
 #import "MetalContext.h"
 #import "MetalRTTexture.h"
-#import "MetalResourceFactory.h"
 #import "MetalPipelineManager.h"
 #import "MetalShader.h"
 #import "com_sun_prism_mtl_MTLContext.h"
@@ -48,7 +47,6 @@
 #define CTX_LOG(...)
 #endif
 
-#define MAX_QUADS_IN_A_BATCH 14
 @implementation MetalContext
 
 - (id) createContext:(dispatch_data_t)shaderLibData
@@ -68,7 +66,6 @@
         compositeMode = com_sun_prism_mtl_MTLContext_MTL_COMPMODE_SRCOVER; //default
 
         device = MTLCreateSystemDefaultDevice();
-        tripleBufferSemaphore = nil;
         currentBufferIndex = 0;
         commandQueue = [device newCommandQueue];
         commandQueue.label = @"The only MTLCommandQueue";
@@ -92,12 +89,7 @@
         id<MTLBuffer> tMatBuf = [self getTransientBufferWithLength:sizeof(simd_float4x4)];
         simd_float4x4* identityMatrix = (simd_float4x4*)tMatBuf.contents;
 
-        *identityMatrix = simd_matrix(
-            (simd_float4) { 1, 0, 0, 0 },
-            (simd_float4) { 0, 1, 0, 0 },
-            (simd_float4) { 0, 0, 1, 0 },
-            (simd_float4) { 0, 0, 0, 1 }
-        );
+        *identityMatrix = matrix_identity_float4x4;
 
         clearEntireRttVerticesBuf = [device newBufferWithLength:sizeof(CLEAR_VS_INPUT) * 4
                                                         options:MTLResourceStorageModePrivate];
@@ -370,12 +362,6 @@
                 compositeMode:[self getCompositeMode]];
 }
 
-- (MetalResourceFactory*) getResourceFactory
-{
-    CTX_LOG(@"MetalContext.getResourceFactory()");
-    return resourceFactory;
-}
-
 - (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
                       ofColors:(char const *)pSrcColors
                    vertexCount:(NSUInteger)numVertices
@@ -516,40 +502,28 @@
     );
 }
 
-- (void) setWorldTransformIdentityMatrix:(float)m00
-        m01:(float)m01 m02:(float)m02 m03:(float)m03
-        m10:(float)m10 m11:(float)m11 m12:(float)m12 m13:(float)m13
-        m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
-        m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33
+- (void) setWorldTransformIdentityMatrix
 {
     CTX_LOG(@"MetalContext.setWorldTransformIdentityMatrix()");
-    worldMatrix = simd_matrix(
-        (simd_float4){ m00, m01, m02, m03 },
-        (simd_float4){ m10, m11, m12, m13 },
-        (simd_float4){ m20, m21, m22, m23 },
-        (simd_float4){ m30, m31, m32, m33 }
-    );
+    worldMatrix = matrix_identity_float4x4;
 }
 
 - (void) resetRenderPass
 {
     CTX_LOG(@"MetalContext.resetRenderPass()");
-    rttPassDesc.colorAttachments[0].loadAction = MTLLoadActionLoad;
     if (depthEnabled) {
         rttPassDesc.depthAttachment.loadAction = MTLLoadActionLoad;
     }
-    rttCleared = true;
 }
 
-- (void) clearRTT:(int)color red:(float)red
-                           green:(float)green
-                            blue:(float)blue
-                           alpha:(float)alpha
-                      clearDepth:(bool)clearDepth
-                   ignoreScissor:(bool)ignoreScissor
+- (void) clearRTT:(float)red
+            green:(float)green
+             blue:(float)blue
+            alpha:(float)alpha
+       clearDepth:(bool)clearDepth
 {
     CTX_LOG(@">>>> MetalContext.clearRTT() %f, %f, %f, %f", red, green, blue, alpha);
-    CTX_LOG(@">>>> MetalContext.clearRTT() %d, %d", clearDepth, ignoreScissor);
+    CTX_LOG(@">>>> MetalContext.clearRTT() %d", clearDepth);
 
     clearDepthTexture = clearDepth;
     clearColor[0] = red;
@@ -654,12 +628,7 @@
 - (void) resetProjViewMatrix
 {
     CTX_LOG(@"MetalContext.resetProjViewMatrix()");
-    mvpMatrix = simd_matrix(
-        (simd_float4){1, 0, 0, 0},
-        (simd_float4){0, 1, 0, 0},
-        (simd_float4){0, 0, 1, 0},
-        (simd_float4){0, 0, 0, 1}
-    );
+    mvpMatrix = matrix_identity_float4x4;
 }
 
 - (void) fillVB:(struct PrismSourceVertex const *)pSrcXYZUVs
@@ -1167,10 +1136,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWorldTransformToIde
     CTX_LOG(@"MTLContext_nSetWorldTransformToIdentity");
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
 
-    [mtlContext setWorldTransformIdentityMatrix:1 m01:0 m02:0 m03:0
-        m10:0 m11:1 m12:0 m13:0
-        m20:0 m21:0 m22:1 m23:0
-        m30:0 m31:0 m32:0 m33:1];
+    [mtlContext setWorldTransformIdentityMatrix];
 
     return;
 }

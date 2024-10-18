@@ -35,18 +35,16 @@
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLGraphics_nClear
   (JNIEnv *env, jclass jClass, jlong ctx,
-    jint color, jfloat red, jfloat green, jfloat blue, jfloat alpha,
-    jboolean clearDepth, jboolean ignoreScissor)
+    jfloat red, jfloat green, jfloat blue, jfloat alpha,
+    jboolean clearDepth)
 {
     METAL_LOG(@"-> Native: MTLGraphics_nClear");
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
-    [context clearRTT:color
-                  red:red
+    [context clearRTT:red
                 green:green
                  blue:blue
                 alpha:alpha
-           clearDepth:clearDepth
-        ignoreScissor:ignoreScissor];
+           clearDepth:clearDepth];
 
     return 1;
 }

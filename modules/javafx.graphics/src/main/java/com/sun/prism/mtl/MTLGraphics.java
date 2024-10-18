@@ -59,8 +59,7 @@ public class MTLGraphics extends BaseShaderGraphics {
 
         context.validateClearOp(this);
         getRenderTarget().setOpaque(color.isOpaque());
-        int res = nClear(context.getContextHandle(),
-                         color.getIntArgbPre(),  r, g, b, a, isDepthBuffer(), false);
+        int res = nClear(context.getContextHandle(), r, g, b, a, isDepthBuffer());
         // TODO: MTL: verify the returned res value
     }
 
@@ -70,5 +69,5 @@ public class MTLGraphics extends BaseShaderGraphics {
         context.commitCurrentCommandBuffer();
     }
 
-    private static native int nClear(long pContext, int color, float red, float green, float blue, float alpha, boolean clearDepth, boolean ignoreScissor);
+    private static native int nClear(long pContext, float red, float green, float blue, float alpha, boolean clearDepth);
 }

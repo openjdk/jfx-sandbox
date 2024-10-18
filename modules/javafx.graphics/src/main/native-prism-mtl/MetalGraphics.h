@@ -29,13 +29,18 @@
 #import "MetalContext.h"
 
 /**
- * Collection of all draw Calls.
+ * TODO: MTL: Collection of all draw Calls.
  * It may be possible to achieve using only the JNI methods,
  * and may not require a solid @interface
  */
 
 @interface MetalGraphics : NSObject
 {
+    // TODO: MTL: remove if never gets used in future.
+    // this variable context is never initialized or used.
+    // We could even remove this interface MetalGraphics, if it
+    // remains empty.
+    // There is no D3DGraphics.h for d3d
     MetalContext* context;
 }
 
