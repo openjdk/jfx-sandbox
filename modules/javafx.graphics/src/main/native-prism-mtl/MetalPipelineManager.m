@@ -135,7 +135,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         clearRttPipeState = clearRttPipeStateNoDepthDict[keySampleCount];
     }
     if (clearRttPipeState == nil) {
-        MTLRenderPipelineDescriptor* pipeDesc = [[[MTLRenderPipelineDescriptor alloc] init] autorelease];
+        MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
         pipeDesc.vertexFunction   = [self getFunction:@"clearVF"];;
         pipeDesc.fragmentFunction = [self getFunction:@"clearFF"];
         pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //[[context getRTT] getPixelFormat]; //rtt.pixelFormat
@@ -148,6 +148,8 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 
         NSError* error;
         clearRttPipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
+        [pipeDesc release];
+        pipeDesc = nil;
         NSAssert(clearRttPipeState, @"Failed to create clear pipeline state: %@", error);
         if ([context isDepthEnabled]) {
             [clearRttPipeStateDepthDict setObject:clearRttPipeState forKey:keySampleCount];
@@ -164,7 +166,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 {
     METAL_LOG(@"MetalPipelineManager.getPipeStateWithFragFunc()");
     NSError* error;
-    MTLRenderPipelineDescriptor* pipeDesc = [[[MTLRenderPipelineDescriptor alloc] init] autorelease];
+    MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
     pipeDesc.vertexFunction = vertexFunction;
     pipeDesc.fragmentFunction = func;
     pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
@@ -185,6 +187,8 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
                           compositeMode:compositeMode];
 
     id<MTLRenderPipelineState> pipeState = [[context getDevice] newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
+    [pipeDesc release];
+    pipeDesc = nil;
     NSAssert(pipeState, @"Failed to create pipeline state to render to texture: %@", error);
 
     return pipeState;
@@ -247,7 +251,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     id<MTLRenderPipelineState> pipeState = psDict[keyCompMode];
     if (pipeState == nil) {
         METAL_LOG(@"MetalPipelineManager phong pipeline state is nil");
-        MTLRenderPipelineDescriptor* pipeDesc = [[[MTLRenderPipelineDescriptor alloc] init] autorelease];
+        MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
         pipeDesc.vertexFunction = [self getFunction:@"PhongVS"];
         pipeDesc.fragmentFunction = func;
         pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
@@ -264,8 +268,10 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         }
         [self setPipelineCompositeBlendMode:pipeDesc
                 compositeMode:compositeMode];
-        pipeState = [[[context getDevice]
-                newRenderPipelineStateWithDescriptor:pipeDesc error:&error] autorelease];
+        pipeState = [[context getDevice]
+                newRenderPipelineStateWithDescriptor:pipeDesc error:&error];
+        [pipeDesc release];
+        pipeDesc = nil;
         [psDict setObject:pipeState forKey:keyCompMode];
         NSAssert(pipeState, @"Failed to create phong pipeline state: %@", error);
     }
