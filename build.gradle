@@ -2852,6 +2852,16 @@ project(":graphics") {
         }
 
         processResources.dependsOn copyD3D12PhongShaders
+
+        def copyShimsD3D12ShadersTask = project.task("copyShimsD3D12Shaders", type: Copy,
+                dependsOn: [project.tasks.getByName("compileFullJava"),
+                            project.tasks.getByName("processResources")]) {
+            from project.moduleDir
+            into project.moduleShimsDir
+            include "**/*.cso"
+        }
+
+        processShimsResources.dependsOn copyShimsD3D12ShadersTask
     }
 
     test {
