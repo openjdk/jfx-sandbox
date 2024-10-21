@@ -436,9 +436,6 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     static native void nReleaseTexture(long context, long pTexture);
 
-    static void releaseResource(MTLContext context, long resource) {
-    }
-
     static void releaseTexture(MTLContext context, long resource) {
         nReleaseTexture(context.getContextHandle(), resource);
     }

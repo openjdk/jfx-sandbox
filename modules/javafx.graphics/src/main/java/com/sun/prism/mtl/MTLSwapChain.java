@@ -31,13 +31,15 @@ import com.sun.prism.Graphics;
 import com.sun.prism.Presentable;
 import com.sun.prism.PresentableState;
 import com.sun.prism.CompositeMode;
+import com.sun.prism.GraphicsResource;
 import com.sun.prism.impl.PrismSettings;
 
 
-public class MTLSwapChain extends MTLResource
-        implements MTLRenderTarget, Presentable {
+public class MTLSwapChain
+        implements MTLRenderTarget, Presentable, GraphicsResource {
 
     private PresentableState pState;
+    private final MTLContext pContext;
     private MTLRTTexture stableBackbuffer;
     private final float pixelScaleFactorX;
     private final float pixelScaleFactorY;
@@ -45,7 +47,7 @@ public class MTLSwapChain extends MTLResource
     private int w, h;
 
     public MTLSwapChain(MTLContext context, PresentableState state) {
-        super(new MTLRecord(context, 0l));
+        pContext = context;
         pState = state;
         pixelScaleFactorX = state.getRenderScaleX();
         pixelScaleFactorY = state.getRenderScaleY();
@@ -109,7 +111,7 @@ public class MTLSwapChain extends MTLResource
     }
 
     public MTLContext getContext() {
-        return mtlResRecord.getContext();
+        return pContext;
     }
 
     @Override
