@@ -29,6 +29,7 @@ import com.sun.glass.ui.Screen;
 import com.sun.javafx.font.FontFactory;
 import com.sun.javafx.font.PrismFontFactory;
 import com.sun.prism.impl.PrismSettings;
+import com.sun.javafx.PlatformUtil;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -194,22 +195,20 @@ public abstract class GraphicsPipeline {
             throw new IllegalStateException("pipeline already created:"+
                                             installedPipeline);
         }
+
         // TODO: MTL: This is a temporary change to allow only mtl pipeline
         // to be specified with prism.order in ea release.
         // This change should be reverted in future.
-        boolean hasMetalOrder = false;
-        for (String prefix : PrismSettings.tryOrder) {
-            if ("mtl".equals(prefix)) {
-                hasMetalOrder = true;
+        if (PlatformUtil.isMac()) {
+            if (!PrismSettings.tryOrder.contains("mtl")) {
+                System.err.println("*** This ea release supports only mtl pipeline, as default.");
+                System.err.println("*** Other pipelines(es2, sw) are not supported.");
+                System.err.println("*** Use only: -Dprism.order=mtl");
+                return null;
             }
         }
-        if (!hasMetalOrder) {
-            System.err.println("*** This ea release supports only mtl pipeline, as default.");
-            System.err.println("*** Other pipelines(es2, sw) are not supported.");
-            System.err.println("*** Use only: -Dprism.order=mtl");
-            return null;
-        } else {
-            String prefix = "mtl";
+
+        for (String prefix : PrismSettings.tryOrder) {
             // Warn if j2d pipeline is specified
             if ("j2d".equals(prefix)) {
                 System.err.println(

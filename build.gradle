@@ -1689,9 +1689,13 @@ void addJSL(Project project, String name, String pkg, List<String> addExports, C
     def generateShaders = project.task("generate${name}Shaders",
             dependsOn: compileCompilers) {
         doFirst {
-            if (IS_MAC) {
-                mkdir "$project.buildDir/gensrc/mtl-headers"
-            }
+            // TODO: MTL:
+            // This task gets executed for all rendering pipelines on all platforms.
+            // It generates, d3d, es2 shaders on all three platforms, and now mtl shaders.
+            // It should be fixed in mainline first and then in metal pipeline.
+            //if (IS_MAC) {
+            mkdir "$project.buildDir/gensrc/mtl-headers"
+            //}
         }
         description = "Generate $name shaders from JSL"
         def sourceDir = project.file("src/main/jsl-$lowerName")
@@ -2649,8 +2653,14 @@ project(":graphics") {
     }
 
 
-    task nativeDecora(dependsOn: [compileDecoraHLSLShaders, compileDecoraMSLShaders], group: "Build") {
+    task nativeDecora(group: "Build") {
         description = "Generates JNI headers, compiles, and builds native dynamic library for Decora"
+    }
+    if (IS_WINDOWS) {
+        nativeDecora.dependsOn(compileDecoraHLSLShaders)
+    }
+    if (IS_MAC) {
+        nativeDecora.dependsOn(compileDecoraMSLShaders)
     }
     task cleanNativeDecora(type: Delete, group: "Build") {
         description = "Clean native objects for Decora"
@@ -2851,7 +2861,9 @@ project(":graphics") {
     }
     project.processShaders.dependsOn(initShaderDirs)
     nativePrism.dependsOn compilePrismHLSLShaders;
-    nativePrism.dependsOn compilePrismMSLShaders;
+    if (IS_MAC) {
+        nativePrism.dependsOn compilePrismMSLShaders;
+    }
 
     project.nativeAllTask.dependsOn nativeDecora
     project.cleanNativeAllTask.dependsOn cleanNativeDecora
@@ -5450,6 +5462,8 @@ compileTargets { t ->
                              "com/sun/prism/es2/MacGL*",
                              "com/sun/glass/events/mac",
                              "com/sun/glass/ui/mac",
+                             "com/sun/prism/mtl",
+                             "com/sun/scenario/effect/impl/hw/mtl/MTLShaderSource.java"
                              )
                 }
 
