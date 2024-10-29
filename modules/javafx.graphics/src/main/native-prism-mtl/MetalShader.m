@@ -163,7 +163,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 {
     SHADER_LOG(@"\n");
     SHADER_LOG(@">>>> MetalShader.disable()----> fragFuncName: %@", fragFuncName);
-    [context setCurrentShader:NULL];
+    [context setCurrentShader:nil];
     SHADER_LOG(@"<<<< MetalShader.disable()\n");
 }
 

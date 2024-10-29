@@ -950,8 +950,9 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDisposeShader
     CTX_LOG(@">>>> MTLContext_nDisposeShader");
 
     MetalShader *shaderPtr = (MetalShader *)jlong_to_ptr(shaderRef);
-    if (shaderPtr != NULL) {
+    if (shaderPtr != nil) {
         [shaderPtr release];
+        shaderPtr = nil;
     }
     CTX_LOG(@"<<<< MTLContext_nDisposeShader");
 }

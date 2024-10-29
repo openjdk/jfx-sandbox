@@ -38,7 +38,7 @@ public class MTLShader implements Shader  {
     // TODO: MTL: Use table/Dict for storing shader function pointer based on function name
     private final MTLContext context;
     private final String fragmentFunctionName;
-    private final long nMetalShaderRef;
+    private long nMetalShaderRef;
     private final Map<Integer, String> samplers = new HashMap<>();
     private final Map<String, Integer> uniformNameIdMap;
 
@@ -239,6 +239,9 @@ public class MTLShader implements Shader  {
     @Override
     public void dispose() {
         MTLLog.Debug(">>> MTLShader.dispose() : fragmentFunctionName : " + this.fragmentFunctionName);
-        context.disposeShader(nMetalShaderRef);
+        if (isValid()) {
+            context.disposeShader(nMetalShaderRef);
+            nMetalShaderRef = 0;
+        }
     }
 }
