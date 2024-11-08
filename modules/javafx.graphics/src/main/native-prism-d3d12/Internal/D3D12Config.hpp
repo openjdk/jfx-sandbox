@@ -49,6 +49,7 @@ class Config
         bool colorLogs;
         bool vsync;
         bool fileLog;
+        bool apiOpts;
     } mSettings;
 
     Config();
@@ -63,8 +64,13 @@ class Config
     jfieldID GetSettingsFieldID(const char* name, const char* signature);
     bool GetBool(const char* name);
     int GetInt(const char* name);
-    bool GetBoolProperty(const char* name);
-    int GetIntProperty(const char* name);
+    bool GetBoolProperty(const char* name); // defaults to false when TryGet fails
+    int GetIntProperty(const char* name); // defaults to 0 when TryGet fails
+
+    // below TryGet's return whether property exists or not
+    // true when @p result is valid, false when getting property failed
+    bool TryGetBoolProperty(const char* name, bool& result);
+    bool TryGetIntProperty(const char* name, int& result);
 
 public:
     static Config& Instance();
@@ -115,6 +121,11 @@ public:
     inline bool IsVsyncEnabled()
     {
         return mSettings.vsync;
+    }
+
+    inline bool IsApiOptsEnabled()
+    {
+        return mSettings.apiOpts;
     }
 };
 

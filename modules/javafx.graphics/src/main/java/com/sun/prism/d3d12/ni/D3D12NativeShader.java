@@ -51,14 +51,4 @@ public class D3D12NativeShader extends D3D12NativeObject {
     }
 
     @Override protected native void nReleaseNativeObject(long ptr);
-    private native boolean nSetConstantsF(long ptr, String name, FloatBuffer buf, int off, int count);
-    private native boolean nSetConstantsI(long ptr, String name, IntBuffer buf, int off, int count);
-
-    public boolean setConstants(String name, FloatBuffer buf, int off, int count) {
-        return nSetConstantsF(ptr, name, buf, off, count);
-    }
-
-    public boolean setConstants(String name, IntBuffer buf, int off, int count) {
-        return nSetConstantsI(ptr, name, buf, off, count);
-    }
 }

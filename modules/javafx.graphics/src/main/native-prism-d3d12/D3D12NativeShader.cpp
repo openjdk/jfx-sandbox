@@ -447,54 +447,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeShader_nReleaseNat
     D3D12::FreeNIObject<D3D12::NativeShader>(ptr);
 }
 
-JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeShader_nSetConstantsF
-    (JNIEnv* env, jobject obj, jlong ptr, jstring name, jobject floatBuf, jint offset, jint count)
-{
-    if (!ptr) return false;
-    if (!name) return false;
-    if (!floatBuf) return false;
-    if (offset < 0) return false;
-    if (count <= 0) return false;
-
-    D3D12::Internal::JNIBuffer<jfloatArray> buffer(env, floatBuf, nullptr);
-    D3D12::Internal::JNIString nameJStr(env, name);
-    std::string nameStr(nameJStr);
-
-    if (buffer.Data() == nullptr) return false;
-    if (offset + count > buffer.Size()) return false;
-
-    size_t sizeBytes = static_cast<size_t>(count) * sizeof(jfloat);
-    size_t offsetBytes = static_cast<size_t>(offset) * sizeof(jfloat);
-
-    const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(buffer.Data()) + offsetBytes;
-
-    return D3D12::GetNIObject<D3D12::NativeShader>(ptr)->SetConstants(nameStr, srcPtr, sizeBytes);
-}
-
-JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeShader_nSetConstantsI
-    (JNIEnv* env, jobject obj, jlong ptr, jstring name, jobject intBuf, jint offset, jint count)
-{
-    if (!ptr) return false;
-    if (!name) return false;
-    if (!intBuf) return false;
-    if (offset < 0) return false;
-    if (count <= 0) return false;
-
-    D3D12::Internal::JNIBuffer<jintArray> buffer(env, intBuf, nullptr);
-    D3D12::Internal::JNIString nameJStr(env, name);
-    std::string nameStr(nameJStr);
-
-    if (buffer.Data() == nullptr) return false;
-    if (offset + count > buffer.Size()) return false;
-
-    size_t sizeBytes = static_cast<size_t>(count) * sizeof(jint);
-    size_t offsetBytes = static_cast<size_t>(offset) * sizeof(jint);
-
-    const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(buffer.Data()) + offsetBytes;
-
-    return D3D12::GetNIObject<D3D12::NativeShader>(ptr)->SetConstants(nameStr, srcPtr, sizeBytes);
-}
-
 #ifdef __cplusplus
 }
 #endif

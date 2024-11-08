@@ -138,12 +138,12 @@ public class D3D12Shader extends BaseGraphicsResource implements Shader {
 
     @Override
     public void setConstants(String name, IntBuffer buf, int off, int count) {
-        mResource.getShader().setConstants(name, buf, off, count);
+        mContext.getDevice().setShaderConstants(mResource.getShader(), name, buf, off, count);
     }
 
     @Override
     public void setConstants(String name, FloatBuffer buf, int off, int count) {
-        mResource.getShader().setConstants(name, buf, off, count);
+        mContext.getDevice().setShaderConstants(mResource.getShader(), name, buf, off, count);
     }
 
     @Override

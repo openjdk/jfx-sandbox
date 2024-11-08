@@ -27,6 +27,8 @@
 
 #include "../D3D12NativeDevice.hpp"
 
+#include "D3D12Config.hpp"
+
 
 namespace D3D12 {
 namespace Internal {
@@ -45,6 +47,8 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     , mTransforms()
     , mViewport()
 {
+    D3D12NI_LOG_DEBUG("RenderingContext: D3D12 API opts are %s", Config::Instance().IsApiOptsEnabled() ? "enabled" : "disabled");
+
     mPrimitiveTopology.Set(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     // Some parameters/steps depend on PSO being set
@@ -249,6 +253,11 @@ void RenderingContext::ClearAppliedFlags()
     mResources.ClearApplied();
     mTransforms.ClearApplied();
     mViewport.ClearApplied();
+}
+
+void RenderingContext::ClearResourcesApplied()
+{
+    mResources.ClearApplied();
 }
 
 } // namespace Internal

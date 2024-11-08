@@ -31,6 +31,7 @@
 #include "../D3D12NativeRenderTarget.hpp"
 #include "../D3D12NativeShader.hpp"
 
+#include "D3D12Config.hpp"
 #include "D3D12PSOManager.hpp"
 #include "D3D12ResourceManager.hpp"
 #include "D3D12RingDescriptorHeap.hpp"
@@ -62,6 +63,7 @@ public:
 
 private:
     bool mIsApplied;
+    bool mOptimizeApply;
     StepDependency mDependency;
 
 protected:
@@ -71,6 +73,7 @@ protected:
 public:
     RenderingStep()
         : mIsApplied(false)
+        , mOptimizeApply(Config::Instance().IsApiOptsEnabled())
         , mDependency()
     {}
 
@@ -79,7 +82,7 @@ public:
     // should be called right before any Draw calls
     virtual void Apply(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state)
     {
-        if (mIsApplied) return;
+        if (mOptimizeApply && mIsApplied) return;
         if (mDependency && !mDependency(state)) return;
 
         ApplyOnCommandList(commandList, state);
@@ -90,7 +93,7 @@ public:
     // Since Apply() calls will follow right after, we do not need to set the flags here.
     virtual void Prepare(RenderingContextState& state)
     {
-        if (mIsApplied) return;
+        if (mOptimizeApply && mIsApplied) return;
         if (mDependency && !mDependency(state)) return;
 
         PrepareStep(state);

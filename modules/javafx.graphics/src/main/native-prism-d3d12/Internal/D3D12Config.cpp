@@ -89,6 +89,9 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
     mGetPropertyMethodID = mJNIEnv->GetStaticMethodID(mSystemClass, "getProperty", "(Ljava/lang/String;)Ljava/lang/String;");
     if (mGetPropertyMethodID == nullptr) return false;
 
+    // default settings
+    mSettings.apiOpts = true;
+
     // fetch debug configuration (these settings should only be acquired when
     // JFX is build in DebugNative configuration
 #if DEBUG
@@ -100,6 +103,9 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
     mSettings.breakOnError = GetBoolProperty("prism.d3d12.breakOnError");
     mSettings.colorLogs = GetBoolProperty("prism.d3d12.colorLogs");
     mSettings.fileLog = GetBoolProperty("prism.d3d12.fileLog");
+
+    bool apiOpts;
+    if (TryGetBoolProperty("prism.d3d12.apiOpts", apiOpts)) mSettings.apiOpts = apiOpts;
 #endif
 
     mSettings.vsync = GetBool("isVsyncEnabled");
@@ -127,18 +133,37 @@ bool Config::GetBool(const char* name)
 
 bool Config::GetBoolProperty(const char* name)
 {
-    std::string propValue = GetPropertyInternal(name);
-    if (propValue.empty()) return false;
-
-    if (propValue.compare("true") == 0) return true;
-    else if (propValue.compare("false") == 0) return false;
-    else return std::atoi(propValue.c_str()) > 0;
+    bool result = false;
+    if (!TryGetBoolProperty(name, result)) return false;
+    return result;
 }
 
 int Config::GetIntProperty(const char* name)
 {
+    int result = false;
+    if (!TryGetIntProperty(name, result)) return 0;
+    return result;
+}
+
+bool Config::TryGetBoolProperty(const char* name, bool& result)
+{
     std::string propValue = GetPropertyInternal(name);
-    return propValue.empty() ? 0 : std::atoi(propValue.c_str());
+    if (propValue.empty()) return false;
+
+    if (propValue.compare("true") == 0) result = true;
+    else if (propValue.compare("false") == 0) result = false;
+    else result = std::atoi(propValue.c_str()) > 0;
+
+    return true;
+}
+
+bool Config::TryGetIntProperty(const char* name, int& result)
+{
+    std::string propValue = GetPropertyInternal(name);
+    if (propValue.empty()) return false;
+
+    result = std::atoi(propValue.c_str());
+    return true;
 }
 
 } // namespace Internal

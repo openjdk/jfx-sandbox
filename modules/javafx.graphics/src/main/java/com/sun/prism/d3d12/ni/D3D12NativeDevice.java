@@ -60,6 +60,8 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
     private native void nSetPixelShader(long ptr, long pixelShaderPtr);
     private native void nSetRenderTarget(long ptr, long renderTargetPtr, boolean enableDepthTest);
     private native void nSetScissor(long ptr, boolean enabled, int x1, int y1, int x2, int y2);
+    private native boolean nSetShaderConstantsF(long ptr, long shaderPtr, String name, FloatBuffer buf, int off, int count);
+    private native boolean nSetShaderConstantsI(long ptr, long shaderPtr, String name, IntBuffer buf, int off, int count);
     private native void nSetTexture(long ptr, int unit, long texturePtr);
     private native void nSetCameraPos(long ptr, double x, double y, double z);
     private native void nSetViewProjTransform(long ptr,
@@ -166,6 +168,14 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
 
     public void setScissor(boolean enabled, int x1, int y1, int x2, int y2) {
         nSetScissor(ptr, enabled, x1, y1, x2, y2);
+    }
+
+    public boolean setShaderConstants(D3D12NativeShader shader, String name, FloatBuffer buf, int off, int count) {
+        return nSetShaderConstantsF(ptr, shader.getPtr(), name, buf, off, count);
+    }
+
+    public boolean setShaderConstants(D3D12NativeShader shader, String name, IntBuffer buf, int off, int count) {
+        return nSetShaderConstantsI(ptr, shader.getPtr(), name, buf, off, count);
     }
 
     public void setTexture(int unit, D3D12NativeTexture texture) {

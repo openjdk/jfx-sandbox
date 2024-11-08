@@ -114,6 +114,7 @@ public:
     void SetPixelShader(const NIPtr<NativeShader>& ps);
     void SetRenderTarget(const NIPtr<NativeRenderTarget>& target, bool enableDepthTest);
     void SetScissor(bool enabled, int x1, int y1, int x2, int y2);
+    bool SetShaderConstants(const NIPtr<NativeShader>& shader, const std::string& name, const void* data, size_t size);
     void SetTexture(uint32_t unit, const NIPtr<NativeTexture>& texture);
     void SetCameraPos(const Coords_XYZW_FLOAT& pos);
     void SetWorldTransform(const Internal::Matrix<float>& matrix);

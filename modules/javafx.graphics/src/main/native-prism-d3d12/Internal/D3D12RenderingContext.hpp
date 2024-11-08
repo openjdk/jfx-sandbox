@@ -105,6 +105,7 @@ public:
     void SetPixelShader(const NIPtr<Shader>& pixelShader);
 
     void ClearAppliedFlags();
+    void ClearResourcesApplied();
 };
 
 } // namespace Internal
