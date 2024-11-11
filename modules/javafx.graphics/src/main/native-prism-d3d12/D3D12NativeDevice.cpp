@@ -662,36 +662,64 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
     size_t targetSize = Internal::TextureUploader::EstimateTargetSize(srcw, srch, texture->GetFormat());
 
     // first, source data must land on the Ring Buffer
-    // TODO: D3D12: we need to provide an alternative method to the Ring Buffer for uploading
-    //              large textures. See HelloImage toy app with new, large "slow image".
     // TODO: D3D12: consider using a separate Command Queue for transfer operations
-    Internal::RingBuffer::Region texRegion = mRingBuffer->Reserve(targetSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
-    if (texRegion.cpu == nullptr)
-    {
-        D3D12NI_LOG_ERROR("Failed to reserve space in the Ring Buffer (full?)");
-        return false;
-    }
 
     Internal::TextureUploader uploader;
     uploader.SetSource(data, dataSizeBytes, srcFormat, srcx, srcy, srcw, srch, srcstride);
-    uploader.SetTarget(texRegion.cpu, texRegion.size, texture->GetFormat());
+
+    // TODO: D3D12: this threshold might be another optimization point
+    size_t copyThreshold = mRingBuffer->Size() / 2;
+    bool useStagingBuffer = targetSize > copyThreshold;
+
+    Internal::RingBuffer::Region ringRegion;
+    NativeBuffer stagingBuffer(shared_from_this());
+    if (useStagingBuffer)
+    {
+        // for larger textures allocate a dedicated staging buffer
+        // uploader will handle its initialization
+        if (!stagingBuffer.Init(nullptr, targetSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ))
+        {
+            D3D12NI_LOG_ERROR("Failed to allocate a staging buffer for large texture upload");
+            return false;
+        }
+
+        uploader.SetTarget(stagingBuffer.Map(), stagingBuffer.Size(), texture->GetFormat());
+    }
+    else
+    {
+        // copying smaller textures will go via the Ring Buffer to prevent unnecessary allocation
+        ringRegion = mRingBuffer->Reserve(targetSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+        if (ringRegion.cpu == nullptr)
+        {
+            D3D12NI_LOG_ERROR("Failed to reserve space in the Ring Buffer (full?)");
+            return false;
+        }
+
+        uploader.SetTarget(ringRegion.cpu, ringRegion.size, texture->GetFormat());
+    }
+
     if (!uploader.Upload())
     {
         D3D12NI_LOG_ERROR("Failed to upload texture data to Ring Buffer");
         return false;
     }
 
-    // now we can record a data move from Ring Buffer to our Texture
+    if (useStagingBuffer)
+    {
+        stagingBuffer.Unmap();
+    }
+
+    // now we can record a data move from staging or Ring Buffer to our Texture
     D3D12_TEXTURE_COPY_LOCATION srcLoc;
     D3D12NI_ZERO_STRUCT(srcLoc);
-    srcLoc.pResource = mRingBuffer->GetResource().Get();
+    srcLoc.pResource = useStagingBuffer ? stagingBuffer.GetResource().Get() : mRingBuffer->GetResource().Get();
     srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
     srcLoc.PlacedFootprint.Footprint.Width = srcw;
     srcLoc.PlacedFootprint.Footprint.Height = srch;
     srcLoc.PlacedFootprint.Footprint.Depth = 1;
     srcLoc.PlacedFootprint.Footprint.RowPitch = uploader.GetTargetStride();
     srcLoc.PlacedFootprint.Footprint.Format = uploader.GetTargetFormat();
-    srcLoc.PlacedFootprint.Offset = texRegion.offsetFromStart;
+    srcLoc.PlacedFootprint.Offset = useStagingBuffer ? 0 : ringRegion.offsetFromStart;
 
     D3D12_TEXTURE_COPY_LOCATION dstLoc;
     D3D12NI_ZERO_STRUCT(dstLoc);

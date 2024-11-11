@@ -43,7 +43,6 @@ namespace Internal {
  */
 class RingContainer: public IWaitableOperation
 {
-    size_t mSize;
     size_t mFlushThreshold;
     size_t mUsed; // total data used inside the ring buffer
     size_t mUncommitted; // total data that has not been committed yet
@@ -91,6 +90,7 @@ protected:
     };
 
     NIPtr<NativeDevice> mNativeDevice;
+    size_t mSize;
 
     // Initializes some internal common fields. Should be called at
     // the dedicated Init() call
@@ -117,6 +117,11 @@ public:
      * the ring container that previously registered block of memory is now available to be reused.
      */
     void OnFenceSignaled(uint64_t fenceValue) override;
+
+    inline size_t Size() const
+    {
+        return mSize;
+    }
 };
 
 } // namespace Internal

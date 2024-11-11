@@ -48,6 +48,10 @@ ResourceDisposer::~ResourceDisposer()
 
 void ResourceDisposer::MarkDisposed(const D3D12ResourcePtr& resource)
 {
+    // in case we receive a resource from NativeBuffer/NativeTexture
+    // which did not have Init() called for it
+    if (!resource) return;
+
     if (mResourcesToPurge.empty() || mResourcesToPurge.back().fenceValue > 0)
     {
         mResourcesToPurge.emplace_back();

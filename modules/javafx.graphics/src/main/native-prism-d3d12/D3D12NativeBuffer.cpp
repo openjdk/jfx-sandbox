@@ -45,7 +45,7 @@ NativeBuffer::NativeBuffer(const NIPtr<NativeDevice>& nativeDevice)
 
 NativeBuffer::~NativeBuffer()
 {
-    mBufferResource.Reset();
+    mNativeDevice->MarkResourceDisposed(mBufferResource);
     mNativeDevice.reset();
 
     D3D12NI_LOG_TRACE("--- Buffer %S destroyed (size %u) ---", mDebugName.c_str(), mSize);
