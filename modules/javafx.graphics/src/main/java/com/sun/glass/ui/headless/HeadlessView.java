@@ -87,6 +87,11 @@ public class HeadlessView extends View {
     }
 
     @Override
+    protected void notifyKey(int type, int keyCode, char[] keyChars, int modifiers) {
+        super.notifyKey(type, keyCode, keyChars, modifiers);
+    }
+
+    @Override
     protected void notifyMouse(int type, int button,
             int x, int y, int xAbs, int yAbs, int modifiers,
             boolean isPopupTrigger, boolean isSynthesized) {

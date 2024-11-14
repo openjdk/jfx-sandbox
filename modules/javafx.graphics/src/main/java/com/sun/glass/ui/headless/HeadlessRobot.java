@@ -20,6 +20,9 @@ public class HeadlessRobot extends GlassRobot {
 
     private double mouseX, mouseY;
     private int modifiers;
+    
+    private boolean keyControl = false;
+    private boolean keyShift = false;
 
     public HeadlessRobot(HeadlessApplication application, HeadlessWindow window) {
         this.application = application;
@@ -36,12 +39,35 @@ public class HeadlessRobot extends GlassRobot {
 
     @Override
     public void keyPress(KeyCode keyCode) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        checkWindowFocused();
+        if (activeWindow == null) {
+            return;
+        }
+        HeadlessView view = (HeadlessView) activeWindow.getView();
+        int code = keyCode.getCode();
+        processSpecialKeys(code, true);
+        char[] keyval = getKeyChars(code);
+        int mods = getKeyModifiers();
+        if (view != null) {
+            view.notifyKey(KeyEvent.PRESS, code, keyval, mods);
+            if (keyval.length > 0) {
+                view.notifyKey(KeyEvent.TYPED, code, keyval, mods);
+            }
+        }
     }
 
     @Override
     public void keyRelease(KeyCode keyCode) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        checkWindowFocused();
+        if (activeWindow == null) return;
+        HeadlessView view = (HeadlessView)activeWindow.getView();
+        int code = keyCode.getCode();
+        processSpecialKeys(code, false);
+        int mods = getKeyModifiers();
+        char[] keyval = new char[0];
+        if (view != null) {
+            view.notifyKey(KeyEvent.RELEASE, code, keyval, mods);
+        }
     }
 
     @Override
@@ -172,6 +198,9 @@ public class HeadlessRobot extends GlassRobot {
     }
 
     private Window activeWindow = null;
+    private void checkWindowFocused() {
+        this.activeWindow = getFocusedWindow();
+    }
     private void checkWindowEnterExit() {
         Window oldWindow = activeWindow;
         this.activeWindow = getTargetWindow(this.mouseX, this.mouseY);
@@ -194,14 +223,118 @@ public class HeadlessRobot extends GlassRobot {
         }
     }
 
+    private HeadlessWindow getFocusedWindow() {
+        List<Window> windows = Window.getWindows().stream()
+                .filter(win -> win.getView()!= null)
+                .filter(win -> !win.isClosed())
+                .filter(win -> win.isFocused()).toList();
+        if (windows.isEmpty()) return null;
+        if (windows.size() == 1) return (HeadlessWindow)windows.get(0);
+        return (HeadlessWindow)windows.get(windows.size() -1);
+    }
+
     private HeadlessWindow getTargetWindow(double x, double y) {
         List<Window> windows = Window.getWindows().stream()
                 .filter(win -> win.getView()!= null)
                 .filter(win -> !win.isClosed())
-                .filter(win -> (x > win.getX() && x < win.getX() + win.getWidth()
-                        && y > win.getY() && y < win.getY()+ win.getHeight())).toList();
+                .filter(win -> (x >= win.getX() && x <= win.getX() + win.getWidth()
+                        && y >= win.getY() && y <= win.getY()+ win.getHeight())).toList();
         if (windows.isEmpty()) return null;
         if (windows.size() == 1) return (HeadlessWindow)windows.get(0);
         return (HeadlessWindow)windows.get(windows.size() -1);
+    }
+    
+        private boolean numLock = false;
+    private boolean capsLock = false;
+        private final char[] NO_CHAR = { };
+
+    private char[] getKeyChars(int key) {
+        char c = '\000';
+        boolean shifted = true;
+        // TODO: implement configurable keyboard mappings.
+        // The following is only for US keyboards
+        if (key >= KeyEvent.VK_A && key <= KeyEvent.VK_Z) {
+            shifted ^= capsLock;
+            if (shifted) {
+                c = (char) (key - KeyEvent.VK_A + 'A');
+            } else {
+                c = (char) (key - KeyEvent.VK_A + 'a');
+            }
+        } else if (key >= KeyEvent.VK_NUMPAD0 && key <= KeyEvent.VK_NUMPAD9) {
+            if (numLock) {
+                c = (char) (key - KeyEvent.VK_NUMPAD0 + '0');
+            }
+        } else if (key >= KeyEvent.VK_0 && key <= KeyEvent.VK_9) {
+            if (shifted) {
+                switch (key) {
+                    case KeyEvent.VK_0: c = ')'; break;
+                    case KeyEvent.VK_1: c = '!'; break;
+                    case KeyEvent.VK_2: c = '@'; break;
+                    case KeyEvent.VK_3: c = '#'; break;
+                    case KeyEvent.VK_4: c = '$'; break;
+                    case KeyEvent.VK_5: c = '%'; break;
+                    case KeyEvent.VK_6: c = '^'; break;
+                    case KeyEvent.VK_7: c = '&'; break;
+                    case KeyEvent.VK_8: c = '*'; break;
+                    case KeyEvent.VK_9: c = '('; break;
+                }
+            } else {
+                c = (char) (key - KeyEvent.VK_0 + '0');
+            }
+        } else if (key == KeyEvent.VK_SPACE) {
+            c = ' ';
+        } else if (key == KeyEvent.VK_TAB) {
+            c = '\t';
+        } else if (key == KeyEvent.VK_ENTER) {
+            c = '\n';
+        } else if (key == KeyEvent.VK_MULTIPLY) {
+            c = '*';
+        } else if (key == KeyEvent.VK_DIVIDE) {
+            c = '/';
+        } else if (shifted) {
+            switch (key) {
+                case KeyEvent.VK_BACK_QUOTE: c = '~'; break;
+                case KeyEvent.VK_COMMA: c = '<'; break;
+                case KeyEvent.VK_PERIOD: c = '>'; break;
+                case KeyEvent.VK_SLASH: c = '?'; break;
+                case KeyEvent.VK_SEMICOLON: c = ':'; break;
+                case KeyEvent.VK_QUOTE: c = '\"'; break;
+                case KeyEvent.VK_BRACELEFT: c = '{'; break;
+                case KeyEvent.VK_BRACERIGHT: c = '}'; break;
+                case KeyEvent.VK_BACK_SLASH: c = '|'; break;
+                case KeyEvent.VK_MINUS: c = '_'; break;
+                case KeyEvent.VK_EQUALS: c = '+'; break;
+            }        } else {
+            switch (key) {
+                case KeyEvent.VK_BACK_QUOTE: c = '`'; break;
+                case KeyEvent.VK_COMMA: c = ','; break;
+                case KeyEvent.VK_PERIOD: c = '.'; break;
+                case KeyEvent.VK_SLASH: c = '/'; break;
+                case KeyEvent.VK_SEMICOLON: c = ';'; break;
+                case KeyEvent.VK_QUOTE: c = '\''; break;
+                case KeyEvent.VK_BRACELEFT: c = '['; break;
+                case KeyEvent.VK_BRACERIGHT: c = ']'; break;
+                case KeyEvent.VK_BACK_SLASH: c = '\\'; break;
+                case KeyEvent.VK_MINUS: c = '-'; break;
+                case KeyEvent.VK_EQUALS: c = '='; break;
+            }
+        }
+        return c == '\000' ? NO_CHAR : new char[] { c };
+    }
+
+    private void processSpecialKeys(int c, boolean on) {
+        if (c == KeyEvent.VK_CONTROL) {
+            this.keyControl = on;
+        } 
+        if (c == KeyEvent.VK_SHIFT) {
+            this.keyShift = on;
+        }
+    }
+
+    private int getKeyModifiers() {
+        int answer = 0;
+        if (this.keyControl) answer = answer | KeyEvent.MODIFIER_CONTROL;
+        if (this.keyShift) answer = answer | KeyEvent.MODIFIER_SHIFT;
+        return answer;
     }
 }
