@@ -65,6 +65,7 @@ module javafx.graphics {
     exports javafx.scene.text;
     exports javafx.scene.transform;
     exports javafx.stage;
+    exports com.sun.glass.ui.headless;
 
     exports com.sun.glass.ui to
         javafx.media,
