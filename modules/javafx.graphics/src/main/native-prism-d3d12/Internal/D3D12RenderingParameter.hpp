@@ -253,6 +253,12 @@ public:
         mParameter.enableDepthTest = enabled;
         FlagSet();
     }
+
+    void SetMSAASamples(UINT msaaSamples)
+    {
+        mParameter.msaaSamples = msaaSamples;
+        FlagSet();
+    }
 };
 
 class PrimitiveTopologyRenderingParameter: public RenderingParameter<D3D12_PRIMITIVE_TOPOLOGY>

@@ -48,7 +48,12 @@ NativeBuffer::~NativeBuffer()
     mNativeDevice->MarkResourceDisposed(mBufferResource);
     mNativeDevice.reset();
 
-    D3D12NI_LOG_TRACE("--- Buffer %S destroyed (size %u) ---", mDebugName.c_str(), mSize);
+    if (mBufferResource)
+    {
+        // Trace log only if we actually allocated the resource
+        // with mBufferResource being null we never called Init (or it failed)
+        D3D12NI_LOG_TRACE("--- Buffer %S destroyed (size %u) ---", mDebugName.c_str(), mSize);
+    }
 }
 
 bool NativeBuffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES finalState)

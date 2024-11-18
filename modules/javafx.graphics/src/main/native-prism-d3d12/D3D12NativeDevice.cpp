@@ -355,14 +355,27 @@ NIPtr<NativeTexture>* NativeDevice::CreateTexture(UINT width, UINT height, DXGI_
 
 int NativeDevice::GetMaximumMSAASampleSize(DXGI_FORMAT format) const
 {
+    int maxSamples = 2;
+
     D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msaaLevels;
     D3D12NI_ZERO_STRUCT(msaaLevels);
     msaaLevels.Format = format;
 
-    HRESULT hr = mDevice->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msaaLevels, sizeof(msaaLevels));
-    D3D12NI_RET_IF_FAILED(hr, 1, "Failed to fetch MSAA information about format");
+    for (int i = maxSamples; i <= Constants::MAX_MSAA_SAMPLE_COUNT; i *= 2)
+    {
+        msaaLevels.SampleCount = i;
+        HRESULT hr = mDevice->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msaaLevels, sizeof(msaaLevels));
+        if (SUCCEEDED(hr))
+        {
+            maxSamples = i;
+        }
+        else
+        {
+            break;
+        }
+    }
 
-    return msaaLevels.SampleCount;
+    return maxSamples;
 }
 
 int NativeDevice::GetMaximumTextureSize() const
@@ -385,12 +398,22 @@ void NativeDevice::ClearTextureUnit(uint32_t unit)
     mRenderingContext->ClearTextureUnit(unit);
 }
 
-void NativeDevice::Copy(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src)
+void NativeDevice::CopyToSwapChain(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src)
 {
     src->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_COPY_SOURCE);
     dst->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_COPY_DEST);
 
     GetCurrentCommandList()->CopyResource(dst->GetCurrentBuffer().Get(), src->GetResource().Get());
+
+    dst->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_PRESENT);
+}
+
+void NativeDevice::ResolveToSwapChain(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src)
+{
+    src->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+    dst->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_DEST);
+
+    GetCurrentCommandList()->ResolveSubresource(dst->GetCurrentBuffer().Get(), 0, src->GetResource().Get(), 0, src->GetFormat());
 
     dst->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_PRESENT);
 }
@@ -960,7 +983,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nClear
     D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->Clear(r, g, b, a);
 }
 
-JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCopyToSwapchain
+JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCopyToSwapChain
     (JNIEnv* env, jobject obj, jlong ptr, jlong swapchainDstPtr, jlong textureSrcPtr)
 {
     if (!ptr) return;
@@ -973,7 +996,23 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCopyToSwap
     if (!swapchainDst) return;
     if (!textureSrc) return;
 
-    D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->Copy(swapchainDst, textureSrc);
+    D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->CopyToSwapChain(swapchainDst, textureSrc);
+}
+
+JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nResolveToSwapChain
+    (JNIEnv* env, jobject obj, jlong ptr, jlong swapchainDstPtr, jlong textureSrcPtr)
+{
+    if (!ptr) return;
+    if (!swapchainDstPtr) return;
+    if (!textureSrcPtr) return;
+
+    const D3D12::NIPtr<D3D12::NativeSwapChain>& swapchainDst = D3D12::GetNIObject<D3D12::NativeSwapChain>(swapchainDstPtr);
+    const D3D12::NIPtr<D3D12::NativeTexture>& textureSrc = D3D12::GetNIObject<D3D12::NativeTexture>(textureSrcPtr);
+
+    if (!swapchainDst) return;
+    if (!textureSrc) return;
+
+    D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->ResolveToSwapChain(swapchainDst, textureSrc);
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nRenderQuads

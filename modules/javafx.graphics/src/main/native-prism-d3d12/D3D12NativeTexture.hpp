@@ -90,6 +90,11 @@ public:
     {
         return mDebugName;
     }
+
+    inline UINT GetMSAASamples() const
+    {
+        return mResourceDesc.SampleDesc.Count;
+    }
 };
 
 } // namespace D3D12

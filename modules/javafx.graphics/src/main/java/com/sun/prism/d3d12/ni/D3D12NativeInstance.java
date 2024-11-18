@@ -27,9 +27,6 @@ package com.sun.prism.d3d12.ni;
 
 import java.nio.ByteBuffer;
 
-// TODO: D3D12: remove, API should not go out of NI
-import com.sun.prism.PresentableState;
-
 public final class D3D12NativeInstance extends D3D12NativeObject {
     public D3D12NativeInstance() {
         super(nAllocateNativeInstance());
@@ -65,7 +62,7 @@ public final class D3D12NativeInstance extends D3D12NativeObject {
         return new D3D12NativeDevice(nCreateDevice(this.ptr, adapterOrdinal));
     }
 
-    public D3D12NativeSwapChain createSwapChain(D3D12NativeDevice device, PresentableState state) {
-        return new D3D12NativeSwapChain(nCreateSwapChain(this.ptr, device.ptr, state.getNativeView()));
+    public D3D12NativeSwapChain createSwapChain(D3D12NativeDevice device, long hwnd) {
+        return new D3D12NativeSwapChain(nCreateSwapChain(this.ptr, device.ptr, hwnd));
     }
 }

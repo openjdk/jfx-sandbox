@@ -25,13 +25,8 @@
 
 package com.sun.prism.d3d12;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.LinkedList;
-import java.util.ListIterator;
 import java.util.Map;
 
 import com.sun.glass.ui.Screen;
@@ -54,8 +49,6 @@ import com.sun.prism.ps.ShaderFactory;
 import com.sun.prism.d3d12.ni.D3D12NativeInstance;
 import com.sun.prism.d3d12.ni.D3D12NativeTexture;
 
-import javafx.scene.input.ContextMenuEvent;
-
 
 class D3D12ResourceFactory extends BaseShaderFactory {
     private final D3D12NativeInstance mInstance;
@@ -72,6 +65,10 @@ class D3D12ResourceFactory extends BaseShaderFactory {
 
     D3D12Context getContext() {
         return mContext;
+    }
+
+    D3D12NativeInstance getNativeInstance() {
+        return mInstance;
     }
 
     @Override
@@ -211,8 +208,6 @@ class D3D12ResourceFactory extends BaseShaderFactory {
 
         int createw = width;
         int createh = height;
-        int cx = 0;
-        int cy = 0;
         if (PrismSettings.forcePow2) {
             createw = nextPowerOfTwo(createw, Integer.MAX_VALUE);
             createh = nextPowerOfTwo(createh, Integer.MAX_VALUE);
@@ -231,7 +226,7 @@ class D3D12ResourceFactory extends BaseShaderFactory {
         D3D12ResourcePool pool = D3D12ResourcePool.instance;
         int aaSamples = 1;
         if (msaa) {
-            aaSamples = mContext.getMaximumMSAASampleSize(format);
+            aaSamples = mContext.getMSAASampleSize(format);
         }
 
         // TODO: D3D12: 3D - Improve estimate to include if multisample rtt
@@ -257,7 +252,7 @@ class D3D12ResourceFactory extends BaseShaderFactory {
     public Presentable createPresentable(PresentableState pState) {
         if (checkDisposed()) return null;
 
-        return D3D12SwapChain.create(mContext, mInstance.createSwapChain(mContext.getDevice(), pState), pState);
+        return D3D12SwapChain.create(mContext, pState);
     }
 
     @Override

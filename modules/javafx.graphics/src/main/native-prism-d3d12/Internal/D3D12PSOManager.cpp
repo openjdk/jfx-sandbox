@@ -131,7 +131,7 @@ bool PSOManager::ConstructNewPSO(const PSOParameters& params)
 
     desc.NumRenderTargets = 1;
     desc.RTVFormats[0] = DXGI_FORMAT_B8G8R8A8_UNORM;
-    desc.SampleDesc.Count = 1;
+    desc.SampleDesc.Count = params.msaaSamples;
     desc.SampleDesc.Quality = 0;
 
     desc.SampleMask = 0xFFFFFFFF;
@@ -170,9 +170,17 @@ bool PSOManager::ConstructNewPSO(const PSOParameters& params)
     name += converter.from_bytes(params.pixelShader->GetName());
     name += L"-";
     name += CompositeModeToWString(params.compositeMode);
+    name += L"-";
+    name += std::to_wstring(params.msaaSamples) + L"xMSAA";
+
     if (params.enableDepthTest)
+    {
         name += L"-Depth";
+    }
+
     pipelineState->SetName(name.c_str());
+
+    D3D12NI_LOG_TRACE("--- PSO %S created ---", name.c_str());
 #endif // DEBUG
 
     mPipelines.emplace(std::make_pair(params, std::move(pipelineState)));

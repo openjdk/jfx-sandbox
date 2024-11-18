@@ -136,6 +136,7 @@ void RenderingContext::SetRenderTarget(const NIPtr<NativeRenderTarget>& renderTa
     mDefaultScissor.Set(defaultScissor);
 
     mPipelineState.SetDepthTest(renderTarget->IsDepthTestEnabled());
+    mPipelineState.SetMSAASamples(renderTarget->GetMSAASamples());
 }
 
 void RenderingContext::SetScissor(bool enabled, const D3D12_RECT& scissor)

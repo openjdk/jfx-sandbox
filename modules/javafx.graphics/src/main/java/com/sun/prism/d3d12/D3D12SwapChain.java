@@ -45,28 +45,37 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
     private float mRenderScaleY;
     private int mWidth;
     private int mHeight;
+    private boolean mMSAA;
 
-    D3D12SwapChain(D3D12Context context, D3D12NativeSwapChain chain, PresentableState state) {
+    D3D12SwapChain(D3D12Context context, PresentableState state) {
         if (!context.getDevice().isValid()) {
             throw new NullPointerException("D3D12 device is NULL");
         }
-        if (!chain.isValid()) {
-            throw new NullPointerException("D3D12 swapchain is NULL");
-        }
         mContext = context;
-        mSwapChain = chain;
         mState = state;
         mRenderScaleX = mState.getRenderScaleX();
         mRenderScaleY = mState.getRenderScaleY();
         mWidth = mState.getWidth();
         mHeight = mState.getHeight();
+        mMSAA = mState.isMSAA();
 
-        mOffscreenRTT = D3D12RTTexture.create(mContext, mSwapChain.getWidth(), mSwapChain.getHeight(),
-            PixelFormat.BYTE_BGRA_PRE, WrapMode.CLAMP_NOT_NEEDED, 1);
+        mSwapChain = ((D3D12ResourceFactory)context.getResourceFactory()).getNativeInstance().createSwapChain(
+            mContext.getDevice(), mState.getNativeView()
+        );
+        if (!mSwapChain.isValid()) {
+            throw new NullPointerException("D3D12 swapchain is NULL");
+        }
+
+        mOffscreenRTT = (D3D12RTTexture)context.getResourceFactory().createRTTexture(
+            mSwapChain.getWidth(), mSwapChain.getHeight(), WrapMode.CLAMP_NOT_NEEDED, mMSAA
+        );
+        if (!mOffscreenRTT.isValid()) {
+            throw new NullPointerException("D3D12 swapchain is NULL");
+        }
     }
 
-    public static D3D12SwapChain create(D3D12Context context, D3D12NativeSwapChain chain, PresentableState state) {
-        return new D3D12SwapChain(context, chain, state);
+    public static D3D12SwapChain create(D3D12Context context, PresentableState state) {
+        return new D3D12SwapChain(context, state);
     }
 
     PresentableState getPresentableState() {
@@ -97,7 +106,7 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
 
     @Override
     public boolean isMSAA() {
-        return false; // TODO: D3D12: based on how we initialize the SwapChain
+        return mOffscreenRTT != null ? mOffscreenRTT.isMSAA() : false;
     }
 
     @Override
@@ -159,7 +168,11 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
     public boolean prepare(Rectangle dirtyregion) {
         mContext.flushVertexBuffer();
 
-        mContext.getDevice().copy(mSwapChain, mOffscreenRTT.getNativeTexture());
+        if (mOffscreenRTT.isMSAA()) {
+            mContext.getDevice().resolveToSwapChain(mSwapChain, mOffscreenRTT.getNativeTexture());
+        } else {
+            mContext.getDevice().copyToSwapChain(mSwapChain, mOffscreenRTT.getNativeTexture());
+        }
 
         mOffscreenRTT.unlock();
 

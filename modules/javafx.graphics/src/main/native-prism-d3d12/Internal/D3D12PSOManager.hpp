@@ -44,6 +44,7 @@ struct PSOParameters
     D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_NONE;
     D3D12_FILL_MODE fillMode = D3D12_FILL_MODE_SOLID;
     bool enableDepthTest;
+    UINT msaaSamples;
 
     bool operator==(const PSOParameters& other) const
     {
@@ -52,7 +53,8 @@ struct PSOParameters
             compositeMode == other.compositeMode &&
             cullMode == other.cullMode &&
             fillMode == other.fillMode &&
-            enableDepthTest == other.enableDepthTest;
+            enableDepthTest == other.enableDepthTest &&
+            msaaSamples == other.msaaSamples;
     }
 };
 
@@ -70,7 +72,8 @@ struct std::hash<D3D12::Internal::PSOParameters>
                std::hash<int>()(static_cast<int>(k.compositeMode)) ^
                std::hash<uint32_t>()(k.cullMode) ^
                std::hash<uint32_t>()(k.fillMode) ^
-               std::hash<bool>()(k.enableDepthTest);
+               std::hash<bool>()(k.enableDepthTest) ^
+               std::hash<UINT>()(k.msaaSamples);
     }
 };
 

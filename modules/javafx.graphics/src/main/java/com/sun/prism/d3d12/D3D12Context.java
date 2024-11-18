@@ -70,8 +70,9 @@ class D3D12Context extends BaseShaderContext {
         return mDevice;
     }
 
-    int getMaximumMSAASampleSize(PixelFormat format) {
-        return mDevice.getMaximumMSAASampleSize(format);
+    int getMSAASampleSize(PixelFormat format) {
+        int maxSamples = mDevice.getMaximumMSAASampleSize(format);
+        return maxSamples < 2 ? 1 : (maxSamples < 4 ? 2 : 4);
     }
 
     @Override

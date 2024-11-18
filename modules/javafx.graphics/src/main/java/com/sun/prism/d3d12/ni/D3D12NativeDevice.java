@@ -53,7 +53,8 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
     private native int nGetMaximumMSAASampleSize(long ptr, int format);
     private native int nGetMaximumTextureSize(long ptr);
     private native void nClear(long ptr, float r, float g, float b, float a);
-    private native void nCopyToSwapchain(long ptr, long dstSwapChain, long srcTexture);
+    private native void nCopyToSwapChain(long ptr, long dstSwapChain, long srcTexture);
+    private native void nResolveToSwapChain(long ptr, long dstSwapChain, long srcTexture);
     private native void nRenderMeshView(long ptr, long meshViewPtr);
     private native void nRenderQuads(long ptr, float[] vertices, byte[] colors, int elementCount);
     private native void nSetCompositeMode(long ptr, int compositeMode);
@@ -134,8 +135,12 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
         nClear(ptr, r, g, b, a);
     }
 
-    public void copy(D3D12NativeSwapChain dst, D3D12NativeTexture src) {
-        nCopyToSwapchain(ptr, dst.getPtr(), src.getPtr());
+    public void copyToSwapChain(D3D12NativeSwapChain dst, D3D12NativeTexture src) {
+        nCopyToSwapChain(ptr, dst.getPtr(), src.getPtr());
+    }
+
+    public void resolveToSwapChain(D3D12NativeSwapChain dst, D3D12NativeTexture src) {
+        nResolveToSwapChain(ptr, dst.getPtr(), src.getPtr());
     }
 
     public int getMaximumMSAASampleSize(PixelFormat format) {

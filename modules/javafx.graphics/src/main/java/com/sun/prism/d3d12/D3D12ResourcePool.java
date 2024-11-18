@@ -52,8 +52,12 @@ class D3D12ResourcePool extends BaseResourcePool<D3D12TextureData>
 
     @Override
     public long estimateRTTextureSize(int width, int height, boolean hasDepth) {
-        // TODO: D3D12: depth
-        return 4L * width * height;
+        long size = 4L * width * height;
+        if (hasDepth) {
+            // RTTs in D3D12 use D32_FLOAT depth format
+            size += width * height * 4L;
+        }
+        return size;
     }
 
     @Override

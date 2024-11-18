@@ -75,7 +75,8 @@ bool NativeRenderTarget::EnsureHasDepthBuffer()
     if (mDepthTexture) return true;
 
     mDepthTexture = std::make_shared<NativeTexture>(mNativeDevice);
-    if (!mDepthTexture->Init(static_cast<int>(mWidth), static_cast<int>(mHeight), DXGI_FORMAT_D32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL, TextureUsage::STATIC, 1, false))
+    if (!mDepthTexture->Init(static_cast<int>(mWidth), static_cast<int>(mHeight), DXGI_FORMAT_D32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+            TextureUsage::STATIC, mTexture->GetMSAASamples(), false))
     {
         D3D12NI_LOG_ERROR("Failed to create Depth Texture");
         return false;
@@ -97,7 +98,7 @@ bool NativeRenderTarget::Refresh()
     D3D12_RENDER_TARGET_VIEW_DESC desc;
     D3D12NI_ZERO_STRUCT(desc);
     desc.Format = mTexture->GetFormat();
-    desc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    desc.ViewDimension = mTexture->GetMSAASamples() > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D;
     desc.Texture2D.MipSlice = 0;
     desc.Texture2D.PlaneSlice = 0;
 
@@ -113,7 +114,7 @@ bool NativeRenderTarget::Refresh()
 
         D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
         D3D12NI_ZERO_STRUCT(dsvDesc);
-        dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+        dsvDesc.ViewDimension = mDepthTexture->GetMSAASamples() > 1 ? D3D12_DSV_DIMENSION_TEXTURE2DMS : D3D12_DSV_DIMENSION_TEXTURE2D;
         dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
         dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
         dsvDesc.Texture2D.MipSlice = 0;

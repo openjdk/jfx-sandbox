@@ -106,7 +106,8 @@ public:
 
     void Clear(float r, float g, float b, float a);
     void ClearTextureUnit(uint32_t unit);
-    void Copy(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src);
+    void CopyToSwapChain(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src);
+    void ResolveToSwapChain(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src);
     void RenderQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors,
                      UINT elementCount);
     void RenderMeshView(const NIPtr<NativeMeshView>& meshView);

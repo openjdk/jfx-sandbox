@@ -26,9 +26,6 @@
 package com.sun.prism.d3d12;
 
 import java.nio.Buffer;
-import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 
 import com.sun.prism.MediaFrame;
 import com.sun.prism.PixelFormat;

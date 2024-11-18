@@ -227,7 +227,7 @@ public final class D3D12Pipeline extends GraphicsPipeline {
         // D3D12 in general supports MSAA, but in reality the level highly depends on
         // used format. Here we can safely return yes, and we will fetch maximum MSAA
         // level when creating the Texture/RTT.
-        return false;
+        return true;
     }
 
     @Override

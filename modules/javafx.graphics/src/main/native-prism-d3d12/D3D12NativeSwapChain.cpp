@@ -114,7 +114,18 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
     desc.Scaling = DXGI_SCALING_NONE;
     desc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
     desc.Flags = mSwapChainFlags;
-    desc.SampleDesc.Count = 1; // TODO: D3D12: MSAA
+
+    // NOTE: Technically we could make SwapChain buffers multi-sampled here and let the
+    // SwapChain handle resolving it for us, but it is not recommended. There are two
+    // reasons why Microsoft advises against this:
+    //   - Calling ResolveSubresource() explicitly gives us more control over the pipeline
+    //   - UWP does not support it (although we don't use UWP in JFX)
+    // Since this is the recommendation and we have to use an offscreen RTT for dirty
+    // region opts anyway, we might as well follow it with very little effort added.
+    //
+    // See official MSAA sample code for more details:
+    //   https://github.com/microsoft/Xbox-ATG-Samples/blob/main/PCSamples/IntroGraphics/SimpleMSAA_PC12/SimpleMSAA_PC12.cpp#L42
+    desc.SampleDesc.Count = 1;
     desc.SampleDesc.Quality = 0;
 
     Ptr<IDXGISwapChain1> tmpSwapchain;

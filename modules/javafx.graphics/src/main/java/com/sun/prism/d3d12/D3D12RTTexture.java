@@ -33,11 +33,8 @@ import com.sun.prism.Image;
 import com.sun.prism.MediaFrame;
 import com.sun.prism.PixelFormat;
 import com.sun.prism.RTTexture;
-import com.sun.prism.Texture;
 import com.sun.prism.d3d12.ni.D3D12NativeTexture;
 import com.sun.prism.d3d12.ni.D3D12NativeRenderTarget;
-
-import javafx.scene.input.ContextMenuEvent;
 
 public class D3D12RTTexture extends D3D12Texture implements RTTexture {
 

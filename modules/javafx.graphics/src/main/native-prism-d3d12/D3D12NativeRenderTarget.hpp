@@ -91,6 +91,11 @@ public:
     {
         return mDepthTexture->GetResource();
     }
+
+    inline UINT GetMSAASamples() const
+    {
+        return mTexture->GetMSAASamples();
+    }
 };
 
 } // namespace D3D12
