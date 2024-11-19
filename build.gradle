@@ -696,13 +696,17 @@ if (HUDSON_JOB_NAME == "not_hudson") {
     relOpt = "-${buildTimestamp}"
 } else {
     if (IS_MILESTONE_FCS) {
-        if (jfxExperimentalReleaseSuffix != "") {
-            fail("An experimental release branch should not be used for FCS build")
+        if (jfxExperimentalFeatureName != "") {
+            fail("An experimental feature branch should not be used for FCS build")
         }
         relSuffix = ""
     } else {
-        relSuffix = jfxExperimentalReleaseSuffix != "" ?
-                        jfxExperimentalReleaseSuffix : jfxReleaseSuffix;
+        if (jfxExperimentalFeatureName != "") {
+            relSuffix = "-${jfxExperimentalFeatureName}"
+            relOpt = "-${buildTimestamp}"
+        } else {
+            relSuffix = jfxReleaseSuffix
+        }
     }
 }
 defineProperty("RELEASE_SUFFIX", relSuffix)
