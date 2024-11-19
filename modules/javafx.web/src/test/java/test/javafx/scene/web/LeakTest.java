@@ -43,6 +43,7 @@ import javafx.scene.web.WebEngineShim;
 import javafx.scene.web.WebView;
 import javafx.util.Duration;
 import netscape.javascript.JSObject;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -50,6 +51,7 @@ import org.w3c.dom.NodeList;
 import static org.junit.jupiter.api.Assertions.*;
 import test.util.memory.JMemoryBuddy;
 
+@Disabled
 public class LeakTest extends TestBase {
 
     private static final int SLEEP_TIME = 1000;

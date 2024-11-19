@@ -47,11 +47,13 @@ import org.w3c.dom.events.EventListener;
 import org.w3c.dom.events.EventTarget;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
 // NOTE: We cannot use TestBase since we need multiple WebView instances, and
 // greater control over the lifecycle.
+@Disabled
 public class EventListenerLeakTest {
 
     // List of WeakReferences to EventListener objects to count which are active

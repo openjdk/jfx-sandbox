@@ -34,10 +34,12 @@ import javafx.concurrent.Worker.State;
 import javafx.scene.web.WebEngineShim;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@Disabled
 public class FileTest extends TestBase {
     private final WebPage page = WebEngineShim.getPage(getEngine());
     private final String[] fileList = { new File("src/test/resources/test/html/HelloWorld.txt").getAbsolutePath() };

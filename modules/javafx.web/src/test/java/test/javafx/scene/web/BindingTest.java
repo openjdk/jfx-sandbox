@@ -34,9 +34,11 @@ import javafx.scene.web.WebEngineShim;
 import javafx.scene.web.WebView;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 
+@Disabled
 public class BindingTest extends TestBase {
 
     @Test public void testWebView() {

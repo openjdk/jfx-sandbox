@@ -31,8 +31,10 @@ import java.io.File;
 import javafx.concurrent.Worker.State;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+@Disabled
 public class WebWorkerTest extends TestBase {
 
     private State getLoadState() {

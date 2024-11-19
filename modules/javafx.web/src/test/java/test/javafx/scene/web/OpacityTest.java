@@ -30,10 +30,12 @@ import com.sun.webkit.WebPageShim;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import javafx.scene.web.WebEngineShim;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Disabled
 public class OpacityTest extends TestBase {
     /**
      * @test

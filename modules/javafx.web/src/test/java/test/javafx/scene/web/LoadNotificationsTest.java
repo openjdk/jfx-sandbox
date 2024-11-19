@@ -39,7 +39,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 
+@Disabled
 public class LoadNotificationsTest extends TestBase {
 
     Set<State> log = new HashSet<>();

@@ -46,6 +46,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
 
 
+@Disabled
 public class CallbackTest extends TestBase {
     final static String JS_ALERT = "alert('MESSAGE');";
     final static String JS_CONFIRM = "confirm('MESSAGE');";

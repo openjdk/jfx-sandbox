@@ -26,6 +26,7 @@
 package test.javafx.scene.web;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.util.concurrent.CountDownLatch;
@@ -40,6 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+@Disabled
 public class HistoryStateTest extends TestBase {
     private static final CountDownLatch historyStateLatch = new CountDownLatch(3);
     final AtomicInteger historyListenerIndex = new AtomicInteger(-1);

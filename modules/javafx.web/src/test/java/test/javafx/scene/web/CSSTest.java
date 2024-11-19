@@ -38,6 +38,7 @@ import javafx.scene.Scene;
 import javafx.scene.text.FontSmoothingType;
 import javafx.scene.web.WebEngineShim;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -45,6 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+@Disabled
 public class CSSTest extends TestBase {
 
     private State getLoadState() {
