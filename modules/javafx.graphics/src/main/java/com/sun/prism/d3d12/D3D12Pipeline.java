@@ -26,8 +26,6 @@
 package com.sun.prism.d3d12;
 
 import java.nio.ByteBuffer;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.List;
 
 import com.sun.glass.ui.Screen;
@@ -52,23 +50,18 @@ public final class D3D12Pipeline extends GraphicsPipeline {
     private int mMaxMSAASamples;
 
     static {
-
-        @SuppressWarnings("removal")
-        boolean nativeInit = AccessController.doPrivileged((PrivilegedAction<Boolean>) () -> {
-            if (PrismSettings.verbose) {
-                System.out.println("Loading D3D12 native library ...");
-            }
-            NativeLibLoader.loadLibrary("prism_d3d12");
-            if (PrismSettings.verbose) {
-                System.out.println("\tsucceeded.");
-            }
-            return Boolean.valueOf(nInit(PrismSettings.class));
-        });
+        if (PrismSettings.verbose) {
+            System.out.println("Loading D3D12 native library ...");
+        }
+        NativeLibLoader.loadLibrary("prism_d3d12");
+        if (PrismSettings.verbose) {
+            System.out.println("\tsucceeded.");
+        }
+        isEnabled = nInit(PrismSettings.class);
 
         creator = Thread.currentThread();
-        isEnabled = nativeInit;
 
-        if (nativeInit) {
+        if (isEnabled) {
             theInstance = new D3D12Pipeline();
         }
     }
