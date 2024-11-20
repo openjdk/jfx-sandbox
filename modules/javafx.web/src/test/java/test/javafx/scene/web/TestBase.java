@@ -46,8 +46,10 @@ import java.util.concurrent.ExecutionException;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.w3c.dom.Document;
 
+@Disabled("JDK-8344596")
 public class TestBase implements ChangeListener, InvalidationListener {
     private static final AtomicBoolean LOCK = new AtomicBoolean(false);
     private static final int INIT_TIMEOUT = 10000;

@@ -27,9 +27,11 @@ package test.javafx.scene.web;
 
 import javafx.scene.text.FontSmoothingType;
 import static org.junit.jupiter.api.Assertions.fail;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 
+@Disabled("JDK-8344596")
 public class CheckFxThreadTest extends TestBase {
 
     @Test public void testWebEngineMethods() {

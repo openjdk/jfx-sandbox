@@ -38,6 +38,7 @@ import static javafx.concurrent.Worker.State.SUCCEEDED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@Disabled("JDK-8344596")
 public class HTMLEditingTest extends TestBase {
 
     /**

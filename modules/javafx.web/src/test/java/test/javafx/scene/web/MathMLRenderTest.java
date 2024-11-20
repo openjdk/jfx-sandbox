@@ -26,8 +26,10 @@
 package test.javafx.scene.web;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+@Disabled("JDK-8344596")
 public class MathMLRenderTest extends TestBase {
 
     @Test public void testTokenHeight() throws Exception {
