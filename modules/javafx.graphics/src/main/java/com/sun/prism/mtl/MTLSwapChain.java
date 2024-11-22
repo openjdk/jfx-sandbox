@@ -158,6 +158,7 @@ public class MTLSwapChain
             // forceRenderTarget() for the hardware backbuffer and
             // reset the needsResize flag at present() time...
             if (stableBackbuffer != null) {
+                getContext().flushVertexBuffer();
                 stableBackbuffer.dispose();
                 stableBackbuffer = null;
             } /*else {

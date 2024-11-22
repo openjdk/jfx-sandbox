@@ -75,6 +75,17 @@ public class MTLResourceFactory extends BaseShaderFactory {
         return context;
     }
 
+    private void checkTextureSize(int width, int height, MediaFrame frame) {
+        int maxSize = getMaximumTextureSize();
+        if (width <= 0 || height <= 0 ||
+            width > maxSize || height > maxSize) {
+            if (frame != null) {
+                frame.releaseFrame();
+            }
+            throw new RuntimeException("Illegal texture dimensions (" + width + "x" + height + ")");
+        }
+    }
+
     @Override
     public Shader createShader(String pixelShaderName, InputStream pixelShaderCode, Map<String, Integer> samplers,
                                Map<String, Integer> params, int maxTexCoordIndex,
@@ -160,9 +171,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
             alloch = h;
         }
 
-        if (allocw <= 0 || alloch <= 0) {
-            throw new RuntimeException("Illegal texture dimensions (" + allocw + "x" + alloch + ")");
-        }
+        checkTextureSize(allocw, alloch, null);
 
         int bpp = formatHint.getBytesPerPixelUnit();
         if (allocw >= (Integer.MAX_VALUE / alloch / bpp)) {
@@ -206,10 +215,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
         MTLLog.Debug("PixelFormat = "+ texFormat);
         MTLLog.Debug("<<< MTLResourceFactory.createTexture()------- for media -------");
 
-        if (texWidth <= 0 || texHeight <= 0) {
-            frame.releaseFrame();
-            throw new RuntimeException("Illegal texture dimensions (" + texWidth + "x" + texHeight + ")");
-        }
+        checkTextureSize(texWidth, texHeight, frame);
 
         int bpp = texFormat.getBytesPerPixelUnit();
         if (texWidth >= (Integer.MAX_VALUE / texHeight / bpp)) {
@@ -359,9 +365,8 @@ public class MTLResourceFactory extends BaseShaderFactory {
             createw = nextPowerOfTwo(createw, Integer.MAX_VALUE);
             createh = nextPowerOfTwo(createh, Integer.MAX_VALUE);
         }
-        if (createw <= 0 || createh <= 0) {
-            throw new RuntimeException("Illegal texture dimensions (" + createw + "x" + createh + ")");
-        }
+
+        checkTextureSize(createw, createh, null);
 
         PixelFormat format = PixelFormat.INT_ARGB_PRE;
         int bpp = format.getBytesPerPixelUnit();
@@ -396,7 +401,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
         if (checkDisposed()) {
             return null;
         }
-
+        checkTextureSize(pState.getRenderWidth(), pState.getRenderHeight(), null);
         return new MTLSwapChain(getContext(), pState);
     }
 
