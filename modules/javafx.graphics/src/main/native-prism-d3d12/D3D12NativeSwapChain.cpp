@@ -212,6 +212,8 @@ bool NativeSwapChain::Present()
     // store current waitable onto our collection, we'll wait for them some other time
     mPastFrameWaitables.push_back(std::move(waitable));
 
+    mNativeDevice->AdvanceCommandAllocator();
+
     mCurrentBufferIdx = mSwapChain->GetCurrentBackBufferIndex();
 
     return true;

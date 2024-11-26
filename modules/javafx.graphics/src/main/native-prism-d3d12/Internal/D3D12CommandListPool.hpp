@@ -50,8 +50,15 @@ class CommandListPool: public IWaitableOperation
         uint64_t closedFenceValue;
     };
 
+    struct CommandAllocatorData
+    {
+        D3D12CommandAllocatorPtr commandAllocator;
+        uint64_t usedFenceValue;
+    };
+
     NIPtr<NativeDevice> mNativeDevice;
-    D3D12CommandAllocatorPtr mCommandAllocator;
+    std::vector<CommandAllocatorData> mCommandAllocators;
+    size_t mCurrentCommandAllocator;
     std::vector<CommandListData> mCommandLists;
     size_t mCurrentCommandList;
 
@@ -61,7 +68,8 @@ public:
     CommandListPool(const NIPtr<NativeDevice>& nativeDevice);
     ~CommandListPool();
 
-    bool Init(D3D12_COMMAND_LIST_TYPE type, size_t amount);
+    bool Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount, size_t commandAllocatorCount);
+    void AdvanceCommandAllocator(uint64_t fenceValue);
     void OnQueueSignal(uint64_t fenceValue) override;
     void OnFenceSignaled(uint64_t fenceValue) override;
     bool SubmitCurrentCommandList();

@@ -140,6 +140,7 @@ NativeDevice::NativeDevice()
     , mCommandQueue()
     , mFence()
     , mFenceValue(0)
+    , mFrameCounter(0)
     , mWaitableOps()
     , mRenderingContext()
     , mRTVHeap()
@@ -218,7 +219,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create in-device Fence");
 
     mCommandListPool = std::make_shared<Internal::CommandListPool>(shared_from_this());
-    if (!mCommandListPool->Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 8))
+    if (!mCommandListPool->Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 8, 4))
     {
         D3D12NI_LOG_ERROR("Failed to initialize Command List Pool");
         return false;
@@ -278,6 +279,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
 void NativeDevice::ReleaseInternals()
 {
     // ensures the pipeline is purged
+    mMidFrameWaitable.reset();
     SignalMidFrame();
     WaitMidFrame();
 
@@ -710,8 +712,16 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
     }
     else
     {
+        // Alignment can be reduced if we update a "small" texture.
+        // There's plenty of requirements which really boil down to target size being
+        // lower than default alignment, which is 64K.
+        // This optimizes memory consumption a bit in the Ring Buffer.
+        size_t alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+        if (targetSize < D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT)
+            alignment = D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT;
+
         // copying smaller textures will go via the Ring Buffer to prevent unnecessary allocation
-        ringRegion = mRingBuffer->Reserve(targetSize, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+        ringRegion = mRingBuffer->Reserve(targetSize, alignment);
         if (ringRegion.cpu == nullptr)
         {
             D3D12NI_LOG_ERROR("Failed to reserve space in the Ring Buffer (full?)");
@@ -772,6 +782,8 @@ void NativeDevice::FinishFrame()
     // in a short bit we're going to wait for Present to complete
     // so whichever last mid-frame wait we have stored will be done in SwapChain regardless
     mMidFrameWaitable.reset();
+
+    mFrameCounter++;
 }
 
 void NativeDevice::Execute(const std::vector<ID3D12CommandList*>& commandLists)
@@ -832,6 +844,11 @@ NIPtr<Internal::Waitable> NativeDevice::Signal()
     });
 
     return waitable;
+}
+
+void NativeDevice::AdvanceCommandAllocator()
+{
+    mCommandListPool->AdvanceCommandAllocator(mFenceValue);
 }
 
 void NativeDevice::SignalMidFrame()

@@ -202,7 +202,7 @@ class PipelineStateRenderingParameter: public RenderingParameter<PSOParameters>
         {
         case ShaderPipelineMode::UI_2D:
         {
-            const NIPtr<NativeShader>& niShader = std::dynamic_pointer_cast<NativeShader>(mParameter.pixelShader);
+            NIPtr<NativeShader> niShader = std::dynamic_pointer_cast<NativeShader>(mParameter.pixelShader);
             commandList->SetGraphicsRootSignature(niShader->GetRootSignature().Get());
             break;
         }

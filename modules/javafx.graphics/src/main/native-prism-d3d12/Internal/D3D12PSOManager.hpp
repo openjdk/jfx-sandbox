@@ -56,6 +56,8 @@ struct PSOParameters
             enableDepthTest == other.enableDepthTest &&
             msaaSamples == other.msaaSamples;
     }
+
+
 };
 
 } // namespace Internal

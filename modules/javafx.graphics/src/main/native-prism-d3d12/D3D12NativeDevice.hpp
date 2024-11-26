@@ -62,6 +62,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     D3D12CommandQueuePtr mCommandQueue;
     D3D12FencePtr mFence;
     unsigned int mFenceValue;
+    unsigned int mFrameCounter; // for debugging ex. triggering a breakpoint after X frames
     std::vector<Internal::IWaitableOperation*> mWaitableOps;
 
     NIPtr<Internal::RenderingContext> mRenderingContext;
@@ -75,7 +76,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<NativeBuffer> m2DIndexBuffer;
     NIPtr<Internal::RingBuffer> mRingBuffer; // used for larger data (ex. 2D Vertex Buffer, texture upload)
     NIPtr<Internal::RingBuffer> mConstantRingBuffer; // used purely for CBuffers for Shaders
-    NIPtr<Internal::Waitable> mMidFrameWaitable;
+    NIPtr<Internal::Waitable> mMidFrameWaitable; // TODO: D3D12: This is constantly (de)allocated, avoid that.
 
     bool Build2DIndexBuffer();
     void AssembleVertexData(void* buffer, const Internal::MemoryView<float>& vertices,
@@ -129,6 +130,7 @@ public:
     void FlushCommandList();
     void Execute(const std::vector<ID3D12CommandList*>& commandLists);
     NIPtr<Internal::Waitable> Signal();
+    void AdvanceCommandAllocator();
     void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
 
