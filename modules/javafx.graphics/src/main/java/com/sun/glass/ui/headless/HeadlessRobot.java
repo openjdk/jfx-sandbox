@@ -23,6 +23,8 @@ public class HeadlessRobot extends GlassRobot {
     
     private boolean keyControl = false;
     private boolean keyShift = false;
+    private boolean keyCommand = false;
+    private boolean keyAlt = false;
 
     public HeadlessRobot(HeadlessApplication application, HeadlessWindow window) {
         this.application = application;
@@ -329,12 +331,20 @@ public class HeadlessRobot extends GlassRobot {
         if (c == KeyEvent.VK_SHIFT) {
             this.keyShift = on;
         }
+        if (c == KeyEvent.VK_COMMAND) {
+            this.keyCommand = on;
+        }
+        if (c == KeyEvent.VK_ALT) {
+            this.keyAlt = on;
+        }
     }
 
     private int getKeyModifiers() {
         int answer = 0;
         if (this.keyControl) answer = answer | KeyEvent.MODIFIER_CONTROL;
         if (this.keyShift) answer = answer | KeyEvent.MODIFIER_SHIFT;
+        if (this.keyCommand) answer = answer | KeyEvent.MODIFIER_COMMAND;
+        if (this.keyAlt) answer = answer | KeyEvent.MODIFIER_ALT;
         return answer;
     }
 }
