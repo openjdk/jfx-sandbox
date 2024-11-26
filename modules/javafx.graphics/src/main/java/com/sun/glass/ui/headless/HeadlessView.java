@@ -66,7 +66,6 @@ public class HeadlessView extends View {
 
     @Override
     protected void _uploadPixels(long ptr, Pixels pixels) {
-        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
@@ -139,7 +138,6 @@ public class HeadlessView extends View {
 
     @Override
     public void uploadPixels(Pixels pixels) {
-        throw new UnsupportedOperationException();
     }
 
 }
