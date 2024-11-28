@@ -53,7 +53,7 @@ public class HeadlessRobot extends GlassRobot {
         if (view != null) {
             view.notifyKey(KeyEvent.PRESS, code, keyval, mods);
             if (keyval.length > 0) {
-                view.notifyKey(KeyEvent.TYPED, code, keyval, mods);
+                view.notifyKey(KeyEvent.TYPED, 0, keyval, mods);
             }
         }
     }
@@ -252,7 +252,7 @@ public class HeadlessRobot extends GlassRobot {
 
     private char[] getKeyChars(int key) {
         char c = '\000';
-        boolean shifted = true;
+        boolean shifted = this.keyShift;
         // TODO: implement configurable keyboard mappings.
         // The following is only for US keyboards
         if (key >= KeyEvent.VK_A && key <= KeyEvent.VK_Z) {
@@ -288,7 +288,7 @@ public class HeadlessRobot extends GlassRobot {
         } else if (key == KeyEvent.VK_TAB) {
             c = '\t';
         } else if (key == KeyEvent.VK_ENTER) {
-            c = '\n';
+            c = (char)13;
         } else if (key == KeyEvent.VK_MULTIPLY) {
             c = '*';
         } else if (key == KeyEvent.VK_DIVIDE) {
