@@ -196,7 +196,7 @@ typedef struct
     for (int i = 0; i < BUFFER_SIZE; i++) {
         indexBuffer[i] = nil;
     }
-    numVertices = 0;
+    numIndices = 0;
 }
 
 - (id<MTLBuffer>) getVertexBuffer

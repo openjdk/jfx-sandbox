@@ -32,6 +32,7 @@
 #import "MetalContext.h"
 
 #define NUM_OF_FLOATS_PER_VERTEX 9
+#define MESH_INDEX_LIMIT 9000000
 
 @interface MetalMesh : NSObject
 {
