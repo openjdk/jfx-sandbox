@@ -91,6 +91,7 @@ bool CommandListPool::Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount
     }
     std::wstring caNameBase(typeStr);
     caNameBase += L" Command Allocator #";
+    #endif
 
     mCommandAllocators.resize(commandAllocatorCount);
 
@@ -106,6 +107,7 @@ bool CommandListPool::Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount
         #endif // DEBUG
     }
 
+    #if DEBUG
     std::wstring clNameBase(typeStr);
     clNameBase += L" Command List #";
     #endif // DEBUG
