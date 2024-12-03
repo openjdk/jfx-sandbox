@@ -25,6 +25,8 @@
 
 package com.sun.marlin;
 
+import java.lang.ref.Cleaner;
+
 public final class MarlinUtils {
     // Marlin logger
     private static final com.sun.javafx.logging.PlatformLogger LOG;
@@ -80,10 +82,9 @@ public final class MarlinUtils {
 
     // JavaFX specific Cleaner for Marlin-FX:
     // Module issue with jdk.internal.ref.Cleaner
-    private final static java.lang.ref.Cleaner cleaner
-        = java.lang.ref.Cleaner.create();
+    private static final Cleaner CLEANER = Cleaner.create();
 
-    static java.lang.ref.Cleaner getCleaner() {
-        return cleaner;
+    static Cleaner getCleaner() {
+        return CLEANER;
     }
 }

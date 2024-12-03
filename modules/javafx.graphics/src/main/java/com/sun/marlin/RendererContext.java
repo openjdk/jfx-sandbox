@@ -210,11 +210,11 @@ public final class RendererContext extends ReentrantContext implements MarlinCon
         return rendererNoAA;
     }
 
-    OffHeapArray newOffHeapArray(final long initialSize) {
-        if (DO_STATS) {
-            stats.totalOffHeapInitial += initialSize;
-        }
-        return new OffHeapArray(cleanerObj, initialSize);
+    OffHeapArray newOffHeapArray(final int initialCount) {
+//        if (DO_STATS) {
+//            stats.totalOffHeapInitial += initialSize;
+//        }
+        return new OffHeapArray(cleanerObj, initialCount);
     }
 
     ArrayCacheIntClean.Reference newCleanIntArrayRef(final int initialSize) {
@@ -260,7 +260,7 @@ public final class RendererContext extends ReentrantContext implements MarlinCon
         final ArrayCacheIntClean.Reference blkFlags_ref;
 
         RendererSharedMemory(final RendererContext rdrCtx) {
-            edges = rdrCtx.newOffHeapArray(INITIAL_EDGES_CAPACITY); // 96K
+            edges = rdrCtx.newOffHeapArray(INITIAL_EDGES_COUNT); // 96K
 
             edgeBuckets_ref      = rdrCtx.newCleanIntArrayRef(INITIAL_BUCKET_ARRAY); // 64K
             edgeBucketCounts_ref = rdrCtx.newCleanIntArrayRef(INITIAL_BUCKET_ARRAY); // 64K

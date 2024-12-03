@@ -26,6 +26,12 @@
 package com.sun.marlin;
 
 import static com.sun.marlin.OffHeapArray.SIZE_INT;
+
+import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.StructLayout;
+import java.lang.foreign.ValueLayout;
+
 import sun.misc.Unsafe;
 
 // FIXME: We must replace the terminally deprecated sun.misc.Unsafe
@@ -52,15 +58,13 @@ public final class Renderer implements MarlinRenderer, MarlinConst {
     // common to all types of input path segments.
     // OFFSET as bytes
     // only integer values:
-    public static final long OFF_CURX_OR  = 0;
-    public static final long OFF_ERROR    = OFF_CURX_OR  + SIZE_INT;
-    public static final long OFF_BUMP_X   = OFF_ERROR    + SIZE_INT;
-    public static final long OFF_BUMP_ERR = OFF_BUMP_X   + SIZE_INT;
-    public static final long OFF_NEXT     = OFF_BUMP_ERR + SIZE_INT;
-    public static final long OFF_YMAX     = OFF_NEXT     + SIZE_INT;
+//    public static final long OFF_CURX_OR  = 0;
+//    public static final long OFF_ERROR    = OFF_CURX_OR  + SIZE_INT;
+//    public static final long OFF_BUMP_X   = OFF_ERROR    + SIZE_INT;
+//    public static final long OFF_BUMP_ERR = OFF_BUMP_X   + SIZE_INT;
+//    public static final long OFF_NEXT     = OFF_BUMP_ERR + SIZE_INT;
+//    public static final long OFF_YMAX     = OFF_NEXT     + SIZE_INT;
 
-    // size of one edge in bytes
-    public static final int SIZEOF_EDGE_BYTES = (int)(OFF_YMAX + SIZE_INT);
 
     // curve break into lines
     // cubic error in subpixels to decrement step
@@ -376,32 +380,37 @@ public final class Renderer implements MarlinRenderer, MarlinConst {
         }
 
         // local variables for performance:
-        final int _SIZEOF_EDGE_BYTES = SIZEOF_EDGE_BYTES;
+//        final long _SIZEOF_EDGE_BYTES = SIZEOF_EDGE_BYTES;
 
         final OffHeapArray _edges = edges;
 
-        // get free pointer (ie length in bytes)
-        final int edgePtr = _edges.used;
-
-        // use substraction to avoid integer overflow:
-        if (_edges.length - edgePtr < _SIZEOF_EDGE_BYTES) {
-            // suppose _edges.length > _SIZEOF_EDGE_BYTES
-            // so doubling size is enough to add needed bytes
-            // note: throw IOOB if neededSize > 2Gb:
-            final long edgeNewSize = ArrayCacheConst.getNewLargeSize(
-                                        _edges.length,
-                                        edgePtr + _SIZEOF_EDGE_BYTES);
-
-            if (DO_STATS) {
-                rdrCtx.stats.stat_rdr_edges_resizes.add(edgeNewSize);
-            }
-            _edges.resize(edgeNewSize);
+        // no space for another edge
+        if (_edges.count == _edges.index) {
+            // add space
+            _edges.resize(_edges.count + 1);
         }
+        
+//        // get free pointer (ie length in bytes)
+//        final int edgePtr = _edges.used;
+//
+//        // use substraction to avoid integer overflow:
+//        if (_edges.length - edgePtr < _SIZEOF_EDGE_BYTES) {
+//            // suppose _edges.length > _SIZEOF_EDGE_BYTES
+//            // so doubling size is enough to add needed bytes
+//            // note: throw IOOB if neededSize > 2Gb:
+//            final long edgeNewSize = ArrayCacheConst.getNewLargeSize(
+//                                        _edges.length,
+//                                        edgePtr + _SIZEOF_EDGE_BYTES);
+//
+//            if (DO_STATS) {
+//                rdrCtx.stats.stat_rdr_edges_resizes.add(edgeNewSize);
+//            }
+//            _edges.resize(edgeNewSize);
+//        }
 
 
-        final Unsafe _unsafe = OffHeapArray.UNSAFE;
-        final long SIZE_INT = 4L;
-        long addr   = _edges.address + edgePtr;
+//        final long SIZE_INT = 4L;
+//        long addr   = _edges.address + edgePtr;
 
         // The x value must be bumped up to its position at the next HPC we will evaluate.
         // "firstcrossing" is the (sub)pixel number where the next crossing occurs
@@ -429,21 +438,27 @@ public final class Renderer implements MarlinRenderer, MarlinConst {
         // inlined scalb(x1_intercept, 32):
         final long x1_fixed_biased = ((long) (POWER_2_TO_32 * x1_intercept))
                                      + 0x7FFFFFFFL;
+
+        MemorySegment edgeMemSeg = OffHeapArray.edgeMemSeg();
         // curx:
         // last bit corresponds to the orientation
-        _unsafe.putInt(addr, (((int) (x1_fixed_biased >> 31L)) & ALL_BUT_LSB) | or);
-        addr += SIZE_INT;
-        _unsafe.putInt(addr,  ((int)  x1_fixed_biased) >>> 1);
-        addr += SIZE_INT;
+        OffHeapArray.curxOr.set(edgeMemSeg, 0, (((int) (x1_fixed_biased >> 31L)) & ALL_BUT_LSB) | or);
+//        _unsafe.setInt(addr, (((int) (x1_fixed_biased >> 31L)) & ALL_BUT_LSB) | or);
+//        addr += SIZE_INT;
+        OffHeapArray.error.set(edgeMemSeg, 0, ((int)  x1_fixed_biased) >>> 1);
+//        _unsafe.putInt(addr,  ((int)  x1_fixed_biased) >>> 1);
+//        addr += SIZE_INT;
 
         // inlined scalb(slope, 32):
         final long slope_fixed = (long) (POWER_2_TO_32 * slope);
 
         // last bit set to 0 to keep orientation:
-        _unsafe.putInt(addr, (((int) (slope_fixed >> 31L)) & ALL_BUT_LSB));
-        addr += SIZE_INT;
-        _unsafe.putInt(addr,  ((int)  slope_fixed) >>> 1);
-        addr += SIZE_INT;
+        OffHeapArray.bumpX.set(edgeMemSeg, 0, ((int)  x1_fixed_biased) >>> 1);
+//        _unsafe.putInt(addr, (((int) (slope_fixed >> 31L)) & ALL_BUT_LSB));
+//        addr += SIZE_INT;
+        OffHeapArray.bumpErr.set(edgeMemSeg, 0, ((int)  slope_fixed) >>> 1);
+//        _unsafe.putInt(addr,  ((int)  slope_fixed) >>> 1);
+//        addr += SIZE_INT;
 
         final int[] _edgeBuckets      = edgeBuckets;
         final int[] _edgeBucketCounts = edgeBucketCounts;
@@ -455,10 +470,12 @@ public final class Renderer implements MarlinRenderer, MarlinConst {
         final int bucketIdx = firstCrossing - _boundsMinY;
 
         // pointer from bucket
-        _unsafe.putInt(addr, _edgeBuckets[bucketIdx]);
-        addr += SIZE_INT;
+        OffHeapArray.next.set(edgeMemSeg, 0, _edgeBuckets[bucketIdx]);
+//        _unsafe.putInt(addr, _edgeBuckets[bucketIdx]);
+//        addr += SIZE_INT;
         // y max (exclusive)
-        _unsafe.putInt(addr,  lastCrossing);
+        OffHeapArray.yMax.set(edgeMemSeg, 0, lastCrossing);
+//        _unsafe.putInt(addr,  lastCrossing);
 
         // Update buckets:
         // directly the edge struct "pointer"
