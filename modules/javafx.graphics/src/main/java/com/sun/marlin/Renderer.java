@@ -55,17 +55,6 @@ public final class Renderer implements MarlinRenderer, MarlinConst {
     private static final double RDR_OFFSET_X = 0.5d / SUBPIXEL_SCALE_X;
     private static final double RDR_OFFSET_Y = 0.5d / SUBPIXEL_SCALE_Y;
 
-    // common to all types of input path segments.
-    // OFFSET as bytes
-    // only integer values:
-//    public static final long OFF_CURX_OR  = 0;
-//    public static final long OFF_ERROR    = OFF_CURX_OR  + SIZE_INT;
-//    public static final long OFF_BUMP_X   = OFF_ERROR    + SIZE_INT;
-//    public static final long OFF_BUMP_ERR = OFF_BUMP_X   + SIZE_INT;
-//    public static final long OFF_NEXT     = OFF_BUMP_ERR + SIZE_INT;
-//    public static final long OFF_YMAX     = OFF_NEXT     + SIZE_INT;
-
-
     // curve break into lines
     // cubic error in subpixels to decrement step
     private static final double CUB_DEC_ERR_SUBPIX
@@ -155,7 +144,8 @@ public final class Renderer implements MarlinRenderer, MarlinConst {
     private double edgeMaxX = Double.NEGATIVE_INFINITY;
 
     // edges [ints] stored in off-heap memory
-    private final OffHeapArray edges;
+//    private final OffHeapArray edges;
+    private final EdgeArray edges;
 
     private int[] edgeBuckets;
     private int[] edgeBucketCounts; // 2*newedges + (1 if pruning needed)
@@ -382,13 +372,8 @@ public final class Renderer implements MarlinRenderer, MarlinConst {
         // local variables for performance:
 //        final long _SIZEOF_EDGE_BYTES = SIZEOF_EDGE_BYTES;
 
-        final OffHeapArray _edges = edges;
-
-        // no space for another edge
-        if (_edges.count == _edges.index) {
-            // add space
-            _edges.resize(_edges.count + 1);
-        }
+        final Edge edge = Edge.createOffHeap();
+        EdgeArray.edges.add(edge);
         
 //        // get free pointer (ie length in bytes)
 //        final int edgePtr = _edges.used;
@@ -439,26 +424,17 @@ public final class Renderer implements MarlinRenderer, MarlinConst {
         final long x1_fixed_biased = ((long) (POWER_2_TO_32 * x1_intercept))
                                      + 0x7FFFFFFFL;
 
-        MemorySegment edgeMemSeg = OffHeapArray.edgeMemSeg();
         // curx:
         // last bit corresponds to the orientation
-        OffHeapArray.curxOr.set(edgeMemSeg, 0, (((int) (x1_fixed_biased >> 31L)) & ALL_BUT_LSB) | or);
-//        _unsafe.setInt(addr, (((int) (x1_fixed_biased >> 31L)) & ALL_BUT_LSB) | or);
-//        addr += SIZE_INT;
-        OffHeapArray.error.set(edgeMemSeg, 0, ((int)  x1_fixed_biased) >>> 1);
-//        _unsafe.putInt(addr,  ((int)  x1_fixed_biased) >>> 1);
-//        addr += SIZE_INT;
+        edge.setCurxOr((((int) (x1_fixed_biased >> 31L)) & ALL_BUT_LSB) | or);
+        edge.setError(((int) x1_fixed_biased) >>> 1);
 
         // inlined scalb(slope, 32):
         final long slope_fixed = (long) (POWER_2_TO_32 * slope);
 
         // last bit set to 0 to keep orientation:
-        OffHeapArray.bumpX.set(edgeMemSeg, 0, ((int)  x1_fixed_biased) >>> 1);
-//        _unsafe.putInt(addr, (((int) (slope_fixed >> 31L)) & ALL_BUT_LSB));
-//        addr += SIZE_INT;
-        OffHeapArray.bumpErr.set(edgeMemSeg, 0, ((int)  slope_fixed) >>> 1);
-//        _unsafe.putInt(addr,  ((int)  slope_fixed) >>> 1);
-//        addr += SIZE_INT;
+        edge.setBumpX(((int) x1_fixed_biased) >>> 1);
+        edge.setBumpErr(((int) slope_fixed) >>> 1);
 
         final int[] _edgeBuckets      = edgeBuckets;
         final int[] _edgeBucketCounts = edgeBucketCounts;
@@ -470,11 +446,10 @@ public final class Renderer implements MarlinRenderer, MarlinConst {
         final int bucketIdx = firstCrossing - _boundsMinY;
 
         // pointer from bucket
-        OffHeapArray.next.set(edgeMemSeg, 0, _edgeBuckets[bucketIdx]);
-//        _unsafe.putInt(addr, _edgeBuckets[bucketIdx]);
-//        addr += SIZE_INT;
+        edge.setNext(_edgeBuckets[bucketIdx]);
+
         // y max (exclusive)
-        OffHeapArray.yMax.set(edgeMemSeg, 0, lastCrossing);
+        edge.setYMax(lastCrossing);
 //        _unsafe.putInt(addr,  lastCrossing);
 
         // Update buckets:
@@ -774,7 +749,8 @@ public final class Renderer implements MarlinRenderer, MarlinConst {
         final int[] _alpha = alphaLine;
 
         // local vars (performance):
-        final OffHeapArray _edges = edges;
+//        final OffHeapArray _edges = edges;
+        final EdgeArray _edges = EdgeArray.edges;
         final int[] _edgeBuckets = edgeBuckets;
         final int[] _edgeBucketCounts = edgeBucketCounts;
 

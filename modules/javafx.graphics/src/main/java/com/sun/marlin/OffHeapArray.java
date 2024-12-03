@@ -69,7 +69,7 @@ final class OffHeapArray  {
     private static final Arena ARENA = Arena.global();
     static MemorySegment memSeg;
 
-    static MemorySegment edgeMemSeg() {
+    private static MemorySegment edgeMemSeg() {
         return ARENA.allocate(EDGE_LAYOUT);
     }
     
@@ -101,7 +101,7 @@ final class OffHeapArray  {
     /**
      * Creates an off-heap memory segment capable of holding {@code count} number of edges.
      */
-    OffHeapArray(final Object parent, final long count) {
+    private OffHeapArray(final Object parent, final long count) {
         this.count = count;
         memSeg = ARENA.allocate(EDGE_LAYOUT, count);
 
@@ -119,7 +119,7 @@ final class OffHeapArray  {
         MarlinUtils.getCleaner().register(parent, this::free);
     }
 
-    void add(MemorySegment edgeMedSeg) {
+    private void add(MemorySegment edgeMedSeg) {
         // add edge segment
         index++;
     }
@@ -129,7 +129,7 @@ final class OffHeapArray  {
      * @param len new array length
      * @throws OutOfMemoryError if the allocation is refused by the system
      */
-    void resize(final long newCount) {
+    private void resize(final long newCount) {
         memSeg = memSeg.reinterpret(newCount * EDGE_LAYOUT.byteSize());
         count = newCount;
         
@@ -147,7 +147,7 @@ final class OffHeapArray  {
      * Frees the allocation in the memory segment.
      * NOTE: it's not possible to deallocate a memseg from the global arena!
      */
-    void free() {
+    private void free() {
         memSeg.fill((byte) 0);
         index = 0;
 
@@ -164,7 +164,7 @@ final class OffHeapArray  {
     /**
      * Fills the memory segment with the given value in order to be able to reuse it by another renderer.
      */
-    void fill(final byte val) {
+    private void fill(final byte val) {
         memSeg.fill(val);
         index = 0;
         

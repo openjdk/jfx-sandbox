@@ -210,11 +210,12 @@ public final class RendererContext extends ReentrantContext implements MarlinCon
         return rendererNoAA;
     }
 
-    OffHeapArray newOffHeapArray(final int initialCount) {
+    EdgeArray newOffHeapArray(final int initialCount) {
 //        if (DO_STATS) {
 //            stats.totalOffHeapInitial += initialSize;
 //        }
-        return new OffHeapArray(cleanerObj, initialCount);
+//        return new OffHeapArray(cleanerObj, initialCount);
+        return EdgeArray.allocate(initialCount);
     }
 
     ArrayCacheIntClean.Reference newCleanIntArrayRef(final int initialSize) {
@@ -236,7 +237,8 @@ public final class RendererContext extends ReentrantContext implements MarlinCon
     static final class RendererSharedMemory {
 
         // edges [ints] stored in off-heap memory
-        final OffHeapArray edges;
+//        final OffHeapArray edges;
+        final EdgeArray edges;
 
         // edgeBuckets ref (clean)
         final ArrayCacheIntClean.Reference edgeBuckets_ref;
