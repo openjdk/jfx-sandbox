@@ -52,7 +52,7 @@ import com.sun.webkit.dom.*;
  * so please be sure to use submit(Callable).</strong>
  */
 
-@Disabled
+@Disabled("JDK-8344596")
 public class DOMTest extends TestBase {
 
     @Test public void testGetSetId() {

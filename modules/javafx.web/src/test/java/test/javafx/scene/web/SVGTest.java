@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Timeout;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class SVGTest extends TestBase {
     /**
      * @test

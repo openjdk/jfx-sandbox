@@ -38,7 +38,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class BindingTest extends TestBase {
 
     @Test public void testWebView() {

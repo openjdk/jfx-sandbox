@@ -34,7 +34,7 @@ import javafx.scene.web.WebView;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class WebWorkerTest extends TestBase {
 
     private State getLoadState() {

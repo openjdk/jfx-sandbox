@@ -50,7 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.stream.Stream;
 
-@Disabled
+@Disabled("JDK-8344596")
 public final class FormControlsTest extends TestBase {
 
     private static final PrintStream ERR = System.err;

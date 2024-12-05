@@ -55,7 +55,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Timeout;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class MiscellaneousTest extends TestBase {
 
     @Test public void testNoEffectOnFollowRedirects() {

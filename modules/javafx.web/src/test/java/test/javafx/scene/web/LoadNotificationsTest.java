@@ -41,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class LoadNotificationsTest extends TestBase {
 
     Set<State> log = new HashSet<>();

@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class HistoryTest extends TestBase {
     WebHistory history = getEngine().getHistory();
 

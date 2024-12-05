@@ -46,7 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class CSSTest extends TestBase {
 
     private State getLoadState() {

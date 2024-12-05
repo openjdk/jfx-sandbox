@@ -38,7 +38,7 @@ import javafx.scene.web.WebView;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class WebViewTest extends TestBase {
     final static float SCALE = 1.78f;
     final static float ZOOM = 2.71f;

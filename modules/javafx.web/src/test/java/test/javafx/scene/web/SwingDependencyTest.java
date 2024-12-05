@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Test the Image to DataURL function
  */
-@Disabled
+@Disabled("JDK-8344596")
 public class SwingDependencyTest extends TestBase {
 
     private final PrintStream err = System.err;

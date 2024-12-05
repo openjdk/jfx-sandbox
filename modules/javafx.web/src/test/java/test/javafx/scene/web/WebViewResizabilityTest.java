@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
 
 
-@Disabled
+@Disabled("JDK-8344596")
 public class WebViewResizabilityTest extends TestBase {
 
     public @Test void testWebViewIsResizable() {

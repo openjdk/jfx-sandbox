@@ -37,7 +37,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import netscape.javascript.*;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class ScreenAndWindowTest extends TestBase {
 
     // called on FX thread

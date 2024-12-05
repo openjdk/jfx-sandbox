@@ -43,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Test the Image to DataURL function
  */
 
-@Disabled
+@Disabled("JDK-8344596")
 public class CanvasTest extends TestBase {
 
     private static final PrintStream ERR = System.err;

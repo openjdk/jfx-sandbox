@@ -41,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class HistoryStateTest extends TestBase {
     private static final CountDownLatch historyStateLatch = new CountDownLatch(3);
     final AtomicInteger historyListenerIndex = new AtomicInteger(-1);

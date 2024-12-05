@@ -98,6 +98,7 @@ typedef enum VertexInputIndex {
     MetalRingBuffer* dataRingBuffer;
     NSMutableArray*  transientBuffersForCB;
     NSMutableSet*    shadersUsedInCB;
+    NSUInteger meshIndexCount;
 
     MTLScissorRect scissorRect;
     bool isScissorEnabled;
@@ -164,6 +165,7 @@ typedef enum VertexInputIndex {
                       ofColors:(char const *)pSrcColors
                    vertexCount:(NSUInteger)numVertices;
 
+- (void) renderMeshView:(MetalMeshView*)meshView;
 - (void) resetProjViewMatrix;
 - (void) setProjViewMatrix:(bool)isOrtho
         m00:(float)m00 m01:(float)m01 m02:(float)m02 m03:(float)m03

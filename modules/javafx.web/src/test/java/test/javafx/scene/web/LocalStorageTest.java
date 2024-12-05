@@ -39,7 +39,7 @@ import java.io.IOException;
 import javafx.scene.web.WebView;
 import javafx.scene.web.WebEngine;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class LocalStorageTest extends TestBase {
 
     private static final File LOCAL_STORAGE_DIR = new File("build/localstorage");

@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 
-@Disabled
+@Disabled("JDK-8344596")
 public class PathContructorTest extends TestBase {
 
     @Test public void testCanvasPathConstructor() {

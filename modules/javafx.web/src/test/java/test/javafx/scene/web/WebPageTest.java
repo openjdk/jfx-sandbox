@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class WebPageTest extends TestBase {
 
     final static String PLAIN = "<html><head></head><body></body></html>";

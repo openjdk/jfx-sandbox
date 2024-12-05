@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.stream.Stream;
 
-@Disabled
+@Disabled("JDK-8344596")
 public final class SubresourceIntegrityTest extends TestBase {
 
     private File htmlFile;

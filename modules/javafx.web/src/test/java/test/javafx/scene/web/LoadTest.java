@@ -49,7 +49,7 @@ import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
 
 
-@Disabled
+@Disabled("JDK-8344596")
 public class LoadTest extends TestBase {
 
     private State getLoadState() {

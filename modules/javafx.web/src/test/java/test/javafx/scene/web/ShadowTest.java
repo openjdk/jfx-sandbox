@@ -37,7 +37,7 @@ import java.awt.image.BufferedImage;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class ShadowTest extends TestBase {
     /**
      * @test

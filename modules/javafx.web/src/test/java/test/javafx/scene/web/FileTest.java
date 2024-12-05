@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class FileTest extends TestBase {
     private final WebPage page = WebEngineShim.getPage(getEngine());
     private final String[] fileList = { new File("src/test/resources/test/html/HelloWorld.txt").getAbsolutePath() };

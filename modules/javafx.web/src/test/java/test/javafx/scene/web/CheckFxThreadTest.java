@@ -31,7 +31,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 
-@Disabled
+@Disabled("JDK-8344596")
 public class CheckFxThreadTest extends TestBase {
 
     @Test public void testWebEngineMethods() {

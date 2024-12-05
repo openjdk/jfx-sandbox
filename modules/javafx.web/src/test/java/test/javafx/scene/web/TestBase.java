@@ -49,7 +49,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.w3c.dom.Document;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class TestBase implements ChangeListener, InvalidationListener {
     private static final AtomicBoolean LOCK = new AtomicBoolean(false);
     private static final int INIT_TIMEOUT = 10000;

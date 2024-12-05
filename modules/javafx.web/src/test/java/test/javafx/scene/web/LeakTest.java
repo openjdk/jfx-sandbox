@@ -51,7 +51,7 @@ import org.w3c.dom.NodeList;
 import static org.junit.jupiter.api.Assertions.*;
 import test.util.memory.JMemoryBuddy;
 
-@Disabled
+@Disabled("JDK-8344596")
 public class LeakTest extends TestBase {
 
     private static final int SLEEP_TIME = 1000;

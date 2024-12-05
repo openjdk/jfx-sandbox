@@ -61,6 +61,7 @@
         isScissorEnabled = false;
         commitOnDraw = false;
         currentRenderEncoder = nil;
+        meshIndexCount = 0;
         linearSamplerDict = [[NSMutableDictionary alloc] init];
         nonLinearSamplerDict = [[NSMutableDictionary alloc] init];
         compositeMode = com_sun_prism_mtl_MTLContext_MTL_COMPMODE_SRCOVER; //default
@@ -345,6 +346,8 @@
 - (void) endCurrentRenderEncoder
 {
     if (currentRenderEncoder != nil) {
+        CTX_LOG(@"MetalContext.endCurrentRenderEncoder()");
+        meshIndexCount = 0;
         [currentRenderEncoder endEncoding];
         [currentRenderEncoder release];
         currentRenderEncoder = nil;
@@ -577,6 +580,20 @@
     }
 
     CTX_LOG(@"<<<< MetalContext.clearRTT()");
+}
+
+- (void) renderMeshView:(MetalMeshView*)meshView
+{
+    MetalMesh* mesh = [meshView getMesh];
+    NSUInteger indexCount = [mesh getNumIndices];
+    CTX_LOG(@"MetalContext.renderMeshView() indexCount : %lu", indexCount);
+    meshIndexCount += indexCount;
+    CTX_LOG(@"MetalContext.renderMeshView() meshIndexCount : %lu", meshIndexCount);
+    if (meshIndexCount >= MESH_INDEX_LIMIT) {
+        CTX_LOG(@"MetalContext.renderMeshView() meshIndexCount is hitting limit");
+        [self endCurrentRenderEncoder];
+    }
+    [meshView render];
 }
 
 - (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height
@@ -1481,8 +1498,9 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRenderMeshView
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
 {
     CTX_LOG(@"MTLContext_nRenderMeshView");
+    MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
-    [meshView render];
+    [pCtx renderMeshView:meshView];
     return;
 }
 

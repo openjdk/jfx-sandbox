@@ -53,7 +53,7 @@ import org.w3c.dom.NodeList;
 
 // NOTE: We cannot use TestBase since we need multiple WebView instances, and
 // greater control over the lifecycle.
-@Disabled
+@Disabled("JDK-8344596")
 public class EventListenerLeakTest {
 
     // List of WeakReferences to EventListener objects to count which are active
