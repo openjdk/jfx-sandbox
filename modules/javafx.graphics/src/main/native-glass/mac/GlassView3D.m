@@ -170,22 +170,22 @@
 
     if (jproperties != NULL)
     {
-        jobject contextPtrKey = (*env)->NewStringUTF(env, "contextPtr");
-        jobject contextPtrValue = (*env)->CallObjectMethod(env, jproperties, jMapGetMethod, contextPtrKey);
-        //NSLog(@"---- contextPtrKey = %p", contextPtrKey);
-        //NSLog(@"---- contextPtrValue = %p", contextPtrValue);
+        jobject mtlCommandQueueKey = (*env)->NewStringUTF(env, "mtlCommandQueue");
+        jobject mtlCommandQueueValue = (*env)->CallObjectMethod(env, jproperties, jMapGetMethod, mtlCommandQueueKey);
+        //NSLog(@"---- mtlCommandQueueKey = %p", mtlCommandQueueKey);
+        //NSLog(@"---- mtlCommandQueueValue = %p", mtlCommandQueueValue);
         GLASS_CHECK_EXCEPTION(env);
-        if (contextPtrValue != NULL)
+        if (mtlCommandQueueValue != NULL)
         {
-            jlong jcontextPtr = (*env)->CallLongMethod(env, contextPtrValue, jLongValueMethod);
+            jlong jmtlQueuePtr = (*env)->CallLongMethod(env, mtlCommandQueueValue, jLongValueMethod);
             GLASS_CHECK_EXCEPTION(env);
-            if (jcontextPtr != 0)
+            if (jmtlQueuePtr != 0)
             {
-                //NSLog(@"--- GLASS metal command queue ptr = %ld", jcontextPtr);
+                //NSLog(@"--- GLASS metal command queue ptr = %ld", jmtlQueuePtr);
 
                 //TODO: MTL: This enables sharing of MTLCommandQueue between PRISM and GLASS, if needed.
                 //Note : Currently, PRISM and GLASS create their own dedicated MTLCommandQueue
-                mtlCommandQueuePtr = jcontextPtr;
+                mtlCommandQueuePtr = jmtlQueuePtr;
             }
         }
     }

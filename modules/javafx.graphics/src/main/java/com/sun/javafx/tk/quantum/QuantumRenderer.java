@@ -154,19 +154,6 @@ final class QuantumRenderer extends ThreadPoolExecutor  {
         final Runnable factoryCreator = () -> {
             ResourceFactory factory = GraphicsPipeline.getDefaultResourceFactory();
             assert factory != null;
-
-                // This enables sharing of MTLCommandQueue between PRISM and GLASS.
-                Map device = GraphicsPipeline.getPipeline().getDeviceDetails();
-                if (device == null) {
-                    device = new HashMap();
-                }
-                device.put(com.sun.glass.ui.View.Capability.kHiDPIAwareKey,
-                           PrismSettings.allowHiDPIScaling);
-                Map map =  Application.getDeviceDetails();
-                if (map != null) {
-                    device.putAll(map);
-                }
-                Application.setDeviceDetails(device);
         };
 
         final RenderJob job = new RenderJob(factoryCreator, createDone);

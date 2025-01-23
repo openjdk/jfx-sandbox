@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,6 +68,8 @@ public class MTLPipeline extends GraphicsPipeline {
     @Override
     public boolean init() {
         MTLLog.Debug("MTLPipeline.init()");
+        HashMap devDetails = new HashMap();
+        setDeviceDetails(devDetails);
         return true;
     }
 
@@ -91,9 +93,10 @@ public class MTLPipeline extends GraphicsPipeline {
             mtlResourceFactory = new MTLResourceFactory(screen);
 
             // This enables sharing of MTLCommandQueue between PRISM and GLASS
-            HashMap devDetails = new HashMap();
-            devDetails.put("contextPtr", mtlResourceFactory.getContext().getMetalCommandQueue());
-            setDeviceDetails(devDetails);
+            HashMap devDetails = (HashMap) MTLPipeline.
+                getInstance().getDeviceDetails();
+            devDetails.put("mtlCommandQueue",
+                mtlResourceFactory.getContext().getMetalCommandQueue());
         }
         return mtlResourceFactory;
     }
