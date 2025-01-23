@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,11 +41,10 @@ typedef struct CLEAR_VS_OUTPUT
 } CLEAR_VS_OUTPUT;
 
 [[vertex]] CLEAR_VS_OUTPUT clearVF(const    uint            v_id [[ vertex_id ]],
-                                   constant CLEAR_VS_INPUT* v_in [[ buffer(0) ]],
-                                   constant float4x4& mvp_matrix [[ buffer(1) ]])
+                                   constant CLEAR_VS_INPUT* v_in [[ buffer(0) ]])
 {
     CLEAR_VS_OUTPUT out;
-    out.position = vector_float4(v_in[v_id].position.xy, 0.0, 1.0) * mvp_matrix;
+    out.position = vector_float4(v_in[v_id].position.xy, 0.0, 1.0);
     return out;
 }
 

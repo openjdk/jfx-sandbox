@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,13 +85,6 @@
         pixelBuffer = [device newBufferWithLength:4 options:MTLResourceStorageModeShared];
 
         // clearing rtt related initialization
-        identityMatrixBuf = [device newBufferWithLength:sizeof(simd_float4x4)
-                                                options:MTLResourceStorageModePrivate];
-        id<MTLBuffer> tMatBuf = [self getTransientBufferWithLength:sizeof(simd_float4x4)];
-        simd_float4x4* identityMatrix = (simd_float4x4*)tMatBuf.contents;
-
-        *identityMatrix = matrix_identity_float4x4;
-
         clearEntireRttVerticesBuf = [device newBufferWithLength:sizeof(CLEAR_VS_INPUT) * 4
                                                         options:MTLResourceStorageModePrivate];
         id<MTLBuffer> tclearVertBuf = [self getTransientBufferWithLength:sizeof(CLEAR_VS_INPUT) * 4];
@@ -132,12 +125,6 @@
                                toBuffer:clearEntireRttVerticesBuf
                       destinationOffset:(NSUInteger)0
                                    size:tclearVertBuf.length];
-
-            [blitEncoder copyFromBuffer:tMatBuf
-                           sourceOffset:(NSUInteger)0
-                               toBuffer:identityMatrixBuf
-                      destinationOffset:(NSUInteger)0
-                                   size:tMatBuf.length];
 
             [blitEncoder endEncoding];
         }
@@ -546,19 +533,11 @@
     if (isScissorEnabled) {
         CTX_LOG(@"     MetalContext.clearRTT()     clearing scissor rect");
 
-        [renderEncoder setVertexBytes:&mvpMatrix
-                               length:sizeof(mvpMatrix)
-                              atIndex:VertexInputMatrixMVP];
-
         [renderEncoder setVertexBytes:clearScissorRectVertices
                                length:sizeof(clearScissorRectVertices)
                               atIndex:VertexInputIndexVertices];
     } else {
         CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
-
-        [renderEncoder setVertexBuffer:identityMatrixBuf
-                                offset:0
-                               atIndex:VertexInputMatrixMVP];
 
         [renderEncoder setVertexBuffer:clearEntireRttVerticesBuf
                                 offset:0
@@ -620,14 +599,22 @@
         scissorRect.height = height;
         isScissorEnabled = true;
 
-        clearScissorRectVertices[0].position.x = scissorRect.x;
-        clearScissorRectVertices[0].position.y = scissorRect.y;
-        clearScissorRectVertices[1].position.x = scissorRect.x;
-        clearScissorRectVertices[1].position.y = scissorRect.y + scissorRect.height;
-        clearScissorRectVertices[2].position.x = scissorRect.x + scissorRect.width;
-        clearScissorRectVertices[2].position.y = scissorRect.y;
-        clearScissorRectVertices[3].position.x = scissorRect.x + scissorRect.width;
-        clearScissorRectVertices[3].position.y = scissorRect.y + scissorRect.height;
+        // Create device space (-1, 1) coordinates of scissor rect.
+        float halfWidth  = (float)currRtt.width  / 2.0f;
+        float halfHeight = (float)currRtt.height / 2.0f;
+        float x1 =   (scissorRect.x - halfWidth)  / halfWidth;
+        float y1 = - (scissorRect.y - halfHeight) / halfHeight;
+        float x2 =   ((scissorRect.x + scissorRect.width)  - halfWidth)  / halfWidth;
+        float y2 = - ((scissorRect.y + scissorRect.height) - halfHeight) / halfHeight;
+
+        clearScissorRectVertices[0].position.x = x1;
+        clearScissorRectVertices[0].position.y = y1;
+        clearScissorRectVertices[1].position.x = x1;
+        clearScissorRectVertices[1].position.y = y2;
+        clearScissorRectVertices[2].position.x = x2;
+        clearScissorRectVertices[2].position.y = y1;
+        clearScissorRectVertices[3].position.x = x2;
+        clearScissorRectVertices[3].position.y = y2;
     }
     CTX_LOG(@"<<<< MetalContext.setClipRect()");
 }
@@ -899,10 +886,6 @@
         [shadersUsedInCB removeAllObjects];
         [shadersUsedInCB release];
         shadersUsedInCB = nil;
-    }
-    if (identityMatrixBuf != nil) {
-        [identityMatrixBuf release];
-        identityMatrixBuf = nil;
     }
 
     if (clearEntireRttVerticesBuf != nil) {
