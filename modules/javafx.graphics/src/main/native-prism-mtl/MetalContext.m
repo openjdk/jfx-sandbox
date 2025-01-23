@@ -814,6 +814,15 @@
     return isScissorEnabled;
 }
 
+- (bool) isCurrentRTT:(MetalRTTexture*)rttPtr
+{
+    if (rttPtr == rtt) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 // TODO: MTL: This was copied from GlassHelper, and could be moved to a utility class.
 + (NSString*) nsStringWithJavaString:(jstring)javaString withEnv:(JNIEnv*)env
 {
@@ -1502,6 +1511,19 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRenderMeshView
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     [pCtx renderMeshView:meshView];
     return;
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nIsCurrentRTT
+ * Signature: (JJ[[)Z
+ */
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nIsCurrentRTT
+  (JNIEnv *env, jclass jClass, jlong ctx, jlong texPtr)
+{
+    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
+    MetalRTTexture *rttPtr = (MetalRTTexture *)jlong_to_ptr(texPtr);
+    return [pCtx isCurrentRTT:rttPtr];
 }
 
 /*

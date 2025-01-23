@@ -167,19 +167,14 @@ public class MTLSwapChain
                 // context current for the hardware backbuffer before we start
                 // attempting to use the FBO associated with the
                 // RTTexture "backbuffer"...
-                ES2Graphics.create(context, this);
+                MTLGraphics.create(pContext, this);
             }*/
             w = pState.getRenderWidth();
             h = pState.getRenderHeight();
 
             long pTex = pState.getNativeFrameBuffer();
 
-            MTLVramPool pool = MTLVramPool.getInstance();
-            long size = pool.estimateRTTextureSize(w, h, false);
-            if (!pool.prepareForAllocation(size)) {
-                return null;
-            }
-            stableBackbuffer = (MTLRTTexture)MTLRTTexture.create(getContext(), pTex, w, h, size);
+            stableBackbuffer = (MTLRTTexture)MTLRTTexture.create(getContext(), pTex, w, h, 0);
             if (PrismSettings.dirtyOptsEnabled) {
                 stableBackbuffer.contentsUseful();
             }

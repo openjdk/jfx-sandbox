@@ -28,14 +28,16 @@ package com.sun.prism.mtl;
 import com.sun.prism.impl.DisposerManagedResource;
 
 public class MTLTextureResource<T extends MTLTextureData> extends DisposerManagedResource<T> {
-    MTLTextureResource(T resource) {
+    boolean canDispose;
+    MTLTextureResource(T resource, boolean canDispose) {
         super(resource, MTLVramPool.getInstance(), resource);
+        this.canDispose = canDispose;
         MTLLog.Debug("MTLTextureResource()");
     }
 
     @Override
     public void free() {
-        if (resource != null) {
+        if (resource != null && canDispose) {
             resource.dispose();
         }
     }

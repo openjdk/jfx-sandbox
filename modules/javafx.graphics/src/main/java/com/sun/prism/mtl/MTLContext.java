@@ -421,6 +421,7 @@ public class MTLContext extends BaseShaderContext {
 
     private static native void nRelease(long pContext);
 
+    private static native boolean nIsCurrentRTT(long pContext, long texPtr);
     private static native void nDisposeShader(long nMetalShaderRef);
 
     @Override
@@ -626,6 +627,10 @@ public class MTLContext extends BaseShaderContext {
 
     public void disposeShader(long nMetalShaderRef) {
         nDisposeShader(nMetalShaderRef);
+    }
+
+    public boolean isCurrentRTT(long texPtr) {
+        return nIsCurrentRTT(pContext, texPtr);
     }
 
     @Override

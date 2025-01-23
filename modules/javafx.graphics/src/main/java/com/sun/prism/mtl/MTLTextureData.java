@@ -30,8 +30,8 @@ import com.sun.prism.impl.Disposer;
 import java.util.Objects;
 
 public class MTLTextureData implements Disposer.Record {
-    private final MTLContext mtlContext;
-    private long pTexture;
+    protected final MTLContext mtlContext;
+    protected long pTexture;
     private long size;
 
     // MTLBuffer used to store the pixel data of this texture
@@ -66,6 +66,7 @@ public class MTLTextureData implements Disposer.Record {
     @Override
     public void dispose() {
         if (pTexture != 0L) {
+            MTLLog.Debug("MTLTextureData.dispose()");
             MTLResourceFactory.releaseTexture(mtlContext, pTexture);
             pTexture = 0L;
         }

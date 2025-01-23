@@ -198,6 +198,7 @@ typedef enum VertexInputIndex {
 - (MTLScissorRect) getScissorRect;
 - (bool) isDepthEnabled;
 - (bool) isScissorEnabled;
+- (bool) isCurrentRTT:(MetalRTTexture*)rttPtr;
 - (void) dealloc;
 - (id<MTLSamplerState>) getSampler:(bool)isLinear wrapMode:(int)wrapMode;
 - (id<MTLSamplerState>) createSampler:(bool)isLinear wrapMode:(int)wrapMode;

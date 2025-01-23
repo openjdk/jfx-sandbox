@@ -62,7 +62,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLResourceFactory_nReleaseTexture
         MetalTexture* pTex = (MetalTexture*) jlong_to_ptr(pTexture);
 
         METAL_LOG(@"-> MTLResourceFactory_nReleaseTexture : Releasing MetalTexture = %lu and refCount = %d",
-            pTexture, CFGetRetainCount(pTexture));
+            [pTexture getTexture], CFGetRetainCount(pTexture));
 
         [pTex release];
         pTex = nil;

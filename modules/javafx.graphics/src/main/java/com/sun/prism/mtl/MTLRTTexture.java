@@ -85,7 +85,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
                 contentWidth, contentHeight,
                 wrapMode, msaa);
         MTLTextureData textData = new MTLRTTextureData(context, nPtr, size);
-        MTLTextureResource resource = new MTLTextureResource(textData);
+        MTLTextureResource resource = new MTLTextureResource(textData, true);
         return new MTLRTTexture(context, resource, wrapMode,
                 physicalWidth, physicalHeight,
                 0, 0,
@@ -96,8 +96,8 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     static MTLRTTexture create(MTLContext context, long pTex, int width, int height, long size) {
         long nPtr = nCreateRT2(context.getContextHandle(), pTex, width, height);
 
-        MTLTextureData textData = new MTLRTTextureData(context, nPtr, size);
-        MTLTextureResource resource = new MTLTextureResource(textData);
+        MTLTextureData textData = new MTLFBOTextureData(context, nPtr, size);
+        MTLTextureResource resource = new MTLTextureResource(textData, false);
         //return new MTLRTTexture(context, resource);
 
         return new MTLRTTexture(context, resource, WrapMode.CLAMP_NOT_NEEDED,

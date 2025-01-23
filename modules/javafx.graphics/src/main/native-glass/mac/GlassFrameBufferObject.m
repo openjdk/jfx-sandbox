@@ -40,9 +40,8 @@
 {
     if (self->_texture != 0)
     {
-        // TODO: MTL: this is owned by prism in case of PresentingPainter - hence do not release it.
-        // In case of UploadingPainter, this will probably leak. Fix is needed.
-        // [self->_texture release]; 
+        LOG("GlassFrameBufferObject releasing FBO :%lu", self->_texture);
+        [self->_texture release];
         self->_texture = 0;
     }
 }
