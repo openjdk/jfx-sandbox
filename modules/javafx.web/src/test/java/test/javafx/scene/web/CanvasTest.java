@@ -35,15 +35,12 @@ import javax.imageio.ImageIO;
 
 import netscape.javascript.JSObject;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Test the Image to DataURL function
  */
-
-@Disabled("JDK-8344596")
 public class CanvasTest extends TestBase {
 
     private static final PrintStream ERR = System.err;

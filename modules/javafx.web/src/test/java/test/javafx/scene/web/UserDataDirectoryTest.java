@@ -60,9 +60,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Disabled;
 
-@Disabled("JDK-8344596")
 public class UserDataDirectoryTest extends TestBase {
 
     private static final File FOO = new File("build/foo");

@@ -29,13 +29,11 @@ import java.io.PrintStream;
 
 import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /**
  * Test the Image to DataURL function
  */
-@Disabled("JDK-8344596")
 public class SwingDependencyTest extends TestBase {
 
     private final PrintStream err = System.err;

@@ -33,7 +33,6 @@ import netscape.javascript.JSException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
 
-// @Disabled("JDK-8344596")
 @Disabled("JDK-8280421")
 public class IrresponsiveScriptTest extends TestBase {
 

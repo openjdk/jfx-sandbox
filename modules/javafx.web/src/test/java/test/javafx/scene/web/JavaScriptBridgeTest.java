@@ -29,12 +29,10 @@ import javafx.scene.web.WebEngine;
 import netscape.javascript.JSException;
 import netscape.javascript.JSObject;
 import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.w3c.dom.Document;
 
-@Disabled("JDK-8344596")
 public class JavaScriptBridgeTest extends TestBase {
 
     private void bind(String name, Object javaObject) {

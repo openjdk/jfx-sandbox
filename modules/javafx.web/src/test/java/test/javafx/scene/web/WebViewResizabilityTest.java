@@ -31,10 +31,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Disabled;
 
 
-@Disabled("JDK-8344596")
 public class WebViewResizabilityTest extends TestBase {
 
     public @Test void testWebViewIsResizable() {

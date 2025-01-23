@@ -37,7 +37,6 @@ import javafx.scene.Node;
 import javafx.scene.web.WebEngineShim;
 
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -50,7 +49,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.stream.Stream;
 
-@Disabled("JDK-8344596")
 public final class FormControlsTest extends TestBase {
 
     private static final PrintStream ERR = System.err;

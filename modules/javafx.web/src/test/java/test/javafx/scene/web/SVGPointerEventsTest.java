@@ -31,10 +31,8 @@ import javafx.scene.web.WebEngineShim;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-@Disabled("JDK-8344596")
 public class SVGPointerEventsTest extends TestBase {
 
     /**

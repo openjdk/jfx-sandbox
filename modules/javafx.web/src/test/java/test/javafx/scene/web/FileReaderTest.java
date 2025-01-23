@@ -46,9 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import netscape.javascript.JSObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Disabled;
 
-@Disabled("JDK-8344596")
 public class FileReaderTest extends TestBase {
     private final WebPage page = WebEngineShim.getPage(getEngine());
     private String[] fileList = { new File("src/test/resources/test/html/HelloWorld.txt").getAbsolutePath() };

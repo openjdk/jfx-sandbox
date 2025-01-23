@@ -35,9 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 
-@Disabled("JDK-8344596")
 public class DebuggerTest extends TestBase {
 
     @Test

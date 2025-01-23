@@ -32,14 +32,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.io.IOException;
 import javafx.scene.web.WebView;
 import javafx.scene.web.WebEngine;
 
-@Disabled("JDK-8344596")
 public class LocalStorageTest extends TestBase {
 
     private static final File LOCAL_STORAGE_DIR = new File("build/localstorage");

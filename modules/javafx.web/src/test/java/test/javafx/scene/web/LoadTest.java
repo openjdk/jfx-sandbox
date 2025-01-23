@@ -40,7 +40,6 @@ import java.util.concurrent.CountDownLatch;
 import javafx.concurrent.Worker.State;
 import javafx.scene.web.WebEngine;
 import netscape.javascript.JSObject;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -49,7 +48,6 @@ import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
 
 
-@Disabled("JDK-8344596")
 public class LoadTest extends TestBase {
 
     private State getLoadState() {

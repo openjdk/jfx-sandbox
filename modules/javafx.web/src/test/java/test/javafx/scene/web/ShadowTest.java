@@ -28,7 +28,6 @@ package test.javafx.scene.web;
 import com.sun.webkit.WebPage;
 import com.sun.webkit.WebPageShim;
 import javafx.scene.web.WebEngineShim;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.awt.Color;
@@ -37,7 +36,6 @@ import java.awt.image.BufferedImage;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@Disabled("JDK-8344596")
 public class ShadowTest extends TestBase {
     /**
      * @test
