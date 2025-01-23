@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -166,7 +166,7 @@
     }*/
 
     //CGLContextObj clientCGL = NULL;
-    //BOOL isSwPipe = NO;
+    BOOL isSwPipe = NO;
 
     if (jproperties != NULL)
     {
@@ -190,7 +190,12 @@
         }
     }
 
-    GlassLayer3D *layer = [[GlassLayer3D alloc] init:mtlCommandQueuePtr];
+    if (mtlCommandQueuePtr == 0l) {
+        LOG("GlassView3D _initialize3dWithJproperties : using software pipeline");
+        isSwPipe = YES;
+    }
+
+    GlassLayer3D *layer = [[GlassLayer3D alloc] init:mtlCommandQueuePtr withIsSwPipe:isSwPipe];
 
     // https://developer.apple.com/library/mac/documentation/Cocoa/Reference/ApplicationKit/Classes/nsview_Class/Reference/NSView.html#//apple_ref/occ/instm/NSView/setWantsLayer:
     // the order of the following 2 calls is important: here we indicate we want a layer-hosting view

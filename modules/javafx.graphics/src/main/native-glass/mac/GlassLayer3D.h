@@ -35,7 +35,8 @@
     id<MTLCommandQueue> _blitCommandQueue;
 }
 
-- (id) init:(long)mtlCommandQueuePtr;
+- (id) init:(long)mtlCommandQueuePtr
+       withIsSwPipe:(BOOL)isSwPipe;
 - (void)notifyScaleFactorChanged:(CGFloat)scale;
 - (void) updateOffscreenTexture:(void*)pixels
                      layerWidth:(int)width

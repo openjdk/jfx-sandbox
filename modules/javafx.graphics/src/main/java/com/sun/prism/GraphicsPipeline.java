@@ -200,10 +200,11 @@ public abstract class GraphicsPipeline {
         // to be specified with prism.order in ea release.
         // This change should be reverted in future.
         if (PlatformUtil.isMac()) {
-            if (!PrismSettings.tryOrder.contains("mtl")) {
-                System.err.println("*** This ea release supports only mtl pipeline, as default.");
-                System.err.println("*** Other pipelines(es2, sw) are not supported.");
-                System.err.println("*** Use only: -Dprism.order=mtl");
+            if (!(PrismSettings.tryOrder.contains("mtl") ||
+                 (PrismSettings.tryOrder.contains("sw")))) {
+                System.err.println("*** This ea release supports only mtl & sw pipeline, mtl pipeline is default.");
+                System.err.println("*** Other pipelines(es2) are not supported.");
+                System.err.println("*** Use only: -Dprism.order=mtl or -Dprism.order=sw");
                 return null;
             }
         }

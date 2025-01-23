@@ -40,6 +40,7 @@
 static NSArray *allModes = nil;
 
 - (id) init:(long)mtlCommandQueuePtr
+       withIsSwPipe:(BOOL)isSwPipe
 {
     self = [super init];
     isHiDPIAware = true; // TODO : pass in this from view
@@ -61,16 +62,18 @@ static NSArray *allModes = nil;
     [self setAnchorPoint:CGPointMake(0.0f, 0.0f)];
 
     self.device = MTLCreateSystemDefaultDevice();
-    self->_blitCommandQueue = (id<MTLCommandQueue>)(jlong_to_ptr(mtlCommandQueuePtr));
-    // self->_blitCommandQueue = [self.device newCommandQueue];
 
     self.pixelFormat = MTLPixelFormatBGRA8Unorm;
     self.framebufferOnly = NO;
     self.displaySyncEnabled = NO; // to support FPS faster than 60fps (-Djavafx.animation.fullspeed=true)
     self.opaque = NO; //to support shaped window
 
-
-    self->_painterOffscreen = [[GlassOffscreen alloc] initWithContext:nil andIsSwPipe:true];
+    if (!isSwPipe) {
+        self->_blitCommandQueue = (id<MTLCommandQueue>)(jlong_to_ptr(mtlCommandQueuePtr));
+    } else {
+        self->_blitCommandQueue = [self.device newCommandQueue];
+    }
+    self->_painterOffscreen = [[GlassOffscreen alloc] initWithContext:nil andIsSwPipe:isSwPipe];
     [self->_painterOffscreen setLayer:self];
 
     if (allModes == nil) {
