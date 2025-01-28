@@ -31,27 +31,6 @@
 namespace D3D12 {
 namespace Internal {
 
-void ResourceManager::UpdateTextureDescriptorTable(const DescriptorData& dtable)
-{
-    uint32_t usedTextures = Constants::MAX_TEXTURE_UNITS;
-    while (usedTextures > 0 && !mTextures[usedTextures - 1])
-    {
-        usedTextures--;
-    }
-
-    // should not happen
-    if (!dtable && usedTextures != 0)
-    {
-        D3D12NI_LOG_ERROR("Descriptor Table is NULL, but we have textures we need to use");
-        return;
-    }
-
-    for (uint32_t i = 0; i < usedTextures; ++i)
-    {
-        if (mTextures[i]) mTextures[i]->WriteToDescriptor(dtable.CPU(i));
-    }
-}
-
 ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mPixelShader()
@@ -97,16 +76,24 @@ ResourceManager::~ResourceManager()
 // Assumes it is called only if attached shader resources change or we switch to a new Command List
 void ResourceManager::PrepareResources()
 {
-    mVertexShader->PrepareShaderResources(mCBufferAllocator, mDescriptorAllocator, mCBVCreator);
-    mPixelShader->PrepareShaderResources(mCBufferAllocator, mDescriptorAllocator, mCBVCreator);
-
-    UpdateTextureDescriptorTable(mPixelShader->GetTextureDescriptorTable());
+    mVertexShader->PrepareShaderResources(mCBufferAllocator, mDescriptorAllocator, mCBVCreator, mTextures);
+    mPixelShader->PrepareShaderResources(mCBufferAllocator, mDescriptorAllocator, mCBVCreator, mTextures);
 }
 
 void ResourceManager::ApplyResources(const D3D12GraphicsCommandListPtr& commandList) const
 {
     mVertexShader->ApplyShaderResources(commandList);
     mPixelShader->ApplyShaderResources(commandList);
+}
+
+void ResourceManager::PrepareComputeResources()
+{
+    mComputeShader->PrepareShaderResources(mCBufferAllocator, mDescriptorAllocator, mCBVCreator, mTextures);
+}
+
+void ResourceManager::ApplyComputeResources(const D3D12GraphicsCommandListPtr& commandList) const
+{
+    mComputeShader->ApplyShaderResources(commandList);
 }
 
 void ResourceManager::ClearTextureUnit(uint32_t slot)
@@ -135,6 +122,11 @@ void ResourceManager::SetVertexShader(const NIPtr<Shader>& shader)
 void ResourceManager::SetPixelShader(const NIPtr<Shader>& shader)
 {
     mPixelShader = shader;
+}
+
+void ResourceManager::SetComputeShader(const NIPtr<Shader>& shader)
+{
+    mComputeShader = shader;
 }
 
 void ResourceManager::SetTexture(uint32_t slot, const NIPtr<NativeTexture>& tex)

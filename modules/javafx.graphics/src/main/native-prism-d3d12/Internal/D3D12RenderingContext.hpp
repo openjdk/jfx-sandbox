@@ -60,10 +60,12 @@ class RenderingContext
     NIPtr<NativeDevice> mNativeDevice;
     RenderingContextState mState;
 
+    // Graphics Pipeline
     IndexBufferRenderingParameter mIndexBuffer;
     VertexBufferRenderingParameter mVertexBuffer;
     DescriptorHeapRenderingStep mDescriptorHeap;
     PipelineStateRenderingParameter mPipelineState;
+    RootSignatureRenderingParameter mRootSignature;
     PrimitiveTopologyRenderingParameter mPrimitiveTopology;
     RenderTargetRenderingParameter mRenderTarget;
     ScissorRenderingParameter mScissor; // used when explicitly set by updateClipRect()
@@ -78,6 +80,11 @@ class RenderingContext
         else return mDefaultScissor;
     }
 
+    // Compute Pipeline
+    ComputePipelineStateRenderingParameter mComputePipelineState;
+    ComputeRootSignatureRenderingParameter mComputeRootSignature;
+    ComputeResourceRenderingStep mComputeResources;
+
 public:
     RenderingContext(const NIPtr<NativeDevice>& nativeDevice);
     ~RenderingContext() = default;
@@ -85,6 +92,7 @@ public:
     bool Init();
 
     void Apply();
+    void ApplyCompute();
     void EnsureBoundTextureStates(D3D12_RESOURCE_STATES state);
     void Clear(float r, float g, float b, float a);
 
@@ -103,9 +111,14 @@ public:
     void SetFillMode(D3D12_FILL_MODE mode);
     void SetVertexShader(const NIPtr<Shader>& vertexShader);
     void SetPixelShader(const NIPtr<Shader>& pixelShader);
+    void SetComputeShader(const NIPtr<Shader>& computeShader);
 
     void ClearAppliedFlags();
+
+    // below functions only clear ResourceManager applied flags
+    // this is used ex. when JFX wants to use the same pipeline but changes a Shader constant
     void ClearResourcesApplied();
+    void ClearComputeResourcesApplied();
 };
 
 } // namespace Internal

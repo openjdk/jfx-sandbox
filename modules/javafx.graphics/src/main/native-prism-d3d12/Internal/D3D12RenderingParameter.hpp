@@ -169,6 +169,9 @@ public:
     }
 };
 
+
+// Graphics parameters //
+
 class IndexBufferRenderingParameter: public RenderingParameter<D3D12_INDEX_BUFFER_VIEW>
 {
     void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
@@ -194,25 +197,18 @@ class DescriptorHeapRenderingStep: public RenderingStep
     }
 };
 
-class PipelineStateRenderingParameter: public RenderingParameter<PSOParameters>
+class RootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr>
 {
     void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
     {
-        switch (mParameter.pixelShader->GetMode())
-        {
-        case ShaderPipelineMode::UI_2D:
-        {
-            NIPtr<NativeShader> niShader = std::dynamic_pointer_cast<NativeShader>(mParameter.pixelShader);
-            commandList->SetGraphicsRootSignature(niShader->GetRootSignature().Get());
-            break;
-        }
-        case ShaderPipelineMode::PHONG_3D:
-        {
-            commandList->SetGraphicsRootSignature(state.PSOManager.GetPhongRootSignature().Get());
-            break;
-        }
-        }
+        commandList->SetGraphicsRootSignature(mParameter.Get());
+    }
+};
 
+class PipelineStateRenderingParameter: public RenderingParameter<GraphicsPSOParameters>
+{
+    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
+    {
         const D3D12PipelineStatePtr& pso = state.PSOManager.GetPSO(mParameter);
         commandList->SetPipelineState(pso.Get());
     }
@@ -370,6 +366,45 @@ class ViewportRenderingParameter: public RenderingParameter<D3D12_VIEWPORT>
     void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
     {
         commandList->RSSetViewports(1, &mParameter);
+    }
+};
+
+
+// Compute parameters //
+
+class ComputePipelineStateRenderingParameter: public RenderingParameter<ComputePSOParameters>
+{
+    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state)
+    {
+        commandList->SetPipelineState(state.PSOManager.GetPSO(mParameter).Get());
+    }
+
+public:
+    void SetComputeShader(const NIPtr<Shader>& shader)
+    {
+        mParameter.shader = shader;
+        FlagSet();
+    }
+};
+
+class ComputeRootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr>
+{
+    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
+    {
+        commandList->SetComputeRootSignature(mParameter.Get());
+    }
+};
+
+class ComputeResourceRenderingStep: public RenderingStep
+{
+    void PrepareStep(RenderingContextState& state) override final
+    {
+        state.resourceManager.PrepareComputeResources();
+    }
+
+    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
+    {
+        state.resourceManager.ApplyComputeResources(commandList);
     }
 };
 

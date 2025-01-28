@@ -2615,6 +2615,7 @@ project(":graphics") {
             inputs.file "src/main/native-prism-d3d12/hlsl6/Mtl1PS.hlsl"
             inputs.file "src/main/native-prism-d3d12/hlsl6/Mtl1VS.hlsl"
             inputs.file "src/main/native-prism-d3d12/hlsl6/PassThroughVS.hlsl"
+            inputs.file "src/main/native-prism-d3d12/hlsl6/MipmapGenCS.hlsl"
             outputs.dir "$buildDir/hlsl6/Native"
             description = "Generate D3D12 Phong shaders from HLSL 6 files"
             doLast {
@@ -2622,8 +2623,10 @@ project(":graphics") {
                 def PS_3D_SRC = file("src/main/native-prism-d3d12/hlsl6/Mtl1PS.hlsl")
                 def VS_3D_SRC = file("src/main/native-prism-d3d12/hlsl6/Mtl1VS.hlsl")
                 def PASSTHROUGH_VS_SRC = file("src/main/native-prism-d3d12/hlsl6/PassThroughVS.hlsl")
+                def MIPMAP_GEN_CS_SRC = file("src/main/native-prism-d3d12/hlsl6/MipmapGenCS.hlsl")
                 def jobs = [
                         ["$DXC", "/T", "vs_6_0", "/Fo", "$buildDir/hlsl6/Native/PassThroughVS.cso", "$PASSTHROUGH_VS_SRC"],
+                        ["$DXC", "/T", "cs_6_0", "/Fo", "$buildDir/hlsl6/Native/MipmapGenCS.cso", "$MIPMAP_GEN_CS_SRC"],
                         ["$DXC", "/T", "ps_6_0", "/Fo", "$buildDir/hlsl6/Native/Mtl1PS.cso", "/DSpec=0", "/DSType=0", "$PS_3D_SRC"],
                         ["$DXC", "/T", "ps_6_0", "/Fo", "$buildDir/hlsl6/Native/Mtl1PS_i.cso", "/DSpec=0", "/DSType=0", "/DIllumMap=1", "$PS_3D_SRC"],
                         ["$DXC", "/T", "ps_6_0", "/Fo", "$buildDir/hlsl6/Native/Mtl1PS_s1n.cso", "/DSpec=1", "/DSType=0", "$PS_3D_SRC"],

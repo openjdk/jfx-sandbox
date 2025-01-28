@@ -27,7 +27,7 @@
 
 #include "D3D12Common.hpp"
 
-#include "D3D12NativeBuffer.hpp"
+#include "Internal/D3D12Buffer.hpp"
 
 
 namespace D3D12 {
@@ -35,8 +35,8 @@ namespace D3D12 {
 class NativeMesh
 {
     NIPtr<NativeDevice> mNativeDevice;
-    NIPtr<NativeBuffer> mVertexBuffer;
-    NIPtr<NativeBuffer> mIndexBuffer;
+    NIPtr<Internal::Buffer> mVertexBuffer;
+    NIPtr<Internal::Buffer> mIndexBuffer;
     DXGI_FORMAT mIndexBufferFormat;
     uint32_t mIndexCount;
 
@@ -46,12 +46,12 @@ public:
     bool Init();
     bool BuildGeometryBuffers(const void* vbData, size_t vbSize, const void* ibData, size_t ibSize, DXGI_FORMAT ibFormat);
 
-    const NIPtr<NativeBuffer>& GetVertexBuffer() const
+    const NIPtr<Internal::Buffer>& GetVertexBuffer() const
     {
         return mVertexBuffer;
     }
 
-    const NIPtr<NativeBuffer>& GetIndexBuffer() const
+    const NIPtr<Internal::Buffer>& GetIndexBuffer() const
     {
         return mIndexBuffer;
     }

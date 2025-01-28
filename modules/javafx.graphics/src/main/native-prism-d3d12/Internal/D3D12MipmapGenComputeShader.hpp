@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,42 +30,36 @@
 #include "D3D12Shader.hpp"
 
 #include <string>
-#include <unordered_map>
 
 
 namespace D3D12 {
 namespace Internal {
 
 /**
- * A library of internal shaders. These are used to store all 3D variants
- * and utility shaders like PassthroughVS.
- *
- * Because this stores only bytecode and has no correlation to any Device,
- * we can initialize all of it inside our D3D12NativeInstance.
- *
- * Bytecodes are deep-copied and stored within the Library to ensure access
- * to them at all times.
+ * MipmapGenCS uses attached resources a bit differently - we use only one texture
+ * and manipulate its subresources
  */
-class ShaderLibrary
+class MipmapGenComputeShader: public Shader
 {
-private:
-    std::unordered_map<std::string, NIPtr<Shader>> mShaders;
+    RingBuffer::Region mCBufferView;
+    DescriptorData mTextureDTable;
+    DescriptorData mUAVDTable;
 
 public:
-    ShaderLibrary() = default;
-    ~ShaderLibrary() = default;
-
-    ShaderLibrary(const ShaderLibrary&) = delete;
-    ShaderLibrary(ShaderLibrary&&) = delete;
-    ShaderLibrary& operator=(const ShaderLibrary&) = delete;
-    ShaderLibrary& operator=(ShaderLibrary&&) = delete;
-
-    bool Load(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize);
-
-    inline const NIPtr<Shader>& GetShaderData(const std::string& name) const
+    struct CBuffer
     {
-        return mShaders.find(name)->second;
-    }
+        uint32_t sourceLevel;
+        uint32_t numLevels;
+        float texelSizeMip1[2];
+    };
+
+    MipmapGenComputeShader();
+
+    bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize) override;
+
+    virtual void PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator,
+                                        const CBVCreator& cbvCreator, const NativeTextureBank& textures) override;
+    virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
 };
 
 } // namespace Internal

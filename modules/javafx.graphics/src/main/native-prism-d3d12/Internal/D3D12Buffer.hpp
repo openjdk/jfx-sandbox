@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,9 @@
 
 
 namespace D3D12 {
+namespace Internal {
 
-class NativeBuffer
+class Buffer
 {
     static uint64_t counter;
 
@@ -41,8 +42,8 @@ class NativeBuffer
     std::wstring mDebugName;
 
 public:
-    NativeBuffer(const NIPtr<NativeDevice>& nativeDevice);
-    ~NativeBuffer();
+    Buffer(const NIPtr<NativeDevice>& nativeDevice);
+    ~Buffer();
 
     /**
      * Creates the Buffer and fills it with data if needed.
@@ -89,4 +90,5 @@ public:
     }
 };
 
+} // namespace Internal
 } // namespace D3D12

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,18 +23,17 @@
  * questions.
  */
 
-#include "D3D12NativeBuffer.hpp"
+#include "D3D12Buffer.hpp"
 
-#include "D3D12NativeDevice.hpp"
-
-#include <com_sun_prism_d3d12_ni_D3D12NativeBuffer.h>
+#include "../D3D12NativeDevice.hpp"
 
 
 namespace D3D12 {
+namespace Internal {
 
-uint64_t NativeBuffer::counter = 0;
+uint64_t Buffer::counter = 0;
 
-NativeBuffer::NativeBuffer(const NIPtr<NativeDevice>& nativeDevice)
+Buffer::Buffer(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mBufferResource(nullptr)
     , mSize(0)
@@ -43,7 +42,7 @@ NativeBuffer::NativeBuffer(const NIPtr<NativeDevice>& nativeDevice)
 {
 }
 
-NativeBuffer::~NativeBuffer()
+Buffer::~Buffer()
 {
     mNativeDevice->MarkResourceDisposed(mBufferResource);
     mNativeDevice.reset();
@@ -56,7 +55,7 @@ NativeBuffer::~NativeBuffer()
     }
 }
 
-bool NativeBuffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES finalState)
+bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES finalState)
 {
     mHeapType = heapType;
     mSize = size;
@@ -202,7 +201,7 @@ bool NativeBuffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE he
     return true;
 }
 
-void* NativeBuffer::Map()
+void* Buffer::Map()
 {
     void* bufPtr;
     HRESULT hr = mBufferResource->Map(0, nullptr, &bufPtr);
@@ -211,27 +210,10 @@ void* NativeBuffer::Map()
     return bufPtr;
 }
 
-void NativeBuffer::Unmap()
+void Buffer::Unmap()
 {
     mBufferResource->Unmap(0, nullptr);
 }
 
+} // namespace Internal
 } // namespace D3D12
-
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeBuffer_nReleaseNativeObject
-    (JNIEnv* env, jobject obj, jlong ptr)
-{
-    if (!ptr) return;
-
-    D3D12::FreeNIObject<D3D12::NativeBuffer>(ptr);
-}
-
-#ifdef __cplusplus
-}
-#endif

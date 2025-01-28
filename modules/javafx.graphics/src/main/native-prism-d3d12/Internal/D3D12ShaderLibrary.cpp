@@ -25,6 +25,9 @@
 
 #include "D3D12ShaderLibrary.hpp"
 
+#include "D3D12InternalShader.hpp"
+#include "D3D12MipmapGenComputeShader.hpp"
+
 
 namespace D3D12 {
 namespace Internal {
@@ -33,7 +36,17 @@ bool ShaderLibrary::Load(const std::string& name, ShaderPipelineMode mode, D3D12
 {
     try
     {
-        NIPtr<InternalShader> shader = std::make_shared<InternalShader>();
+        NIPtr<Shader> shader;
+
+        if (mode == ShaderPipelineMode::COMPUTE && name == "MipmapGenCS")
+        {
+            shader = std::make_shared<MipmapGenComputeShader>();
+        }
+        else
+        {
+            shader = std::make_shared<InternalShader>();
+        }
+
         if (!shader->Init(name, mode, visibility, code, codeSize))
         {
             D3D12NI_LOG_ERROR("Failed to initialize Internal Shader %s", name.c_str());

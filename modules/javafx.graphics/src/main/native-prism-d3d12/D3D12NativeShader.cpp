@@ -367,11 +367,30 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     return true;
 }
 
-void NativeShader::PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator, const CBVCreator& cbvCreator)
+void NativeShader::PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator,
+                                          const CBVCreator& cbvCreator, const NativeTextureBank& textures)
 {
     if (mTextureDTableIndex > 0)
     {
         mLastAllocatedDescriptorData = descriptorAllocator(mTextureCount);
+
+        uint32_t usedTextures = Constants::MAX_TEXTURE_UNITS;
+        while (usedTextures > 0 && !textures[usedTextures - 1])
+        {
+            usedTextures--;
+        }
+
+        // should not happen
+        if (!mLastAllocatedDescriptorData && usedTextures != 0)
+        {
+            D3D12NI_LOG_ERROR("Descriptor Table is NULL, but we have textures we need to use");
+            return;
+        }
+
+        for (uint32_t i = 0; i < usedTextures; ++i)
+        {
+            if (textures[i]) textures[i]->WriteSRVToDescriptor(mLastAllocatedDescriptorData.CPU(i));
+        }
     }
 
     if (IsCBufferDataViaDescriptor())
@@ -424,11 +443,6 @@ void NativeShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& comma
     {
         commandList->SetGraphicsRootConstantBufferView(mCBufferDescriptorIndex, mLastAllocatedCBufferRegion.gpu);
     }
-}
-
-const Internal::DescriptorData& NativeShader::GetTextureDescriptorTable() const
-{
-    return mLastAllocatedDescriptorData;
 }
 
 } // namespace D3D12

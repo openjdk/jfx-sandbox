@@ -82,9 +82,9 @@ public:
 
     bool Init(const std::string& name, void* code, size_t size);
 
-    virtual void PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator, const CBVCreator& cbvCreator) override;
+    virtual void PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator,
+                                        const CBVCreator& cbvCreator, const NativeTextureBank& textures) override;
     virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
-    virtual const Internal::DescriptorData& GetTextureDescriptorTable() const override;
 
     inline const D3D12RootSignaturePtr& GetRootSignature() const
     {

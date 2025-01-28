@@ -27,7 +27,6 @@
 
 #include "D3D12Common.hpp"
 
-#include "D3D12NativeBuffer.hpp"
 #include "D3D12NativeMesh.hpp"
 #include "D3D12NativeMeshView.hpp"
 #include "D3D12NativePhongMaterial.hpp"
@@ -36,9 +35,11 @@
 #include "D3D12NativeSwapChain.hpp"
 #include "D3D12NativeTexture.hpp"
 
+#include "Internal/D3D12Buffer.hpp"
 #include "Internal/D3D12CommandListPool.hpp"
 #include "Internal/D3D12DescriptorHeap.hpp"
 #include "Internal/D3D12IWaitableOperation.hpp"
+#include "Internal/D3D12RootSignatureManager.hpp"
 #include "Internal/D3D12ResourceDisposer.hpp"
 #include "Internal/D3D12RenderingContext.hpp"
 #include "Internal/D3D12RingBuffer.hpp"
@@ -65,6 +66,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     unsigned int mFrameCounter; // for debugging ex. triggering a breakpoint after X frames
     std::vector<Internal::IWaitableOperation*> mWaitableOps;
 
+    NIPtr<Internal::RootSignatureManager> mRootSignatureManager;
     NIPtr<Internal::RenderingContext> mRenderingContext;
     NIPtr<Internal::ResourceDisposer> mResourceDisposer;
     NIPtr<Internal::DescriptorHeap> mRTVHeap;
@@ -73,7 +75,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::Shader> mPassthroughVS;
     NIPtr<Internal::Shader> mPhongVS;
     NIPtr<Internal::CommandListPool> mCommandListPool;
-    NIPtr<NativeBuffer> m2DIndexBuffer;
+    NIPtr<Internal::Buffer> m2DIndexBuffer;
     NIPtr<Internal::RingBuffer> mRingBuffer; // used for larger data (ex. 2D Vertex Buffer, texture upload)
     NIPtr<Internal::RingBuffer> mConstantRingBuffer; // used purely for CBuffers for Shaders
     NIPtr<Internal::Waitable> mMidFrameWaitable; // TODO: D3D12: This is constantly (de)allocated, avoid that.
@@ -81,7 +83,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     bool Build2DIndexBuffer();
     void AssembleVertexData(void* buffer, const Internal::MemoryView<float>& vertices,
                             const Internal::MemoryView<signed char>& colors, UINT elementCount);
-    const NIPtr<Internal::InternalShader>& GetPhongPixelShader(const PhongShaderSpec& spec) const;
+    const NIPtr<Internal::Shader>& GetPhongPixelShader(const PhongShaderSpec& spec) const;
 
 public:
     NativeDevice();
@@ -92,7 +94,7 @@ public:
 
     // separate, internal buffer creator
     // used for 2D Index Buffer and internals of Mesh
-    NIPtr<NativeBuffer> CreateBuffer(const void* initialData, size_t size, bool cpuWriteable, D3D12_RESOURCE_STATES finalState);
+    NIPtr<Internal::Buffer> CreateBuffer(const void* initialData, size_t size, bool cpuWriteable, D3D12_RESOURCE_STATES finalState);
 
     bool CheckFormatSupport(DXGI_FORMAT format);
     NIPtr<NativeMesh>* CreateMesh();
@@ -123,6 +125,7 @@ public:
     void SetViewProjTransform(const Internal::Matrix<float>& matrix);
     bool ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer, size_t pixelCount,
                      UINT srcx, UINT srcy, UINT srcw, UINT srch);
+    bool GenerateMipmaps(const NIPtr<NativeTexture>& texture);
     bool UpdateTexture(const NIPtr<NativeTexture>& texture, const void* data, size_t pixelCount, PixelFormat srcFormat,
                        UINT dstx, UINT dsty, UINT srcx, UINT srcy, UINT srcw, UINT srch, UINT srcstride);
 
@@ -167,6 +170,11 @@ public:
         return mConstantRingBuffer;
     }
 
+    const NIPtr<Internal::RootSignatureManager>& GetRootSignatureManager() const
+    {
+        return mRootSignatureManager;
+    }
+
     const NIPtr<Internal::DescriptorHeap>& GetRTVDescriptorHeap() const
     {
         return mRTVHeap;
@@ -177,7 +185,7 @@ public:
         return mDSVHeap;
     }
 
-    const NIPtr<Internal::InternalShader>& GetInternalShader(const std::string& name) const
+    const NIPtr<Internal::Shader>& GetInternalShader(const std::string& name) const
     {
         return mShaderLibrary->GetShaderData(name);
     }

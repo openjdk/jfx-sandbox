@@ -57,6 +57,7 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     {
         return psoParam.IsSet();
     };
+    mRootSignature.SetDependency(psoDep);
     mDescriptorHeap.SetDependency(psoDep);
     mTransforms.SetDependency(psoDep);
     mResources.SetDependency(psoDep);
@@ -68,6 +69,14 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     {
         return !scissorParam.IsSet();
     });
+
+    ComputePipelineStateRenderingParameter& computePsoParam = mComputePipelineState;
+    RenderingStep::StepDependency computePsoDep = [&computePsoParam](RenderingContextState& state) -> bool
+    {
+        return computePsoParam.IsSet();
+    };
+    mComputeRootSignature.SetDependency(computePsoDep);
+    mComputeResources.SetDependency(computePsoDep);
 }
 
 bool RenderingContext::Init()
@@ -99,7 +108,7 @@ void RenderingContext::ClearTextureUnit(uint32_t unit)
     if (!mState.resourceManager.GetTexture(unit)) return;
 
     mState.resourceManager.ClearTextureUnit(unit);
-    mResources.ClearApplied();
+    ClearResourcesApplied();
 }
 
 void RenderingContext::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView)
@@ -150,25 +159,25 @@ void RenderingContext::SetTexture(uint32_t unit, const NIPtr<NativeTexture>& tex
     if (mState.resourceManager.GetTexture(unit) == texture) return;
 
     mState.resourceManager.SetTexture(unit, texture);
-    mResources.ClearApplied();
+    ClearResourcesApplied();
 }
 
 void RenderingContext::SetCameraPos(const Coords_XYZW_FLOAT& pos)
 {
     mTransforms.SetCameraPos(pos);
-    mResources.ClearApplied();
+    ClearResourcesApplied();
 }
 
 void RenderingContext::SetViewProjTransform(const Matrix<float>& transform)
 {
     mTransforms.SetViewProjTransform(transform);
-    mResources.ClearApplied();
+    ClearResourcesApplied();
 }
 
 void RenderingContext::SetWorldTransform(const Matrix<float>& transform)
 {
     mTransforms.SetWorldTransform(transform);
-    mResources.ClearApplied();
+    ClearResourcesApplied();
 }
 
 // PSO-related setters
@@ -176,7 +185,7 @@ void RenderingContext::SetWorldTransform(const Matrix<float>& transform)
 void RenderingContext::SetCompositeMode(CompositeMode mode)
 {
     mPipelineState.SetCompositeMode(mode);
-    mResources.ClearApplied();
+    ClearResourcesApplied();
 }
 
 void RenderingContext::SetCullMode(D3D12_CULL_MODE mode)
@@ -196,7 +205,7 @@ void RenderingContext::SetVertexShader(const NIPtr<Shader>& vertexShader)
     mPipelineState.SetVertexShader(vertexShader);
     mState.resourceManager.SetVertexShader(vertexShader);
 
-    mResources.ClearApplied();
+    ClearResourcesApplied();
 }
 
 void RenderingContext::SetPixelShader(const NIPtr<Shader>& pixelShader)
@@ -206,7 +215,32 @@ void RenderingContext::SetPixelShader(const NIPtr<Shader>& pixelShader)
     mPipelineState.SetPixelShader(pixelShader);
     mState.resourceManager.SetPixelShader(pixelShader);
 
-    mResources.ClearApplied();
+    switch (pixelShader->GetMode())
+    {
+    case ShaderPipelineMode::UI_2D:
+    {
+        // TODO: D3D12: this should be unified to a single common graphics root signature
+        NIPtr<NativeShader> niShader = std::dynamic_pointer_cast<NativeShader>(pixelShader);
+        mRootSignature.Set(niShader->GetRootSignature());
+        break;
+    }
+    case ShaderPipelineMode::PHONG_3D:
+    {
+        mRootSignature.Set(mNativeDevice->GetRootSignatureManager()->GetGraphicsRootSignature());
+        break;
+    }
+    }
+
+    ClearResourcesApplied();
+}
+
+void RenderingContext::SetComputeShader(const NIPtr<Shader>& computeShader)
+{
+    mComputePipelineState.SetComputeShader(computeShader);
+    mState.resourceManager.SetComputeShader(computeShader);
+
+    mComputeRootSignature.Set(mNativeDevice->GetRootSignatureManager()->GetComputeRootSignature());
+    ClearComputeResourcesApplied();
 }
 
 void RenderingContext::Apply()
@@ -214,6 +248,11 @@ void RenderingContext::Apply()
     // Prepare rendering steps. These should do all necessary allocations.
     mTransforms.Prepare(mState);
     mResources.Prepare(mState);
+
+    // there can only be one Pipeline State on a command list
+    // To prevent using an incorrect Pipeline State after this Apply call we'll reset the compute PSO flag
+    // other settings (RootSignatures, Descriptors etc) are all set separately
+    mComputePipelineState.ClearApplied();
 
     // Apply changes on current Command List. Below calls must NOT do any operations
     // which might submit the Command List (ex. Ring Container allocations).
@@ -226,6 +265,7 @@ void RenderingContext::Apply()
     mDefaultScissor.Apply(commandList, mState);
 
     mPipelineState.Apply(commandList, mState);
+    mRootSignature.Apply(commandList, mState);
     mDescriptorHeap.Apply(commandList, mState);
     mTransforms.Apply(commandList, mState);
     mResources.Apply(commandList, mState);
@@ -233,6 +273,22 @@ void RenderingContext::Apply()
     mPrimitiveTopology.Apply(commandList, mState);
     mVertexBuffer.Apply(commandList, mState);
     mIndexBuffer.Apply(commandList, mState);
+}
+
+void RenderingContext::ApplyCompute()
+{
+    mComputeResources.Prepare(mState);
+
+    // there can only be one Pipeline State on a command list
+    // To prevent using an incorrect Pipeline State after this Apply call we'll reset the graphics' PSO flag
+    mPipelineState.ClearApplied();
+
+    const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
+
+    mComputePipelineState.Apply(commandList, mState);
+    mComputeRootSignature.Apply(commandList, mState);
+    mDescriptorHeap.Apply(commandList, mState);
+    mComputeResources.Apply(commandList, mState);
 }
 
 void RenderingContext::EnsureBoundTextureStates(D3D12_RESOURCE_STATES state)
@@ -246,6 +302,7 @@ void RenderingContext::ClearAppliedFlags()
     mVertexBuffer.ClearApplied();
 
     mPipelineState.ClearApplied();
+    mRootSignature.ClearApplied();
     mDescriptorHeap.ClearApplied();
     mPrimitiveTopology.ClearApplied();
     mRenderTarget.ClearApplied();
@@ -254,11 +311,20 @@ void RenderingContext::ClearAppliedFlags()
     mResources.ClearApplied();
     mTransforms.ClearApplied();
     mViewport.ClearApplied();
+
+    mComputePipelineState.ClearApplied();
+    mComputeRootSignature.ClearApplied();
+    mComputeResources.ClearApplied();
 }
 
 void RenderingContext::ClearResourcesApplied()
 {
     mResources.ClearApplied();
+}
+
+void RenderingContext::ClearComputeResourcesApplied()
+{
+    mComputeResources.ClearApplied();
 }
 
 } // namespace Internal

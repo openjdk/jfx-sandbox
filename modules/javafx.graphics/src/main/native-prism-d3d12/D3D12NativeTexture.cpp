@@ -26,6 +26,7 @@
 #include "D3D12NativeTexture.hpp"
 
 #include "D3D12NativeDevice.hpp"
+#include "D3D12Utils.hpp"
 
 #include <com_sun_prism_d3d12_ni_D3D12NativeTexture.h>
 
@@ -49,18 +50,12 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC1& desc)
         &mResourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, nullptr, IID_PPV_ARGS(&mTextureResource));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Texture's Committed Resource");
 
-    D3D12NI_ZERO_STRUCT(mSRVDesc);
-    mSRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    mSRVDesc.Format = mResourceDesc.Format;
-    mSRVDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    mSRVDesc.Texture2D.MipLevels = 1;
-    mSRVDesc.Texture2D.MostDetailedMip = 0;
-    mSRVDesc.Texture2D.PlaneSlice = 0;
-    mSRVDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-
     // Texture will be separately loaded with data via Java's Texture.update() calls
     // Fill in remaining members and leave
-    mState = D3D12_RESOURCE_STATE_COMMON;
+    for (auto& state: mStates)
+    {
+        state = D3D12_RESOURCE_STATE_COMMON;
+    }
 
     if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
     {
@@ -91,8 +86,7 @@ NativeTexture::NativeTexture(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mTextureResource(nullptr)
     , mResourceDesc()
-    , mState(D3D12_RESOURCE_STATE_COMMON)
-    , mSRVDesc()
+    , mStates()
 {
 }
 
@@ -112,17 +106,19 @@ NativeTexture::~NativeTexture()
 
 bool NativeTexture::Init(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, TextureUsage usage, int samples, bool useMipmap)
 {
-    if (useMipmap)
-    {
-        D3D12NI_LOG_WARN("Mipmaps not yet implemented");
-        useMipmap = false;
-    }
-
     if (width <= 0 || width > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION ||
         height <= 0 || height > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION)
     {
         D3D12NI_LOG_ERROR("Invalid width and/or height");
         return false;
+    }
+
+    mMipLevels = 1;
+    if (useMipmap) {
+        mMipLevels = Internal::Utils::CalcMipmapLevels(width, height);
+
+        // to use Compute Shader and generate mips later on
+        flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
     }
 
     D3D12_RESOURCE_DESC1 desc;
@@ -131,12 +127,14 @@ bool NativeTexture::Init(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESO
     desc.Width = width;
     desc.Height = height;
     desc.DepthOrArraySize = 1;
-    desc.MipLevels = 1;
+    desc.MipLevels = mMipLevels;
     desc.Format = format;
     desc.Flags = flags;
     desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
     desc.SampleDesc.Count = samples;
     desc.SampleDesc.Quality = 0;
+
+    mStates.resize(mMipLevels);
 
     return InitInternal(desc);
 }
@@ -163,25 +161,59 @@ bool NativeTexture::Resize(UINT width, UINT height)
     return InitInternal(mResourceDesc);
 }
 
-void NativeTexture::WriteToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu)
+void NativeTexture::WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipLevels, UINT mostDetailedMip)
 {
-    mNativeDevice->GetDevice()->CreateShaderResourceView(mTextureResource.Get(), &mSRVDesc, descriptorCpu);
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    D3D12NI_ZERO_STRUCT(srvDesc);
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Format = mResourceDesc.Format;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = (mipLevels == 0) ? mMipLevels : mipLevels;
+    srvDesc.Texture2D.MostDetailedMip = mostDetailedMip;
+    srvDesc.Texture2D.PlaneSlice = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    mNativeDevice->GetDevice()->CreateShaderResourceView(mTextureResource.Get(), &srvDesc, descriptorCpu);
 }
 
-void NativeTexture::EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState)
+void NativeTexture::WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipSlice)
 {
-    if (newState == mState) return;
+    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc;
+    D3D12NI_ZERO_STRUCT(uavDesc);
+    uavDesc.Format = mResourceDesc.Format;
+    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+    uavDesc.Texture2D.MipSlice = mipSlice;
+
+    mNativeDevice->GetDevice()->CreateUnorderedAccessView(mTextureResource.Get(), nullptr, &uavDesc, descriptorCpu);
+}
+
+void NativeTexture::EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState,
+                                UINT subresource)
+{
+
+    D3D12_RESOURCE_STATES state = (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) ? mStates[0] : mStates[subresource];
+    if (newState == state) return;
 
     D3D12_RESOURCE_BARRIER barrier;
     D3D12NI_ZERO_STRUCT(barrier);
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.pResource = mTextureResource.Get();
-    barrier.Transition.StateBefore = mState;
+    barrier.Transition.StateBefore = state;
     barrier.Transition.StateAfter = newState;
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.Subresource = subresource;
     commandList->ResourceBarrier(1, &barrier);
 
-    mState = newState;
+    if (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+    {
+        for (auto& s: mStates)
+        {
+            s = newState;
+        }
+    }
+    else
+    {
+        mStates[subresource] = newState;
+    }
 }
 
 } // namespace D3D12

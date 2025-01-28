@@ -33,6 +33,7 @@ namespace Constants {
 const std::string PASSTHROUGH_VS_NAME("PassThroughVS");
 const std::string PHONG_VS_NAME("Mtl1VS");
 const std::string PHONG_PS_NAME("Mtl1PS");
+const std::string MIPMAP_CS_NAME("MipmapCS");
 
 const unsigned int MAX_BATCH_QUADS = 4096; // follows other backends and Prism
 const unsigned int MAX_TEXTURE_UNITS = 4; // see BaseShaderContext.java validateTextureOp()

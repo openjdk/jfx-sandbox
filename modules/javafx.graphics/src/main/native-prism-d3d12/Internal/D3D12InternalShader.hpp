@@ -70,9 +70,9 @@ public:
 
     bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize) override;
 
-    virtual void PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator, const CBVCreator& cbvCreator) override;
+    virtual void PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator,
+                                        const CBVCreator& cbvCreator, const NativeTextureBank& textures) override;
     virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
-    virtual const DescriptorData& GetTextureDescriptorTable() const override;
 };
 
 } // namespace Internal

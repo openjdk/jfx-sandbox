@@ -45,11 +45,14 @@ class ResourceManager
     NIPtr<NativeDevice> mNativeDevice;
     NIPtr<Shader> mVertexShader;
     NIPtr<Shader> mPixelShader;
-    NIPtr<NativeTexture> mTextures[Constants::MAX_TEXTURE_UNITS];
+    NativeTextureBank mTextures;
     RingDescriptorHeap mHeap;
     Shader::DataAllocator mCBufferAllocator;
     Shader::DescriptorAllocator mDescriptorAllocator;
     Shader::CBVCreator mCBVCreator;
+
+    // Compute Resources
+    NIPtr<Shader> mComputeShader;
 
     void UpdateTextureDescriptorTable(const DescriptorData& dtable);
 
@@ -58,11 +61,14 @@ public:
     ~ResourceManager();
 
     void PrepareResources();
+    void PrepareComputeResources();
     void ApplyResources(const D3D12GraphicsCommandListPtr& commandList) const;
+    void ApplyComputeResources(const D3D12GraphicsCommandListPtr& commandList) const;
     void ClearTextureUnit(uint32_t slot);
     void EnsureStates(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES state);
     void SetVertexShader(const NIPtr<Shader>& shader);
     void SetPixelShader(const NIPtr<Shader>& shader);
+    void SetComputeShader(const NIPtr<Shader>& shader);
     void SetTexture(uint32_t slot, const NIPtr<NativeTexture>& tex);
 
     inline const NIPtr<NativeTexture>& GetTexture(uint32_t slot) const

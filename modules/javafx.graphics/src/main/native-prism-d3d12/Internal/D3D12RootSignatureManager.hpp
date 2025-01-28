@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,18 +23,35 @@
  * questions.
  */
 
-package com.sun.prism.d3d12.ni;
+#pragma once
 
-public class D3D12NativeBuffer extends D3D12NativeObject {
+#include "../D3D12Common.hpp"
 
-    D3D12NativeBuffer(long ptr) {
-        super(ptr);
+namespace D3D12 {
+namespace Internal {
+
+class RootSignatureManager
+{
+    NIPtr<NativeDevice> mNativeDevice;
+    D3D12RootSignaturePtr mGraphicsRootSignature;
+    D3D12RootSignaturePtr mComputeRootSignature;
+
+public:
+    RootSignatureManager(const NIPtr<NativeDevice>& nativeDevice);
+    ~RootSignatureManager() = default;
+
+    bool Init();
+
+    inline const D3D12RootSignaturePtr& GetGraphicsRootSignature() const
+    {
+        return mGraphicsRootSignature;
     }
 
-    @Override protected native void nReleaseNativeObject(long ptr);
-    private native long nGetSize(long ptr);
-
-    public long getSize() {
-        return nGetSize(ptr);
+    inline const D3D12RootSignaturePtr& GetComputeRootSignature() const
+    {
+        return mComputeRootSignature;
     }
-}
+};
+
+} // namespace Internal
+} // namespace D3D12

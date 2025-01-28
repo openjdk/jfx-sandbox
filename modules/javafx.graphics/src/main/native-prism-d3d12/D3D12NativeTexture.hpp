@@ -26,6 +26,9 @@
 #pragma once
 
 #include "D3D12Common.hpp"
+#include "D3D12Constants.hpp"
+
+#include <array>
 
 
 namespace D3D12 {
@@ -49,9 +52,9 @@ class NativeTexture
     NIPtr<NativeDevice> mNativeDevice;
     D3D12ResourcePtr mTextureResource;
     D3D12_RESOURCE_DESC1 mResourceDesc;
-    D3D12_RESOURCE_STATES mState;
-    D3D12_SHADER_RESOURCE_VIEW_DESC mSRVDesc;
+    std::vector<D3D12_RESOURCE_STATES> mStates; // one state per subresource
     std::wstring mDebugName;
+    UINT mMipLevels;
 
     bool InitInternal(const D3D12_RESOURCE_DESC1& desc);
 
@@ -63,8 +66,9 @@ public:
     UINT64 GetSize();
     bool Resize(UINT width, UINT height);
 
-    void EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState);
-    void WriteToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu);
+    void EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState, UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+    void WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipLevels = 0, UINT mostDetailedMip = 0);
+    void WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipSlice);
 
     inline UINT64 GetWidth() const
     {
@@ -95,6 +99,19 @@ public:
     {
         return mResourceDesc.SampleDesc.Count;
     }
+
+    inline UINT GetMipLevels() const
+    {
+        return mMipLevels;
+    }
+
+    inline bool HasMipmaps() const
+    {
+        return (mMipLevels > 1);
+    }
 };
+
+// Collection of Textures used by the backend during rendering
+using NativeTextureBank = std::array<NIPtr<NativeTexture>, Constants::MAX_TEXTURE_UNITS>;
 
 } // namespace D3D12

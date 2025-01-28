@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <algorithm>
+
 namespace D3D12 {
 namespace Internal {
 
@@ -35,6 +37,30 @@ public:
     static inline T Align(T offset, T alignment)
     {
         return (offset + alignment - 1u) & ~(alignment - 1u);
+    }
+
+    static inline uint32_t CalcSubresource(uint32_t mipSlice, uint32_t mipLevels, uint32_t arraySlice)
+    {
+        // refer to https://learn.microsoft.com/en-us/windows/win32/direct3d12/subresources
+        return mipSlice + (arraySlice * mipLevels);
+    }
+
+    static inline uint32_t CountZeroBitsLSB(uint32_t x, uint32_t limit)
+    {
+        uint32_t zeros = 0;
+        while ((x & 0x1) == 0)
+        {
+            ++zeros;
+            if (zeros >= limit) return zeros;
+            x >>= 1;
+        }
+
+        return zeros;
+    }
+
+    static inline uint32_t CalcMipmapLevels(uint32_t width, uint32_t height)
+    {
+        return static_cast<uint32_t>(std::floor(std::log2(std::max<uint32_t>(width, height)))) + 1;
     }
 };
 

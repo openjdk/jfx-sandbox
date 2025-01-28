@@ -55,7 +55,7 @@ class TextureUploader
 
     void TransferDirect();
     void TransferA8ToB8G8R8A8();
-    void TransferRGBToB8G8R8X8();
+    void TransferRGBToB8G8R8A8();
 
 public:
     TextureUploader();

@@ -27,7 +27,6 @@ package com.sun.prism.d3d12;
 
 import com.sun.prism.impl.BaseMesh;
 import com.sun.prism.impl.Disposer;
-import com.sun.prism.d3d12.ni.D3D12NativeBuffer;
 import com.sun.prism.d3d12.ni.D3D12NativeMesh;
 
 class D3D12Mesh extends BaseMesh {

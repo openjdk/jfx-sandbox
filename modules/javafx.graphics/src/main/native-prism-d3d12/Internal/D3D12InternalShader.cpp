@@ -133,7 +133,8 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
     return true;
 }
 
-void InternalShader::PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator, const CBVCreator& cbvCreator)
+void InternalShader::PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator,
+                                            const CBVCreator& cbvCreator, const NativeTextureBank& textures)
 {
     for (size_t i = 0; i < mCBufferDTables.size(); ++i)
     {
@@ -186,6 +187,24 @@ void InternalShader::PrepareShaderResources(const DataAllocator& dataAllocator, 
         {
             D3D12NI_LOG_ERROR("Internal shader %s: Failed to allocate DTable for %u textures", mName.c_str(), mTextureCount);
         }
+
+        uint32_t usedTextures = Constants::MAX_TEXTURE_UNITS;
+        while (usedTextures > 0 && !textures[usedTextures - 1])
+        {
+            usedTextures--;
+        }
+
+        // should not happen
+        if (!mTextureDTable && usedTextures != 0)
+        {
+            D3D12NI_LOG_ERROR("Descriptor Table is NULL, but we have textures we need to use");
+            return;
+        }
+
+        for (uint32_t i = 0; i < usedTextures; ++i)
+        {
+            if (textures[i]) textures[i]->WriteSRVToDescriptor(mTextureDTable.CPU(i));
+        }
     }
 }
 
@@ -226,11 +245,6 @@ void InternalShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& com
     {
         commandList->SetGraphicsRootDescriptorTable(mCBufferDTables[i].rootIndex, mCBufferDTables[i].dtable.gpu);
     }
-}
-
-const DescriptorData& InternalShader::GetTextureDescriptorTable() const
-{
-    return mTextureDTable;
 }
 
 } // namespace Internal

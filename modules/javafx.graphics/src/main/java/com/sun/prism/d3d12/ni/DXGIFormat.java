@@ -45,11 +45,9 @@ enum DXGIFormat {
     // 4-BYTE types
     //INT_ARGB_PRE (DataType.INT,   1, true,  false),
     //BYTE_BGRA_PRE(DataType.BYTE,  4, true,  false),
-    B8G8R8A8_UNORM(87),
-
-    // 3-BYTE types:
     //BYTE_RGB     (DataType.BYTE,  3, true,  true),
-    B8G8R8X8_UNORM(88),
+    //BYTE_RGB     (DataType.BYTE,  3, true,  true),
+    B8G8R8A8_UNORM(87),
 
     // L8, A8 types:
     //BYTE_GRAY    (DataType.BYTE,  1, true,  true),
@@ -78,7 +76,11 @@ enum DXGIFormat {
         case BYTE_BGRA_PRE:
             return B8G8R8A8_UNORM;
         case BYTE_RGB:
-            return B8G8R8X8_UNORM;
+            // D3D12 does not have a 3-byte format
+            // closest one is B8G8R8X8, but it cannot be used in compute shaders as UAV
+            // and we sometimes need that access to generate mipmaps for 3D
+            // thus, we will simply upload it as BGRA and force alpha channel to 1.0
+            return B8G8R8A8_UNORM;
         case BYTE_GRAY:
             return R8_UNORM;
         case BYTE_ALPHA:

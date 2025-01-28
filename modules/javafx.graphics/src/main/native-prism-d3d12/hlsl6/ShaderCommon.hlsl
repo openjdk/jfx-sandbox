@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,30 +23,32 @@
  * questions.
  */
 
-package com.sun.prism.d3d12.ni;
+#define JFX_INTERNAL_GRAPHICS_RS \
+    "RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)," \
+    "CBV(b0, visibility = SHADER_VISIBILITY_VERTEX)," \
+    "CBV(b0, visibility = SHADER_VISIBILITY_PIXEL)," \
+    "DescriptorTable(" \
+        "CBV(b1, numDescriptors = 3)," \
+        "visibility = SHADER_VISIBILITY_VERTEX" \
+    ")," \
+    "DescriptorTable(" \
+        "CBV(b1, numDescriptors = 3)," \
+        "visibility = SHADER_VISIBILITY_PIXEL" \
+    ")," \
+    "DescriptorTable(" \
+        "SRV(t0, numDescriptors = 4)," \
+        "visibility = SHADER_VISIBILITY_PIXEL" \
+    ")," \
+    "StaticSampler(s0)"
 
-public class D3D12NativeShader extends D3D12NativeObject {
+#define JFX_INTERNAL_COMPUTE_RS \
+    "RootFlags(0)," \
+    "CBV(b0)," \
+    "DescriptorTable(" \
+        "UAV(u0, numDescriptors = 4)" \
+    ")," \
+    "DescriptorTable(" \
+        "SRV(t0, numDescriptors = 4)" \
+    ")," \
+    "StaticSampler(s0)"
 
-    // mimics internal ShaderPipelineMode enum from D3D12Common.hpp
-    public enum PipelineMode {
-        UI_2D,
-        PHONG_3D,
-        COMPUTE
-    }
-
-    // Mimicks D3D12_SHADER_VISIBILITY from d3d12.h
-    public enum Visibility {
-        ALL,
-        VERTEX,
-        HULL,
-        DOMAIN,
-        GEOMETRY,
-        PIXEL,
-    };
-
-    D3D12NativeShader(long ptr) {
-        super(ptr);
-    }
-
-    @Override protected native void nReleaseNativeObject(long ptr);
-}

@@ -66,16 +66,9 @@ using D3D12InfoQueuePtr = Ptr<ID3D12InfoQueue1>;
 using D3D12DescriptorHeapPtr = Ptr<ID3D12DescriptorHeap>;
 using D3D12FencePtr = Ptr<ID3D12Fence1>;
 using D3D12GraphicsCommandListPtr = Ptr<ID3D12GraphicsCommandList7>;
-using D3D12CommandListPtr = Ptr<ID3D12CommandList>;
 using D3D12PipelineStatePtr = Ptr<ID3D12PipelineState>;
 using D3D12ResourcePtr = Ptr<ID3D12Resource2>;
 using D3D12RootSignaturePtr = Ptr<ID3D12RootSignature>;
-using D3D12ShaderReflectionPtr = Ptr<ID3D12ShaderReflection>;
-
-// DXC-specific aliases
-// NOTE: those might have to be removed
-//using DXCUtilsPtr = Ptr<IDxcUtils>;
-//using DXCBlobPtr = Ptr<IDxcBlobEncoding>;
 
 // smart-pointer container for internal objects
 template <typename T>
@@ -291,6 +284,7 @@ enum class ShaderPipelineMode: unsigned char
 {
     UI_2D = 0,
     PHONG_3D,
+    COMPUTE,
     MAX_ENUM
 };
 

@@ -84,7 +84,7 @@ D3D12_BLEND_DESC PSOManager::FormBlendState(CompositeMode mode)
     return state;
 }
 
-bool PSOManager::ConstructNewPSO(const PSOParameters& params)
+bool PSOManager::ConstructNewPSO(const GraphicsPSOParameters& params)
 {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC desc;
     D3D12NI_ZERO_STRUCT(desc);
@@ -110,7 +110,7 @@ bool PSOManager::ConstructNewPSO(const PSOParameters& params)
     }
     else
     {
-        desc.pRootSignature = mPhongRootSignature.Get();
+        desc.pRootSignature = mNativeDevice->GetRootSignatureManager()->GetGraphicsRootSignature().Get();
     }
 
     desc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
@@ -180,11 +180,45 @@ bool PSOManager::ConstructNewPSO(const PSOParameters& params)
 
     pipelineState->SetName(name.c_str());
 
-    D3D12NI_LOG_TRACE("--- PSO %S created ---", name.c_str());
+    D3D12NI_LOG_TRACE("--- Graphics PSO (%S) created ---", name.c_str());
 #endif // DEBUG
 
-    mPipelines.emplace(std::make_pair(params, std::move(pipelineState)));
+    try
+    {
+        mGraphicsPipelines.emplace(std::make_pair(params, std::move(pipelineState)));
+    }
+    catch (const std::exception& e)
+    {
+        D3D12NI_LOG_ERROR("Failed to emplace new PSO to cache: %s", e.what());
+        return false;
+    }
 
+    return true;
+}
+
+bool PSOManager::ConstructNewPSO(const ComputePSOParameters& params)
+{
+    D3D12_COMPUTE_PIPELINE_STATE_DESC desc;
+    D3D12NI_ZERO_STRUCT(desc);
+
+    desc.CS = params.shader->GetBytecode();
+    desc.pRootSignature = mNativeDevice->GetRootSignatureManager()->GetComputeRootSignature().Get();
+
+    D3D12PipelineStatePtr pipelineState;
+    HRESULT hr = mNativeDevice->GetDevice()->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pipelineState));
+    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Compute Pipeline State");
+
+#if DEBUG
+    std::wstring name = L"CPSO-";
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    name += converter.from_bytes(params.shader->GetName());
+
+    pipelineState->SetName(name.c_str());
+
+    D3D12NI_LOG_TRACE("--- Compute PSO (%S) created ---", name.c_str());
+#endif // DEBUG
+
+    mComputePipelines.emplace(std::make_pair(params, std::move(pipelineState)));
     return true;
 }
 
@@ -192,7 +226,8 @@ PSOManager::PSOManager(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , m2DInputLayout()
     , m3DInputLayout()
-    , mPipelines()
+    , mGraphicsPipelines()
+    , mComputePipelines()
     , mNullPipeline(nullptr)
 {
     m2DInputLayout[0].SemanticName = "POSITION";
@@ -248,12 +283,17 @@ PSOManager::PSOManager(const NIPtr<NativeDevice>& nativeDevice)
 
 PSOManager::~PSOManager()
 {
-    for (auto& it: mPipelines)
+    for (auto& it: mComputePipelines)
     {
         it.second.Reset();
     }
+    mComputePipelines.clear();
 
-    mPipelines.clear();
+    for (auto& it: mGraphicsPipelines)
+    {
+        it.second.Reset();
+    }
+    mGraphicsPipelines.clear();
 
     mNativeDevice.reset();
 
@@ -262,111 +302,40 @@ PSOManager::~PSOManager()
 
 bool PSOManager::Init()
 {
-    // Prepare Root Signature for Phong Shaders
-    // See hlsl/*.hlsl files for reference
-    std::vector<D3D12_ROOT_PARAMETER> rsParams;
-    std::vector<D3D12_STATIC_SAMPLER_DESC> rsSamplers;
-    D3D12_ROOT_PARAMETER rsParam;
-    D3D12_STATIC_SAMPLER_DESC rsSampler;
-    D3D12NI_ZERO_STRUCT(rsParam);
-    D3D12NI_ZERO_STRUCT(rsSampler);
-
-    // Shaders share the same static sampler
-    rsSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rsSampler.RegisterSpace = 0;
-    rsSampler.ShaderRegister = 0;
-    rsSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    rsSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    rsSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    rsSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    rsSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
-    rsSampler.MinLOD = 0;
-    rsSampler.MaxLOD = D3D12_FLOAT32_MAX;
-    rsSampler.MipLODBias = 0;
-    rsSampler.MaxAnisotropy = 1;
-    rsSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    rsSamplers.emplace_back(rsSampler);
-
-    // Vertex shader root CBuffer View - gData
-    rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-    rsParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-    rsParam.Descriptor.ShaderRegister = 0;
-    rsParam.Descriptor.RegisterSpace = 0;
-    rsParams.emplace_back(rsParam);
-
-    // Similar for Pixel Shader - gColorSpec
-    rsParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rsParams.emplace_back(rsParam);
-
-    // Vertex Shader Descriptor Table - gLightSpec
-    D3D12_DESCRIPTOR_RANGE CBVRange;
-    D3D12NI_ZERO_STRUCT(CBVRange);
-    CBVRange.BaseShaderRegister = 1;
-    CBVRange.RegisterSpace = 0;
-    CBVRange.NumDescriptors = Constants::MAX_LIGHTS;
-    CBVRange.OffsetInDescriptorsFromTableStart = 0;
-    CBVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-
-    rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    rsParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-    rsParam.DescriptorTable.pDescriptorRanges = &CBVRange;
-    rsParam.DescriptorTable.NumDescriptorRanges = 1;
-    rsParams.emplace_back(rsParam);
-
-    // Similarly in Pixel Shader - gLightSpec
-    rsParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rsParams.emplace_back(rsParam);
-
-    // Pixel Shader textures/maps
-    D3D12_DESCRIPTOR_RANGE SRVRange;
-    D3D12NI_ZERO_STRUCT(SRVRange);
-    SRVRange.BaseShaderRegister = 0;
-    SRVRange.RegisterSpace = 0;
-    SRVRange.NumDescriptors = 4; // diffuse, specular, bump, selfIllum
-    SRVRange.OffsetInDescriptorsFromTableStart = 0;
-    SRVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-
-    rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-    rsParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rsParam.DescriptorTable.pDescriptorRanges = &SRVRange;
-    rsParam.DescriptorTable.NumDescriptorRanges = 1;
-    rsParams.emplace_back(rsParam);
-
-    D3D12_ROOT_SIGNATURE_DESC rsDesc;
-    D3D12NI_ZERO_STRUCT(rsDesc);
-    rsDesc.pParameters = rsParams.data();
-    rsDesc.NumParameters = static_cast<UINT>(rsParams.size());
-    rsDesc.pStaticSamplers = rsSamplers.data();
-    rsDesc.NumStaticSamplers = static_cast<UINT>(rsSamplers.size());
-    rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-    D3DBlobPtr rsBlob;
-    D3DBlobPtr rsErrorBlob;
-    HRESULT hr = D3D12SerializeRootSignature(&rsDesc, D3D_ROOT_SIGNATURE_VERSION_1_0, &rsBlob, &rsErrorBlob);
-    if (FAILED(hr))
-    {
-        D3D12NI_LOG_ERROR("Failed to serialize Phong Shader Root Signature: %s", rsErrorBlob->GetBufferPointer());
-        return false;
-    }
-
-    hr = mNativeDevice->GetDevice()->CreateRootSignature(0, rsBlob->GetBufferPointer(), rsBlob->GetBufferSize(), IID_PPV_ARGS(&mPhongRootSignature));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Phong Shader Root Signature");
-
     return true;
 }
 
-const D3D12PipelineStatePtr& PSOManager::GetPSO(const PSOParameters& params)
+const D3D12PipelineStatePtr& PSOManager::GetPSO(const GraphicsPSOParameters& params)
 {
-    const auto psoIter = mPipelines.find(params);
-    if (psoIter == mPipelines.end())
+    const auto psoIter = mGraphicsPipelines.find(params);
+    if (psoIter == mGraphicsPipelines.end())
     {
         if (!ConstructNewPSO(params))
         {
-            D3D12NI_LOG_ERROR("Failed to construct new PSO");
+            D3D12NI_LOG_ERROR("Failed to construct new Graphics PSO");
             return mNullPipeline;
         }
 
-        return mPipelines[params];
+        return mGraphicsPipelines[params];
+    }
+    else
+    {
+        return psoIter->second;
+    }
+}
+
+const D3D12PipelineStatePtr& PSOManager::GetPSO(const ComputePSOParameters& params)
+{
+    const auto psoIter = mComputePipelines.find(params);
+    if (psoIter == mComputePipelines.end())
+    {
+        if (!ConstructNewPSO(params))
+        {
+            D3D12NI_LOG_ERROR("Failed to construct new Compute PSO");
+            return mNullPipeline;
+        }
+
+        return mComputePipelines[params];
     }
     else
     {

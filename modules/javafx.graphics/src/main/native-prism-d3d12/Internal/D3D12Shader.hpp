@@ -30,6 +30,8 @@
 #include "D3D12RingBuffer.hpp"
 #include "D3D12DescriptorData.hpp"
 
+#include "../D3D12NativeTexture.hpp"
+
 #include <map>
 #include <string>
 #include <functional>
@@ -76,11 +78,11 @@ protected:
     ResourceAssignmentCollection mShaderResourceAssignments;
 
     void SetConstantBufferData(void* data, size_t size, size_t storageOffset);
-    void AddShaderResource(const std::string& data, const ResourceAssignment& resource);
+    void AddShaderResource(const std::string& name, const ResourceAssignment& resource);
 
 public:
     using DataAllocator = std::function<RingBuffer::Region(size_t size, size_t alignment)>;
-    using DescriptorAllocator = std::function<DescriptorData(size_t size)>;
+    using DescriptorAllocator = std::function<DescriptorData(size_t count)>;
     using CBVCreator = std::function<void(D3D12_GPU_VIRTUAL_ADDRESS cbufferPtr, UINT size, D3D12_CPU_DESCRIPTOR_HANDLE destDescriptor)>;
 
     Shader();
@@ -89,8 +91,8 @@ public:
     bool SetConstants(const std::string& name, const void* data, size_t size);
     bool SetConstantsInArray(const std::string& name, uint32_t idx, const void* data, size_t size);
 
-    virtual void PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator, const CBVCreator& cbvCreator) = 0;
-    virtual const Internal::DescriptorData& GetTextureDescriptorTable() const = 0;
+    virtual void PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator,
+                                        const CBVCreator& cbvCreator, const NativeTextureBank& textures) = 0;
     virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const = 0;
 
     inline const std::string& GetName() const

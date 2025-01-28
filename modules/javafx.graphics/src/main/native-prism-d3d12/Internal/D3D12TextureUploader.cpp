@@ -62,7 +62,7 @@ void TextureUploader::TransferA8ToB8G8R8A8()
     }
 }
 
-void TextureUploader::TransferRGBToB8G8R8X8()
+void TextureUploader::TransferRGBToB8G8R8A8()
 {
     size_t srcStrideElems = mSource.stride / GetPixelFormatBPP(mSource.format);
     size_t dstStrideElems = mTarget.stride / GetDXGIFormatBPP(mTarget.format);
@@ -154,7 +154,7 @@ bool TextureUploader::Upload()
         {
         case DXGI_FORMAT_B8G8R8A8_UNORM:
         case DXGI_FORMAT_B8G8R8X8_UNORM:
-            TransferRGBToB8G8R8X8();
+            TransferRGBToB8G8R8A8();
             break;
         default:
             D3D12NI_LOG_ERROR("TextureUploader: Transfer from BYTE_RGB to DXGI format %u not supported", mTarget.format);

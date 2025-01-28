@@ -24,6 +24,7 @@
  */
 
 #include "psMath.hlsl"
+#include "ShaderCommon.hlsl"
 
 // lights number (not specular)
 #ifndef Spec
@@ -74,24 +75,7 @@ float4 debug() {
  *
  * Static Samplers are not set by us (yet)
  */
-[RootSignature(
-    "RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)," \
-    "CBV(b0, visibility = SHADER_VISIBILITY_VERTEX)," \
-    "CBV(b0, visibility = SHADER_VISIBILITY_PIXEL)," \
-    "DescriptorTable(" \
-        "CBV(b1, numDescriptors = 3)," \
-        "visibility = SHADER_VISIBILITY_VERTEX" \
-    ")," \
-    "DescriptorTable(" \
-        "CBV(b1, numDescriptors = 3)," \
-        "visibility = SHADER_VISIBILITY_PIXEL" \
-    ")," \
-    "DescriptorTable(" \
-        "SRV(t0, numDescriptors = 4)," \
-        "visibility = SHADER_VISIBILITY_PIXEL" \
-    ")," \
-    "StaticSampler(s0)"
-)]
+[RootSignature(JFX_INTERNAL_GRAPHICS_RS)]
 float4 main(PsInput psInput) : SV_TARGET0 {
 
     if (0) return debug();

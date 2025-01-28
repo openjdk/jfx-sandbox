@@ -36,8 +36,9 @@
 namespace D3D12 {
 namespace Internal {
 
-struct PSOParameters
+class GraphicsPSOParameters
 {
+public:
     NIPtr<Shader> vertexShader;
     NIPtr<Shader> pixelShader;
     CompositeMode compositeMode;
@@ -46,7 +47,7 @@ struct PSOParameters
     bool enableDepthTest;
     UINT msaaSamples;
 
-    bool operator==(const PSOParameters& other) const
+    bool operator==(const GraphicsPSOParameters& other) const
     {
         return vertexShader == other.vertexShader &&
             pixelShader == other.pixelShader &&
@@ -56,8 +57,17 @@ struct PSOParameters
             enableDepthTest == other.enableDepthTest &&
             msaaSamples == other.msaaSamples;
     }
+};
 
+class ComputePSOParameters
+{
+public:
+    NIPtr<Shader> shader;
 
+    bool operator==(const ComputePSOParameters& other) const
+    {
+        return shader == other.shader;
+    }
 };
 
 } // namespace Internal
@@ -65,9 +75,9 @@ struct PSOParameters
 
 
 template <>
-struct std::hash<D3D12::Internal::PSOParameters>
+struct std::hash<D3D12::Internal::GraphicsPSOParameters>
 {
-    std::size_t operator()(const D3D12::Internal::PSOParameters& k) const
+    std::size_t operator()(const D3D12::Internal::GraphicsPSOParameters& k) const
     {
         return std::hash<D3D12::NIPtr<D3D12::Internal::Shader>>()(k.vertexShader) ^
                std::hash<D3D12::NIPtr<D3D12::Internal::Shader>>()(k.pixelShader) ^
@@ -76,6 +86,15 @@ struct std::hash<D3D12::Internal::PSOParameters>
                std::hash<uint32_t>()(k.fillMode) ^
                std::hash<bool>()(k.enableDepthTest) ^
                std::hash<UINT>()(k.msaaSamples);
+    }
+};
+
+template <>
+struct std::hash<D3D12::Internal::ComputePSOParameters>
+{
+    std::size_t operator()(const D3D12::Internal::ComputePSOParameters& k) const
+    {
+        return std::hash<D3D12::NIPtr<D3D12::Internal::Shader>>()(k.shader);
     }
 };
 
@@ -88,24 +107,21 @@ class PSOManager
     NIPtr<NativeDevice> mNativeDevice;
     std::array<D3D12_INPUT_ELEMENT_DESC, 4> m2DInputLayout;
     std::array<D3D12_INPUT_ELEMENT_DESC, 3> m3DInputLayout;
-    std::unordered_map<PSOParameters, D3D12PipelineStatePtr> mPipelines;
+    std::unordered_map<GraphicsPSOParameters, D3D12PipelineStatePtr> mGraphicsPipelines;
+    std::unordered_map<ComputePSOParameters, D3D12PipelineStatePtr> mComputePipelines;
     D3D12PipelineStatePtr mNullPipeline;
-    D3D12RootSignaturePtr mPhongRootSignature;
 
     D3D12_BLEND_DESC FormBlendState(CompositeMode mode);
-    bool ConstructNewPSO(const PSOParameters& params);
+    bool ConstructNewPSO(const GraphicsPSOParameters& params);
+    bool ConstructNewPSO(const ComputePSOParameters& params);
 
 public:
     PSOManager(const NIPtr<NativeDevice>& nativeDevice);
     ~PSOManager();
 
     bool Init();
-    const D3D12PipelineStatePtr& GetPSO(const PSOParameters& params);
-
-    inline const D3D12RootSignaturePtr& GetPhongRootSignature() const
-    {
-        return mPhongRootSignature;
-    }
+    const D3D12PipelineStatePtr& GetPSO(const GraphicsPSOParameters& params);
+    const D3D12PipelineStatePtr& GetPSO(const ComputePSOParameters& params);
 };
 
 } // namespace Internal

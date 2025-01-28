@@ -29,11 +29,14 @@
 
 #include "Internal/D3D12Debug.hpp"
 #include "Internal/D3D12Logger.hpp"
+#include "Internal/D3D12MipmapGenComputeShader.hpp"
 #include "Internal/D3D12TextureUploader.hpp"
 #include "Internal/D3D12Utils.hpp"
 #include "Internal/JNIString.hpp"
 
 #include <com_sun_prism_d3d12_ni_D3D12NativeDevice.h>
+
+#include <algorithm>
 
 
 namespace D3D12 {
@@ -55,7 +58,7 @@ bool NativeDevice::Build2DIndexBuffer()
         indexBufferArray[idx + 5] = vtx + 3;
     }
 
-    m2DIndexBuffer = std::make_shared<NativeBuffer>(shared_from_this());
+    m2DIndexBuffer = std::make_shared<Internal::Buffer>(shared_from_this());
     if (!m2DIndexBuffer->Init(indexBufferArray.data(), indexBufferArray.size() * sizeof(uint16_t),
             D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATE_INDEX_BUFFER))
     {
@@ -93,7 +96,7 @@ void NativeDevice::AssembleVertexData(void* buffer, const Internal::MemoryView<f
     }
 }
 
-const NIPtr<Internal::InternalShader>& NativeDevice::GetPhongPixelShader(const PhongShaderSpec& spec) const
+const NIPtr<Internal::Shader>& NativeDevice::GetPhongPixelShader(const PhongShaderSpec& spec) const
 {
     std::string name(Constants::PHONG_PS_NAME);
 
@@ -225,6 +228,13 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
         return false;
     }
 
+    mRootSignatureManager = std::make_shared<Internal::RootSignatureManager>(shared_from_this());
+    if (!mRootSignatureManager->Init())
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize Root Signatures");
+        return false;
+    }
+
     mRenderingContext = std::make_shared<Internal::RenderingContext>(shared_from_this());
     if (!mRenderingContext->Init())
     {
@@ -292,13 +302,14 @@ void NativeDevice::ReleaseInternals()
     if (mRTVHeap) mRTVHeap.reset();
     if (mDSVHeap) mDSVHeap.reset();
     if (mResourceDisposer) mResourceDisposer.reset();
+    if (mRootSignatureManager) mRootSignatureManager.reset();
 
     mWaitableOps.clear();
 }
 
-NIPtr<NativeBuffer> NativeDevice::CreateBuffer(const void* initialData, size_t size, bool cpuWriteable, D3D12_RESOURCE_STATES finalState)
+NIPtr<Internal::Buffer> NativeDevice::CreateBuffer(const void* initialData, size_t size, bool cpuWriteable, D3D12_RESOURCE_STATES finalState)
 {
-    NIPtr<NativeBuffer> ret = std::make_shared<NativeBuffer>(shared_from_this());
+    NIPtr<Internal::Buffer> ret = std::make_shared<Internal::Buffer>(shared_from_this());
     if (!ret->Init(initialData, size, cpuWriteable ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT, finalState))
         return nullptr;
 
@@ -483,7 +494,7 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
     spec.specular = material->GetSpecularVariant();
     spec.isSelfIllum = material->IsSelfIllum();
 
-    const NIPtr<Internal::InternalShader>& ps = GetPhongPixelShader(spec);
+    const NIPtr<Internal::Shader>& ps = GetPhongPixelShader(spec);
     mRenderingContext->SetPixelShader(ps);
 
     // Transform data is set by RenderingContext, so here just set the Light data from MeshView
@@ -598,7 +609,7 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
     // TODO: D3D12: consider using a separate Command Queue for transfer operations
     // TODO: D3D12: maybe this should be more than a simple Readback resource? investigate
     //              performance reasons, maybe we could avoid allocation here
-    NativeBuffer readbackBuffer(shared_from_this());
+    Internal::Buffer readbackBuffer(shared_from_this());
     if (!readbackBuffer.Init(nullptr, readbackBufferSize, D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST))
     {
         D3D12NI_LOG_ERROR("Failed to initialize readback buffer for texture read");
@@ -681,6 +692,80 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
     return true;
 }
 
+bool NativeDevice::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
+{
+    if (!texture->HasMipmaps()) return true;
+
+    uint32_t mipLevels = texture->GetMipLevels();
+
+    const NIPtr<Internal::Shader>& cs = GetInternalShader("MipmapGenCS");
+    mRenderingContext->SetComputeShader(cs);
+    mRenderingContext->SetTexture(0, texture);
+
+    uint32_t srcWidth = static_cast<uint32_t>(texture->GetWidth());
+    uint32_t srcHeight = static_cast<uint32_t>(texture->GetHeight());
+
+    // starting from 1, level 0 is our base mip level
+    // also note, we're divinding by 2 a lot, so to make it faster we'll bit-shift instead
+    Internal::MipmapGenComputeShader::CBuffer constants;
+    for (uint32_t mip = 1; mip < mipLevels; mip += constants.numLevels)
+    {
+        // dimensions of first mipmap
+        uint32_t mip1Width = (srcWidth >> 1);
+        uint32_t mip1Height = (srcHeight >> 1);
+
+        // we can run more than one downsample as long as we have a "clean" div-by-2 (reminder == 0)
+        // bit-wise this means the LSB's are 0, however don't do more than 3 extra levels (MipmapGenCS does
+        // not support it)
+        uint32_t widthZeros = Internal::Utils::CountZeroBitsLSB(mip1Width, 3);
+        uint32_t heightZeros = Internal::Utils::CountZeroBitsLSB(mip1Height, 3);
+
+        // check how many times we can downsample at once
+        // we guarantee at least one downsample (MipmapGenCS has the initial "heavy" path for that purpose)
+        // but if both mip1Width and mip1Height have any zero-LSBs, we can do more downsamples within one
+        // dispatch and save some CS invocations. Worst case scenario our texture dimensions have all LSB bits
+        // set to 1, but it is an extremely rare occurence.
+        uint32_t levels = 1 + std::min<uint32_t>(widthZeros, heightZeros);
+
+        constants.sourceLevel = mip - 1; // base level is one higher than our first mip
+        constants.numLevels = std::min<uint32_t>(levels, mipLevels - mip);
+        constants.texelSizeMip1[0] = 1.0f / mip1Width;
+        constants.texelSizeMip1[1] = 1.0f / mip1Height;
+
+        cs->SetConstants("gData", &constants, sizeof(constants));
+
+        mRenderingContext->ClearComputeResourcesApplied();
+        mRenderingContext->ApplyCompute();
+
+        // transition base level to non-PS-resource
+        // and other subresources onto UAV state
+        texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                             Internal::Utils::CalcSubresource(mip - 1, texture->GetMipLevels(), 0));
+        for (UINT i = mip; i < mip + constants.numLevels; ++i)
+        {
+            texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                 Internal::Utils::CalcSubresource(i, texture->GetMipLevels(), 0));
+        }
+
+        // each thread group manages an 8x8 square, so we need to dispatch (width/8) X groups and (height/8) Y groups
+        GetCurrentCommandList()->Dispatch(std::max<UINT>(srcWidth >> 3, 1), std::max<UINT>(srcHeight >> 3, 1), 1);
+
+        // update src width/height depending on how many times we downsampled
+        srcWidth >>= constants.numLevels;
+        srcHeight >>= constants.numLevels;
+    }
+
+    // finally, set all subresources to the same state (we'll assume PS-resource is our best bet)
+    // this will make further transitions possible with one call, even if we miss the target state
+    for (UINT i = 0; i < texture->GetMipLevels(); ++i)
+    {
+        texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+                             Internal::Utils::CalcSubresource(i, texture->GetMipLevels(), 0));
+    }
+
+    return true;
+}
+
 bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void* data, size_t dataSizeBytes, PixelFormat srcFormat,
                                  UINT dstx, UINT dsty, UINT srcx, UINT srcy, UINT srcw, UINT srch, UINT srcstride)
 {
@@ -697,7 +782,7 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
     bool useStagingBuffer = targetSize > copyThreshold;
 
     Internal::RingBuffer::Region ringRegion;
-    NativeBuffer stagingBuffer(shared_from_this());
+    Internal::Buffer stagingBuffer(shared_from_this());
     if (useStagingBuffer)
     {
         // for larger textures allocate a dedicated staging buffer
@@ -765,6 +850,8 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
     texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_COPY_DEST);
 
     GetCurrentCommandList()->CopyTextureRegion(&dstLoc, dstx, dsty, 0, &srcLoc, nullptr);
+
+    GenerateMipmaps(texture);
 
     return true;
 }
