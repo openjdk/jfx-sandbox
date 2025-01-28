@@ -107,6 +107,8 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
         return Region();
     }
 
+    size = Utils::Align(size, alignment);
+
     if (size > mSize)
     {
         D3D12NI_LOG_ERROR("Requested data too big: %ld", size);
@@ -131,7 +133,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
         if (mTail + size <= mSize)
         {
             // not crossing past buffer's total size, reserve and return
-            size_t newTail = Utils::Align(mTail + size, alignment);
+            size_t newTail = mTail + size;
             size_t allocSize = newTail - mTail;
             mUsed += allocSize;
             mUncommitted += allocSize;
@@ -155,7 +157,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
             }
 
             // loop-around - beginning of ring Container still has enough room
-            size_t newTail = Utils::Align(size, alignment);
+            size_t newTail = size;
             size_t allocSize = newTail + (mSize - mTail); // size + padding to the end of the buffer
             mUsed += allocSize;
             mUncommitted += allocSize;
@@ -183,7 +185,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
         }
 
         // tail is before head but we have enough room to allocate the data
-        size_t newTail = Utils::Align(mTail + size, alignment);
+        size_t newTail = mTail + size;
         size_t allocSize = newTail - mTail; // size + padding to alignment
         mUsed += allocSize;
         mUncommitted += allocSize;
