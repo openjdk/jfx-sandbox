@@ -69,6 +69,15 @@ void NativePhongMaterial::SetTextureMap(const NIPtr<NativeTexture>& map, Texture
 
 } // namespace D3D12
 
+
+JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativePhongMaterial_nReleaseNativeObject
+    (JNIEnv* env, jobject obj, jlong ptr)
+{
+    if (!ptr) return;
+
+    D3D12::FreeNIObject<D3D12::NativePhongMaterial>(ptr);
+}
+
 JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativePhongMaterial_nSetDiffuseColor
     (JNIEnv* env, jobject obj, jlong ptr, jfloat r, jfloat g, jfloat b, jfloat a)
 {

@@ -72,6 +72,14 @@ bool NativeMesh::BuildGeometryBuffers(const void* vbData, size_t vbSize, const v
 } // namespace D3D12
 
 
+JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeMesh_nReleaseNativeObject
+    (JNIEnv* env, jobject obj, jlong ptr)
+{
+    if (!ptr) return;
+
+    D3D12::FreeNIObject<D3D12::NativeMesh>(ptr);
+}
+
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeMesh_nBuildGeometryBuffersI
     (JNIEnv* env, jobject obj, jlong ptr, jfloatArray verts, jint vertsLength, jintArray indices, jint indicesLength)
 {

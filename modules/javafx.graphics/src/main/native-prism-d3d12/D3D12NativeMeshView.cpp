@@ -148,6 +148,15 @@ void NativeMeshView::SetLight(int index, float x, float y, float z, float r, flo
 
 } // namespace D3D12
 
+
+JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeMeshView_nReleaseNativeObject
+    (JNIEnv* env, jobject obj, jlong ptr)
+{
+    if (!ptr) return;
+
+    D3D12::FreeNIObject<D3D12::NativeMeshView>(ptr);
+}
+
 JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeMeshView_nSetCullingMode
     (JNIEnv* env, jobject obj, jlong ptr, jint mode)
 {
