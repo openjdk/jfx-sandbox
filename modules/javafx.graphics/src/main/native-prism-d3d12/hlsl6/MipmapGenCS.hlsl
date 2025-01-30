@@ -52,12 +52,9 @@ struct MipmapGenData
 ConstantBuffer<MipmapGenData> gData: register(b0);
 
 // temporary storage for calculated mip on each level
-// we dispatch the shader with 8x8 threads, so each channel should have 64 slots
-// this is to reduce peeking into sourceTex after we do one mipmap level
-groupshared float tmpmipR[64];
-groupshared float tmpmipG[64];
-groupshared float tmpmipB[64];
-groupshared float tmpmipA[64];
+// we dispatch the shader with 8x8 threads, so cache should have 64 slots
+// this is to reduce sampling sourceTex after we do one mipmap level
+groupshared float4 tmpmip[64];
 
 // helpers to make reading/writing to tmpmip* easier
 uint GetTempMipIdx(uint x, uint y)
@@ -67,15 +64,12 @@ uint GetTempMipIdx(uint x, uint y)
 
 void StoreTempMip(uint i, float4 color)
 {
-    tmpmipR[i] = color.r;
-    tmpmipG[i] = color.g;
-    tmpmipB[i] = color.b;
-    tmpmipA[i] = color.a;
+    tmpmip[i] = color;
 }
 
 float4 GetTempMip(uint i)
 {
-    return float4(tmpmipR[i], tmpmipG[i], tmpmipB[i], tmpmipA[i]);
+    return tmpmip[i];
 }
 
 
@@ -90,26 +84,31 @@ void main(uint groupIdx: SV_GroupIndex, uint3 tid: SV_DispatchThreadID) {
 
     // figure out UVs and calculate mip based on 4 samples
     float2 uv1 = gData.texelSizeMip1 * (tid.xy + float2(0.25, 0.25));
-    float2 texelOffset = gData.texelSizeMip1 * 0.5;
-    float4 mip = sourceTex.SampleLevel(samplerTex, uv1, gData.sourceLevel);
-    mip += sourceTex.SampleLevel(samplerTex, uv1 + float2(texelOffset.x, 0.0), gData.sourceLevel);
-    mip += sourceTex.SampleLevel(samplerTex, uv1 + float2(0.0, texelOffset.y), gData.sourceLevel);
-    mip += sourceTex.SampleLevel(samplerTex, uv1 + texelOffset, gData.sourceLevel);
+    float4 mip = 0.0f;
+    bool inRange = ((gData.texelSizeMip1.x * tid.x) <= 1.0f) && ((gData.texelSizeMip1.y * tid.y) <= 1.0f);
+    if (inRange)
+    {
+        float2 texelOffset = gData.texelSizeMip1 * 0.5;
+        mip = sourceTex.SampleLevel(samplerTex, uv1, gData.sourceLevel);
+        mip += sourceTex.SampleLevel(samplerTex, uv1 + float2(texelOffset.x, 0.0), gData.sourceLevel);
+        mip += sourceTex.SampleLevel(samplerTex, uv1 + float2(0.0, texelOffset.y), gData.sourceLevel);
+        mip += sourceTex.SampleLevel(samplerTex, uv1 + texelOffset, gData.sourceLevel);
 
-    // average out the sample and store it as first mipmap
-    mip *= 0.25f;
-    mipmapTex1[tid.xy] = mip;
+        // average out the sample and store it as first mipmap
+        mip *= 0.25f;
+        mipmapTex1[tid.xy] = mip;
+        StoreTempMip(groupIdx, mip);
+    }
+
+    // if we do only 1 mipmap on this dispatch leave
+    // otherwise wait for other threads to get to this point
     if (gData.numLevels == 1) return;
-
-    // we do more than 1 mipmap on this dispatch
-    // cache result for later and wait for other threads to get to this point
-    StoreTempMip(groupIdx, mip);
     GroupMemoryBarrierWithGroupSync();
 
     // Mip level 2
     // Instead of re-sampling sourceTex we will refer to Store/GetTempMip() from now on
     // mip2 is half of mip1, only let even X/Y threads through (bitmask is 001001)
-    if ((groupIdx & 0x09) == 0)
+    if (inRange && (groupIdx & 0x9) == 0)
     {
         // we already have the first sample from above, it's mip1
         // other source samples were done by other threads
@@ -118,7 +117,7 @@ void main(uint groupIdx: SV_GroupIndex, uint3 tid: SV_DispatchThreadID) {
         float4 mip4 = GetTempMip(groupIdx + GetTempMipIdx(1, 1));
 
         // average out above 4 samples
-        mip = 0.25 * (mip + mip2 + mip3 + mip4);
+        mip = 0.25f * (mip + mip2 + mip3 + mip4);
         mipmapTex2[tid.xy / 2] = mip;
         StoreTempMip(groupIdx, mip);
     }
@@ -128,28 +127,29 @@ void main(uint groupIdx: SV_GroupIndex, uint3 tid: SV_DispatchThreadID) {
 
     // Mip level 3
     // Like above, but now we check for X/Y being a multiple of 4 (bitmask 011011)
-    if ((groupIdx & 0x1B) == 0)
+    if (inRange && (groupIdx & 0x1B) == 0)
     {
         float4 mip2 = GetTempMip(groupIdx + GetTempMipIdx(2, 0));
         float4 mip3 = GetTempMip(groupIdx + GetTempMipIdx(0, 2));
         float4 mip4 = GetTempMip(groupIdx + GetTempMipIdx(2, 2));
 
-        mip = 0.25 * (mip + mip2 + mip3 + mip4);
+        mip = 0.25f * (mip + mip2 + mip3 + mip4);
         mipmapTex3[tid.xy / 4] = mip;
         StoreTempMip(groupIdx, mip);
     }
+
     if (gData.numLevels == 3) return;
     GroupMemoryBarrierWithGroupSync();
 
     // Mip level 4
     // Here only one (first) thread should have a group ID being multiple of 8 in both dimensions
-    if (groupIdx == 0)
+    if (inRange && groupIdx == 0)
     {
         float4 mip2 = GetTempMip(groupIdx + GetTempMipIdx(4, 0));
         float4 mip3 = GetTempMip(groupIdx + GetTempMipIdx(0, 4));
         float4 mip4 = GetTempMip(groupIdx + GetTempMipIdx(4, 4));
 
-        mip = 0.25 * (mip + mip2 + mip3 + mip4);
+        mip = 0.25f * (mip + mip2 + mip3 + mip4);
         mipmapTex4[tid.xy / 8] = mip;
     }
 }

@@ -91,7 +91,7 @@ void MipmapGenComputeShader::PrepareShaderResources(const DataAllocator& dataAll
     mUAVDTable = descriptorAllocator(cb->numLevels);
     if (!mTextureDTable)
     {
-        D3D12NI_LOG_ERROR("MipmapGenCS: Failed to prepare resources; allocation of 4 UAV descriptors failed");
+        D3D12NI_LOG_ERROR("MipmapGenCS: Failed to prepare resources; allocation of %d UAV descriptors failed", cb->numLevels);
         return;
     }
 
@@ -108,9 +108,10 @@ void MipmapGenComputeShader::PrepareShaderResources(const DataAllocator& dataAll
     textures[0]->WriteSRVToDescriptor(mTextureDTable.CPU(0), 1, cb->sourceLevel);
 
     // write destination mip levels as UAVs (output)
+    // destination levels are one higher than source
     for (uint32_t i = 0; i < cb->numLevels; ++i)
     {
-        textures[0]->WriteUAVToDescriptor(mUAVDTable.CPU(i), cb->sourceLevel + 1);
+        textures[0]->WriteUAVToDescriptor(mUAVDTable.CPU(i), (cb->sourceLevel + 1) + i);
     }
 }
 

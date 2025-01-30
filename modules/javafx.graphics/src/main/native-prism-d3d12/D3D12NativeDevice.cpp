@@ -705,62 +705,51 @@ bool NativeDevice::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
     uint32_t srcWidth = static_cast<uint32_t>(texture->GetWidth());
     uint32_t srcHeight = static_cast<uint32_t>(texture->GetHeight());
 
+    // transition entire texture with mips to UAV state
+    texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
     // starting from 1, level 0 is our base mip level
     // also note, we're divinding by 2 a lot, so to make it faster we'll bit-shift instead
     Internal::MipmapGenComputeShader::CBuffer constants;
-    for (uint32_t mip = 1; mip < mipLevels; mip += constants.numLevels)
+    uint32_t mipMapCount = mipLevels - 1; // mipLevels includes base level so we need to skip it
+    for (uint32_t mipBase = 0; mipBase < mipMapCount; mipBase += constants.numLevels)
     {
         // dimensions of first mipmap
         uint32_t mip1Width = (srcWidth >> 1);
         uint32_t mip1Height = (srcHeight >> 1);
 
-        // we can run more than one downsample as long as we have a "clean" div-by-2 (reminder == 0)
-        // bit-wise this means the LSB's are 0, however don't do more than 3 extra levels (MipmapGenCS does
-        // not support it)
-        uint32_t widthZeros = Internal::Utils::CountZeroBitsLSB(mip1Width, 3);
-        uint32_t heightZeros = Internal::Utils::CountZeroBitsLSB(mip1Height, 3);
-
         // check how many times we can downsample at once
         // we guarantee at least one downsample (MipmapGenCS has the initial "heavy" path for that purpose)
-        // but if both mip1Width and mip1Height have any zero-LSBs, we can do more downsamples within one
-        // dispatch and save some CS invocations. Worst case scenario our texture dimensions have all LSB bits
-        // set to 1, but it is an extremely rare occurence.
+        // but if both mip1Width and mip1Height have any zero-LSBs past that, we can do more downsamples within
+        // one dispatch and save some CS invocations. Worst case scenario our texture dimensions have all LSB
+        // bits set to 1, but it is an extremely rare occurence.
+        uint32_t widthZeros = Internal::Utils::CountZeroBitsLSB(mip1Width, 3);
+        uint32_t heightZeros = Internal::Utils::CountZeroBitsLSB(mip1Height, 3);
         uint32_t levels = 1 + std::min<uint32_t>(widthZeros, heightZeros);
 
-        constants.sourceLevel = mip - 1; // base level is one higher than our first mip
-        constants.numLevels = std::min<uint32_t>(levels, mipLevels - mip);
+        constants.sourceLevel = mipBase; // base level is one higher than our first mip
+        constants.numLevels = std::min<uint32_t>(levels, mipMapCount - mipBase);
         constants.texelSizeMip1[0] = 1.0f / mip1Width;
         constants.texelSizeMip1[1] = 1.0f / mip1Height;
-
         cs->SetConstants("gData", &constants, sizeof(constants));
 
         mRenderingContext->ClearComputeResourcesApplied();
         mRenderingContext->ApplyCompute();
 
         // transition base level to non-PS-resource
-        // and other subresources onto UAV state
         texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                             Internal::Utils::CalcSubresource(mip - 1, texture->GetMipLevels(), 0));
-        for (UINT i = mip; i < mip + constants.numLevels; ++i)
-        {
-            texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                                 Internal::Utils::CalcSubresource(i, texture->GetMipLevels(), 0));
-        }
+                             Internal::Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
 
         // each thread group manages an 8x8 square, so we need to dispatch (width/8) X groups and (height/8) Y groups
         GetCurrentCommandList()->Dispatch(std::max<UINT>(srcWidth >> 3, 1), std::max<UINT>(srcHeight >> 3, 1), 1);
 
-        // update src width/height depending on how many times we downsampled
+        // transition base level back to UAV
+        // this should make all subresources have the same state again
+        texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                             Internal::Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
+
         srcWidth >>= constants.numLevels;
         srcHeight >>= constants.numLevels;
-    }
-
-    // finally, set all subresources to the same state (we'll assume PS-resource is our best bet)
-    // this will make further transitions possible with one call, even if we miss the target state
-    for (UINT i = 0; i < texture->GetMipLevels(); ++i)
-    {
-        texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-                             Internal::Utils::CalcSubresource(i, texture->GetMipLevels(), 0));
     }
 
     return true;

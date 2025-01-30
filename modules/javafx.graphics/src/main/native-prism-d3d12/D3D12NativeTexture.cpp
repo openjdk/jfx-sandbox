@@ -76,8 +76,9 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC1& desc)
         mTextureResource->SetName(mDebugName.c_str());
     }
 
-    D3D12NI_LOG_TRACE("--- Texture %S created (%ux%u format %s %uxMSAA) ---",
-        mDebugName.c_str(), mResourceDesc.Width, mResourceDesc.Height, Internal::DXGIFormatToString(mResourceDesc.Format), mResourceDesc.SampleDesc.Count);
+    D3D12NI_LOG_TRACE("--- Texture %S created (%ux%u %s %uxMSAA %s) ---",
+        mDebugName.c_str(), mResourceDesc.Width, mResourceDesc.Height, Internal::DXGIFormatToString(mResourceDesc.Format),
+        mResourceDesc.SampleDesc.Count, HasMipmaps() ? "Mip" : "NoMip");
 
     return true;
 }
@@ -99,8 +100,9 @@ NativeTexture::~NativeTexture()
     {
         // Trace log only if we actually allocated the resource
         // with mBufferResource being null we never called Init (or it failed)
-        D3D12NI_LOG_TRACE("--- Texture %S destroyed (%ux%u format %s %uxMSAA) ---",
-            mDebugName.c_str(), mResourceDesc.Width, mResourceDesc.Height, Internal::DXGIFormatToString(mResourceDesc.Format), mResourceDesc.SampleDesc.Count);
+        D3D12NI_LOG_TRACE("--- Texture %S destroyed (%ux%u %s %uxMSAA %s) ---",
+            mDebugName.c_str(), mResourceDesc.Width, mResourceDesc.Height, Internal::DXGIFormatToString(mResourceDesc.Format),
+            mResourceDesc.SampleDesc.Count, HasMipmaps() ? "Mip" : "NoMip");
     }
 }
 

@@ -144,9 +144,9 @@ bool RootSignatureManager::Init()
     rsSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     rsSampler.RegisterSpace = 0;
     rsSampler.ShaderRegister = 0;
-    rsSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    rsSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    rsSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    rsSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    rsSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    rsSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     rsSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
     rsSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
     rsSampler.MinLOD = 0;
