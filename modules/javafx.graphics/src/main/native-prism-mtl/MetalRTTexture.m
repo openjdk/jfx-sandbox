@@ -129,6 +129,26 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT2
     return rtt_ptr;
 }
 
+// This method inits underlying native MTLTexture with passed in pixData
+// This texure replaceRegion is executed on CPU
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nInitRTT
+    (JNIEnv *env, jclass class, jlong jTexPtr, jintArray pixData)
+{
+    MetalRTTexture* rtt = (MetalRTTexture*) jlong_to_ptr(jTexPtr);
+    id<MTLTexture> tex = [rtt getTexture];
+
+    jint* arr = (*env)->GetIntArrayElements(env, pixData, NULL);
+
+    MTLRegion region = {{0,0,0}, {tex.width, tex.height, 1}};
+
+    [tex replaceRegion: region
+           mipmapLevel: 0
+             withBytes: arr
+           bytesPerRow: tex.width * 4];
+
+    (*env)->ReleaseIntArrayElements(env, pixData, arr, 0);
+}
+
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nReadPixelsFromContextRTT
     (JNIEnv *env, jclass class, jlong jTexPtr, jobject pixData)
 {

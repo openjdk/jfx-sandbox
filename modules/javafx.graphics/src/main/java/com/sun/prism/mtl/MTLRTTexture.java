@@ -62,6 +62,10 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
         opaque = false;
         MSAA = msaa;
 
+        // pixels array contains all 0s by default
+        // Initialize native texture to clear color (0,0,0,0) using pixels
+        nInitRTT(nTexPtr, pixels);
+
         MTLLog.Debug("MTLRTTexture(): context = " + context + ", resource = " + resource +
                 ", wrapMode = " + wrapMode +
                 ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight +
@@ -146,6 +150,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     native private static void nReadPixels(long nativeHandle, int[] pixBuffer);
     native private static void nReadPixelsFromContextRTT(long nativeHandle, IntBuffer pixBuffer);
     native private static long nGetPixelDataPtr(long nativeHandle);
+    native private static void nInitRTT(long pTex, int[] pix);
 
     @Override
     public int[] getPixels() {
