@@ -25,10 +25,13 @@
 
 package com.sun.prism.d3d12;
 
+import com.sun.prism.MediaFrame;
+
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+
 
 public class D3D12Utils {
     // Copied from D3DResourceFactory.java
@@ -67,5 +70,23 @@ public class D3D12Utils {
 
     static ByteBuffer getShaderCodeBuffer(String shaderResourcePath) {
         return getShaderCodeBuffer(D3D12Utils.class.getResourceAsStream(shaderResourcePath));
+    }
+
+    static class AutoReleasableMediaFrame implements AutoCloseable {
+        private MediaFrame mediaFrame;
+
+        public AutoReleasableMediaFrame(MediaFrame mf) {
+            mediaFrame = mf;
+            mediaFrame.holdFrame();
+        }
+
+        @Override
+        public void close() {
+            mediaFrame.releaseFrame();
+        }
+
+        public MediaFrame get() {
+            return mediaFrame;
+        }
     }
 }

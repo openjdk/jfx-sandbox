@@ -26,6 +26,7 @@
 package com.sun.prism.d3d12;
 
 import java.nio.Buffer;
+import java.nio.ByteBuffer;
 
 import com.sun.prism.MediaFrame;
 import com.sun.prism.PixelFormat;
@@ -34,12 +35,16 @@ import com.sun.prism.impl.BaseTexture;
 import com.sun.prism.d3d12.ni.D3D12NativeTexture;
 
 class D3D12Texture extends BaseTexture<D3D12Resource<D3D12TextureData>> {
-    D3D12Context mContext;
+    protected D3D12Context mContext;
 
     protected D3D12Texture(D3D12Resource<D3D12TextureData> resource, D3D12Context context, PixelFormat format, WrapMode wrapMode,
                            int width, int height) {
         super(resource, format, wrapMode, width, height);
         mContext = context;
+    }
+
+    private D3D12Texture(D3D12Texture sharedTex, WrapMode altMode) {
+        super(sharedTex, altMode, false);
     }
 
     public static D3D12Texture create(D3D12NativeTexture nativeTexture, D3D12Context context,
@@ -88,12 +93,44 @@ class D3D12Texture extends BaseTexture<D3D12Resource<D3D12TextureData>> {
 
     @Override
     public void update(MediaFrame frame, boolean skipFlush) {
-        throw new UnsupportedOperationException("Unimplemented method 'update(MediaFrame)'");
+        if (frame.getPixelFormat() == PixelFormat.MULTI_YCbCr_420) {
+            throw new IllegalArgumentException("Unsupported format " + frame.getPixelFormat());
+        }
+
+        try (D3D12Utils.AutoReleasableMediaFrame mf =
+                new D3D12Utils.AutoReleasableMediaFrame(frame)) {
+            ByteBuffer pixels = mf.get().getBufferForPlane(0);
+
+            if (!skipFlush) {
+                mContext.flushVertexBuffer();
+            }
+
+            PixelFormat format = mf.get().getPixelFormat();
+            boolean res;
+
+            if (format.getDataType() == PixelFormat.DataType.INT) {
+                res = mContext.getDevice().updateTexture(getNativeTexture(),
+                                                        pixels.asIntBuffer(), format,
+                                                        0, 0, 0, 0,
+                                                        mf.get().getEncodedWidth(), mf.get().getEncodedHeight(),
+                                                        mf.get().strideForPlane(0));
+            } else {
+                res = mContext.getDevice().updateTexture(getNativeTexture(),
+                                                        pixels, format,
+                                                        0, 0, 0, 0,
+                                                        mf.get().getEncodedWidth(), mf.get().getEncodedHeight(),
+                                                        mf.get().strideForPlane(0));
+            }
+
+            if (!res) {
+                new Exception(String.format("D3D12: Texture update failed. Stack trace:")).printStackTrace(System.err);
+            }
+        }
     }
 
     @Override
     protected Texture createSharedTexture(WrapMode newMode) {
-        throw new UnsupportedOperationException("Unimplemented method 'createSharedTexture'");
+        return new D3D12Texture(this, newMode);
     }
 
 }

@@ -372,13 +372,15 @@ void NativeShader::PrepareShaderResources(const DataAllocator& dataAllocator, co
 {
     if (mTextureDTableIndex > 0)
     {
-        mLastAllocatedDescriptorData = descriptorAllocator(mTextureCount);
-
+        // counting backwards to cover all slots, even if there are NULL textures
+        // hidden in-between (we don't know which texture slots Shaders need)
         uint32_t usedTextures = Constants::MAX_TEXTURE_UNITS;
         while (usedTextures > 0 && !textures[usedTextures - 1])
         {
             usedTextures--;
         }
+
+        mLastAllocatedDescriptorData = descriptorAllocator(usedTextures);
 
         // should not happen
         if (!mLastAllocatedDescriptorData && usedTextures != 0)

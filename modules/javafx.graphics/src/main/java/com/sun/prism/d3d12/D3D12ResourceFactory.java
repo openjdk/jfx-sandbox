@@ -33,6 +33,7 @@ import com.sun.glass.ui.Screen;
 import com.sun.prism.MediaFrame;
 import com.sun.prism.Mesh;
 import com.sun.prism.MeshView;
+import com.sun.prism.MultiTexture;
 import com.sun.prism.PhongMaterial;
 import com.sun.prism.PixelFormat;
 import com.sun.prism.Presentable;
@@ -172,7 +173,82 @@ class D3D12ResourceFactory extends BaseShaderFactory {
 
     @Override
     public Texture createTexture(MediaFrame frame) {
-        throw new UnsupportedOperationException("Unimplemented method 'createTexture'");
+        if (checkDisposed()) return null;
+
+        D3D12Texture texture = null;
+
+        try (D3D12Utils.AutoReleasableMediaFrame mf =
+                new D3D12Utils.AutoReleasableMediaFrame(frame)) {
+            int width = mf.get().getWidth();
+            int height = mf.get().getHeight();
+            int texWidth = mf.get().getEncodedWidth();
+            int texHeight = mf.get().getEncodedHeight();
+            PixelFormat texFormat = mf.get().getPixelFormat();
+
+            if (texFormat == PixelFormat.MULTI_YCbCr_420) {
+                // Create a MultiTexture instead
+                MultiTexture tex = new MultiTexture(texFormat, WrapMode.CLAMP_TO_EDGE, width, height);
+
+                // create/add the subtextures
+                // plane indices: 0 = luma, 1 = Cb, 2 = Cr, 3 (optional) = alpha
+                for (int index = 0; index < frame.planeCount(); index++) {
+                    int subWidth = texWidth;
+                    int subHeight =  texHeight; // might not match height if height is odd
+
+                    if (index == PixelFormat.YCBCR_PLANE_CHROMABLUE
+                            || index == PixelFormat.YCBCR_PLANE_CHROMARED)
+                    {
+                        subWidth /= 2;
+                        subHeight /= 2;
+                    }
+
+                    D3D12NativeTexture subNTex = mContext.getDevice().createTexture(
+                        subWidth, subHeight, PixelFormat.BYTE_ALPHA, Usage.DYNAMIC, 1, false, false
+                    );
+                    if (subNTex == null) {
+                        tex.dispose();
+                        return null;
+                    }
+
+                    D3D12Texture subTex = D3D12Texture.create(subNTex, mContext, PixelFormat.BYTE_ALPHA, WrapMode.CLAMP_TO_EDGE);
+                    tex.setTexture(subTex, index);
+                }
+
+                return tex;
+            } else {
+                if (texWidth <= 0 || texHeight <= 0) {
+                    throw new RuntimeException("Illegal texture dimensions (" + texWidth + "x" + texHeight + ")");
+                }
+
+                int bpp = texFormat.getBytesPerPixelUnit();
+                if (texWidth >= (Integer.MAX_VALUE / texHeight / bpp)) {
+                    throw new RuntimeException("Illegal texture dimensions (" + texWidth + "x" + texHeight + ")");
+                }
+
+                D3D12ResourcePool pool = D3D12ResourcePool.instance;
+                long size = pool.estimateTextureSize(texWidth, texHeight, texFormat);
+                if (!pool.prepareForAllocation(size)) {
+                    return null;
+                }
+
+                D3D12NativeTexture nativeTexture = mContext.getDevice().createTexture(
+                    texWidth, texHeight, texFormat, Usage.DYNAMIC, 1, false, false
+                );
+
+                if (!nativeTexture.isValid()) {
+                    throw new RuntimeException("Failed to create D3D12 texture for MediaFrame");
+                }
+
+                // TODO D3D12: proper wrapMode
+                int physWidth = nativeTexture.getWidth();
+                int physHeight = nativeTexture.getHeight();
+                WrapMode wrapMode = (texWidth < physWidth || texHeight < physHeight)
+                    ? WrapMode.CLAMP_TO_EDGE_SIMULATED : WrapMode.CLAMP_TO_EDGE;
+                texture = D3D12Texture.create(nativeTexture, mContext, texFormat, wrapMode);
+            }
+        }
+
+        return texture;
     }
 
     @Override
