@@ -145,12 +145,18 @@ NativeDevice::NativeDevice()
     , mFenceValue(0)
     , mFrameCounter(0)
     , mWaitableOps()
+    , mRootSignatureManager()
     , mRenderingContext()
+    , mResourceDisposer()
     , mRTVHeap()
+    , mDSVHeap()
     , mShaderLibrary()
+    , mPassthroughVS()
+    , mPhongVS()
     , mCommandListPool()
     , m2DIndexBuffer()
     , mRingBuffer()
+    , mConstantRingBuffer()
     , mMidFrameWaitable()
 {
 }
@@ -278,6 +284,13 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
         return false;
     }
 
+    mSamplerStorage = std::make_shared<Internal::SamplerStorage>(shared_from_this());
+    if (!mSamplerStorage->Init())
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize Sampler Storage");
+        return false;
+    }
+
     if (!Build2DIndexBuffer()) return false;
 
     mPassthroughVS = GetInternalShader(Constants::PASSTHROUGH_VS_NAME);
@@ -361,9 +374,10 @@ NIPtr<NativeShader>* NativeDevice::CreateShader(const std::string& name, void* b
     return CreateNIDeviceObject<NativeShader>(shared_from_this(), name, buf, size);
 }
 
-NIPtr<NativeTexture>* NativeDevice::CreateTexture(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, TextureUsage usage, int samples, bool useMipmap)
+NIPtr<NativeTexture>* NativeDevice::CreateTexture(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags,
+                                                  TextureUsage usage, TextureWrapMode wrapMode, int samples, bool useMipmap)
 {
-    return CreateNIDeviceObject<NativeTexture>(shared_from_this(), width, height, format, flags, usage, samples, useMipmap);
+    return CreateNIDeviceObject<NativeTexture>(shared_from_this(), width, height, format, flags, usage, wrapMode, samples, useMipmap);
 }
 
 int NativeDevice::GetMaximumMSAASampleSize(DXGI_FORMAT format) const
@@ -1039,7 +1053,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCreateSha
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCreateTexture
-    (JNIEnv* env, jobject obj, jlong ptr, jint width, jint height, jint format, jint usage, jint samples, jboolean useMipmap, jboolean isRTT)
+    (JNIEnv* env, jobject obj, jlong ptr, jint width, jint height, jint format,
+     jint usage, jint wrapMode, jint samples, jboolean useMipmap, jboolean isRTT)
 {
     if (!ptr) return 0;
 
@@ -1047,8 +1062,9 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCreateTex
     if (isRTT) flags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
     return reinterpret_cast<jlong>(D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->CreateTexture(
-        static_cast<UINT>(width), static_cast<UINT>(height), static_cast<DXGI_FORMAT>(format),
-        flags, static_cast<D3D12::TextureUsage>(usage), samples, static_cast<bool>(useMipmap)
+        static_cast<UINT>(width), static_cast<UINT>(height), static_cast<DXGI_FORMAT>(format), flags,
+        static_cast<D3D12::TextureUsage>(usage), static_cast<D3D12::TextureWrapMode>(wrapMode),
+        samples, static_cast<bool>(useMipmap)
     ));
 }
 

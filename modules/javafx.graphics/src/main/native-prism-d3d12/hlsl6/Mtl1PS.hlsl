@@ -55,11 +55,14 @@ static const bool isIlluminated = IllumMap;
 
 
 // sampler states and texture mapping
-SamplerState defaultSampler    : register(s0);
-Texture2D mapDiffuse         : register(t0);
-Texture2D mapSpecular        : register(t1);
-Texture2D mapBumpHeight      : register(t2);
-Texture2D mapSelfIllum       : register(t3);
+SamplerState samplerDiffuse    : register(s0);
+SamplerState samplerSpecular   : register(s1);
+SamplerState samplerBumpHeight : register(s2);
+SamplerState samplerSelfIllum  : register(s3);
+Texture2D mapDiffuse           : register(t0);
+Texture2D mapSpecular          : register(t1);
+Texture2D mapBumpHeight        : register(t2);
+Texture2D mapSelfIllum         : register(t3);
 
 float4 debug() {
     return float4(0,0,1,1);
@@ -72,8 +75,7 @@ float4 debug() {
  *     ConstantBuffer<VSLightSpec> gLightSpec[numLights]; idx = 2
  *     ConstantBuffer<PSLightSpec> gLightSpec[numLights]; idx = 3
  *     [ mapDiffuse, mapSpecular, mapBumpHeight, mapSelfIllum]; idx = 4
- *
- * Static Samplers are not set by us (yet)
+ *     [ samplerDiffuse, samplerSpecular, samplerBumpHeight, samplerSelfIllum]; idx = 5
  */
 [RootSignature(JFX_INTERNAL_GRAPHICS_RS)]
 float4 main(PsInput psInput) : SV_TARGET0 {
@@ -84,7 +86,7 @@ float4 main(PsInput psInput) : SV_TARGET0 {
     float2 texD = psInput.texD;
 
     // diffuse
-    float4 tDiff = mapDiffuse.Sample(defaultSampler, texD);
+    float4 tDiff = mapDiffuse.Sample(samplerDiffuse, texD);
     if (tDiff.a == 0.0) discard;
     tDiff = tDiff * gColor.diffuse;
 
@@ -94,7 +96,7 @@ float4 main(PsInput psInput) : SV_TARGET0 {
 
     // bump
     if (bump) {
-        float4 BumpSpec = mapBumpHeight.Sample(defaultSampler, texD);
+        float4 BumpSpec = mapBumpHeight.Sample(samplerBumpHeight, texD);
         normal = normalize(BumpSpec.xyz * 2 - 1);
     }
 
@@ -105,7 +107,7 @@ float4 main(PsInput psInput) : SV_TARGET0 {
     if (specType > 0) {
         specPower = gColor.specular.a;
         if (specType != SpecColor) { // Texture or Mix
-            tSpec = mapSpecular.Sample(defaultSampler, texD);
+            tSpec = mapSpecular.Sample(samplerSpecular, texD);
             specPower *= NTSC_Gray(tSpec.rgb);
         } else { // Color
             tSpec.rgb = gColor.specular.rgb;
@@ -138,7 +140,7 @@ float4 main(PsInput psInput) : SV_TARGET0 {
 
     // self-illumination
     if (isIlluminated) {
-        rez += mapSelfIllum.Sample(defaultSampler, texD).rgb;
+        rez += mapSelfIllum.Sample(samplerSelfIllum, texD).rgb;
     }
 
     return float4(saturate(rez), tDiff.a);

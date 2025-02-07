@@ -39,7 +39,10 @@
         "SRV(t0, numDescriptors = 4)," \
         "visibility = SHADER_VISIBILITY_PIXEL" \
     ")," \
-    "StaticSampler(s0)"
+    "DescriptorTable(" \
+        "Sampler(s0, numDescriptors = 4)," \
+        "visibility = SHADER_VISIBILITY_PIXEL" \
+    "), " \
 
 #define JFX_INTERNAL_COMPUTE_RS \
     "RootFlags(0)," \

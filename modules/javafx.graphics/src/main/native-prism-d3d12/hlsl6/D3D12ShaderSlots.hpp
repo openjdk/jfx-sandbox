@@ -41,6 +41,7 @@ const unsigned int PHONG_VS_LIGHT_SPEC = 2; // Descriptor Table
 const unsigned int PHONG_PS_LIGHT_SPEC = 3; // Descriptor Table
 
 const unsigned int PHONG_PS_TEXTURE_DTABLE = 4; // Descriptor Table
+const unsigned int PHONG_PS_SAMPLER_DTABLE = 5; // Descriptor Table
 
 } // namespace ShaderSlots
 } // namespace D3D12

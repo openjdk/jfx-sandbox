@@ -192,8 +192,11 @@ class DescriptorHeapRenderingStep: public RenderingStep
 {
     void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
     {
-        ID3D12DescriptorHeap* heaps[] = { state.resourceManager.GetHeap().Get() };
-        commandList->SetDescriptorHeaps(1, heaps);
+        ID3D12DescriptorHeap* heaps[] = {
+            state.resourceManager.GetHeap().Get(),
+            state.resourceManager.GetSamplerHeap().Get()
+        };
+        commandList->SetDescriptorHeaps(2, heaps);
     }
 };
 

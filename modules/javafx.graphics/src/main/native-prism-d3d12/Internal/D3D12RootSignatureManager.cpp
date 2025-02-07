@@ -43,31 +43,13 @@ bool RootSignatureManager::Init()
     // Prepare Root Signature for Phong Shaders
     // See hlsl/ShaderCommon.hlsl for details
     std::vector<D3D12_ROOT_PARAMETER> rsParams;
-    std::vector<D3D12_STATIC_SAMPLER_DESC> rsSamplers;
     D3D12_ROOT_PARAMETER rsParam;
-    D3D12_STATIC_SAMPLER_DESC rsSampler;
     D3D12_DESCRIPTOR_RANGE CBVRange;
     D3D12_DESCRIPTOR_RANGE UAVRange;
     D3D12_DESCRIPTOR_RANGE SRVRange;
+    D3D12_DESCRIPTOR_RANGE SamplerRange;
 
     D3D12NI_ZERO_STRUCT(rsParam);
-    D3D12NI_ZERO_STRUCT(rsSampler);
-
-    // Shaders share the same static sampler
-    rsSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rsSampler.RegisterSpace = 0;
-    rsSampler.ShaderRegister = 0;
-    rsSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    rsSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    rsSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    rsSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    rsSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
-    rsSampler.MinLOD = 0;
-    rsSampler.MaxLOD = D3D12_FLOAT32_MAX;
-    rsSampler.MipLODBias = 0;
-    rsSampler.MaxAnisotropy = 1;
-    rsSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-    rsSamplers.emplace_back(rsSampler);
 
     // Vertex shader root CBuffer View - gData
     rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -112,12 +94,24 @@ bool RootSignatureManager::Init()
     rsParam.DescriptorTable.NumDescriptorRanges = 1;
     rsParams.emplace_back(rsParam);
 
+    // Samplers for Pixel Shader textures
+    D3D12NI_ZERO_STRUCT(SamplerRange);
+    SamplerRange.BaseShaderRegister = 0;
+    SamplerRange.RegisterSpace = 0;
+    SamplerRange.NumDescriptors = 4; // diffuse, specular, bump, selfIllum
+    SamplerRange.OffsetInDescriptorsFromTableStart = 0;
+    SamplerRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+
+    rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    rsParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rsParam.DescriptorTable.pDescriptorRanges = &SamplerRange;
+    rsParam.DescriptorTable.NumDescriptorRanges = 1;
+    rsParams.emplace_back(rsParam);
+
     D3D12_ROOT_SIGNATURE_DESC rsDesc;
     D3D12NI_ZERO_STRUCT(rsDesc);
     rsDesc.pParameters = rsParams.data();
     rsDesc.NumParameters = static_cast<UINT>(rsParams.size());
-    rsDesc.pStaticSamplers = rsSamplers.data();
-    rsDesc.NumStaticSamplers = static_cast<UINT>(rsSamplers.size());
     rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     D3DBlobPtr rsBlob;
@@ -135,12 +129,13 @@ bool RootSignatureManager::Init()
 
     // Prepare Root Signature for Compute Shaders
     // See hlsl/ShaderCommon.hlsl for details
+    std::vector<D3D12_STATIC_SAMPLER_DESC> rsSamplers;
+    D3D12_STATIC_SAMPLER_DESC rsSampler;
     rsParams.clear();
-    rsSamplers.clear();
     D3D12NI_ZERO_STRUCT(rsParam);
     D3D12NI_ZERO_STRUCT(rsSampler);
 
-    // Shaders share the same static sampler
+    // Compute Shaders share the same static sampler
     rsSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
     rsSampler.RegisterSpace = 0;
     rsSampler.ShaderRegister = 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,10 +46,9 @@ class ResourceManager
     NIPtr<Shader> mVertexShader;
     NIPtr<Shader> mPixelShader;
     NativeTextureBank mTextures;
-    RingDescriptorHeap mHeap;
-    Shader::DataAllocator mCBufferAllocator;
-    Shader::DescriptorAllocator mDescriptorAllocator;
-    Shader::CBVCreator mCBVCreator;
+    RingDescriptorHeap mSRVHeap;
+    RingDescriptorHeap mSamplerHeap;
+    Shader::ShaderResourceHelpers mShaderHelpers;
 
     // Compute Resources
     NIPtr<Shader> mComputeShader;
@@ -78,7 +77,12 @@ public:
 
     inline const D3D12DescriptorHeapPtr& GetHeap() const
     {
-        return mHeap.GetHeap();
+        return mSRVHeap.GetHeap();
+    }
+
+    inline const D3D12DescriptorHeapPtr& GetSamplerHeap() const
+    {
+        return mSamplerHeap.GetHeap();
     }
 
     inline const NIPtr<Shader>& GetVertexShader()

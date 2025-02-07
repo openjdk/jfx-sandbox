@@ -331,6 +331,25 @@ enum class PixelFormat: unsigned char
     FLOAT_XYZW,
 };
 
+// mirrors Prism's Texture.Usage enum
+enum class TextureUsage: unsigned int
+{
+    DEFAULT = 0,
+    DYNAMIC,
+    STATIC,
+};
+
+// mirrors Prism's Texture.WrapMode enum, excluding _SIMULATED modes.
+// _SIMULATED modes borrow from non-SIMULATED ones and are processed on
+// Java-side.
+enum class TextureWrapMode: unsigned int
+{
+    CLAMP_NOT_NEEDED = 0,
+    CLAMP_TO_ZERO,
+    CLAMP_TO_EDGE,
+    REPEAT,
+};
+
 // decides how Shader resource should be bound
 // see D3D12Shader.hpp
 enum class ResourceAssignmentType: uint32_t
@@ -338,7 +357,8 @@ enum class ResourceAssignmentType: uint32_t
     ROOT_CONSTANT,
     DESCRIPTOR,
     DESCRIPTOR_TABLE_TEXTURES,
-    DESCRIPTOR_TABLE_CBUFFERS
+    DESCRIPTOR_TABLE_CBUFFERS,
+    DESCRIPTOR_TABLE_SAMPLERS
 };
 
 inline const char* ResourceAssignmentTypeToString(ResourceAssignmentType type)
@@ -349,6 +369,7 @@ inline const char* ResourceAssignmentTypeToString(ResourceAssignmentType type)
     case ResourceAssignmentType::DESCRIPTOR: return "DESCRIPTOR";
     case ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES: return "DESCRIPTOR_TABLE_TEXTURES";
     case ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS: return "DESCRIPTOR_TABLE_CBUFFERS";
+    case ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS: return "DESCRIPTOR_TABLE_SAMPLERS";
     default: return "UNKNOWN";
     }
 }

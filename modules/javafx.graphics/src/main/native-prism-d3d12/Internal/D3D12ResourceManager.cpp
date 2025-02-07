@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,23 +35,36 @@ ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mPixelShader()
     , mTextures()
-    , mHeap(nativeDevice)
+    , mSRVHeap(nativeDevice)
+    , mSamplerHeap(nativeDevice)
+    , mShaderHelpers()
 {
     // TODO: D3D12: PERF fine-tune ring descriptor heap parameters
-    if (!mHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 512, 256))
+    if (!mSRVHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 512, 256))
     {
-        D3D12NI_LOG_ERROR("Failed to initialize Ring Descriptor Heap");
+        D3D12NI_LOG_ERROR("Failed to initialize SRV Ring Descriptor Heap");
     }
 
-    mCBufferAllocator = [this](size_t size, size_t alignment) -> RingBuffer::Region
+    // we always have the same amount of samplers as descriptors
+    // so keep below heap the same size as mSRVHeap
+    if (!mSamplerHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, 512, 256))
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize Sampler Ring Descriptor Heap");
+    }
+
+    mShaderHelpers.constantAllocator = [this](size_t size, size_t alignment) -> RingBuffer::Region
         {
             return mNativeDevice->GetConstantRingBuffer()->Reserve(size, alignment);
         };
-    mDescriptorAllocator = [this](size_t size) -> DescriptorData
+    mShaderHelpers.srvAllocator = [this](size_t count) -> DescriptorData
         {
-            return mHeap.Reserve(size);
+            return mSRVHeap.Reserve(count);
         };
-    mCBVCreator = [this](D3D12_GPU_VIRTUAL_ADDRESS cbufferPtr, UINT size, D3D12_CPU_DESCRIPTOR_HANDLE destDescriptor)
+    mShaderHelpers.samplerAllocator = [this](size_t count) -> DescriptorData
+        {
+            return mSamplerHeap.Reserve(count);
+        };
+    mShaderHelpers.cbvCreator = [this](D3D12_GPU_VIRTUAL_ADDRESS cbufferPtr, UINT size, D3D12_CPU_DESCRIPTOR_HANDLE destDescriptor)
         {
             D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
             cbvDesc.BufferLocation = cbufferPtr;
@@ -76,8 +89,8 @@ ResourceManager::~ResourceManager()
 // Assumes it is called only if attached shader resources change or we switch to a new Command List
 void ResourceManager::PrepareResources()
 {
-    mVertexShader->PrepareShaderResources(mCBufferAllocator, mDescriptorAllocator, mCBVCreator, mTextures);
-    mPixelShader->PrepareShaderResources(mCBufferAllocator, mDescriptorAllocator, mCBVCreator, mTextures);
+    mVertexShader->PrepareShaderResources(mShaderHelpers, mTextures);
+    mPixelShader->PrepareShaderResources(mShaderHelpers, mTextures);
 }
 
 void ResourceManager::ApplyResources(const D3D12GraphicsCommandListPtr& commandList) const
@@ -88,7 +101,7 @@ void ResourceManager::ApplyResources(const D3D12GraphicsCommandListPtr& commandL
 
 void ResourceManager::PrepareComputeResources()
 {
-    mComputeShader->PrepareShaderResources(mCBufferAllocator, mDescriptorAllocator, mCBVCreator, mTextures);
+    mComputeShader->PrepareShaderResources(mShaderHelpers, mTextures);
 }
 
 void ResourceManager::ApplyComputeResources(const D3D12GraphicsCommandListPtr& commandList) const

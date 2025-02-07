@@ -33,16 +33,6 @@
 
 namespace D3D12 {
 
-/**
- * Mirrors Prism's Texture.Usage enum
- */
-enum class TextureUsage: unsigned int
-{
-    DEFAULT = 0,
-    DYNAMIC,
-    STATIC
-};
-
 class NativeTexture
 {
     static uint64_t textureCounter;
@@ -55,6 +45,7 @@ class NativeTexture
     std::vector<D3D12_RESOURCE_STATES> mStates; // one state per subresource
     std::wstring mDebugName;
     UINT mMipLevels;
+    TextureWrapMode mWrapMode;
 
     bool InitInternal(const D3D12_RESOURCE_DESC1& desc);
 
@@ -62,13 +53,15 @@ public:
     NativeTexture(const NIPtr<NativeDevice>& nativeDevice);
     ~NativeTexture();
 
-    bool Init(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, TextureUsage usage, int samples, bool useMipmap);
+    bool Init(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags,
+              TextureUsage usage, TextureWrapMode wrapMode, int samples, bool useMipmap);
     UINT64 GetSize();
     bool Resize(UINT width, UINT height);
 
     void EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState, UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
     void WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipLevels = 0, UINT mostDetailedMip = 0);
     void WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipSlice);
+    void WriteSamplerToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& samplerDescriptorCpu);
 
     inline UINT64 GetWidth() const
     {

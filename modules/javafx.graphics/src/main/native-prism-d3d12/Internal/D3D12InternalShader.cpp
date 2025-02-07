@@ -105,8 +105,7 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
     mConstantBufferStorage.resize(constantBufferTotalSize);
 
     // count how many DTable slots we need for textures (if any)
-    mTextureCount = shaderResources.textures.size();
-
+    mTextureCount = 0;
     for (size_t i = 0; i < shaderResources.textures.size(); ++i)
     {
         const InternalShaderResource::ResourceBinding& texture = shaderResources.textures[i];
@@ -118,8 +117,11 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
             )
         );
 
-        mTextureDTableRSIndex = texture.rootIndex;
+        if (texture.type == ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES) mTextureCount++;
     }
+
+    mTextureDTableRSIndex = ShaderSlots::PHONG_PS_TEXTURE_DTABLE;
+    mSamplerDTableRSIndex = ShaderSlots::PHONG_PS_SAMPLER_DTABLE;
 
     // debug info
 
@@ -133,18 +135,17 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
     return true;
 }
 
-void InternalShader::PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator,
-                                            const CBVCreator& cbvCreator, const NativeTextureBank& textures)
+void InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
 {
     for (size_t i = 0; i < mCBufferDTables.size(); ++i)
     {
-        mCBufferDTables[i].dtable = descriptorAllocator(mCBufferDTables[i].count);
+        mCBufferDTables[i].dtable = helpers.srvAllocator(mCBufferDTables[i].count);
     }
 
     for (size_t i = 0; i < mCBufferDescriptorRegions.size(); ++i)
     {
         CBufferRegion& cbr = mCBufferDescriptorRegions[i];
-        cbr.region = dataAllocator(cbr.assignment.sizeInCBStorage, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+        cbr.region = helpers.constantAllocator(cbr.assignment.sizeInCBStorage, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 
         if (cbr.region)
         {
@@ -164,7 +165,7 @@ void InternalShader::PrepareShaderResources(const DataAllocator& dataAllocator, 
             {
                 if (mCBufferDTables[idx].rootIndex == cbr.assignment.rootIndex)
                 {
-                    cbvCreator(
+                    helpers.cbvCreator(
                         cbr.region.gpu,
                         static_cast<UINT>(cbr.region.size),
                         mCBufferDTables[idx].dtable.CPU(cbr.assignment.index)
@@ -182,10 +183,18 @@ void InternalShader::PrepareShaderResources(const DataAllocator& dataAllocator, 
 
     if (mTextureCount > 0)
     {
-        mTextureDTable = descriptorAllocator(mTextureCount);
+        mTextureDTable = helpers.srvAllocator(mTextureCount);
         if (!mTextureDTable)
         {
             D3D12NI_LOG_ERROR("Internal shader %s: Failed to allocate DTable for %u textures", mName.c_str(), mTextureCount);
+            return;
+        }
+
+        mSamplerDTable = helpers.samplerAllocator(mTextureCount);
+        if (!mSamplerDTable)
+        {
+            D3D12NI_LOG_ERROR("Internal shader %s: Failed to allocate DTable for %u samplers", mName.c_str(), mTextureCount);
+            return;
         }
 
         uint32_t usedTextures = Constants::MAX_TEXTURE_UNITS;
@@ -203,7 +212,11 @@ void InternalShader::PrepareShaderResources(const DataAllocator& dataAllocator, 
 
         for (uint32_t i = 0; i < usedTextures; ++i)
         {
-            if (textures[i]) textures[i]->WriteSRVToDescriptor(mTextureDTable.CPU(i));
+            if (textures[i])
+            {
+                textures[i]->WriteSRVToDescriptor(mTextureDTable.CPU(i));
+                textures[i]->WriteSamplerToDescriptor(mSamplerDTable.CPU(i));
+            }
         }
     }
 }
@@ -229,6 +242,7 @@ void InternalShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& com
         }
         case ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS:
         case ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES:
+        case ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS:
             // ignored - will be set later via its ways
             break;
         default:
@@ -239,6 +253,7 @@ void InternalShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& com
     if (mTextureCount > 0)
     {
         commandList->SetGraphicsRootDescriptorTable(mTextureDTableRSIndex, mTextureDTable.gpu);
+        commandList->SetGraphicsRootDescriptorTable(mSamplerDTableRSIndex, mSamplerDTable.gpu);
     }
 
     for (size_t i = 0; i < mCBufferDTables.size(); ++i)

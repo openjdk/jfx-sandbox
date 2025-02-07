@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,38 +27,31 @@
 
 #include "../D3D12Common.hpp"
 
-#include "D3D12Shader.hpp"
-
-#include <string>
+#include "D3D12DescriptorData.hpp"
+#include "D3D12DescriptorHeap.hpp"
 
 
 namespace D3D12 {
 namespace Internal {
 
-/**
- * MipmapGenCS uses attached resources a bit differently - we use only one texture
- * and manipulate its subresources
- */
-class MipmapGenComputeShader: public Shader
+class SamplerStorage
 {
-    RingBuffer::Region mCBufferView;
-    DescriptorData mTextureDTable;
-    DescriptorData mUAVDTable;
+    NIPtr<NativeDevice> mNativeDevice;
+    DescriptorHeap mSamplerHeap;
+
+    DescriptorData mNullSampler;
+    DescriptorData mClampZeroSampler;
+    DescriptorData mClampEdgeSampler;
+    DescriptorData mRepeatSampler;
+
+    D3D12_SAMPLER_DESC CreateDefaultSamplerDesc() const;
 
 public:
-    struct CBuffer
-    {
-        uint32_t sourceLevel;
-        uint32_t numLevels;
-        float texelSizeMip1[2];
-    };
+    SamplerStorage(const NIPtr<NativeDevice>& nativeDevice);
+    ~SamplerStorage() = default;
 
-    MipmapGenComputeShader();
-
-    bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize) override;
-
-    virtual void PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) override;
-    virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
+    bool Init();
+    const DescriptorData& GetSampler(TextureWrapMode wrapMode) const;
 };
 
 } // namespace Internal

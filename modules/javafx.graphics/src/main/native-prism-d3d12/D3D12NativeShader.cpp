@@ -123,10 +123,11 @@ NativeShader::NativeShader(const NIPtr<NativeDevice>& nativeDevice)
     , mRootSignature(nullptr)
     , mShaderResources()
     , mTextureDTableIndex(0)
+    , mSamplerDTableIndex(0)
     , mCBufferDescriptorIndex(0)
     , mTextureCount(0)
     , mLastAllocatedCBufferRegion()
-    , mLastAllocatedDescriptorData()
+    , mLastAllocatedSRVDescriptors()
 {
 }
 
@@ -180,27 +181,8 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
 
     // build root signature for this shader
     std::vector<D3D12_ROOT_PARAMETER> rsParams;
-    std::vector<D3D12_STATIC_SAMPLER_DESC> rsSamplers;
     D3D12_ROOT_PARAMETER rsParam;
-    D3D12_STATIC_SAMPLER_DESC rsSampler;
     D3D12NI_ZERO_STRUCT(rsParam);
-    D3D12NI_ZERO_STRUCT(rsSampler);
-
-    // preinit sampler with common settings
-    // TODO: D3D12: this hard-codes sampler settings, check if we shouldn't make some dynamically
-    rsSampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-    rsSampler.RegisterSpace = 0;
-    rsSampler.ShaderRegister = 0;
-    rsSampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    rsSampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    rsSampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    rsSampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-    rsSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_BLACK;
-    rsSampler.MinLOD = 0;
-    rsSampler.MaxLOD = D3D12_FLOAT32_MAX;
-    rsSampler.MipLODBias = 0;
-    rsSampler.MaxAnisotropy = 1;
-    rsSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 
     // PassThroughVS WorldViewProj param - for simplicity we'll use a RS Constant
     rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
@@ -220,12 +202,14 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     // counters to build mShaderResourceAssignments helper map
     uint32_t currentParamIndex = 1;
     uint32_t currentTextureParamDTableIndex = 0;
+    uint32_t currentSamplerParamDTableIndex = 0;
     // size of constant buffer storage used by the shader
     uint32_t constantDataTotalSize = 0;
 
     // DTable for purely texture data - that way we can easily map
     // classic texture "slot" provided by Prism to index in this table
     D3D12_DESCRIPTOR_RANGE textureDescriptorRange;
+    D3D12_DESCRIPTOR_RANGE samplerDescriptorRange;
     if (RequiresTexturesDTable(mShaderResources))
     {
         D3D12NI_ZERO_STRUCT(textureDescriptorRange);
@@ -241,8 +225,24 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
         rsParam.DescriptorTable.pDescriptorRanges = &textureDescriptorRange;
         rsParams.emplace_back(rsParam);
 
+        // JSLC should ensure that each texture has a matching sampler
+        D3D12NI_ZERO_STRUCT(samplerDescriptorRange);
+        samplerDescriptorRange.BaseShaderRegister = 0;
+        samplerDescriptorRange.RegisterSpace = 0;
+        samplerDescriptorRange.NumDescriptors = 0;
+        samplerDescriptorRange.OffsetInDescriptorsFromTableStart = 0;
+        samplerDescriptorRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+
+        rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+        rsParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+        rsParam.DescriptorTable.NumDescriptorRanges = 1;
+        rsParam.DescriptorTable.pDescriptorRanges = &samplerDescriptorRange;
+        rsParams.emplace_back(rsParam);
+
         usedSlots += DESCRIPTOR_TABLE_SLOT_SIZE;
         mTextureDTableIndex = currentParamIndex;
+        currentParamIndex++;
+        mSamplerDTableIndex = currentParamIndex;
         currentParamIndex++;
     }
 
@@ -264,14 +264,24 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
                     ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, mTextureDTableIndex, currentTextureParamDTableIndex, 0, 0
                 )
             );
+
             ++currentTextureParamDTableIndex;
             break;
         }
         case JSLC::ResourceBindingType::SAMPLER:
         {
-            // TODO: D3D12: Samplers are static for now
-            rsSampler.ShaderRegister = binding.slot;
-            rsSamplers.emplace_back(rsSampler);
+            // Samplers also always have to go to a descriptor heap
+            ++samplerDescriptorRange.NumDescriptors;
+
+            AddShaderResource(
+                binding.name,
+                ResourceAssignment(
+                    ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, mSamplerDTableIndex, currentSamplerParamDTableIndex, 0, 0
+                )
+            );
+
+            ++currentSamplerParamDTableIndex;
+
             break;
         }
         case JSLC::ResourceBindingType::CONSTANT_32BIT:
@@ -341,12 +351,16 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
         D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first.c_str(), ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
     }
 
+    // confidence check - we should have the same amount of samplers as textures
+    if (currentTextureParamDTableIndex != currentSamplerParamDTableIndex)
+    {
+        D3D12NI_LOG_WARN("NativeShader %s: Not matching texture (%u) to sampler (%u) count", currentTextureParamDTableIndex, currentSamplerParamDTableIndex);
+    }
+
     D3D12_ROOT_SIGNATURE_DESC rsDesc;
     D3D12NI_ZERO_STRUCT(rsDesc);
     rsDesc.pParameters = rsParams.data();
     rsDesc.NumParameters = static_cast<UINT>(rsParams.size());
-    rsDesc.pStaticSamplers = rsSamplers.data();
-    rsDesc.NumStaticSamplers = static_cast<UINT>(rsSamplers.size());
     rsDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
     D3DBlobPtr rsBlob;
@@ -362,13 +376,11 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Root Signature");
 
     mConstantBufferStorage.resize(constantDataTotalSize);
-    mTextureCount = textureDescriptorRange.NumDescriptors;
 
     return true;
 }
 
-void NativeShader::PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator,
-                                          const CBVCreator& cbvCreator, const NativeTextureBank& textures)
+void NativeShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
 {
     if (mTextureDTableIndex > 0)
     {
@@ -380,24 +392,30 @@ void NativeShader::PrepareShaderResources(const DataAllocator& dataAllocator, co
             usedTextures--;
         }
 
-        mLastAllocatedDescriptorData = descriptorAllocator(usedTextures);
+        mTextureCount = usedTextures;
+        mLastAllocatedSRVDescriptors = helpers.srvAllocator(usedTextures);
+        mLastAllocatedSamplerDescriptors = helpers.samplerAllocator(usedTextures);
 
         // should not happen
-        if (!mLastAllocatedDescriptorData && usedTextures != 0)
+        if ((!mLastAllocatedSRVDescriptors || !mLastAllocatedSamplerDescriptors) && usedTextures != 0)
         {
-            D3D12NI_LOG_ERROR("Descriptor Table is NULL, but we have textures we need to use");
+            D3D12NI_LOG_ERROR("Descriptor Tables are NULL, but we have textures we need to use");
             return;
         }
 
         for (uint32_t i = 0; i < usedTextures; ++i)
         {
-            if (textures[i]) textures[i]->WriteSRVToDescriptor(mLastAllocatedDescriptorData.CPU(i));
+            if (textures[i])
+            {
+                textures[i]->WriteSRVToDescriptor(mLastAllocatedSRVDescriptors.CPU(i));
+                textures[i]->WriteSamplerToDescriptor(mLastAllocatedSamplerDescriptors.CPU(i));
+            }
         }
     }
 
     if (IsCBufferDataViaDescriptor())
     {
-        mLastAllocatedCBufferRegion = dataAllocator(mConstantBufferStorage.size(), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+        mLastAllocatedCBufferRegion = helpers.constantAllocator(mConstantBufferStorage.size(), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 
         if (mLastAllocatedCBufferRegion)
         {
@@ -428,6 +446,7 @@ void NativeShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& comma
         case ResourceAssignmentType::DESCRIPTOR:
         case ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS:
         case ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES:
+        case ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS:
             // ignored - will be set later via its ways
             break;
         default:
@@ -438,7 +457,8 @@ void NativeShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& comma
     // texture descriptor table
     if (mTextureDTableIndex > 0)
     {
-        commandList->SetGraphicsRootDescriptorTable(mTextureDTableIndex, mLastAllocatedDescriptorData.gpu);
+        commandList->SetGraphicsRootDescriptorTable(mTextureDTableIndex, mLastAllocatedSRVDescriptors.gpu);
+        commandList->SetGraphicsRootDescriptorTable(mSamplerDTableIndex, mLastAllocatedSamplerDescriptors.gpu);
     }
 
     if (IsCBufferDataViaDescriptor() && mLastAllocatedCBufferRegion)

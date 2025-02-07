@@ -36,6 +36,7 @@ import com.sun.javafx.geom.transform.GeneralTransform3D;
 import com.sun.prism.CompositeMode;
 import com.sun.prism.PixelFormat;
 import com.sun.prism.Texture.Usage;
+import com.sun.prism.Texture.WrapMode;
 
 public final class D3D12NativeDevice extends D3D12NativeObject {
     D3D12NativeDevice(long ptr) {
@@ -49,7 +50,7 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
     private native long nCreatePhongMaterial(long ptr);
     private native long nCreateRenderTarget(long ptr, long texturePtr);
     private native long nCreateShader(long ptr, String name, ByteBuffer code);
-    private native long nCreateTexture(long ptr, int width, int height, int format, int usage, int samples, boolean useMipmap, boolean isRTT);
+    private native long nCreateTexture(long ptr, int width, int height, int format, int usage, int wrapMode, int samples, boolean useMipmap, boolean isRTT);
     private native int nGetMaximumMSAASampleSize(long ptr, int format);
     private native int nGetMaximumTextureSize(long ptr);
     private native void nClear(long ptr, float r, float g, float b, float a);
@@ -125,9 +126,11 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
         return new D3D12NativeShader(nCreateShader(ptr, name, code));
     }
 
-    public D3D12NativeTexture createTexture(int width, int height, PixelFormat format, Usage usage, int samples, boolean useMipmap, boolean isRTT) {
+    public D3D12NativeTexture createTexture(int width, int height, PixelFormat format, Usage usage,
+                                            WrapMode wrapMode, int samples, boolean useMipmap, boolean isRTT) {
         return new D3D12NativeTexture(nCreateTexture(
-            ptr, width, height, DXGIFormat.fromPixelFormat(format).format, usage.ordinal(), samples, useMipmap, isRTT
+            ptr, width, height, DXGIFormat.fromPixelFormat(format).format, usage.ordinal(),
+            wrapMode.ordinal(), samples, useMipmap, isRTT
         ));
     }
 

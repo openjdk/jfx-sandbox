@@ -44,6 +44,7 @@
 #include "Internal/D3D12RenderingContext.hpp"
 #include "Internal/D3D12RingBuffer.hpp"
 #include "Internal/D3D12ShaderLibrary.hpp"
+#include "Internal/D3D12SamplerStorage.hpp"
 #include "Internal/D3D12Waitable.hpp"
 
 #include "Internal/D3D12Matrix.hpp"
@@ -71,6 +72,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::ResourceDisposer> mResourceDisposer;
     NIPtr<Internal::DescriptorHeap> mRTVHeap;
     NIPtr<Internal::DescriptorHeap> mDSVHeap;
+    NIPtr<Internal::SamplerStorage> mSamplerStorage;
     NIPtr<Internal::ShaderLibrary> mShaderLibrary;
     NIPtr<Internal::Shader> mPassthroughVS;
     NIPtr<Internal::Shader> mPhongVS;
@@ -102,7 +104,8 @@ public:
     NIPtr<NativePhongMaterial>* CreatePhongMaterial();
     NIPtr<NativeRenderTarget>* CreateRenderTarget(const NIPtr<NativeTexture>& texture);
     NIPtr<NativeShader>* CreateShader(const std::string& name, void* buf, UINT size);
-    NIPtr<NativeTexture>* CreateTexture(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, TextureUsage usage, int samples, bool useMipmap);
+    NIPtr<NativeTexture>* CreateTexture(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags,
+                                        TextureUsage usage, TextureWrapMode wrapMode, int samples, bool useMipmap);
     int GetMaximumMSAASampleSize(DXGI_FORMAT format) const;
     int GetMaximumTextureSize() const;
     void MarkResourceDisposed(const D3D12ResourcePtr& texture);
@@ -183,6 +186,11 @@ public:
     const NIPtr<Internal::DescriptorHeap>& GetDSVDescriptorHeap() const
     {
         return mDSVHeap;
+    }
+
+    const NIPtr<Internal::SamplerStorage>& GetSamplerStorage() const
+    {
+        return mSamplerStorage;
     }
 
     const NIPtr<Internal::Shader>& GetInternalShader(const std::string& name) const

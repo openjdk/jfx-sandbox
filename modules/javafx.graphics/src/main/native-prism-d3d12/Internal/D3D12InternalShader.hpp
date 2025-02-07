@@ -64,14 +64,15 @@ class InternalShader: public Shader
     size_t mTextureCount;
     uint32_t mTextureDTableRSIndex;
     DescriptorData mTextureDTable;
+    uint32_t mSamplerDTableRSIndex;
+    DescriptorData mSamplerDTable;
 
 public:
     InternalShader();
 
     bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize) override;
 
-    virtual void PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator,
-                                        const CBVCreator& cbvCreator, const NativeTextureBank& textures) override;
+    virtual void PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) override;
     virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
 };
 

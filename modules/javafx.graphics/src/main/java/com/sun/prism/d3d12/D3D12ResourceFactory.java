@@ -161,7 +161,7 @@ class D3D12ResourceFactory extends BaseShaderFactory {
         }
 
         D3D12NativeTexture texture = mContext.getDevice().createTexture(
-            allocw, alloch, formatHint, usageHint, 1, useMipmap, false
+            allocw, alloch, formatHint, usageHint, wrapMode, 1, useMipmap, false
         );
 
         if (!texture.isValid()) {
@@ -187,6 +187,11 @@ class D3D12ResourceFactory extends BaseShaderFactory {
 
             if (texFormat == PixelFormat.MULTI_YCbCr_420) {
                 // Create a MultiTexture instead
+                // TODO D3D12: This is done "the old way" because of old APIs handling of YUV textures.
+                //             D3D12 allows us to combine all planes into one texture, but that would
+                //             require rewriting JSL shaders, which breaks backwards compatibility. If
+                //             we ever drop older backends, consider switching to single NativeTexture
+                //             allocated with one of multi-plane formats (if other backends allow)
                 MultiTexture tex = new MultiTexture(texFormat, WrapMode.CLAMP_TO_EDGE, width, height);
 
                 // create/add the subtextures
@@ -202,15 +207,17 @@ class D3D12ResourceFactory extends BaseShaderFactory {
                         subHeight /= 2;
                     }
 
+                    WrapMode wrapMode = WrapMode.CLAMP_TO_EDGE;
+                    PixelFormat format = PixelFormat.BYTE_ALPHA;
                     D3D12NativeTexture subNTex = mContext.getDevice().createTexture(
-                        subWidth, subHeight, PixelFormat.BYTE_ALPHA, Usage.DYNAMIC, 1, false, false
+                        subWidth, subHeight, format, Usage.DYNAMIC, wrapMode, 1, false, false
                     );
                     if (subNTex == null) {
                         tex.dispose();
                         return null;
                     }
 
-                    D3D12Texture subTex = D3D12Texture.create(subNTex, mContext, PixelFormat.BYTE_ALPHA, WrapMode.CLAMP_TO_EDGE);
+                    D3D12Texture subTex = D3D12Texture.create(subNTex, mContext, format, wrapMode);
                     tex.setTexture(subTex, index);
                 }
 
@@ -231,18 +238,18 @@ class D3D12ResourceFactory extends BaseShaderFactory {
                     return null;
                 }
 
+                WrapMode wrapMode = WrapMode.CLAMP_TO_EDGE;
                 D3D12NativeTexture nativeTexture = mContext.getDevice().createTexture(
-                    texWidth, texHeight, texFormat, Usage.DYNAMIC, 1, false, false
+                    texWidth, texHeight, texFormat, Usage.DYNAMIC, wrapMode, 1, false, false
                 );
 
                 if (!nativeTexture.isValid()) {
                     throw new RuntimeException("Failed to create D3D12 texture for MediaFrame");
                 }
 
-                // TODO D3D12: proper wrapMode
                 int physWidth = nativeTexture.getWidth();
                 int physHeight = nativeTexture.getHeight();
-                WrapMode wrapMode = (texWidth < physWidth || texHeight < physHeight)
+                wrapMode = (texWidth < physWidth || texHeight < physHeight)
                     ? WrapMode.CLAMP_TO_EDGE_SIMULATED : WrapMode.CLAMP_TO_EDGE;
                 texture = D3D12Texture.create(nativeTexture, mContext, texFormat, wrapMode);
             }

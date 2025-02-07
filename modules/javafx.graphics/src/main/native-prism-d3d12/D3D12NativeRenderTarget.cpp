@@ -76,7 +76,7 @@ bool NativeRenderTarget::EnsureHasDepthBuffer()
 
     mDepthTexture = std::make_shared<NativeTexture>(mNativeDevice);
     if (!mDepthTexture->Init(static_cast<int>(mWidth), static_cast<int>(mHeight), DXGI_FORMAT_D32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
-            TextureUsage::STATIC, mTexture->GetMSAASamples(), false))
+            TextureUsage::STATIC, TextureWrapMode::CLAMP_NOT_NEEDED, mTexture->GetMSAASamples(), false))
     {
         D3D12NI_LOG_ERROR("Failed to create Depth Texture");
         return false;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,7 +88,64 @@ class D3D12Texture extends BaseTexture<D3D12Resource<D3D12TextureData>> {
             new Exception(String.format("D3D12: Texture update failed. Stack trace:")).printStackTrace(System.err);
         }
 
-        // TODO: D3D12: getWrapMode() and simulate
+        switch (getWrapMode()) {
+            case CLAMP_TO_EDGE:
+                break; // done by hardware and SamplerStates
+            case REPEAT:
+                break; // done by hardware and SamplerStates
+            case CLAMP_TO_EDGE_SIMULATED: {
+                boolean copyR = (contentW < texWidth  && dstx + srcw == contentW);
+                boolean copyL = (contentH < texHeight && dsty + srch == contentH);
+                // Repeat right edge, if it was modified
+                if (copyR) {
+                    mContext.getDevice().updateTexture(getNativeTexture(),
+                                                       buffer, format,
+                                                       contentX + contentW, contentY + dsty,
+                                                       srcx + srcw - 1, srcy, 1, srch, srcscan);
+                }
+                // Repeat bottom edge, if it was modified
+                if (copyL) {
+                    mContext.getDevice().updateTexture(getNativeTexture(),
+                                                       buffer, format,
+                                                       contentX + dstx, contentY + contentH,
+                                                       srcx, srcy + srch - 1, srcw, 1, srcscan);
+                    // Repeat LR corner, if it was modified
+                    if (copyR) {
+                        mContext.getDevice().updateTexture(getNativeTexture(),
+                                                           buffer, format,
+                                                           contentX + contentW, contentY + contentH,
+                                                           srcx + srcw - 1, srcy + srch - 1, 1, 1, srcscan);
+                    }
+                }
+                break;
+            }
+            case REPEAT_SIMULATED: {
+                boolean repeatL = (contentW < texWidth  && dstx == 0);
+                boolean repeatT = (contentH < texHeight && dsty == 0);
+                // Repeat left edge on right, if it was modified
+                if (repeatL) {
+                    mContext.getDevice().updateTexture(getNativeTexture(),
+                                                       buffer, format,
+                                                       contentX + contentW, contentY + dsty,
+                                                       srcx, srcy, 1, srch, srcscan);
+                }
+                // Repeat top edge on bottom, if it was modified
+                if (repeatT) {
+                    mContext.getDevice().updateTexture(getNativeTexture(),
+                                                       buffer, format,
+                                                       contentX + dstx, contentY + contentH,
+                                                       srcx, srcy, srcw, 1, srcscan);
+                    // Repeat UL pixel at LR, if it was modified
+                    if (repeatL) {
+                        mContext.getDevice().updateTexture(getNativeTexture(),
+                                                           buffer, format,
+                                                           contentX + contentW, contentY + contentH,
+                                                           srcx, srcy, 1, 1, srcscan);
+                    }
+                }
+                break;
+            }
+        }
     }
 
     @Override

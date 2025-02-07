@@ -45,7 +45,7 @@ struct ResourceBinding
                      // uniforms that are ex. together in a struct exist within the same shader slot
     uint32_t count; // for CBV assumes a multiple of 32-bits (ex. floats);
                     // for textures it is the amount of texture slots taken
-    uint32_t size; // 0 for textures, size in bytes for CBVs per one CBV
+    uint32_t size; // 0 for textures and samplers, size in bytes for CBVs per one CBV
 };
 
 using ResourceBindings = std::vector<ResourceBinding>;
@@ -82,6 +82,10 @@ ResourceBindings Mtl1PSTextures = {
     { "mapSpecular", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::PHONG_PS_TEXTURE_DTABLE, 1, 0 },
     { "mapBumpHeight", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::PHONG_PS_TEXTURE_DTABLE, 1, 0 },
     { "mapSelfIllum", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::PHONG_PS_TEXTURE_DTABLE, 1, 0 },
+    { "samplerDiffuse", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
+    { "samplerSpecular", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
+    { "samplerBumpHeight", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
+    { "samplerSelfIllum", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
 };
 
 

@@ -62,10 +62,12 @@ private:
     D3D12RootSignaturePtr mRootSignature;
     JSLC::ShaderResourceCollection mShaderResources;
     uint32_t mTextureDTableIndex;
+    uint32_t mSamplerDTableIndex;
     uint32_t mCBufferDescriptorIndex;
     uint32_t mTextureCount;
     Internal::RingBuffer::Region mLastAllocatedCBufferRegion;
-    Internal::DescriptorData mLastAllocatedDescriptorData;
+    Internal::DescriptorData mLastAllocatedSRVDescriptors;
+    Internal::DescriptorData mLastAllocatedSamplerDescriptors;
 
     uint32_t GetTotalBindingSize(const JSLC::ResourceBinding& binding) const;
     bool RequiresTexturesDTable(const JSLC::ShaderResourceCollection& resources) const;
@@ -82,8 +84,7 @@ public:
 
     bool Init(const std::string& name, void* code, size_t size);
 
-    virtual void PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator,
-                                        const CBVCreator& cbvCreator, const NativeTextureBank& textures) override;
+    virtual void PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) override;
     virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
 
     inline const D3D12RootSignaturePtr& GetRootSignature() const

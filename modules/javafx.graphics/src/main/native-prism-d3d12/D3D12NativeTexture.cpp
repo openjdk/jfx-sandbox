@@ -106,7 +106,8 @@ NativeTexture::~NativeTexture()
     }
 }
 
-bool NativeTexture::Init(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags, TextureUsage usage, int samples, bool useMipmap)
+bool NativeTexture::Init(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags,
+                         TextureUsage usage, TextureWrapMode wrapMode, int samples, bool useMipmap)
 {
     if (width <= 0 || width > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION ||
         height <= 0 || height > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION)
@@ -115,6 +116,7 @@ bool NativeTexture::Init(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESO
         return false;
     }
 
+    mWrapMode = wrapMode;
     mMipLevels = 1;
     if (useMipmap) {
         mMipLevels = Internal::Utils::CalcMipmapLevels(width, height);
@@ -175,6 +177,7 @@ void NativeTexture::WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& desc
     srvDesc.Texture2D.PlaneSlice = 0;
     srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
+    // TODO: D3D12: Replace with CopyDescriptorsSimple?
     mNativeDevice->GetDevice()->CreateShaderResourceView(mTextureResource.Get(), &srvDesc, descriptorCpu);
 }
 
@@ -186,7 +189,16 @@ void NativeTexture::WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& desc
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
     uavDesc.Texture2D.MipSlice = mipSlice;
 
+    // TODO: D3D12: Replace with CopyDescriptorsSimple?
     mNativeDevice->GetDevice()->CreateUnorderedAccessView(mTextureResource.Get(), nullptr, &uavDesc, descriptorCpu);
+}
+
+void NativeTexture::WriteSamplerToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& samplerDescriptorCpu)
+{
+    mNativeDevice->GetDevice()->CopyDescriptorsSimple(
+        1, samplerDescriptorCpu, mNativeDevice->GetSamplerStorage()->GetSampler(mWrapMode).CPU(0),
+        D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
+    );
 }
 
 void NativeTexture::EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState,

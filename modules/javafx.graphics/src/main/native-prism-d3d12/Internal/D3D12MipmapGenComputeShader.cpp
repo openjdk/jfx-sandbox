@@ -64,8 +64,7 @@ bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mo
     return true;
 }
 
-void MipmapGenComputeShader::PrepareShaderResources(const DataAllocator& dataAllocator, const DescriptorAllocator& descriptorAllocator,
-                                                    const CBVCreator& cbvCreator, const NativeTextureBank& textures)
+void MipmapGenComputeShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
 {
     if (mConstantBufferStorage.size() != sizeof(CBuffer))
     {
@@ -81,21 +80,22 @@ void MipmapGenComputeShader::PrepareShaderResources(const DataAllocator& dataAll
 
     const CBuffer* cb = reinterpret_cast<const CBuffer*>(mConstantBufferStorage.data());
 
-    mTextureDTable = descriptorAllocator(1);
+    mTextureDTable = helpers.srvAllocator(1);
     if (!mTextureDTable)
     {
         D3D12NI_LOG_ERROR("MipmapGenCS: Failed to prepare resources; allocation of 1 SRV descriptor failed");
         return;
     }
 
-    mUAVDTable = descriptorAllocator(cb->numLevels);
+    // SRV heap is also used for UAVs
+    mUAVDTable = helpers.srvAllocator(cb->numLevels);
     if (!mTextureDTable)
     {
         D3D12NI_LOG_ERROR("MipmapGenCS: Failed to prepare resources; allocation of %d UAV descriptors failed", cb->numLevels);
         return;
     }
 
-    mCBufferView = dataAllocator(sizeof(CBuffer), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+    mCBufferView = helpers.constantAllocator(sizeof(CBuffer), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
     if (!mCBufferView)
     {
         D3D12NI_LOG_ERROR("MipmapGenCS: Failed to prepare resources; allocation of CBV region failed");
