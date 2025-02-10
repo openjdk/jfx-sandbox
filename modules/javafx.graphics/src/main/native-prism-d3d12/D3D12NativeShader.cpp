@@ -393,7 +393,7 @@ void NativeShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, 
         }
 
         mTextureCount = usedTextures;
-        mLastAllocatedSRVDescriptors = helpers.srvAllocator(usedTextures);
+        mLastAllocatedSRVDescriptors = helpers.rvAllocator(usedTextures);
         mLastAllocatedSamplerDescriptors = helpers.samplerAllocator(usedTextures);
 
         // should not happen

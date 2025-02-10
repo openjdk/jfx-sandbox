@@ -117,7 +117,23 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
             )
         );
 
-        if (texture.type == ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES) mTextureCount++;
+        mTextureCount++;
+    }
+
+    // and similarly, for samplers
+    mSamplerCount = 0;
+    for (size_t i = 0; i < shaderResources.samplers.size(); ++i)
+    {
+        const InternalShaderResource::ResourceBinding& sampler = shaderResources.samplers[i];
+
+        AddShaderResource(
+            sampler.name,
+            ResourceAssignment(
+                sampler.type, sampler.rootIndex, static_cast<uint32_t>(i), 0, 0
+            )
+        );
+
+        mSamplerCount++;
     }
 
     mTextureDTableRSIndex = ShaderSlots::PHONG_PS_TEXTURE_DTABLE;
@@ -139,7 +155,7 @@ void InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers
 {
     for (size_t i = 0; i < mCBufferDTables.size(); ++i)
     {
-        mCBufferDTables[i].dtable = helpers.srvAllocator(mCBufferDTables[i].count);
+        mCBufferDTables[i].dtable = helpers.rvAllocator(mCBufferDTables[i].count);
     }
 
     for (size_t i = 0; i < mCBufferDescriptorRegions.size(); ++i)
@@ -183,17 +199,17 @@ void InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers
 
     if (mTextureCount > 0)
     {
-        mTextureDTable = helpers.srvAllocator(mTextureCount);
+        mTextureDTable = helpers.rvAllocator(mTextureCount);
         if (!mTextureDTable)
         {
             D3D12NI_LOG_ERROR("Internal shader %s: Failed to allocate DTable for %u textures", mName.c_str(), mTextureCount);
             return;
         }
 
-        mSamplerDTable = helpers.samplerAllocator(mTextureCount);
+        mSamplerDTable = helpers.samplerAllocator(mSamplerCount);
         if (!mSamplerDTable)
         {
-            D3D12NI_LOG_ERROR("Internal shader %s: Failed to allocate DTable for %u samplers", mName.c_str(), mTextureCount);
+            D3D12NI_LOG_ERROR("Internal shader %s: Failed to allocate DTable for %u samplers", mName.c_str(), mSamplerCount);
             return;
         }
 
@@ -204,9 +220,9 @@ void InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers
         }
 
         // should not happen
-        if (!mTextureDTable && usedTextures != 0)
+        if ((!mTextureDTable || !mSamplerDTable) && usedTextures != 0)
         {
-            D3D12NI_LOG_ERROR("Descriptor Table is NULL, but we have textures we need to use");
+            D3D12NI_LOG_ERROR("Descriptor Tables are NULL, but we have textures we need to use");
             return;
         }
 

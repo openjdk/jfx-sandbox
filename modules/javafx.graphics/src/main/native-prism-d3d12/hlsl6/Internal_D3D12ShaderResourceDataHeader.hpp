@@ -54,6 +54,7 @@ struct ShaderResources
 {
     ResourceBindings constantBuffers;
     ResourceBindings textures;
+    ResourceBindings samplers;
 };
 
 using ShaderResourceCollection = std::unordered_map<std::string, ShaderResources>;
@@ -82,17 +83,19 @@ ResourceBindings Mtl1PSTextures = {
     { "mapSpecular", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::PHONG_PS_TEXTURE_DTABLE, 1, 0 },
     { "mapBumpHeight", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::PHONG_PS_TEXTURE_DTABLE, 1, 0 },
     { "mapSelfIllum", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::PHONG_PS_TEXTURE_DTABLE, 1, 0 },
+};
+
+ResourceBindings Mtl1PSSamplers = {
     { "samplerDiffuse", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
     { "samplerSpecular", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
     { "samplerBumpHeight", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
     { "samplerSelfIllum", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
 };
 
-
 ShaderResourceCollection InternalShaders = {
-    { "PassThroughVS", { PassThroughVSConstantBuffers, ResourceBindings() } },
-    { "Mtl1VS", { Mtl1VSConstantBuffers, ResourceBindings() } },
-    { "Mtl1PS", { Mtl1PSConstantBuffers, Mtl1PSTextures } },
+    { "PassThroughVS", { PassThroughVSConstantBuffers, ResourceBindings(), ResourceBindings() } },
+    { "Mtl1VS", { Mtl1VSConstantBuffers, ResourceBindings(), ResourceBindings() } },
+    { "Mtl1PS", { Mtl1PSConstantBuffers, Mtl1PSTextures, Mtl1PSSamplers } },
 };
 
 } // namespace InternalShaderResource

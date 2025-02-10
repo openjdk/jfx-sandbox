@@ -62,6 +62,7 @@ class InternalShader: public Shader
     std::vector<CBufferRegion> mCBufferDescriptorRegions;
     std::vector<CBufferDTable> mCBufferDTables;
     size_t mTextureCount;
+    size_t mSamplerCount;
     uint32_t mTextureDTableRSIndex;
     DescriptorData mTextureDTable;
     uint32_t mSamplerDTableRSIndex;

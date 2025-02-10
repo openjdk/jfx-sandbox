@@ -56,7 +56,7 @@ ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
         {
             return mNativeDevice->GetConstantRingBuffer()->Reserve(size, alignment);
         };
-    mShaderHelpers.srvAllocator = [this](size_t count) -> DescriptorData
+    mShaderHelpers.rvAllocator = [this](size_t count) -> DescriptorData
         {
             return mSRVHeap.Reserve(count);
         };

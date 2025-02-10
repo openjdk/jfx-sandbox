@@ -82,7 +82,7 @@ protected:
 
 public:
     using ConstantAllocator = std::function<RingBuffer::Region(size_t size, size_t alignment)>;
-    using SRVAllocator = std::function<DescriptorData(size_t count)>;
+    using ResourceViewAllocator = std::function<DescriptorData(size_t count)>;
     using SamplerAllocator = std::function<DescriptorData(size_t count)>;
     using CBVCreator = std::function<void(D3D12_GPU_VIRTUAL_ADDRESS cbufferPtr, UINT size, D3D12_CPU_DESCRIPTOR_HANDLE destDescriptor)>;
 
@@ -90,8 +90,8 @@ public:
     //              of NativeDevice... Explore that alternative
     struct ShaderResourceHelpers
     {
-        ConstantAllocator constantAllocator;
-        SRVAllocator srvAllocator;
+        ConstantAllocator constantAllocator; // allocates ring buffer space
+        ResourceViewAllocator rvAllocator; // allocates resource views (SRV, UAV)
         SamplerAllocator samplerAllocator;
         CBVCreator cbvCreator;
     };
