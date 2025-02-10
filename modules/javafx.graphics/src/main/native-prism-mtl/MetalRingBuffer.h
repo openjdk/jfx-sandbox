@@ -57,13 +57,15 @@
 - (id<MTLBuffer>) getBuffer;
 - (id<MTLBuffer>) getCurrentBuffer;
 - (int)  reserveBytes:(unsigned int)length;
+- (unsigned int) getNumReservedBytes;
 
 - (void) dealloc;
+
 
 + (unsigned int)  getCurrentBufferIndex;
 + (void) resetBuffer :(unsigned int)index;
 + (bool) isBufferAvailable;
-+ (void) updateBufferInUse;
++ (unsigned int) updateBufferInUse;
 
 @end
 

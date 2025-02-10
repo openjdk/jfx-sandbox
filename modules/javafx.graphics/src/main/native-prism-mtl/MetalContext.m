@@ -54,6 +54,11 @@
     CTX_LOG(@"-> MetalContext.createContext()");
     self = [super init];
     if (self) {
+        currentRingBufferIndex = 0;
+        ringBufferSemaphore = dispatch_semaphore_create(0);
+        ringBufferLock = [[NSLock alloc] init];
+        isWaitingForBuffer = false;
+
         argsRingBuffer = [[MetalRingBuffer alloc] init:ARGS_BUFFER_SIZE];
         dataRingBuffer = [[MetalRingBuffer alloc] init:DATA_BUFFER_SIZE];
         transientBuffersForCB = [[NSMutableArray alloc] init];
@@ -262,6 +267,9 @@
 
 - (void) commitCurrentCommandBuffer:(bool)waitUntilCompleted
 {
+    if (currentCommandBuffer == nil) {
+        return;
+    }
     [self endCurrentRenderEncoder];
 
     NSMutableArray* bufsForCB = transientBuffersForCB;
@@ -272,9 +280,30 @@
     }
     [shadersUsedInCB removeAllObjects];
 
-    unsigned int rbid = [MetalRingBuffer getCurrentBufferIndex];
-    [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
+    int rbid = currentRingBufferIndex;
+    if ([argsRingBuffer getNumReservedBytes] == 0 &&
+            [dataRingBuffer getNumReservedBytes] == 0) {
         [MetalRingBuffer resetBuffer:rbid];
+        rbid = -1;
+    }
+
+    [currentCommandBuffer addCompletedHandler:^(id<MTLCommandBuffer> cb) {
+        // The CompletedHandler is invoked on different background threads.
+        // CommandBuffer are executed sequentially. A CommandBuffer is
+        // considered to be completed only when all its CompletedHandler are
+        // executed. So two completed handlers would never execute concurrently.
+
+        if (rbid > -1) {
+            [MetalRingBuffer resetBuffer:rbid];
+            if (isWaitingForBuffer) {
+                [ringBufferLock lock];
+                if (isWaitingForBuffer) {
+                    isWaitingForBuffer = false;
+                    dispatch_semaphore_signal(ringBufferSemaphore);
+                }
+                [ringBufferLock unlock];
+            }
+        }
         for (id buffer in bufsForCB) {
             [buffer release];
         }
@@ -284,15 +313,19 @@
     commitOnDraw = false;
     [currentCommandBuffer commit];
 
-    if (waitUntilCompleted || ![MetalRingBuffer isBufferAvailable]) {
+    if (waitUntilCompleted) {
         [currentCommandBuffer waitUntilCompleted];
+    } else {
+        if (![MetalRingBuffer isBufferAvailable]) {
+            [ringBufferLock lock];
+            isWaitingForBuffer = true;
+            [ringBufferLock unlock];
+            dispatch_semaphore_wait(ringBufferSemaphore, DISPATCH_TIME_FOREVER);
+        }
     }
 
     [currentCommandBuffer release];
     currentCommandBuffer = nil;
-    [MetalRingBuffer updateBufferInUse];
-    [argsRingBuffer resetOffsets];
-    [dataRingBuffer resetOffsets];
 }
 
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer
@@ -309,6 +342,9 @@
             currentCommandBuffer = [[commandQueue commandBuffer] retain];
         }
         currentCommandBuffer.label = @"JFX Command Buffer";
+        currentRingBufferIndex = [MetalRingBuffer updateBufferInUse];
+        [argsRingBuffer resetOffsets];
+        [dataRingBuffer resetOffsets];
     }
     return currentCommandBuffer;
 }
@@ -828,6 +864,11 @@
 - (void)dealloc
 {
     CTX_LOG(@">>>> MTLContext.dealloc -- releasing native MetalContext");
+
+    if (currentCommandBuffer == nil) {
+        [self getCurrentCommandBuffer];
+    }
+    [self commitCurrentCommandBuffer:true];
 
     if (commandQueue != nil) {
         [commandQueue release];

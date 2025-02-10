@@ -62,7 +62,7 @@ static unsigned int currentBufferIndex;
 // If there is no buffer available then the behavior is undefined and
 // should cause visual artefacts or Metal validation may fail or crash.
 
-+ (void) updateBufferInUse {
++ (unsigned int) updateBufferInUse {
     unsigned int prevBufferIndex = currentBufferIndex;
     for (int i = currentBufferIndex + 1; i < NUM_BUFFERS; i++) {
         if (!isBufferInUse[i]) {
@@ -77,6 +77,7 @@ static unsigned int currentBufferIndex;
         }
     }
     isBufferInUse[currentBufferIndex] = true;
+    return currentBufferIndex;
 }
 
 + (unsigned int) getCurrentBufferIndex {
@@ -116,6 +117,10 @@ static unsigned int currentBufferIndex;
     }
     numReservedBytes = currentOffset + length;
     return currentOffset;
+}
+
+- (unsigned int) getNumReservedBytes {
+    return numReservedBytes;
 }
 
 - (void) dealloc {

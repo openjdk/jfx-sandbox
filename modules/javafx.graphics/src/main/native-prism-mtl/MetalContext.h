@@ -93,6 +93,10 @@ typedef enum VertexInputIndex {
     NSMutableDictionary* nonLinearSamplerDict;
 
     bool commitOnDraw;
+    NSLock *ringBufferLock;
+    volatile bool isWaitingForBuffer;
+    dispatch_semaphore_t ringBufferSemaphore;
+    unsigned int currentRingBufferIndex;
     MetalRingBuffer* argsRingBuffer;
     MetalRingBuffer* dataRingBuffer;
     NSMutableArray*  transientBuffersForCB;
