@@ -26,9 +26,9 @@
 #define MAX_NUM_LIGHTS 3
 
 struct PS_PHONG_UNIFORMS {
-    float4 diffuseColor;
-    float4 ambientLightColor;
-    float4 specColor;
+    packed_float4 diffuseColor;
+    packed_float4 ambientLightColor;
+    packed_float4 specColor;
     float lightsColor[MAX_NUM_LIGHTS * 4];
     float lightsAttenuation[MAX_NUM_LIGHTS * 4];
     float lightsRange[MAX_NUM_LIGHTS * 4];

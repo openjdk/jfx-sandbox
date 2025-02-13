@@ -55,14 +55,14 @@ struct PrismSourceVertex {
 };
 
 typedef struct VS_INPUT {
-    vector_float2 position;
-    vector_float4 color;
-    vector_float2 texCoord0;
-    vector_float2 texCoord1;
+    packed_float2 position;
+    packed_float4 color;
+    packed_float2 texCoord0;
+    packed_float2 texCoord1;
 } VS_INPUT;
 
 typedef struct CLEAR_VS_INPUT {
-    vector_float2 position;
+    packed_float2 position;
 } CLEAR_VS_INPUT;
 
 typedef enum VertexInputIndex {

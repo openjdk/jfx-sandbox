@@ -32,7 +32,7 @@ using namespace metal;
 
 typedef struct CLEAR_VS_INPUT
 {
-    vector_float2 position;
+    packed_float2 position;
 } CLEAR_VS_INPUT;
 
 typedef struct CLEAR_VS_OUTPUT

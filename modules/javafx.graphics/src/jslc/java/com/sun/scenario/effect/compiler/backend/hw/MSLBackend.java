@@ -353,9 +353,9 @@ public class MSLBackend extends SLBackend {
             }
 
             uniformsForObjCFiles = uniformsForObjCFiles.replace("texture2d<float>", "id<MTLTexture>");
-            uniformsForObjCFiles = uniformsForObjCFiles.replace(" float2", " vector_float2");
+            uniformsForObjCFiles = uniformsForObjCFiles.replace(" float2", " packed_float2");
             uniformsForObjCFiles = uniformsForObjCFiles.replace(" float3", " vector_float3");
-            uniformsForObjCFiles = uniformsForObjCFiles.replace(" float4", " vector_float4");
+            uniformsForObjCFiles = uniformsForObjCFiles.replace(" float4", " packed_float4");
 
             if (objCHeader.length() == 0) {
                 objCHeader.append("#ifndef " + shaderType + "_SHADER_COMMON_H\n" +
@@ -368,10 +368,10 @@ public class MSLBackend extends SLBackend {
                                 "#define MSL_LOG(...)\n" +
                                 "#endif\n\n" +
                                 "typedef struct " + shaderType + "_VS_INPUT {\n" +
-                                "    vector_float2 position;\n" +
-                                "    vector_float4 color;\n" +
-                                "    vector_float2 texCoord0;\n" +
-                                "    vector_float2 texCoord1;\n" +
+                                "    packed_float2 position;\n" +
+                                "    packed_float4 color;\n" +
+                                "    packed_float2 texCoord0;\n" +
+                                "    packed_float2 texCoord1;\n" +
                                 "} " + shaderType + "_VS_INPUT;" +
                                 "\n\n");
             }
