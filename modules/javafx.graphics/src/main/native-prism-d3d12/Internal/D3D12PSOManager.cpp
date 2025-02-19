@@ -103,7 +103,9 @@ bool PSOManager::ConstructNewPSO(const GraphicsPSOParameters& params)
     desc.VS = params.vertexShader->GetBytecode();
     desc.PS = params.pixelShader->GetBytecode();
 
-    if (params.pixelShader->GetMode() == ShaderPipelineMode::UI_2D)
+    // TODO: D3D12: Root Signature hack, rework to use common RS for all Graphics
+    if (params.pixelShader->GetMode() == ShaderPipelineMode::UI_2D &&
+        params.pixelShader->GetName().find("BlitPS") == std::string::npos)
     {
         const NIPtr<NativeShader>& niShader = std::dynamic_pointer_cast<NativeShader>(params.pixelShader);
         desc.pRootSignature = niShader->GetRootSignature().Get();

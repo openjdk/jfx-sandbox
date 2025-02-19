@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "D3D12ShaderLibrary.hpp"
 
 #include "D3D12InternalShader.hpp"
+#include "D3D12BlitPixelShader.hpp"
 #include "D3D12MipmapGenComputeShader.hpp"
 
 
@@ -38,13 +39,28 @@ bool ShaderLibrary::Load(const std::string& name, ShaderPipelineMode mode, D3D12
     {
         NIPtr<Shader> shader;
 
-        if (mode == ShaderPipelineMode::COMPUTE && name == "MipmapGenCS")
+        if (mode == ShaderPipelineMode::COMPUTE)
         {
-            shader = std::make_shared<MipmapGenComputeShader>();
+            if (name == "MipmapGenCS")
+            {
+                shader = std::make_shared<MipmapGenComputeShader>();
+            }
+            else
+            {
+                D3D12NI_LOG_ERROR("ShaderLibrary: Unrecognized compute shader attempted loading: %s", name.c_str());
+                return false;
+            }
         }
         else
         {
-            shader = std::make_shared<InternalShader>();
+            if (name == "BlitPS")
+            {
+                shader = std::make_shared<BlitPixelShader>();
+            }
+            else
+            {
+                shader = std::make_shared<InternalShader>();
+            }
         }
 
         if (!shader->Init(name, mode, visibility, code, codeSize))

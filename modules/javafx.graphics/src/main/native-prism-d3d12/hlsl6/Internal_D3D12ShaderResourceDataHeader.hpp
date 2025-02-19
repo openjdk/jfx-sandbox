@@ -61,7 +61,7 @@ using ShaderResourceCollection = std::unordered_map<std::string, ShaderResources
 
 
 ResourceBindings PassThroughVSConstantBuffers = {
-    { "WorldViewProj", ResourceAssignmentType::ROOT_CONSTANT, ShaderSlots::PASSTHROUGH_WVP_TRANSFORM, 1, 16 * sizeof(float) }
+    { "WorldViewProj", ResourceAssignmentType::DESCRIPTOR, ShaderSlots::PASSTHROUGH_WVP_TRANSFORM, 1, 16 * sizeof(float) }
 };
 
 

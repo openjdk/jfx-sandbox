@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,6 +67,60 @@ bool NativeDevice::Build2DIndexBuffer()
     }
 
     return true;
+}
+
+NativeDevice::QuadVertices NativeDevice::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst)
+{
+    uint32_t srcWidth = src.x1 - src.x0;
+    uint32_t srcHeight = src.y1 - src.y0;
+    uint32_t dstWidth = dst.x1 - dst.x0;
+    uint32_t dstHeight = dst.y1 - dst.y0;
+
+    // default viewport coordinates are from -1 to 1
+    // so destination has to be doubled and shifted from 0-2 range to -1-1 range
+    Coords_UV_FLOAT srcTexelSize{ 1.0f / srcWidth, 1.0f / srcHeight };
+    Coords_UV_FLOAT dstTexelSize{ 2.0f / dstWidth, 2.0f / dstHeight };
+
+    // dstBox V coord is inverted because of d3d12's coordinate system
+    Coords_UV_FLOAT srcBoxTexelsMin{ src.x0 * srcTexelSize.u, src.y0 * srcTexelSize.v };
+    Coords_UV_FLOAT srcBoxTexelsMax{ src.x1 * srcTexelSize.u, src.y1 * srcTexelSize.v };
+    Coords_UV_FLOAT dstBoxTexelsMin{ (dst.x0 * dstTexelSize.u) - 1.0f, (dst.y1 * dstTexelSize.v) - 1.0f };
+    Coords_UV_FLOAT dstBoxTexelsMax{ (dst.x1 * dstTexelSize.u) - 1.0f, (dst.y0 * dstTexelSize.v) - 1.0f };
+
+    QuadVertices result;
+
+    // Build a fullscreen quad used for slow blit path
+    result[0].pos.x = dstBoxTexelsMin.u;
+    result[0].pos.y = dstBoxTexelsMin.v;
+    result[0].uv1.u = srcBoxTexelsMin.u;
+    result[0].uv1.v = srcBoxTexelsMin.v;
+
+    result[1].pos.x = dstBoxTexelsMin.u;
+    result[1].pos.y = dstBoxTexelsMax.v;
+    result[1].uv1.u = srcBoxTexelsMin.u;
+    result[1].uv1.v = srcBoxTexelsMax.v;
+
+    result[2].pos.x = dstBoxTexelsMax.u;
+    result[2].pos.y = dstBoxTexelsMin.v;
+    result[2].uv1.u = srcBoxTexelsMax.u;
+    result[2].uv1.v = srcBoxTexelsMin.v;
+
+    result[3].pos.x = dstBoxTexelsMax.u;
+    result[3].pos.y = dstBoxTexelsMax.v;
+    result[3].uv1.u = srcBoxTexelsMax.u;
+    result[3].uv1.v = srcBoxTexelsMax.v;
+
+    for (uint32_t i = 0; i < result.size(); ++i)
+    {
+        result[i].pos.z = 0.0f;
+        result[i].color.r = 255;
+        result[i].color.g = 255;
+        result[i].color.b = 255;
+        result[i].color.a = 255;
+        result[i].uv2 = result[i].uv1;
+    }
+
+    return result;
 }
 
 // NOTE technically we don't query buffer ptr's size, but this function assumes we reserved enough
@@ -153,6 +207,7 @@ NativeDevice::NativeDevice()
     , mShaderLibrary()
     , mPassthroughVS()
     , mPhongVS()
+    , mCurrent2DShader()
     , mCommandListPool()
     , m2DIndexBuffer()
     , mRingBuffer()
@@ -481,6 +536,9 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     mRenderingContext->SetIndexBuffer(ibView);
 
     mRenderingContext->SetVertexShader(mPassthroughVS);
+    mRenderingContext->SetPixelShader(mCurrent2DShader);
+    mRenderingContext->SetCullMode(D3D12_CULL_MODE_NONE);
+    mRenderingContext->SetFillMode(D3D12_FILL_MODE_SOLID);
 
     // apply Rendering Context details
     mRenderingContext->Apply();
@@ -559,7 +617,7 @@ void NativeDevice::SetCompositeMode(CompositeMode mode)
 
 void NativeDevice::SetPixelShader(const NIPtr<NativeShader>& ps)
 {
-    mRenderingContext->SetPixelShader(ps);
+    mCurrent2DShader = ps;
 }
 
 void NativeDevice::SetRenderTarget(const NIPtr<NativeRenderTarget>& target, bool enableDepthTest)
@@ -608,6 +666,170 @@ void NativeDevice::SetWorldTransform(const Internal::Matrix<float>& matrix)
 void NativeDevice::SetViewProjTransform(const Internal::Matrix<float>& matrix)
 {
     mRenderingContext->SetViewProjTransform(matrix);
+}
+
+bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box_UINT32& src,
+                               const NIPtr<NativeRenderTarget>& dstRT, const Coords_Box_UINT32& dst)
+{
+    D3D12NI_LOG_DEBUG("BlitTexture: from RT %S %ux%u - %ux%u %uxMSAA to RT %S %ux%u - %ux%u %uxMSAA",
+        srcRT->GetTexture()->GetDebugName().c_str(), src.x0, src.y0, src.x1, src.y1, srcRT->GetMSAASamples(),
+        dstRT->GetTexture()->GetDebugName().c_str(), dst.x0, dst.y0, dst.x1, dst.y1, dstRT->GetMSAASamples()
+    );
+
+    if (dstRT->GetMSAASamples() > 1)
+    {
+        // TODO: D3D12: should it? I'm pretty sure D3D9's StretchRect did not support it.
+        D3D12NI_LOG_ERROR("BlitTexture() does not support MSAA destination textures");
+        return false;
+    }
+
+    uint32_t srcWidth = src.x1 - src.x0;
+    uint32_t srcHeight = src.y1 - src.y0;
+    uint32_t dstWidth = dst.x1 - dst.x0;
+    uint32_t dstHeight = dst.y1 - dst.y0;
+
+    if (srcWidth == dstWidth && srcHeight == dstHeight)
+    {
+        if (srcRT->GetMSAASamples() == 1)
+        {
+            D3D12NI_LOG_DEBUG("BlitTexture: Fast non-MSAA path");
+
+            D3D12_TEXTURE_COPY_LOCATION srcLoc;
+            D3D12NI_ZERO_STRUCT(srcLoc);
+            srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+            srcLoc.pResource = srcRT->GetResource().Get();
+            srcLoc.SubresourceIndex = 0;
+
+            D3D12_BOX srcBox;
+            D3D12NI_ZERO_STRUCT(srcBox);
+            srcBox.left = src.x0;
+            srcBox.top = src.y0;
+            srcBox.right = src.x1;
+            srcBox.bottom = src.y1;
+            srcBox.front = 0;
+            srcBox.back = 1;
+
+            D3D12_TEXTURE_COPY_LOCATION dstLoc;
+            D3D12NI_ZERO_STRUCT(dstLoc);
+            dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+            dstLoc.pResource = dstRT->GetResource().Get();
+            dstLoc.SubresourceIndex = 0;
+
+            srcRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+            dstRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_COPY_DEST);
+
+            GetCurrentCommandList()->CopyTextureRegion(&dstLoc, dst.x0, dst.y0, 0, &srcLoc, &srcBox);
+        }
+        else
+        {
+            D3D12NI_LOG_DEBUG("BlitTexture: Fast MSAA path");
+
+            // use ResolveSubresourceRegion
+            D3D12_RECT srcRect;
+            srcRect.left = src.x0;
+            srcRect.top = src.y0;
+            srcRect.right = src.x1;
+            srcRect.bottom = src.y1;
+
+            srcRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+            dstRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_DEST);
+
+            GetCurrentCommandList()->ResolveSubresourceRegion(
+                dstRT->GetResource().Get(), 0, dst.x0, dst.y0,
+                srcRT->GetResource().Get(), 0, &srcRect,
+                dstRT->GetTexture()->GetFormat(), D3D12_RESOLVE_MODE_AVERAGE
+            );
+        }
+    }
+    else
+    {
+        NIPtr<NativeTexture> sourceTexture;
+        NIPtr<NativeTexture> intermediateTexture;
+
+        // prepare quad vertices for blitting
+        // we do this early to make potential ring buffer flush happen before a batch of GPU commands
+        QuadVertices fsQuad = AssembleVertexQuadForBlit(src, dst);
+
+        Internal::RingBuffer::Region vertexRegion = mRingBuffer->Reserve(fsQuad.size() * sizeof(Vertex_2D), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+        if (vertexRegion.cpu == 0)
+        {
+            D3D12NI_LOG_ERROR("BlitTexture: Ring Buffer allocation failed");
+            return false;
+        }
+
+        memcpy(vertexRegion.cpu, fsQuad.data(), fsQuad.size() * sizeof(Vertex_2D));
+
+        if (srcRT->GetMSAASamples() > 1)
+        {
+            D3D12NI_LOG_DEBUG("BlitTexture: Slow MSAA path");
+
+            // create intermediate tex, use ResolveSubresource() to populate it
+            intermediateTexture = std::make_shared<NativeTexture>(shared_from_this());
+            if (!intermediateTexture->Init(srcWidth, srcHeight, srcRT->GetTexture()->GetFormat(),
+                D3D12_RESOURCE_FLAG_NONE, TextureUsage::DEFAULT, TextureWrapMode::CLAMP_NOT_NEEDED, 1, false))
+            {
+                D3D12NI_LOG_ERROR("BlitTexture: Failed to create intermediate texture for source RT resolve");
+                return false;
+            }
+
+            srcRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+            intermediateTexture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_DEST);
+
+            GetCurrentCommandList()->ResolveSubresource(
+                intermediateTexture->GetResource().Get(), 0,
+                srcRT->GetResource().Get(), 0, srcRT->GetTexture()->GetFormat()
+            );
+
+            sourceTexture = intermediateTexture;
+        }
+        else
+        {
+            D3D12NI_LOG_DEBUG("BlitTexture: Slow non-MSAA path");
+            sourceTexture = srcRT->GetTexture();
+        }
+
+        // prepare rendering context for blit
+        D3D12_VERTEX_BUFFER_VIEW vbView;
+        vbView.BufferLocation = vertexRegion.gpu;
+        vbView.SizeInBytes = static_cast<UINT>(vertexRegion.size);
+        vbView.StrideInBytes = sizeof(Vertex_2D);
+        mRenderingContext->SetVertexBuffer(vbView);
+
+        D3D12_INDEX_BUFFER_VIEW ibView;
+        ibView.BufferLocation = m2DIndexBuffer->GetGPUPtr();
+        ibView.SizeInBytes = static_cast<UINT>(m2DIndexBuffer->Size());
+        ibView.Format = DXGI_FORMAT_R16_UINT;
+        mRenderingContext->SetIndexBuffer(ibView);
+
+        const NIPtr<Internal::Shader>& blitShader = GetInternalShader("BlitPS");
+
+        // temporarily store whatever context state we have right now
+        mRenderingContext->StashParamters();
+
+        mRenderingContext->SetVertexShader(mPassthroughVS);
+        mRenderingContext->SetPixelShader(blitShader);
+
+        mRenderingContext->SetCullMode(D3D12_CULL_MODE_NONE);
+        mRenderingContext->SetFillMode(D3D12_FILL_MODE_SOLID);
+
+        mRenderingContext->SetTexture(0, sourceTexture);
+        mRenderingContext->SetRenderTarget(dstRT);
+        mRenderingContext->SetWorldTransform(Internal::Matrix<float>::IDENTITY);
+        mRenderingContext->SetViewProjTransform(Internal::Matrix<float>::IDENTITY);
+        mRenderingContext->SetCompositeMode(CompositeMode::SRC);
+
+        mRenderingContext->Apply();
+
+        sourceTexture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        dstRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+        GetCurrentCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
+
+        // restore original context parameters
+        mRenderingContext->RestoreParameters();
+    }
+
+    return true;
 }
 
 bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer, size_t bufferSize,
@@ -1316,6 +1538,32 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetWorldTr
         static_cast<float>(m20), static_cast<float>(m21), static_cast<float>(m22), static_cast<float>(m23),
         static_cast<float>(m30), static_cast<float>(m31), static_cast<float>(m32), static_cast<float>(m33)
     ));
+}
+
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nBlitTexture
+    (JNIEnv* env, jobject obj, jlong ptr, jlong srcRTPtr, jint srcX0, jint srcY0, jint srcX1, jint srcY1,
+                                          jlong dstRTPtr, jint dstX0, jint dstY0, jint dstX1, jint dstY1)
+{
+    if (!ptr) return false;
+    if (!srcRTPtr) return false;
+    if (!dstRTPtr) return false;
+    if (srcX0 < 0 || srcY0 < 0 || srcX1 < 0 || srcY1 < 0) return false;
+    if (srcX0 > srcX1 || srcY0 > srcY1) return false;
+    if (dstX0 < 0 || dstY0 < 0 || dstX1 < 0 || dstY1 < 0) return false;
+    if (dstX0 > dstX1 || dstY0 > dstY1) return false;
+
+    const D3D12::NIPtr<D3D12::NativeRenderTarget>& srcRT = D3D12::GetNIObject<D3D12::NativeRenderTarget>(srcRTPtr);
+    if (!srcRT) return false;
+
+    const D3D12::NIPtr<D3D12::NativeRenderTarget>& dstRT = D3D12::GetNIObject<D3D12::NativeRenderTarget>(dstRTPtr);
+    if (!dstRT) return false;
+
+    D3D12::Coords_Box_UINT32 srcBox{static_cast<uint32_t>(srcX0), static_cast<uint32_t>(srcY0),
+                                    static_cast<uint32_t>(srcX1), static_cast<uint32_t>(srcY1)};
+    D3D12::Coords_Box_UINT32 dstBox{static_cast<uint32_t>(dstX0), static_cast<uint32_t>(dstY0),
+                                    static_cast<uint32_t>(dstX1), static_cast<uint32_t>(dstY1)};
+
+    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->BlitTexture(srcRT, srcBox, dstRT, dstBox);
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nReadTextureB

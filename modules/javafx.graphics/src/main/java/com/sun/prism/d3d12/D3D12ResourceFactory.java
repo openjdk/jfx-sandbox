@@ -187,7 +187,7 @@ class D3D12ResourceFactory extends BaseShaderFactory {
 
             if (texFormat == PixelFormat.MULTI_YCbCr_420) {
                 // Create a MultiTexture instead
-                // TODO D3D12: This is done "the old way" because of old APIs handling of YUV textures.
+                // TODO: D3D12: This is done "the old way" because of old APIs handling of YUV textures.
                 //             D3D12 allows us to combine all planes into one texture, but that would
                 //             require rewriting JSL shaders, which breaks backwards compatibility. If
                 //             we ever drop older backends, consider switching to single NativeTexture

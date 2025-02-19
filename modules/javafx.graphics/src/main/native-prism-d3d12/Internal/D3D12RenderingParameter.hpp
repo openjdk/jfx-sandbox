@@ -219,42 +219,56 @@ class PipelineStateRenderingParameter: public RenderingParameter<GraphicsPSOPara
 public:
     void SetVertexShader(const NIPtr<Shader>& vertexShader)
     {
+        if (mParameter.vertexShader == vertexShader) return;
+
         mParameter.vertexShader = vertexShader;
         FlagSet();
     }
 
     void SetPixelShader(const NIPtr<Shader>& pixelShader)
     {
+        if (mParameter.pixelShader == pixelShader) return;
+
         mParameter.pixelShader = pixelShader;
         FlagSet();
     }
 
     void SetCompositeMode(CompositeMode mode)
     {
+        if (mParameter.compositeMode == mode) return;
+
         mParameter.compositeMode = mode;
         FlagSet();
     }
 
     void SetCullMode(D3D12_CULL_MODE mode)
     {
+        if (mode == mParameter.cullMode) return;
+
         mParameter.cullMode = mode;
         FlagSet();
     }
 
     void SetFillMode(D3D12_FILL_MODE mode)
     {
+        if (mode == mParameter.fillMode) return;
+
         mParameter.fillMode = mode;
         FlagSet();
     }
 
     void SetDepthTest(bool enabled)
     {
+        if (mParameter.enableDepthTest == enabled) return;
+
         mParameter.enableDepthTest = enabled;
         FlagSet();
     }
 
     void SetMSAASamples(UINT msaaSamples)
     {
+        if (mParameter.msaaSamples == msaaSamples) return;
+
         mParameter.msaaSamples = msaaSamples;
         FlagSet();
     }

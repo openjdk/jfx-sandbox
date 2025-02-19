@@ -123,6 +123,8 @@ void RenderingContext::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView)
 
 void RenderingContext::SetRenderTarget(const NIPtr<NativeRenderTarget>& renderTarget)
 {
+    if (mRenderTarget.Get() == renderTarget) return;
+
     mRenderTarget.Set(renderTarget);
 
     D3D12_VIEWPORT viewport;
@@ -215,20 +217,17 @@ void RenderingContext::SetPixelShader(const NIPtr<Shader>& pixelShader)
     mPipelineState.SetPixelShader(pixelShader);
     mState.resourceManager.SetPixelShader(pixelShader);
 
-    switch (pixelShader->GetMode())
-    {
-    case ShaderPipelineMode::UI_2D:
+    if (pixelShader->GetMode() == ShaderPipelineMode::UI_2D &&
+        pixelShader->GetName().find("BlitPS") == std::string::npos)
     {
         // TODO: D3D12: this should be unified to a single common graphics root signature
+        //              above condition is also a "hack". Common RS should get rid of it.
         NIPtr<NativeShader> niShader = std::dynamic_pointer_cast<NativeShader>(pixelShader);
         mRootSignature.Set(niShader->GetRootSignature());
-        break;
     }
-    case ShaderPipelineMode::PHONG_3D:
+    else
     {
         mRootSignature.Set(mNativeDevice->GetRootSignatureManager()->GetGraphicsRootSignature());
-        break;
-    }
     }
 
     ClearResourcesApplied();
@@ -241,6 +240,34 @@ void RenderingContext::SetComputeShader(const NIPtr<Shader>& computeShader)
 
     mComputeRootSignature.Set(mNativeDevice->GetRootSignatureManager()->GetComputeRootSignature());
     ClearComputeResourcesApplied();
+}
+
+void RenderingContext::StashParamters()
+{
+    mRuntimeParametersStash.pipelineState.Set(mPipelineState.Get());
+    mRuntimeParametersStash.primitiveTopology.Set(mPrimitiveTopology.Get());
+    mRuntimeParametersStash.renderTarget.Set(mRenderTarget.Get());
+    mRuntimeParametersStash.transforms.Set(mTransforms.Get());
+    mRuntimeParametersStash.viewport.Set(mViewport.Get());
+
+    for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
+    {
+        mRuntimeParametersStash.textures[i] = mState.resourceManager.GetTexture(i);
+    }
+}
+
+void RenderingContext::RestoreParameters()
+{
+    mPipelineState.Set(mRuntimeParametersStash.pipelineState.Get());
+    mPrimitiveTopology.Set(mRuntimeParametersStash.primitiveTopology.Get());
+    mRenderTarget.Set(mRuntimeParametersStash.renderTarget.Get());
+    mTransforms.Set(mRuntimeParametersStash.transforms.Get());
+    mViewport.Set(mRuntimeParametersStash.viewport.Get());
+
+    for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
+    {
+        SetTexture(i, mRuntimeParametersStash.textures[i]);
+    }
 }
 
 void RenderingContext::Apply()

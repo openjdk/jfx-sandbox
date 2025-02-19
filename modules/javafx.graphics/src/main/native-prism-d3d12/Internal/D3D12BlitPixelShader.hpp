@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,34 @@
  * questions.
  */
 
-#include "PassThroughDecl.hlsl"
+#pragma once
 
-float4x4 WorldViewProj: register(c0);
+#include "../D3D12Common.hpp"
 
-VS_OUTPUT main(VS_INPUT In)
+#include "D3D12Shader.hpp"
+
+#include <string>
+
+
+namespace D3D12 {
+namespace Internal {
+
+/**
+ * Used for blitting one texture onto another, with bilinear stretching
+ */
+class BlitPixelShader: public Shader
 {
-    VS_OUTPUT Out;
-    Out.Pos = mul(float4(In.Pos, 1.0), WorldViewProj);
-    Out.Diff = In.Diff;
-    Out.TX1 = In.TX1;
-    Out.TX2 = In.TX2;
-    return Out;
-}
+    DescriptorData mSourceTextureDTable;
+    DescriptorData mSourceTextureSamplerDTable;
+
+public:
+    BlitPixelShader();
+
+    bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize) override;
+
+    virtual void PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) override;
+    virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
+};
+
+} // namespace Internal
+} // namespace D3D12

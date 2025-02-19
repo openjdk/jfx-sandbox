@@ -60,6 +60,20 @@ class RenderingContext
     NIPtr<NativeDevice> mNativeDevice;
     RenderingContextState mState;
 
+    // some parameters are set by the Java Runtime ex. transforms, composite mode, textures
+    // whenever we need to execute some internal operation (ex. BlitTexture()) we have to
+    // temporarily "stash" them to restore them later. This struct helps with that.
+    // We probably won't need more than one "stash".
+    struct RuntimeParametersStash
+    {
+        PipelineStateRenderingParameter pipelineState;
+        PrimitiveTopologyRenderingParameter primitiveTopology;
+        NativeTextureBank textures;
+        RenderTargetRenderingParameter renderTarget;
+        TransformRenderingParameter transforms;
+        ViewportRenderingParameter viewport;
+    } mRuntimeParametersStash;
+
     // Graphics Pipeline
     IndexBufferRenderingParameter mIndexBuffer;
     VertexBufferRenderingParameter mVertexBuffer;
@@ -112,6 +126,9 @@ public:
     void SetVertexShader(const NIPtr<Shader>& vertexShader);
     void SetPixelShader(const NIPtr<Shader>& pixelShader);
     void SetComputeShader(const NIPtr<Shader>& computeShader);
+
+    void StashParamters();
+    void RestoreParameters();
 
     void ClearAppliedFlags();
 

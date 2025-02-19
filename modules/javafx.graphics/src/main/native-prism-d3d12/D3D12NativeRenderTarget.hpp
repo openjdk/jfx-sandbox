@@ -82,6 +82,11 @@ public:
         return mDSVDescriptor;
     }
 
+    inline const NIPtr<NativeTexture>& GetTexture() const
+    {
+        return mTexture;
+    }
+
     inline const D3D12ResourcePtr& GetResource() const
     {
         return mTexture->GetResource();

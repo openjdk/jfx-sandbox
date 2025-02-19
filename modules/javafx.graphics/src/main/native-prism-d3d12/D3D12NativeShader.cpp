@@ -185,19 +185,21 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     D3D12NI_ZERO_STRUCT(rsParam);
 
     // PassThroughVS WorldViewProj param - for simplicity we'll use a RS Constant
-    rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     rsParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-    rsParam.Constants.RegisterSpace = 0;
-    rsParam.Constants.ShaderRegister = 0;
-    rsParam.Constants.Num32BitValues = 16; // 4x4 float matrix
+    rsParam.Descriptor.RegisterSpace = 0;
+    rsParam.Descriptor.ShaderRegister = 0;
     rsParams.emplace_back(rsParam);
 
+    // TODO: D3D12: All below is a very hacky way of tackling this. Instead of creating
+    //              new RS per NativeShader we should use a common one. Rework this.
+
     // skipping some root parameters to ensure we have them available as tables:
-    //   0 = MVP matrix root constant
+    //   0 = MVP matrix root CBV descriptor
     //   1 = DTable for textures (if needed, otherwise D3D12 rejects the RS)
-    // above take at most 16 + 1 = 17 slots out of 64 available, however
-    // we start counting from 16 and check if we add the DTable
-    uint32_t usedSlots = 16;
+    // above take at most 2 + 1 = 3 slots out of 64 available, however
+    // we start counting from 2 and check if we add the DTable
+    uint32_t usedSlots = 2;
 
     // counters to build mShaderResourceAssignments helper map
     uint32_t currentParamIndex = 1;

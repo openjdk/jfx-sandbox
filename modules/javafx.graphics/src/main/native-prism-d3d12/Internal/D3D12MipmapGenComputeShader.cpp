@@ -89,7 +89,7 @@ void MipmapGenComputeShader::PrepareShaderResources(const ShaderResourceHelpers&
 
     // SRV heap is also used for UAVs
     mUAVDTable = helpers.rvAllocator(cb->numLevels);
-    if (!mTextureDTable)
+    if (!mUAVDTable)
     {
         D3D12NI_LOG_ERROR("MipmapGenCS: Failed to prepare resources; allocation of %d UAV descriptors failed", cb->numLevels);
         return;

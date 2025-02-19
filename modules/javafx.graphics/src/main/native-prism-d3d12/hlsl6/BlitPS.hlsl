@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,13 @@
  * questions.
  */
 
+#include "ShaderCommon.hlsl"
 #include "PassThroughDecl.hlsl"
 
-float4x4 WorldViewProj: register(c0);
+Texture2D<float4> sourceTex: register(t0);
+SamplerState samplerTex: register(s0);
 
-VS_OUTPUT main(VS_INPUT In)
-{
-    VS_OUTPUT Out;
-    Out.Pos = mul(float4(In.Pos, 1.0), WorldViewProj);
-    Out.Diff = In.Diff;
-    Out.TX1 = In.TX1;
-    Out.TX2 = In.TX2;
-    return Out;
+[RootSignature(JFX_INTERNAL_GRAPHICS_RS)]
+float4 main(VS_OUTPUT param): SV_TARGET0 {
+    return sourceTex.Sample(samplerTex, param.TX1);
 }

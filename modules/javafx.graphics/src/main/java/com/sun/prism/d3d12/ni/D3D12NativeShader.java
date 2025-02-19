@@ -31,7 +31,7 @@ public class D3D12NativeShader extends D3D12NativeObject {
     public enum PipelineMode {
         UI_2D,
         PHONG_3D,
-        COMPUTE
+        COMPUTE,
     }
 
     // Mimicks D3D12_SHADER_VISIBILITY from d3d12.h

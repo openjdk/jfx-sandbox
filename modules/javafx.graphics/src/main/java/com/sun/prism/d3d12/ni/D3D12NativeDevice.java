@@ -76,6 +76,8 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
         double m10, double m11, double m12, double m13,
         double m20, double m21, double m22, double m23,
         double m30, double m31, double m32, double m33);
+    private native boolean nBlitTexture(long ptr, long srcTex, int srcX0, int srcY0, int srcX1, int srcY1,
+                                                  long dstTex, int dstX0, int dstY0, int dstX1, int dstY1);
     private native boolean nReadTextureB(long ptr, long srcTexturePtr,
                                          ByteBuffer buf, byte[] array,
                                          int x, int y, int w, int h);
@@ -216,6 +218,12 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
             tx.getMyx(), tx.getMyy(), tx.getMyz(), tx.getMyt(),
             tx.getMzx(), tx.getMzy(), tx.getMzz(), tx.getMzt(),
                     0.0,         0.0,         0.0,         1.0);
+    }
+
+    public boolean blitTexture(D3D12NativeRenderTarget srcRT, int srcX0, int srcY0, int srcX1, int srcY1,
+                               D3D12NativeRenderTarget dstRT, int dstX0, int dstY0, int dstX1, int dstY1) {
+        return nBlitTexture(ptr, srcRT.getPtr(), srcX0, srcY0, srcX1, srcY1,
+                                 dstRT.getPtr(), dstX0, dstY0, dstX1, dstY1);
     }
 
     public boolean readTexture(D3D12NativeTexture tex, Buffer buffer, int x, int y, int width, int height) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,6 +59,8 @@ namespace D3D12 {
 
 class NativeDevice: public std::enable_shared_from_this<NativeDevice>
 {
+    using QuadVertices = std::array<Vertex_2D, 4>;
+
     IDXGIAdapter1* mAdapter;
     D3D12DevicePtr mDevice;
     D3D12CommandQueuePtr mCommandQueue;
@@ -76,6 +78,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::ShaderLibrary> mShaderLibrary;
     NIPtr<Internal::Shader> mPassthroughVS;
     NIPtr<Internal::Shader> mPhongVS;
+    NIPtr<Internal::Shader> mCurrent2DShader;
     NIPtr<Internal::CommandListPool> mCommandListPool;
     NIPtr<Internal::Buffer> m2DIndexBuffer;
     NIPtr<Internal::RingBuffer> mRingBuffer; // used for larger data (ex. 2D Vertex Buffer, texture upload)
@@ -85,6 +88,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     bool Build2DIndexBuffer();
     void AssembleVertexData(void* buffer, const Internal::MemoryView<float>& vertices,
                             const Internal::MemoryView<signed char>& colors, UINT elementCount);
+    QuadVertices AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst);
     const NIPtr<Internal::Shader>& GetPhongPixelShader(const PhongShaderSpec& spec) const;
 
 public:
@@ -126,6 +130,8 @@ public:
     void SetCameraPos(const Coords_XYZW_FLOAT& pos);
     void SetWorldTransform(const Internal::Matrix<float>& matrix);
     void SetViewProjTransform(const Internal::Matrix<float>& matrix);
+    bool BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box_UINT32& src,
+                     const NIPtr<NativeRenderTarget>& dstRT, const Coords_Box_UINT32& dst);
     bool ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer, size_t pixelCount,
                      UINT srcx, UINT srcy, UINT srcw, UINT srch);
     bool GenerateMipmaps(const NIPtr<NativeTexture>& texture);

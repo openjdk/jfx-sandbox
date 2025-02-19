@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,18 @@
  * questions.
  */
 
-#include "PassThroughDecl.hlsl"
-
-float4x4 WorldViewProj: register(c0);
-
-VS_OUTPUT main(VS_INPUT In)
+struct VS_INPUT
 {
-    VS_OUTPUT Out;
-    Out.Pos = mul(float4(In.Pos, 1.0), WorldViewProj);
-    Out.Diff = In.Diff;
-    Out.TX1 = In.TX1;
-    Out.TX2 = In.TX2;
-    return Out;
-}
+    float3 Pos : POSITION;
+    float2 TX1 : TEXCOORD0;
+    float2 TX2 : TEXCOORD1;
+    float4 Diff : COLOR0;
+};
+
+struct VS_OUTPUT
+{
+    float4 Pos : SV_POSITION;
+    float4 Diff : COLOR0;
+    float2 TX1 : TEXCOORD0;
+    float2 TX2 : TEXCOORD1;
+};

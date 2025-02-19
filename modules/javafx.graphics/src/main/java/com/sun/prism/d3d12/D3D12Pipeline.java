@@ -132,6 +132,7 @@ public final class D3D12Pipeline extends GraphicsPipeline {
     private void loadInternalShaders() {
         loadInternalShader("PassThroughVS", D3D12NativeShader.PipelineMode.UI_2D, D3D12NativeShader.Visibility.VERTEX);
         loadInternalShader("MipmapGenCS", D3D12NativeShader.PipelineMode.COMPUTE, D3D12NativeShader.Visibility.ALL);
+        loadInternalShader("BlitPS", D3D12NativeShader.PipelineMode.UI_2D, D3D12NativeShader.Visibility.PIXEL);
 
         loadInternalShader("Mtl1VS", D3D12NativeShader.PipelineMode.PHONG_3D, D3D12NativeShader.Visibility.VERTEX); // 3D Vertex Shader
         loadInternalShader("Mtl1PS", D3D12NativeShader.PipelineMode.PHONG_3D, D3D12NativeShader.Visibility.PIXEL); // 3D no lights shader

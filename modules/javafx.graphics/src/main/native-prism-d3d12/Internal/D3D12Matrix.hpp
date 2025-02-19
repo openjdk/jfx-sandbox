@@ -51,6 +51,8 @@ class Matrix
     };
 
 public:
+    static const Matrix<T> IDENTITY;
+
     Matrix()
     {
         SetToIdentity();
@@ -218,6 +220,8 @@ public:
         return a;
     }
 };
+
+template <typename T> const Matrix<T> Matrix<T>::IDENTITY;
 
 } // namespace Internal
 } // namespace D3D12
