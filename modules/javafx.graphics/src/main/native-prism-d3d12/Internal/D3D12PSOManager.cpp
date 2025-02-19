@@ -115,9 +115,6 @@ bool PSOManager::ConstructNewPSO(const GraphicsPSOParameters& params)
         desc.pRootSignature = mNativeDevice->GetRootSignatureManager()->GetGraphicsRootSignature().Get();
     }
 
-    desc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-    desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-
     desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
     if (params.vertexShader->GetMode() == ShaderPipelineMode::UI_2D)

@@ -123,8 +123,6 @@ void RenderingContext::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView)
 
 void RenderingContext::SetRenderTarget(const NIPtr<NativeRenderTarget>& renderTarget)
 {
-    if (mRenderTarget.Get() == renderTarget) return;
-
     mRenderTarget.Set(renderTarget);
 
     D3D12_VIEWPORT viewport;
@@ -158,8 +156,6 @@ void RenderingContext::SetScissor(bool enabled, const D3D12_RECT& scissor)
 
 void RenderingContext::SetTexture(uint32_t unit, const NIPtr<NativeTexture>& texture)
 {
-    if (mState.resourceManager.GetTexture(unit) == texture) return;
-
     mState.resourceManager.SetTexture(unit, texture);
     ClearResourcesApplied();
 }
@@ -248,7 +244,6 @@ void RenderingContext::StashParamters()
     mRuntimeParametersStash.primitiveTopology.Set(mPrimitiveTopology.Get());
     mRuntimeParametersStash.renderTarget.Set(mRenderTarget.Get());
     mRuntimeParametersStash.transforms.Set(mTransforms.Get());
-    mRuntimeParametersStash.viewport.Set(mViewport.Get());
 
     for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
     {
@@ -258,11 +253,10 @@ void RenderingContext::StashParamters()
 
 void RenderingContext::RestoreStashedParameters()
 {
+    SetRenderTarget(mRuntimeParametersStash.renderTarget.Get());
     mPipelineState.Set(mRuntimeParametersStash.pipelineState.Get());
     mPrimitiveTopology.Set(mRuntimeParametersStash.primitiveTopology.Get());
-    mRenderTarget.Set(mRuntimeParametersStash.renderTarget.Get());
     mTransforms.Set(mRuntimeParametersStash.transforms.Get());
-    mViewport.Set(mRuntimeParametersStash.viewport.Get());
 
     for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
     {
