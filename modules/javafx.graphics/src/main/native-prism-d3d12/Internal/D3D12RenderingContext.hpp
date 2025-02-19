@@ -128,7 +128,7 @@ public:
     void SetComputeShader(const NIPtr<Shader>& computeShader);
 
     void StashParamters();
-    void RestoreParameters();
+    void RestoreStashedParameters();
 
     void ClearAppliedFlags();
 

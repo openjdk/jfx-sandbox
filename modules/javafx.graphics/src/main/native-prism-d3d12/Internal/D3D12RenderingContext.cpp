@@ -256,7 +256,7 @@ void RenderingContext::StashParamters()
     }
 }
 
-void RenderingContext::RestoreParameters()
+void RenderingContext::RestoreStashedParameters()
 {
     mPipelineState.Set(mRuntimeParametersStash.pipelineState.Get());
     mPrimitiveTopology.Set(mRuntimeParametersStash.primitiveTopology.Get());

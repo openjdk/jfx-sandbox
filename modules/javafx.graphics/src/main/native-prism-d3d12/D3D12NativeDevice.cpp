@@ -826,7 +826,7 @@ bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coo
         GetCurrentCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
         // restore original context parameters
-        mRenderingContext->RestoreParameters();
+        mRenderingContext->RestoreStashedParameters();
     }
 
     return true;
