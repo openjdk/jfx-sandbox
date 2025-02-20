@@ -122,6 +122,7 @@ public:
                      UINT elementCount);
     void RenderMeshView(const NIPtr<NativeMeshView>& meshView);
     void SetCompositeMode(CompositeMode mode);
+    void UnsetPixelShader();
     void SetPixelShader(const NIPtr<NativeShader>& ps);
     void SetRenderTarget(const NIPtr<NativeRenderTarget>& target, bool enableDepthTest);
     void SetScissor(bool enabled, int x1, int y1, int x2, int y2);

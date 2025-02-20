@@ -169,7 +169,8 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
     }
 
     public void setPixelShader(D3D12NativeShader pixelShader) {
-        nSetPixelShader(ptr, pixelShader.getPtr());
+        if (pixelShader == null) nSetPixelShader(ptr, 0);
+        else nSetPixelShader(ptr, pixelShader.getPtr());
     }
 
     public void setRenderTarget(D3D12NativeRenderTarget renderTarget, boolean enableDepthTest) {

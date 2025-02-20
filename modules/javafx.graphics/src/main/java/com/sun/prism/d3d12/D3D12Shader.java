@@ -35,6 +35,7 @@ import com.sun.prism.impl.BaseGraphicsResource;
 import com.sun.prism.impl.BufferUtil;
 import com.sun.prism.ps.Shader;
 
+
 public class D3D12Shader extends BaseGraphicsResource implements Shader {
     private final IntBuffer mIntBuffer = BufferUtil.newIntBuffer(4);
     private final FloatBuffer mFloatBuffer = BufferUtil.newFloatBuffer(4);
@@ -60,7 +61,7 @@ public class D3D12Shader extends BaseGraphicsResource implements Shader {
 
     @Override
     public void disable() {
-        throw new UnsupportedOperationException("Unimplemented method 'disable'");
+        mContext.getDevice().setPixelShader(null);
     }
 
     @Override

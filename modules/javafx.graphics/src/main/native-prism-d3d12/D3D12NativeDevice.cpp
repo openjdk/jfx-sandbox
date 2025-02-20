@@ -615,6 +615,11 @@ void NativeDevice::SetCompositeMode(CompositeMode mode)
     mRenderingContext->SetCompositeMode(mode);
 }
 
+void NativeDevice::UnsetPixelShader()
+{
+    mCurrent2DShader.reset();
+}
+
 void NativeDevice::SetPixelShader(const NIPtr<NativeShader>& ps)
 {
     mCurrent2DShader = ps;
@@ -1393,7 +1398,13 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetPixelSh
     (JNIEnv* env, jobject obj, jlong ptr, jlong pixelShaderPtr)
 {
     if (!ptr) return;
-    if (!pixelShaderPtr) return;
+
+    if (!pixelShaderPtr)
+    {
+        // NOTE: I didn't observe this path being taken by Prism ever. It might not work
+        //       or cause some unexpected issues if it ever gets hit.
+        D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->UnsetPixelShader();
+    }
 
     const D3D12::NIPtr<D3D12::NativeShader>& ps = D3D12::GetNIObject<D3D12::NativeShader>(pixelShaderPtr);
     if (!ps) return;
