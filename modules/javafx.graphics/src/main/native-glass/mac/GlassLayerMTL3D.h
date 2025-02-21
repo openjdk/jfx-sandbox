@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,47 +23,23 @@
  * questions.
  */
 
-#import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
+#import <QuartzCore/CAMetalLayer.h>
 #import "GlassOffscreen.h"
 
-@interface GlassFrameBufferObject : NSObject <GlassOffscreenProtocol>
+@interface GlassLayerMTL3D : CAMetalLayer
 {
-    unsigned int _width;
-    unsigned int _height;
+    GlassOffscreen *_painterOffscreen;
 
-    id<MTLTexture> _texture;
-    BOOL   _isSwPipe;
+    BOOL isHiDPIAware;
+    id<MTLCommandQueue> _blitCommandQueue;
 }
 
-- (void)blitFromFBO:(GlassFrameBufferObject*)other_fbo;
-- (id<MTLTexture>)texture;
-- (void)setIsSwPipe:(BOOL)isSwPipe;
+- (id) init:(long)mtlCommandQueuePtr
+       withIsSwPipe:(BOOL)isSwPipe;
 
+- (void) blitToScreen;
+
+- (GlassOffscreen*)getPainterOffscreen;
+- (void)display;
 @end
-
-/*
-#import <Foundation/Foundation.h>
-
-#import <OpenGL/gl.h>
-#import <OpenGL/OpenGL.h>
-
-#import "GlassOffscreen.h"
-
-@interface GlassFrameBufferObject : NSObject <GlassOffscreenProtocol>
-{
-    GLuint _width;
-    GLuint _height;
-
-    GLuint _texture;
-    GLuint _fbo;
-    GLuint _fboToRestore;
-    BOOL   _isSwPipe;
-}
-
-- (void)blitFromFBO:(GlassFrameBufferObject*)other_fbo;
-- (GLuint)texture;
-- (GLuint)fbo;
-- (void)setIsSwPipe:(BOOL)isSwPipe;
-
-@end
-*/

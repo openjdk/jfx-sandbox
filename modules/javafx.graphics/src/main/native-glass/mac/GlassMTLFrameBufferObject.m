@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
  * questions.
  */
 
-#import "GlassFrameBufferObject.h"
+#import "GlassMTLFrameBufferObject.h"
 #import "GlassMacros.h"
 #import "GlassApplication.h"
 
@@ -34,13 +34,13 @@
     #define LOG(MSG, ...) GLASS_LOG(MSG, ## __VA_ARGS__);
 #endif
 
-@implementation GlassFrameBufferObject
+@implementation GlassMTLFrameBufferObject
 
 - (void)_destroyFbo
 {
     if (self->_texture != 0)
     {
-        LOG("GlassFrameBufferObject releasing FBO :%lu", self->_texture);
+        LOG("GlassMTLFrameBufferObject releasing FBO :%lu", self->_texture);
         [self->_texture release];
         self->_texture = 0;
     }
@@ -99,19 +99,19 @@
     [super dealloc];
 }
 
-- (GLuint)width
+- (unsigned int)width
 {
     return self->_width;
 }
 
-- (GLuint)height
+- (unsigned int)height
 {
     return self->_height;
 }
 
 - (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height
 {
-    LOG("           GlassFrameBufferObject bindForWidth:%d andHeight:%d", width, height);
+    LOG("           GlassMTLFrameBufferObject bindForWidth:%d andHeight:%d", width, height);
     {
         if ((width > 0) && (height > 0))
         {
@@ -127,31 +127,20 @@
     }
 }
 
-- (void)unbind
-{
-    //TODO: MTL:
-}
-
 - (void)blitForWidth:(unsigned int)width andHeight:(unsigned int)height
 {
     //TODO: MTL:
 }
 
-- (void)blitFromFBO:(GlassFrameBufferObject*)other_fbo
+- (void)blitFromFBO:(GlassMTLFrameBufferObject*)other_fbo
 {
     [self _createFboIfNeededForWidth:other_fbo->_width andHeight:other_fbo->_height];
 }
-
 
 - (id<MTLTexture>)texture
 {
     return self->_texture;
 }
-
-/*- (GLuint)fbo
-{
-    return self->_fbo;
-}*/
 
 - (void)setIsSwPipe:(BOOL)isSwPipe
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,31 +23,25 @@
  * questions.
  */
 
-#import "GlassOffscreen.h"
+#import <Cocoa/Cocoa.h>
+#import <OpenGL/gl.h>
+#import <OpenGL/OpenGL.h>
 
-@interface GlassLayer3D : CALayer
+#import "GlassView.h"
+#import "GlassLayer3D.h"
+
+// 3D version of Glass providing OpenGL context through CAOpenGLLayer
+@interface GlassViewCGL3D : NSOpenGLView
 {
-    GlassOffscreen *painterOffScreen;
-    GlassOffscreen *glassOffScreen;
-    BOOL isHiDPIAware;
+    GlassLayer3D* layer;
+
+    CGFloat             _backgroundR;
+    CGFloat             _backgroundG;
+    CGFloat             _backgroundB;
+    CGFloat             _backgroundA;
 }
 
-- (id)initWithSharedContext:(CGLContextObj)ctx
-           andClientContext:(CGLContextObj)clCtx
-                mtlQueuePtr:(long)mtlCommandQueuePtr
-             withHiDPIAware:(BOOL)HiDPIAware
-               withIsSwPipe:(BOOL)isSwPipe;
-
-- (GlassOffscreen*)getPainterOffscreen;
-- (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height;
-- (void)end;
-- (void)pushPixels:(void*)pixels
-         withWidth:(unsigned int)width
-         withHeight:(unsigned int)height
-         withScaleX:(float)scalex
-         withScaleY:(float)scaley
-         ofView:(NSView*)view;
-
-- (void)notifyScaleFactorChanged:(CGFloat)scale;
+- (GlassLayer3D*)getLayer;
+- (id)initWithFrame:(NSRect)frame withJview:(jobject)jView withJproperties:(jobject)jproperties;
 
 @end

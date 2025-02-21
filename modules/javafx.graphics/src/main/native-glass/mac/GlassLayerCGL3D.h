@@ -23,31 +23,26 @@
  * questions.
  */
 
+#import <OpenGL/gl.h>
+#import <OpenGL/OpenGL.h>
+
 #import "GlassOffscreen.h"
 
-@interface GlassLayer3D : CALayer
+@interface GlassLayerCGL3D : CAOpenGLLayer
 {
-    GlassOffscreen *painterOffScreen;
-    GlassOffscreen *glassOffScreen;
+    GlassOffscreen *_glassOffscreen;
+    GlassOffscreen *_painterOffscreen;
+
     BOOL isHiDPIAware;
 }
 
 - (id)initWithSharedContext:(CGLContextObj)ctx
            andClientContext:(CGLContextObj)clCtx
-                mtlQueuePtr:(long)mtlCommandQueuePtr
              withHiDPIAware:(BOOL)HiDPIAware
-               withIsSwPipe:(BOOL)isSwPipe;
+             withIsSwPipe:(BOOL)isSwPipe;
 
 - (GlassOffscreen*)getPainterOffscreen;
-- (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height;
-- (void)end;
-- (void)pushPixels:(void*)pixels
-         withWidth:(unsigned int)width
-         withHeight:(unsigned int)height
-         withScaleX:(float)scalex
-         withScaleY:(float)scaley
-         ofView:(NSView*)view;
-
-- (void)notifyScaleFactorChanged:(CGFloat)scale;
+- (GlassOffscreen*)getGlassOffscreen;
+- (void)hostOffscreen:(GlassOffscreen*)offscreen;
 
 @end

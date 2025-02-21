@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,54 +23,37 @@
  * questions.
  */
 
-#import "common.h"
 #import <Cocoa/Cocoa.h>
-#import <Metal/Metal.h>
-#import <QuartzCore/CAMetalLayer.h>
 
-@protocol GlassOffscreenProtocol
+#import "common.h"
+#import "GlassOffscreen.h"
 
-// as destination (to draw into)
-- (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height;
-//- (void)unbind;
-
-// as source (to show)
-- (id<MTLTexture>) texture;
-- (void)blitForWidth:(unsigned int)width andHeight:(unsigned int)height;
-
-- (unsigned int)width;
-- (unsigned int)height;
-
-@end
-
-@interface GlassOffscreen : NSObject <GlassOffscreenProtocol>
+@interface GlassOffscreen : NSObject
 {
-   id<GlassOffscreenProtocol>  _offscreen;
-
-    bool                      _dirty;
-
     float                     _backgroundR;
     float                     _backgroundG;
     float                     _backgroundB;
     float                     _backgroundA;
-
-    CAMetalLayer*              _layer;
+    CALayer*              _layer;
 }
 
-- (id)initWithContext:(id<MTLDevice>) device
-            andIsSwPipe:(BOOL)isSwPipe;
-
 - (void)setBackgroundColor:(NSColor*)color;
-
-- (void)blit;
-- (id<MTLTexture>)texture;
-
-- (CAMetalLayer*)getLayer;
-- (void)setLayer:(CAMetalLayer*)new_layer;
-
-- (bool)isDirty;
 - (jlong)fbo;
-
-- (void)blitFromOffscreen:(GlassOffscreen*) other_offscreen;
-
+- (unsigned int)width;
+- (unsigned int)height;
+- (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height;
+- (void)unbind;
+- (void)blit;
+- (void)blitForWidth:(unsigned int)width andHeight:(unsigned int)height;
+- (unsigned char)isDirty;
+- (void)blitFromOffscreen:(GlassOffscreen*)other_offscreen;
+- (void)flush:(GlassOffscreen*)glassOffScreen;
+- (void)pushPixels:(void*)pixels
+         withWidth:(unsigned int)width
+         withHeight:(unsigned int)height
+         withScaleX:(float)scalex
+         withScaleY:(float)scaley
+         ofView:(NSView*)view;
+- (CALayer*)getLayer;
+- (void)setLayer:(CALayer*)new_layer;
 @end

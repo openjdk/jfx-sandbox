@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,31 +23,24 @@
  * questions.
  */
 
-#import "GlassOffscreen.h"
+#import "common.h"
+#import <Cocoa/Cocoa.h>
+#import <Metal/Metal.h>
+#import <QuartzCore/CAMetalLayer.h>
 
-@interface GlassLayer3D : CALayer
+#import "GlassOffscreen.h"
+#import "GlassMTLFrameBufferObject.h"
+
+@interface GlassMTLOffscreen : GlassOffscreen
 {
-    GlassOffscreen *painterOffScreen;
-    GlassOffscreen *glassOffScreen;
-    BOOL isHiDPIAware;
+    GlassMTLFrameBufferObject*  _fbo;
+    id<MTLDevice> mtlDevice;
+    id<MTLCommandQueue> offScreenCommandQueue;
 }
 
-- (id)initWithSharedContext:(CGLContextObj)ctx
-           andClientContext:(CGLContextObj)clCtx
-                mtlQueuePtr:(long)mtlCommandQueuePtr
-             withHiDPIAware:(BOOL)HiDPIAware
-               withIsSwPipe:(BOOL)isSwPipe;
-
-- (GlassOffscreen*)getPainterOffscreen;
-- (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height;
-- (void)end;
-- (void)pushPixels:(void*)pixels
-         withWidth:(unsigned int)width
-         withHeight:(unsigned int)height
-         withScaleX:(float)scalex
-         withScaleY:(float)scaley
-         ofView:(NSView*)view;
-
-- (void)notifyScaleFactorChanged:(CGFloat)scale;
+- (id)initWithContext:(id<MTLDevice>)device
+         commandQueue:(id<MTLCommandQueue>)commandQueue
+            andIsSwPipe:(BOOL)isSwPipe;
+- (id<MTLTexture>)getMTLTexture;
 
 @end

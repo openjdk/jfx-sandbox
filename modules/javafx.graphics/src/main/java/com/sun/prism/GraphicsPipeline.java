@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import com.sun.glass.ui.Screen;
 import com.sun.javafx.font.FontFactory;
 import com.sun.javafx.font.PrismFontFactory;
 import com.sun.prism.impl.PrismSettings;
-import com.sun.javafx.PlatformUtil;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -195,20 +194,6 @@ public abstract class GraphicsPipeline {
             throw new IllegalStateException("pipeline already created:"+
                                             installedPipeline);
         }
-
-        // TODO: MTL: This is a temporary change to allow only mtl pipeline
-        // to be specified with prism.order in ea release.
-        // This change should be reverted in future.
-        if (PlatformUtil.isMac()) {
-            if (!(PrismSettings.tryOrder.contains("mtl") ||
-                 (PrismSettings.tryOrder.contains("sw")))) {
-                System.err.println("*** This ea release supports only mtl & sw pipeline, mtl pipeline is default.");
-                System.err.println("*** Other pipelines(es2) are not supported.");
-                System.err.println("*** Use only: -Dprism.order=mtl or -Dprism.order=sw");
-                return null;
-            }
-        }
-
         for (String prefix : PrismSettings.tryOrder) {
             // Warn if j2d pipeline is specified
             if ("j2d".equals(prefix)) {

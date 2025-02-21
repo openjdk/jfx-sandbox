@@ -23,31 +23,30 @@
  * questions.
  */
 
-#import "GlassOffscreen.h"
+#import <Foundation/Foundation.h>
 
-@interface GlassLayer3D : CALayer
+#import <OpenGL/gl.h>
+#import <OpenGL/OpenGL.h>
+
+@interface GlassCGLFrameBufferObject : NSObject
 {
-    GlassOffscreen *painterOffScreen;
-    GlassOffscreen *glassOffScreen;
-    BOOL isHiDPIAware;
+    GLuint _width;
+    GLuint _height;
+
+    GLuint _texture;
+    GLuint _fbo;
+    GLuint _fboToRestore;
+    BOOL   _isSwPipe;
 }
 
-- (id)initWithSharedContext:(CGLContextObj)ctx
-           andClientContext:(CGLContextObj)clCtx
-                mtlQueuePtr:(long)mtlCommandQueuePtr
-             withHiDPIAware:(BOOL)HiDPIAware
-               withIsSwPipe:(BOOL)isSwPipe;
-
-- (GlassOffscreen*)getPainterOffscreen;
-- (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height;
-- (void)end;
-- (void)pushPixels:(void*)pixels
-         withWidth:(unsigned int)width
-         withHeight:(unsigned int)height
-         withScaleX:(float)scalex
-         withScaleY:(float)scaley
-         ofView:(NSView*)view;
-
-- (void)notifyScaleFactorChanged:(CGFloat)scale;
+- (void)blitFromFBO:(GlassCGLFrameBufferObject*)other_fbo;
+- (GLuint)texture;
+- (GLuint)fbo;
+- (void)setIsSwPipe:(BOOL)isSwPipe;
+- (GLuint)width;
+- (GLuint)height;
+- (void)bindForWidth:(GLuint)width andHeight:(GLuint)height;
+- (void)unbind;
+- (void)blitForWidth:(GLuint)width andHeight:(GLuint)height;
 
 @end

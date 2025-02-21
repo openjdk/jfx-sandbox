@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,31 +23,24 @@
  * questions.
  */
 
-#import "GlassOffscreen.h"
+#import <Foundation/Foundation.h>
+#import <Metal/Metal.h>
 
-@interface GlassLayer3D : CALayer
+@interface GlassMTLFrameBufferObject : NSObject
 {
-    GlassOffscreen *painterOffScreen;
-    GlassOffscreen *glassOffScreen;
-    BOOL isHiDPIAware;
+    unsigned int _width;
+    unsigned int _height;
+
+    id<MTLTexture> _texture;
+    BOOL   _isSwPipe;
 }
 
-- (id)initWithSharedContext:(CGLContextObj)ctx
-           andClientContext:(CGLContextObj)clCtx
-                mtlQueuePtr:(long)mtlCommandQueuePtr
-             withHiDPIAware:(BOOL)HiDPIAware
-               withIsSwPipe:(BOOL)isSwPipe;
-
-- (GlassOffscreen*)getPainterOffscreen;
+- (void)blitFromFBO:(GlassMTLFrameBufferObject*)other_fbo;
+- (id<MTLTexture>)texture;
+- (void)setIsSwPipe:(BOOL)isSwPipe;
+- (unsigned int)width;
+- (unsigned int)height;
 - (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height;
-- (void)end;
-- (void)pushPixels:(void*)pixels
-         withWidth:(unsigned int)width
-         withHeight:(unsigned int)height
-         withScaleX:(float)scalex
-         withScaleY:(float)scaley
-         ofView:(NSView*)view;
-
-- (void)notifyScaleFactorChanged:(CGFloat)scale;
+- (void)blitForWidth:(unsigned int)width andHeight:(unsigned int)height;
 
 @end

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,39 +24,31 @@
  */
 
 #import <Cocoa/Cocoa.h>
-#import <Metal/Metal.h>
 
 #import "GlassView.h"
-#import "GlassOffscreen.h"
+#import "GlassLayer3D.h"
 
 @interface GlassView3D : NSView <GlassView, NSTextInputClient>
 {
     GlassViewDelegate   *_delegate;
-
-    NSUInteger          _drawCounter; // draw counter, so that we only bind/unbind offscreen once
-
     NSTrackingArea      *_trackingArea;
+    GlassLayer3D *layer;
 
-    id<MTLTexture>      _texture;
-    unsigned int        _textureWidth;
-    unsigned int        _textureHeight;
-
-    CGFloat             _backgroundR;
-    CGFloat             _backgroundG;
-    CGFloat             _backgroundB;
-    CGFloat             _backgroundA;
+    NSView *subView;
 
     NSAttributedString *nsAttrBuffer;
     BOOL imEnabled;
     BOOL handlingKeyEvent;
     BOOL didCommitText;
+
     BOOL isHiDPIAware;
 
     NSEvent *lastKeyEvent;
 }
 
+- (GlassViewDelegate*)delegate;
 - (id)initWithFrame:(NSRect)frame withJview:(jobject)jView withJproperties:(jobject)jproperties;
 - (void)setFrameOrigin:(NSPoint)newOrigin;
-- (void) updateLayer;
+- (CALayer*)getLayer;
 
 @end

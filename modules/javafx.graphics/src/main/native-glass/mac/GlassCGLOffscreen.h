@@ -23,31 +23,34 @@
  * questions.
  */
 
-#import "GlassOffscreen.h"
+#import <Cocoa/Cocoa.h>
+#import "common.h"
 
-@interface GlassLayer3D : CALayer
+#import <OpenGL/gl.h>
+#import <OpenGL/OpenGL.h>
+#import "GlassOffscreen.h"
+#import "GlassCGLFrameBufferObject.h"
+
+@interface GlassCGLOffscreen : GlassOffscreen
 {
-    GlassOffscreen *painterOffScreen;
-    GlassOffscreen *glassOffScreen;
-    BOOL isHiDPIAware;
+    CGLContextObj               _ctx;
+    CGLContextObj               _ctxToRestore;
+
+    GlassCGLFrameBufferObject*  _fbo;
+
+    GLboolean                   _dirty;
+    NSUInteger          _drawCounter; // draw counter, so that we only bind/unbind offscreen once
+    GLuint              _texture;
+    GLuint              _width;
+    GLuint              _height;
+    GLuint              _textureWidth;
+    GLuint              _textureHeight;
+    NSView* glassView;
 }
 
-- (id)initWithSharedContext:(CGLContextObj)ctx
-           andClientContext:(CGLContextObj)clCtx
-                mtlQueuePtr:(long)mtlCommandQueuePtr
-             withHiDPIAware:(BOOL)HiDPIAware
-               withIsSwPipe:(BOOL)isSwPipe;
-
-- (GlassOffscreen*)getPainterOffscreen;
-- (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height;
-- (void)end;
-- (void)pushPixels:(void*)pixels
-         withWidth:(unsigned int)width
-         withHeight:(unsigned int)height
-         withScaleX:(float)scalex
-         withScaleY:(float)scaley
-         ofView:(NSView*)view;
-
-- (void)notifyScaleFactorChanged:(CGFloat)scale;
+- (id)initWithContext:(CGLContextObj)ctx
+            andIsSwPipe:(BOOL)isSwPipe;
+- (CGLContextObj)getContext;
+- (GLuint)texture;
 
 @end

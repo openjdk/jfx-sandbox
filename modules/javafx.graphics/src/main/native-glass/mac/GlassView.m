@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,7 +36,6 @@
 #import "GlassWindow.h"
 #import "GlassView3D.h"
 #import "GlassHelper.h"
-#import "GlassLayer3D.h"
 
 //#define VERBOSE
 #ifndef VERBOSE
@@ -45,11 +44,11 @@
     #define LOG(MSG, ...) GLASS_LOG(MSG, ## __VA_ARGS__);
 #endif
 
-static inline NSView<GlassView>* getGlassView(JNIEnv *env, jlong jPtr)
+static inline GlassView3D<GlassView>* getGlassView(JNIEnv *env, jlong jPtr)
 {
     assert(jPtr != 0L);
 
-    return (NSView<GlassView>*)jlong_to_ptr(jPtr);
+    return (GlassView3D<GlassView>*)jlong_to_ptr(jPtr);
 }
 
 #pragma mark --- JNI
@@ -338,8 +337,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_glass_ui_mac_MacView__1getNativeFrameBuffer
     GLASS_ASSERT_MAIN_JAVA_THREAD(env);
     GLASS_POOL_ENTER;
     {
-        NSView<GlassView> *view = getGlassView(env, jPtr);
-        GlassLayer3D *layer = (GlassLayer3D*)[view layer];
+        GlassView3D<GlassView> *view = getGlassView(env, jPtr);
+        GlassLayer3D *layer = (GlassLayer3D*)[view getLayer];
         fb = (jlong) [[layer getPainterOffscreen] fbo];
     }
     GLASS_POOL_EXIT;
@@ -365,8 +364,9 @@ JNIEXPORT jlong JNICALL Java_com_sun_glass_ui_mac_MacView__1getNativeLayer
     GLASS_ASSERT_MAIN_JAVA_THREAD(env);
     GLASS_POOL_ENTER;
     {
-        NSView<GlassView> *view = getGlassView(env, jPtr);
-        ptr = ptr_to_jlong([view layer]);
+        GlassView3D<GlassView> *view = getGlassView(env, jPtr);
+        CALayer *layer = [view getLayer];
+        ptr = ptr_to_jlong(layer);
     }
     GLASS_POOL_EXIT;
     GLASS_CHECK_EXCEPTION(env);
@@ -610,7 +610,7 @@ JNIEXPORT void JNICALL Java_com_sun_glass_ui_mac_MacView__1uploadPixelsDirect
     // must be in the middle of begin/end
     if ((jWidth > 0) && (jHeight > 0))
     {
-        [view pushPixels:pixels withWidth:(GLuint)jWidth withHeight:(GLuint)jHeight withScaleX:(GLfloat)jScaleX withScaleY:(GLfloat)jScaleY withEnv:env];
+        [view pushPixels:pixels withWidth:(unsigned int)jWidth withHeight:(unsigned int)jHeight withScaleX:(float)jScaleX withScaleY:(float)jScaleY withEnv:env];
     }
 }
 
@@ -648,7 +648,7 @@ JNIEXPORT void JNICALL Java_com_sun_glass_ui_mac_MacView__1uploadPixelsByteArray
         void *pixels = (data+jOffset);
 
         // must be in the middle of begin/end
-        [view pushPixels:pixels withWidth:(GLuint)jWidth withHeight:(GLuint)jHeight withScaleX:(GLfloat)jScaleX withScaleY:(GLfloat)jScaleY withEnv:env];
+        [view pushPixels:pixels withWidth:(unsigned int)jWidth withHeight:(unsigned int)jHeight withScaleX:(float)jScaleX withScaleY:(float)jScaleY withEnv:env];
     }
     (*env)->ReleasePrimitiveArrayCritical(env, jArray, data, JNI_ABORT);
 }
@@ -687,7 +687,7 @@ JNIEXPORT void JNICALL Java_com_sun_glass_ui_mac_MacView__1uploadPixelsIntArray
         void *pixels = (data+jOffset);
 
         // must be in the middle of begin/end
-        [view pushPixels:pixels withWidth:(GLuint)jWidth withHeight:(GLuint)jHeight withScaleX:(GLfloat)jScaleX withScaleY:(GLfloat)jScaleY withEnv:env];
+        [view pushPixels:pixels withWidth:(unsigned int)jWidth withHeight:(unsigned int)jHeight withScaleX:(float)jScaleX withScaleY:(float)jScaleY withEnv:env];
     }
     (*env)->ReleasePrimitiveArrayCritical(env, jArray, data, JNI_ABORT);
 }
