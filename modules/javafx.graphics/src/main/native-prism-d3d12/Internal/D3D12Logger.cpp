@@ -151,6 +151,42 @@ const char* D3DFeatureLevelToString(D3D_FEATURE_LEVEL level)
     }
 }
 
+const char* D3DFeatureLevelToShortString(D3D_FEATURE_LEVEL level)
+{
+    switch (level)
+    {
+    case D3D_FEATURE_LEVEL_1_0_CORE: return "1_0_CORE";
+    case D3D_FEATURE_LEVEL_9_1: return "9_1";
+    case D3D_FEATURE_LEVEL_9_2: return "9_2";
+    case D3D_FEATURE_LEVEL_9_3: return "9_3";
+    case D3D_FEATURE_LEVEL_10_0: return "10_0";
+    case D3D_FEATURE_LEVEL_10_1: return "10_1";
+    case D3D_FEATURE_LEVEL_11_0: return "11_0";
+    case D3D_FEATURE_LEVEL_11_1: return "11_1";
+    case D3D_FEATURE_LEVEL_12_0: return "12_0";
+    case D3D_FEATURE_LEVEL_12_1: return "12_1";
+    case D3D_FEATURE_LEVEL_12_2: return "12_2";
+    default: return "UNKNOWN";
+    }
+}
+
+const char* D3DShaderModelToShortString(D3D_SHADER_MODEL model)
+{
+    switch (model)
+    {
+    case D3D_SHADER_MODEL_5_1: return "5.1";
+    case D3D_SHADER_MODEL_6_0: return "6.0";
+    case D3D_SHADER_MODEL_6_1: return "6.1";
+    case D3D_SHADER_MODEL_6_2: return "6.2";
+    case D3D_SHADER_MODEL_6_3: return "6.3";
+    case D3D_SHADER_MODEL_6_4: return "6.4";
+    case D3D_SHADER_MODEL_6_5: return "6.5";
+    case D3D_SHADER_MODEL_6_6: return "6.6";
+    case D3D_SHADER_MODEL_6_7: return "6.7";
+    default: return "UNKNOWN";
+    }
+}
+
 const char* DXGIFormatToString(DXGI_FORMAT format)
 {
     switch (format)

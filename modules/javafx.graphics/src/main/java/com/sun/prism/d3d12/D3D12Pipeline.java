@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,8 @@ import com.sun.glass.utils.NativeLibLoader;
 import com.sun.prism.GraphicsPipeline;
 import com.sun.prism.ResourceFactory;
 import com.sun.prism.impl.PrismSettings;
+import com.sun.prism.d3d12.ni.D3D12AdapterInformation;
+import com.sun.prism.d3d12.ni.D3D12DeviceInformation;
 import com.sun.prism.d3d12.ni.D3D12NativeInstance;
 import com.sun.prism.d3d12.ni.D3D12NativeShader;
 
@@ -73,12 +75,32 @@ public final class D3D12Pipeline extends GraphicsPipeline {
     private D3D12Pipeline() {
     }
 
-    private static void printDriverWarning(int adapter) {
-        // TODO: D3D12: implement
+    private void printDeviceErrorInformation(D3D12DeviceInformation dinfo) {
+        if (dinfo != null && dinfo.deviceError != 0) {
+            System.out.println(String.format("D3D12 Device " + dinfo.description + " error: %08X - " + dinfo.deviceErrorReason, dinfo.deviceError));
+        }
     }
 
-    private static void printDriverInformation(int adapter) {
-        // TODO: D3D12: implement
+    private void printAdapterInformation(int adapter) {
+        D3D12AdapterInformation ainfo = mInstance.getAdapterInformation(adapter);
+        if (ainfo != null) {
+            System.out.println("OS Information:");
+            System.out.println("\t" + ainfo.getOsVersion() + " build " + ainfo.osBuildNumber);
+            System.out.println("DXGI Adapter Information:");
+            System.out.println("\t" + ainfo.description);
+            System.out.println("\tDevice ID: " + ainfo.getDeviceID());
+            System.out.println("\tDevice Memory: " + ainfo.getDeviceMemory());
+        }
+    }
+
+    private void printDeviceInformation(int adapter) {
+        D3D12DeviceInformation dinfo = mInstance.getDeviceInformation(adapter);
+        if (dinfo != null) {
+            System.out.println("D3D12 Device Information:");
+            System.out.println("\t" + dinfo.description);
+            System.out.println("\tFeature Level: " + dinfo.featureLevel);
+            System.out.println("\tShader Model: " + dinfo.shaderModel);
+        }
     }
 
     private D3D12ResourceFactory createResourceFactory(int adapter, Screen screen) {
@@ -106,15 +128,19 @@ public final class D3D12Pipeline extends GraphicsPipeline {
 
     private D3D12ResourceFactory findDefaultResourceFactory(List<Screen> screens) {
         for (int adapter = 0; adapter < mFactories.length; ++adapter) {
-            D3D12ResourceFactory factory = getD3D12ResourceFactory(adapter, getScreenForAdapter(screens, adapter));
-            if (factory != null) {
-                if (PrismSettings.verbose) {
-                    printDriverInformation(adapter);
+            D3D12DeviceInformation deviceInfo = new D3D12DeviceInformation();
+            if (mInstance.canCreateDevice(adapter, deviceInfo)) {
+                D3D12ResourceFactory factory = getD3D12ResourceFactory(adapter, getScreenForAdapter(screens, adapter));
+                if (factory != null) {
+                    if (PrismSettings.verbose) {
+                        printAdapterInformation(adapter);
+                        printDeviceInformation(adapter);
+                    }
+                    return factory;
                 }
-                return factory;
             } else {
                 if (!PrismSettings.disableBadDriverWarning) {
-                    printDriverWarning(adapter);
+                    printDeviceErrorInformation(deviceInfo);
                 }
             }
         }

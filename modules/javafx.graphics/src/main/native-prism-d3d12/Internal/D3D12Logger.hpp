@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include <d3dcommon.h>
+#include <d3d12.h>
 #include <dxgiformat.h>
 
 namespace D3D12 {
@@ -44,6 +44,8 @@ void Log(LogLevel level, const char* file, int line, const char* fmt, ...);
 
 // Translators for debugging
 const char* D3DFeatureLevelToString(D3D_FEATURE_LEVEL level);
+const char* D3DFeatureLevelToShortString(D3D_FEATURE_LEVEL level);
+const char* D3DShaderModelToShortString(D3D_SHADER_MODEL model);
 const char* DXGIFormatToString(DXGI_FORMAT format);
 
 } // namespace Internal

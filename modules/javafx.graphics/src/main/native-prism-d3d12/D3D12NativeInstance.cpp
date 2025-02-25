@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,21 @@
  */
 
 #include "D3D12NativeInstance.hpp"
+
 #include "Internal/D3D12Debug.hpp"
 #include "Internal/D3D12Logger.hpp"
 #include "Internal/JNIString.hpp"
 
 #include <vector>
+#include <codecvt>
 #include <com_sun_prism_d3d12_ni_D3D12NativeInstance.h>
+
+#define D3D12NI_FILL_DEVICE_ERROR(hr, info) \
+do { \
+    _com_error __e(hr); \
+    info.deviceError = hr; \
+    info.deviceErrorReason = converter.to_bytes(__e.ErrorMessage()); \
+} while (0)
 
 
 namespace D3D12 {
@@ -72,6 +81,7 @@ bool NativeInstance::Init()
 
         DXGI_ADAPTER_DESC1 adapterDesc;
         mDXGIAdapters.back()->GetDesc1(&adapterDesc);
+        mDXGIAdapterDescs.push_back(adapterDesc);
         D3D12NI_LOG_DEBUG(" \\_ #%d: %ws (%x)", i, adapterDesc.Description, adapterDesc.Flags);
 
         ++i;
@@ -118,6 +128,123 @@ int NativeInstance::GetAdapterOrdinal(HMONITOR monitor)
     }
 
     return ret;
+}
+
+bool NativeInstance::CanCreateDevice(uint32_t adapterIdx, Internal::DeviceInformation& info) const
+{
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+
+    if (adapterIdx >= mDXGIAdapterDescs.size())
+    {
+        D3D12NI_FILL_DEVICE_ERROR(DXGI_ERROR_NOT_FOUND, info);
+        return false;
+    }
+
+    info.description = converter.to_bytes(mDXGIAdapterDescs[adapterIdx].Description);
+
+    HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx], D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr);
+    D3D12NI_FILL_DEVICE_ERROR(hr, info);
+    return SUCCEEDED(hr);
+}
+
+bool NativeInstance::GetAdapterInformation(uint32_t adapterIdx, Internal::AdapterInformation& info) const
+{
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+
+    if (adapterIdx >= mDXGIAdapterDescs.size())
+    {
+        return false;
+    }
+
+    const DXGI_ADAPTER_DESC1& adapterDesc = mDXGIAdapterDescs[adapterIdx];
+    info.description = converter.to_bytes(adapterDesc.Description);
+    info.vendorID = adapterDesc.VendorId;
+    info.deviceID = adapterDesc.DeviceId;
+    info.subSysID = adapterDesc.SubSysId;
+    info.revision = adapterDesc.Revision;
+    info.videoMemory = adapterDesc.DedicatedVideoMemory;
+    info.systemMemory = adapterDesc.DedicatedSystemMemory;
+    info.sharedMemory = adapterDesc.SharedSystemMemory;
+
+    return true;
+}
+
+bool NativeInstance::GetDeviceInformation(uint32_t adapterIdx, Internal::DeviceInformation& info) const
+{
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    info.description = converter.to_bytes(mDXGIAdapterDescs[adapterIdx].Description);
+
+    D3D12DevicePtr device;
+    HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx], D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
+    if (FAILED(hr))
+    {
+        D3D12NI_LOG_ERROR("GetDeviceInformation: Failed to fetch device information for adapter %ws - D3D12CreateDevice failed", mDXGIAdapterDescs[adapterIdx].Description);
+        D3D12NI_FILL_DEVICE_ERROR(hr, info);
+        return false;
+    }
+
+    const D3D_FEATURE_LEVEL requestedLevels[] = {
+        D3D_FEATURE_LEVEL_11_0,
+        D3D_FEATURE_LEVEL_11_1,
+        D3D_FEATURE_LEVEL_12_0,
+        D3D_FEATURE_LEVEL_12_1,
+        D3D_FEATURE_LEVEL_12_2,
+    };
+
+    D3D12_FEATURE_DATA_FEATURE_LEVELS featureLevels;
+    D3D12NI_ZERO_STRUCT(featureLevels);
+    featureLevels.NumFeatureLevels = sizeof(requestedLevels)/sizeof(D3D_FEATURE_LEVEL);
+    featureLevels.pFeatureLevelsRequested = requestedLevels;
+
+    hr = device->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &featureLevels, sizeof(featureLevels));
+    if (FAILED(hr))
+    {
+        D3D12NI_LOG_ERROR("GetDeviceInformation: Failed to query available feature levels");
+        D3D12NI_FILL_DEVICE_ERROR(hr, info);
+        return false;
+    }
+
+    info.featureLevel = Internal::D3DFeatureLevelToShortString(featureLevels.MaxSupportedFeatureLevel);
+
+    D3D12_FEATURE_DATA_SHADER_MODEL shaderModel;
+    D3D12NI_ZERO_STRUCT(shaderModel);
+
+    // MSDN recommends calling this check in a loop because of runtime potentially not knowing SM we define here
+    // suppose we run JFX on older Windows update with older D3D12 runtime, before SM 6.7 was introduced
+    // Querying for D3D_SHADER_MODEL_6_7 would then return E_INVALIDARG instead of doing an actual check.
+    // We will never exceed D3D_SHADER_MODEL_5_1 though - D3D12 released with guaranteed SM 5.1 support
+    // See remarks on: https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_feature_data_shader_model
+    std::array<D3D_SHADER_MODEL, 9> models{
+        D3D_SHADER_MODEL_6_7,
+        D3D_SHADER_MODEL_6_6,
+        D3D_SHADER_MODEL_6_5,
+        D3D_SHADER_MODEL_6_4,
+        D3D_SHADER_MODEL_6_3,
+        D3D_SHADER_MODEL_6_2,
+        D3D_SHADER_MODEL_6_1,
+        D3D_SHADER_MODEL_6_0,
+        D3D_SHADER_MODEL_5_1,
+    };
+
+    hr = E_INVALIDARG;
+    int modelIdx = 0;
+    while (hr == E_INVALIDARG && modelIdx < models.size()) {
+        shaderModel.HighestShaderModel = models[modelIdx];
+        hr = device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &shaderModel, sizeof(shaderModel));
+        modelIdx++;
+    }
+
+    if (FAILED(hr))
+    {
+        D3D12NI_LOG_ERROR("GetDeviceInformation: Failed to query highest available Shader Model");
+        D3D12NI_FILL_DEVICE_ERROR(hr, info);
+        return false;
+    }
+
+    info.shaderModel = Internal::D3DShaderModelToShortString(shaderModel.HighestShaderModel);
+
+    D3D12NI_FILL_DEVICE_ERROR(S_OK, info);
+    return true;
 }
 
 bool NativeInstance::LoadInternalShader(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize)
@@ -184,6 +311,53 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeInstance_nGetAdapt
     if (!screenNativeHandle) return -1;
 
     return D3D12::GetNIObject<D3D12::NativeInstance>(ptr)->GetAdapterOrdinal(reinterpret_cast<HMONITOR>(screenNativeHandle));
+}
+
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeInstance_nCanCreateDevice
+    (JNIEnv* env, jobject obj, jlong ptr, jint adapterIdx, jobject deviceInfoStruct)
+{
+    if (!ptr) return false;
+    if (adapterIdx < 0) return false;
+    if (deviceInfoStruct == nullptr) return false;
+
+    D3D12::Internal::DeviceInformation deviceInfo;
+    bool result = D3D12::GetNIObject<D3D12::NativeInstance>(ptr)->CanCreateDevice(static_cast<uint32_t>(adapterIdx), deviceInfo);
+
+    if (!deviceInfo.ToJObject(env, deviceInfoStruct)) return false;
+
+    return result;
+}
+
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeInstance_nGetAdapterInformation
+    (JNIEnv* env, jobject obj, jlong ptr, jint adapterIdx, jobject adapterInfoStruct)
+{
+    if (!ptr) return false;
+    if (adapterIdx < 0) return false;
+    if (adapterInfoStruct == nullptr) return false;
+
+    D3D12::Internal::AdapterInformation adapterInfo;
+    if (!D3D12::GetNIObject<D3D12::NativeInstance>(ptr)->GetAdapterInformation(static_cast<uint32_t>(adapterIdx), adapterInfo))
+    {
+        return false;
+    }
+
+    return adapterInfo.ToJObject(env, adapterInfoStruct);
+}
+
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeInstance_nGetDeviceInformation
+    (JNIEnv* env, jobject obj, jlong ptr, jint adapterIdx, jobject deviceInfoStruct)
+{
+    if (!ptr) return false;
+    if (adapterIdx < 0) return false;
+    if (deviceInfoStruct == nullptr) return false;
+
+    D3D12::Internal::DeviceInformation deviceInfo;
+    if (!D3D12::GetNIObject<D3D12::NativeInstance>(ptr)->GetDeviceInformation(static_cast<uint32_t>(adapterIdx), deviceInfo))
+    {
+        return false;
+    }
+
+    return deviceInfo.ToJObject(env, deviceInfoStruct);
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeInstance_nLoadInternalShader

@@ -248,24 +248,6 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
         return false;
     }
 
-    const D3D_FEATURE_LEVEL requestedLevels[] = {
-        D3D_FEATURE_LEVEL_11_0,
-        D3D_FEATURE_LEVEL_11_1,
-        D3D_FEATURE_LEVEL_12_0,
-        D3D_FEATURE_LEVEL_12_1,
-        D3D_FEATURE_LEVEL_12_2,
-    };
-
-    D3D12_FEATURE_DATA_FEATURE_LEVELS featureLevels;
-    D3D12NI_ZERO_STRUCT(featureLevels);
-    featureLevels.NumFeatureLevels = sizeof(requestedLevels)/sizeof(D3D_FEATURE_LEVEL);
-    featureLevels.pFeatureLevelsRequested = requestedLevels;
-
-    hr = mDevice->CheckFeatureSupport(D3D12_FEATURE_FEATURE_LEVELS, &featureLevels, sizeof(featureLevels));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to query available feature levels");
-
-    D3D12NI_LOG_DEBUG("Max supported feature level: %s", Internal::D3DFeatureLevelToString(featureLevels.MaxSupportedFeatureLevel));
-
     D3D12_COMMAND_QUEUE_DESC cqDesc;
     D3D12NI_ZERO_STRUCT(cqDesc);
     cqDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;

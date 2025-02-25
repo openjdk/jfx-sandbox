@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,9 @@ public final class D3D12NativeInstance extends D3D12NativeObject {
     private native boolean nInit(long ptr);
     private native int nGetAdapterCount(long ptr);
     private native int nGetAdapterOrdinal(long ptr, long screenNativeHandle);
+    private native boolean nCanCreateDevice(long ptr, int adapterIdx, D3D12DeviceInformation deviceInfo);
+    private native boolean nGetAdapterInformation(long ptr, int adapterIdx, D3D12AdapterInformation adapterInfo);
+    private native boolean nGetDeviceInformation(long ptr, int adapterIdx, D3D12DeviceInformation deviceInfo);
     private native boolean nLoadInternalShader(long ptr, String name, int mode, int visibility, ByteBuffer code);
     private native long nCreateDevice(long ptr, int adapterOrdinal);
     private native long nCreateSwapChain(long ptr, long devicePtr, long hwnd);
@@ -52,6 +55,22 @@ public final class D3D12NativeInstance extends D3D12NativeObject {
 
     public int getAdapterOrdinal(long screenNativeHandle) {
         return nGetAdapterOrdinal(this.ptr, screenNativeHandle);
+    }
+
+    public boolean canCreateDevice(int adapterIdx, D3D12DeviceInformation deviceInfo) {
+        return nCanCreateDevice(ptr, adapterIdx, deviceInfo);
+    }
+
+    public D3D12AdapterInformation getAdapterInformation(int adapterIdx) {
+        D3D12AdapterInformation ret = new D3D12AdapterInformation();
+        if (!nGetAdapterInformation(ptr, adapterIdx, ret)) return null;
+        return ret;
+    }
+
+    public D3D12DeviceInformation getDeviceInformation(int adapterIdx) {
+        D3D12DeviceInformation ret = new D3D12DeviceInformation();
+        if (!nGetDeviceInformation(this.ptr, adapterIdx, ret)) return null;
+        return ret;
     }
 
     public boolean loadInternalSahder(String name, D3D12NativeShader.PipelineMode mode, D3D12NativeShader.Visibility visibility, ByteBuffer code) {
