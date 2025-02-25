@@ -321,6 +321,9 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
         return false;
     }
 
+    mRTVHeap->SetName("RenderTargetView Descriptor Heap");
+    mDSVHeap->SetName("DepthStencilView Descriptor Heap");
+
     mSamplerStorage = std::make_shared<Internal::SamplerStorage>(shared_from_this());
     if (!mSamplerStorage->Init())
     {

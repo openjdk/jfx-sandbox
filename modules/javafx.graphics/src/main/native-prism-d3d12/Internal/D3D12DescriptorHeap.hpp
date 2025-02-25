@@ -37,9 +37,10 @@ namespace Internal {
 
 class DescriptorHeap
 {
-    static constexpr size_t MAX_DESCRIPTOR_SLOT_COUNT = 128;
+    static constexpr uint32_t MAX_DESCRIPTOR_SLOT_COUNT = 512;
 
     NIPtr<NativeDevice> mDevice;
+    std::string mName;
     D3D12DescriptorHeapPtr mHeap;
     bool mShaderVisible;
     D3D12_CPU_DESCRIPTOR_HANDLE mCPUStartHandle;
@@ -48,6 +49,9 @@ class DescriptorHeap
 
     std::array<bool, MAX_DESCRIPTOR_SLOT_COUNT> mSlotAvailability;
     size_t mFirstFreeSlot;
+    uint32_t mSize;
+    uint32_t mAllocatedCountTotal;
+    bool mReady;
 
 public:
     DescriptorHeap(const NIPtr<NativeDevice>& device);
@@ -56,6 +60,8 @@ public:
     bool Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible);
     DescriptorData Allocate(UINT count);
     void Free(const DescriptorData& data);
+
+    void SetName(const std::string& name);
 
     const D3D12DescriptorHeapPtr& GetHeap() const
     {

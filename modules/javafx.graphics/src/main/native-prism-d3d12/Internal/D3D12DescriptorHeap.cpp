@@ -27,6 +27,8 @@
 
 #include "../D3D12NativeDevice.hpp"
 
+#include <codecvt>
+
 
 namespace D3D12 {
 namespace Internal {
@@ -39,6 +41,7 @@ DescriptorHeap::DescriptorHeap(const NIPtr<NativeDevice>& device)
     , mGPUStartHandle{0}
     , mSlotAvailability()
     , mFirstFreeSlot(0)
+    , mReady(false)
 {
     for (bool& slot: mSlotAvailability)
     {
@@ -71,11 +74,17 @@ bool DescriptorHeap::Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible)
         mGPUStartHandle = mHeap->GetGPUDescriptorHandleForHeapStart();
     }
 
+    mAllocatedCountTotal = 0;
+    mSize = MAX_DESCRIPTOR_SLOT_COUNT;
+    mReady = true;
+
     return true;
 }
 
 DescriptorData DescriptorHeap::Allocate(UINT count)
 {
+    if (!mReady) return DescriptorData();
+
     if (count > mSlotAvailability.size())
     {
         D3D12NI_ASSERT(count > mSlotAvailability.size(), "Too many descriptors requested for alloc");
@@ -126,6 +135,9 @@ DescriptorData DescriptorHeap::Allocate(UINT count)
             }
             mFirstFreeSlot = i + count;
 
+            mAllocatedCountTotal += count;
+            D3D12NI_LOG_TRACE("%s: Allocated %u descriptors, %u/%u taken", mName.c_str(), count, mAllocatedCountTotal, mSize);
+
             return DescriptorData(retCPUHandle, retGPUHandle, count, mIncrementSize);
         }
     }
@@ -137,13 +149,27 @@ DescriptorData DescriptorHeap::Allocate(UINT count)
 
 void DescriptorHeap::Free(const DescriptorData& data)
 {
+    if (!mReady) return;
+
     size_t slot = (data.cpu.ptr - mCPUStartHandle.ptr) / mIncrementSize;
     size_t finalSlot = slot + data.count;
 
+    uint32_t freed = 0;
     for (slot; slot < finalSlot; ++slot)
     {
         mSlotAvailability[slot] = true;
+        freed++;
     }
+
+    mAllocatedCountTotal -= freed;
+    D3D12NI_LOG_TRACE("%s: Freed %u descriptors, %u/%u taken ", mName.c_str(), freed, mAllocatedCountTotal, mSize);
+}
+
+void DescriptorHeap::SetName(const std::string& name)
+{
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    mName = name;
+    mHeap->SetName(converter.from_bytes(name).c_str());
 }
 
 } // namespace Internal

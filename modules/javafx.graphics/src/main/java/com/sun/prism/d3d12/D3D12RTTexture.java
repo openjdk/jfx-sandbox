@@ -33,10 +33,12 @@ import com.sun.prism.Image;
 import com.sun.prism.MediaFrame;
 import com.sun.prism.PixelFormat;
 import com.sun.prism.RTTexture;
+import com.sun.prism.ReadbackRenderTarget;
+import com.sun.prism.Texture;
 import com.sun.prism.d3d12.ni.D3D12NativeTexture;
 import com.sun.prism.d3d12.ni.D3D12NativeRenderTarget;
 
-public class D3D12RTTexture extends D3D12Texture implements RTTexture {
+public class D3D12RTTexture extends D3D12Texture implements RTTexture, ReadbackRenderTarget {
 
     private boolean mOpaque = false;
     private int mMSAALevel = 1;
@@ -166,5 +168,10 @@ public class D3D12RTTexture extends D3D12Texture implements RTTexture {
     @Override
     public boolean isVolatile() {
         return false;
+    }
+
+    @Override
+    public Texture getBackBuffer() {
+        return this;
     }
 }
