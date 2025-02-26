@@ -129,6 +129,9 @@ static int nextDrawableCount = 0;
 
         MTLRegion region = {{0,0,0}, {width, height, 1}};
 
+        if (backBufferTex.usage == MTLTextureUsageRenderTarget) {
+            [blitEncoder synchronizeTexture:backBufferTex slice:0 level:0];
+        }
         [blitEncoder
                 copyFromTexture:backBufferTex sourceSlice:0 sourceLevel:0
                 sourceOrigin:MTLOriginMake(0, 0, 0)

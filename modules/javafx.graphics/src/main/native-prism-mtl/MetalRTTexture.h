@@ -32,31 +32,46 @@
 #import "MetalContext.h"
 #import "MetalTexture.h"
 
-@interface MetalRTTexture: MetalTexture
+@interface MetalRTTexture : MetalTexture
 {
-    int cw;
-    int ch;
-    int pw;
-    int ph;
+    NSUInteger contentWidth;
+    NSUInteger contentHeight;
+    NSUInteger physicalWidth;
+    NSUInteger physicalHeight;
+
+    id<MTLTexture> depthTexture;
+    id<MTLTexture> depthMSAATexture;
+    id<MTLTexture> msaaTexture;
+    BOOL isMSAA;
+    BOOL lastDepthMSAA;
 }
+
+- (NSUInteger) getContentWidth;
+- (NSUInteger) getContentHeight;
+- (NSUInteger) getPhysicalWidth;
+- (NSUInteger) getPhysicalHeight;
 
 - (id<MTLTexture>) getTexture;
 - (id<MTLTexture>) getDepthTexture;
 - (id<MTLTexture>) getDepthMSAATexture;
 - (id<MTLTexture>) getMSAATexture;
-- (MetalRTTexture*) createTexture:(MetalContext*)ctx ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h msaa:(bool)msaa;
-- (MetalRTTexture*) createTexture : (MetalContext*) ctx
-                              tex : (long)pTex
-                          ofWidth : (NSUInteger) w
-                         ofHeight : (NSUInteger) h;
+- (BOOL) isMSAAEnabled;
+
+- (MetalRTTexture*) createTexture:(MetalContext*)ctx
+                  ofPhysicalWidth:(NSUInteger)pw
+                 ofPhysicalHeight:(NSUInteger)ph
+                   ofContentWidth:(NSUInteger)cw
+                  ofContentHeight:(NSUInteger)ch
+                           isMsaa:(BOOL)isMsaa;
+
+- (MetalRTTexture*) createTexture:(MetalContext*)ctx
+                  ofPhysicalWidth:(NSUInteger)pw
+                 ofPhysicalHeight:(NSUInteger)ph
+                           mtlTex:(long)pTex;
 
 - (void) createDepthTexture;
-- (void) setContentDimensions:(int)w height:(int)h;
-- (bool) isMSAAEnabled;
-- (int) getPw;
-- (int) getPh;
-- (int) getCw;
-- (int) getCh;
+- (void) dealloc;
+
 @end
 
 #endif

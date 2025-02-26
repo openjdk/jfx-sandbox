@@ -65,6 +65,7 @@
                                                                     height:height
                                                                     mipmapped:false];
 
+            texDescriptor.storageMode = MTLStorageModeManaged;
             texDescriptor.usage = MTLTextureUsageRenderTarget;
 
             self->_texture = [device newTextureWithDescriptor:texDescriptor];

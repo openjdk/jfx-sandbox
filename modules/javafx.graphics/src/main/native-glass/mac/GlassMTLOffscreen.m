@@ -163,6 +163,10 @@ static NSArray *allModes = nil;
                   destinationLevel:(NSUInteger)0
                  destinationOrigin:MTLOriginMake(0, 0, 0)];
 
+            if (backBufferTex.usage == MTLTextureUsageRenderTarget) {
+                [blitEncoder synchronizeTexture:backBufferTex slice:0 level:0];
+            }
+
         [blitEncoder endEncoding];
 
         [commandBuf commit];

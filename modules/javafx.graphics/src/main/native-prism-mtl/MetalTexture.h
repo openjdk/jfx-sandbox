@@ -42,34 +42,23 @@
     MetalContext *context;
 
     id<MTLTexture> texture;
-    id<MTLTexture> depthTexture;
-    id<MTLTexture> depthMSAATexture;
-    id<MTLTexture> msaaTexture;
 
-    // Specifying Texture Attributes: https://developer.apple.com/documentation/metal/mtltexturedescriptor
     NSUInteger width;
     NSUInteger height;
-    MTLTextureType type;
-    MTLTextureUsage usage;
-    MTLPixelFormat pixelFormat;
-    MTLResourceOptions storageMode;
-    NSUInteger mipmapLevelCount;
-    bool mipmapped;
-    bool isMSAA;
-    bool lastDepthMSAA;
+
+    BOOL mipmapped;
 }
+- (BOOL) isMipmapped;
+
+- (id<MTLBuffer>)  getPixelBuffer;
 - (id<MTLTexture>) getTexture;
-- (id<MTLTexture>) getDepthTexture;
-- (id<MTLTexture>) getDepthMSAATexture;
-- (id<MTLTexture>) getMSAATexture;
-- (MetalTexture*) createTexture:(MetalContext*)context ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h pixelFormat:(NSUInteger) format useMipMap:(bool)useMipMap;
-- (MetalTexture*) createTexture:(MetalContext*)context ofUsage:(MTLTextureUsage)texUsage ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h msaa:(bool)msaa;
-- (MetalTexture*) createTexture : (MetalContext*) ctx mtlTex:(long)pTex ofWidth : (NSUInteger)w ofHeight : (NSUInteger)h;
-- (void) createDepthTexture;
-- (id<MTLBuffer>) getPixelBuffer;
-- (bool) isMSAAEnabled;
-- (bool) isMipmapped;
-- (void)dealloc;
+- (MetalTexture*) createTexture:(MetalContext*)ctx
+                        ofWidth:(NSUInteger)w
+                       ofHeight:(NSUInteger)h
+                    pixelFormat:(NSUInteger)format
+                      useMipMap:(BOOL)useMipMap;
+
+- (void) dealloc;
 
 //- (void) blitTo:(MetalTexture*) tex;
 

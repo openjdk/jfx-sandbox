@@ -30,25 +30,21 @@
 @implementation MetalTexture
 
 // This method creates a native MTLTexture
-- (MetalTexture*) createTexture : (MetalContext*) ctx
-             ofWidth : (NSUInteger) w
-            ofHeight : (NSUInteger) h
-            pixelFormat : (NSUInteger) format
-            useMipMap   : (bool)useMipMap
+- (MetalTexture*) createTexture:(MetalContext*)ctx
+                        ofWidth:(NSUInteger)w
+                       ofHeight:(NSUInteger)h
+                    pixelFormat:(NSUInteger)format
+                      useMipMap:(BOOL)useMipMap
 {
-    //return [self createTexture:ctx ofUsage:MTLTextureUsageShaderRead ofWidth:w ofHeight:h];
-
     TEX_LOG(@"\n");
     TEX_LOG(@">>>> MetalTexture.createTexture()  w = %lu, h= %lu", w, h);
 
     self = [super init];
     if (self) {
-        width = w;
-        height = h;
+        width   = w;
+        height  = h;
         context = ctx;
-        usage = MTLTextureUsageShaderRead;
-        usage = MTLTextureUsageUnknown; // TODO: MTL: - MTLTextureUsageShaderWrite | MTLTextureUsageShaderRead;
-        pixelFormat = MTLPixelFormatBGRA8Unorm;
+        MTLPixelFormat pixelFormat = MTLPixelFormatBGRA8Unorm;
         if (format == 4) { // TODO: MTL: have proper format to pixelFormat mapping
             pixelFormat = MTLPixelFormatA8Unorm;
             TEX_LOG(@"Creating texture with native format MTLPixelFormatA8Unorm");
@@ -66,158 +62,25 @@
         // texture 1x1
         if (useMipMap &&
             (width == 1 && height == 1)) {
-            mipmapped = false;
+            mipmapped = NO;
         }
         TEX_LOG(@"useMipMap : %d", useMipMap);
         @autoreleasepool {
-            MTLTextureDescriptor *texDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pixelFormat
-                                                                                                 width:width
-                                                                                                height:height
-                                                                                             mipmapped:mipmapped];
-            texDescriptor.usage = usage;
+            MTLTextureDescriptor *texDescriptor =
+                [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pixelFormat
+                                                                   width:width
+                                                                  height:height
+                                                               mipmapped:mipmapped];
+            texDescriptor.storageMode = MTLStorageModePrivate;
+            // texDescriptor.usage = MTLTextureUsageShaderWrite | MTLTextureUsageShaderRead;
+            texDescriptor.usage = MTLTextureUsageUnknown;
 
-            // Create buffer to store pixel data and then a texture using that buffer
-            id<MTLDevice> device = [context getDevice];
-            texture = [device newTextureWithDescriptor:texDescriptor];
+            texture = [[context getDevice] newTextureWithDescriptor:texDescriptor];
         }
-
-        /*
-        // for testing purpose
-        unsigned char img[10*10*4];
-        for (int i = 0; i< 10; i++) {
-            for (int j = 0; j < 10; j++) {
-                  int index = j*10*4 + i*4;
-                  img[index] = 0;
-                  img[index+1] = 0;
-                  img[index+2] = 255;
-                  img[index+3] = 255;
-              }
-          }
-
-        MTLRegion region = {{0,0,0}, {10, 10, 1}};
-
-        [texture replaceRegion:region
-                 mipmapLevel:0
-                 withBytes:img
-                 bytesPerRow: 10 * 4];
-        */
     }
     TEX_LOG(@">>>> MetalTexture.createTexture()  width = %lu, height = %lu, format = %lu", width, height, format);
     TEX_LOG(@">>>> MetalTexture.createTexture()  created MetalTexture = %p", texture);
     return self;
-}
-
-
-// This method creates a native MTLTexture and corrresponding MTLBuffer
-// Note : Currently this method is invoked with texUsage - MTLTextureUsageRenderTarget
-// from method (MetalRTTexture*) createTexture
-- (MetalTexture*) createTexture : (MetalContext*) ctx
-                         ofUsage : (MTLTextureUsage) texUsage
-                         ofWidth : (NSUInteger) w
-                        ofHeight : (NSUInteger) h
-                            msaa : (bool) msaa
-{
-    TEX_LOG(@"\n");
-    TEX_LOG(@">>>> MetalTexture.createTexture()2  w = %lu, h= %lu", w, h);
-
-    self = [super init];
-    if (self) {
-        width   = w;
-        height  = h;
-        context = ctx;
-        usage   = texUsage;
-        type    = MTLTextureType2D;
-        pixelFormat = MTLPixelFormatBGRA8Unorm;
-        storageMode = MTLResourceStorageModeShared;
-
-        @autoreleasepool {
-            MTLTextureDescriptor *texDescriptor = [MTLTextureDescriptor new];
-            texDescriptor.usage  = usage;
-            texDescriptor.width  = width;
-            texDescriptor.height = height;
-            texDescriptor.textureType = type;
-            texDescriptor.pixelFormat = pixelFormat;
-            texDescriptor.sampleCount = 1;
-            texDescriptor.hazardTrackingMode = MTLHazardTrackingModeTracked;
-
-            id<MTLDevice> device = [context getDevice];
-
-            texture = [device newTextureWithDescriptor: texDescriptor];
-            if (msaa) {
-                TEX_LOG(@">>>> MetalTexture.createTexture()2 msaa texture");
-                MTLTextureDescriptor *msaaTexDescriptor = [MTLTextureDescriptor new];
-                msaaTexDescriptor.storageMode = MTLStorageModePrivate;
-                msaaTexDescriptor.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
-                msaaTexDescriptor.width  = width;
-                msaaTexDescriptor.height = height;
-                msaaTexDescriptor.textureType = MTLTextureType2DMultisample;
-                msaaTexDescriptor.pixelFormat = pixelFormat;
-                //By default all SoC's on macOS support 4 sample count
-                msaaTexDescriptor.sampleCount = 4;
-                msaaTexture = [device newTextureWithDescriptor: msaaTexDescriptor];
-            } else {
-                msaaTexture = nil;
-            }
-            isMSAA = msaa;
-
-            depthTexture = nil;
-            depthMSAATexture = nil;
-        }
-    }
-    TEX_LOG(@">>>> MetalTexture.createTexture()2  (buffer backed texture) -- width = %lu, height = %lu", width, height);
-    TEX_LOG(@">>>> MetalTexture.createTexture()2  created MetalTexture = %p", texture);
-    return self;
-}
-
-- (MetalTexture*) createTexture : (MetalContext*) ctx
-                         mtlTex : (long) pTex
-                         ofWidth : (NSUInteger) w
-                        ofHeight : (NSUInteger) h
-{
-    width   = w;
-    height  = h;
-    context = ctx;
-    // usage   = texUsage;
-    // type    = MTLTextureType2D;
-    // pixelFormat = MTLPixelFormatBGRA8Unorm;
-    // storageMode = MTLResourceStorageModeShared;
-
-    id <MTLTexture> tex = (__bridge id<MTLTexture>)(jlong_to_ptr(pTex));
-
-    //NSLog(@"Prism ----- tex = %@", tex);
-
-    texture = tex;
-    return self;
-}
-
-- (void) createDepthTexture
-{
-    TEX_LOG(@">>>> MetalTexture.createDepthTexture()");
-    id<MTLDevice> device = [context getDevice];
-    if (depthTexture.width != width ||
-        depthTexture.height != height ||
-        lastDepthMSAA != isMSAA) {
-        lastDepthMSAA = isMSAA;
-        @autoreleasepool {
-            MTLTextureDescriptor *depthDesc = [MTLTextureDescriptor new];
-            depthDesc.width  = width;
-            depthDesc.height = height;
-            depthDesc.pixelFormat = MTLPixelFormatDepth32Float;
-            depthDesc.textureType = MTLTextureType2D;
-            depthDesc.sampleCount = 1;
-            depthDesc.usage = MTLTextureUsageRenderTarget;
-            depthDesc.storageMode = MTLStorageModePrivate;
-            depthTexture = [device newTextureWithDescriptor: depthDesc];
-            if (isMSAA) {
-                TEX_LOG(@">>>> MetalTexture.createDepthMSAATexture()");
-                depthDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
-                depthDesc.textureType = MTLTextureType2DMultisample;
-                //By default all SoC's on macOS support 4 sample count
-                depthDesc.sampleCount = 4;
-                depthMSAATexture = [device newTextureWithDescriptor: depthDesc];
-            }
-        }
-    }
 }
 
 - (id<MTLBuffer>) getPixelBuffer
@@ -230,16 +93,19 @@
     @autoreleasepool {
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
-        [blitEncoder synchronizeTexture:texture slice:0 level:0];
+        if (texture.usage == MTLTextureUsageRenderTarget) {
+            [blitEncoder synchronizeTexture:texture slice:0 level:0];
+        }
+
         [blitEncoder copyFromTexture:texture
-                sourceSlice:(NSUInteger)0
-                sourceLevel:(NSUInteger)0
-                sourceOrigin:MTLOriginMake(0, 0, 0)
-                sourceSize:MTLSizeMake(texture.width, texture.height, texture.depth)
-                toBuffer:[context getPixelBuffer]
-                destinationOffset:(NSUInteger)0
-                destinationBytesPerRow:(NSUInteger)texture.width * 4
-                destinationBytesPerImage:(NSUInteger)texture.width * texture.height * 4];
+                         sourceSlice:(NSUInteger)0
+                         sourceLevel:(NSUInteger)0
+                        sourceOrigin:MTLOriginMake(0, 0, 0)
+                          sourceSize:MTLSizeMake(texture.width, texture.height, texture.depth)
+                            toBuffer:[context getPixelBuffer]
+                   destinationOffset:(NSUInteger)0
+              destinationBytesPerRow:(NSUInteger)texture.width * 4
+            destinationBytesPerImage:(NSUInteger)texture.width * texture.height * 4];
 
         [blitEncoder endEncoding];
     }
@@ -253,55 +119,17 @@
     return texture;
 }
 
-- (id<MTLTexture>) getDepthTexture
-{
-    return depthTexture;
-}
-
-- (id<MTLTexture>) getDepthMSAATexture
-{
-    return depthMSAATexture;
-}
-
-- (id<MTLTexture>) getMSAATexture
-{
-    return msaaTexture;
-}
-
-- (bool) isMSAAEnabled
-{
-    return isMSAA;
-}
-
-- (bool) isMipmapped
+- (BOOL) isMipmapped
 {
     return mipmapped;
 }
 
-- (void)dealloc
+- (void) dealloc
 {
     if (texture != nil) {
         TEX_LOG(@">>>> MetalTexture.dealloc -- releasing native MTLTexture");
         [texture release];
         texture = nil;
-    }
-
-    if (depthTexture != nil) {
-        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing depthTexture");
-        [depthTexture release];
-        depthTexture = nil;
-    }
-
-    if (depthMSAATexture != nil) {
-        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing depthMSAATexture");
-        [depthMSAATexture release];
-        depthMSAATexture = nil;
-    }
-
-    if (msaaTexture != nil) {
-        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing msaaTexture");
-        [msaaTexture release];
-        msaaTexture = nil;
     }
 
     [super dealloc];
@@ -319,7 +147,7 @@ static int copyPixelDataToRingBuffer(MetalContext* context, void* pixels, unsign
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
-(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
+   (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
     jbyteArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
     jint w, jint h, jint scanStride)
 {
@@ -358,16 +186,19 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
     @autoreleasepool {
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
-        [blitEncoder synchronizeTexture:tex slice:0 level:0];
         [blitEncoder copyFromBuffer:pixelMTLBuf
-                sourceOffset:(NSUInteger)offset
-                sourceBytesPerRow:(NSUInteger)scanStride
+                       sourceOffset:(NSUInteger)offset
+                  sourceBytesPerRow:(NSUInteger)scanStride
                 sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
-                sourceSize:MTLSizeMake(w, h, 1)
-                toTexture:tex
-        destinationSlice:(NSUInteger)0
-               destinationLevel:(NSUInteger)0
-              destinationOrigin:MTLOriginMake(dstx, dsty, 0)];
+                         sourceSize:MTLSizeMake(w, h, 1)
+                          toTexture:tex
+                   destinationSlice:(NSUInteger)0
+                   destinationLevel:(NSUInteger)0
+                  destinationOrigin:MTLOriginMake(dstx, dsty, 0)];
+
+        if (tex.usage == MTLTextureUsageRenderTarget) {
+            [blitEncoder synchronizeTexture:tex slice:0 level:0];
+        }
 
         if ([mtlTex isMipmapped]) {
             [blitEncoder generateMipmapsForTexture:tex];
@@ -381,7 +212,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
-(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
+   (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
     jfloatArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
     jint w, jint h, jint scanStride)
 {
@@ -399,7 +230,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
         (*env)->GetPrimitiveArrayCritical(env, pixData, NULL) :
         (*env)->GetDirectBufferAddress(env, buf));
 
-    id<MTLTexture> tex = [mtlTex getTexture];
+    id<MTLTexture> texture = [mtlTex getTexture];
 
     id<MTLBuffer> pixelMTLBuf = nil;
     int offset = copyPixelDataToRingBuffer(context, pixels, length);
@@ -421,19 +252,21 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
     @autoreleasepool {
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
-        [blitEncoder synchronizeTexture:tex slice:0 level:0];
         [blitEncoder copyFromBuffer:pixelMTLBuf
-                sourceOffset:(NSUInteger)offset
-                sourceBytesPerRow:(NSUInteger)scanStride
+                       sourceOffset:(NSUInteger)offset
+                  sourceBytesPerRow:(NSUInteger)scanStride
                 sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
-                sourceSize:MTLSizeMake(w, h, 1)
-                toTexture:tex
-                destinationSlice:(NSUInteger)0
-                destinationLevel:(NSUInteger)0
-                destinationOrigin:MTLOriginMake(dstx, dsty, 0)];
+                         sourceSize:MTLSizeMake(w, h, 1)
+                          toTexture:texture
+                   destinationSlice:(NSUInteger)0
+                   destinationLevel:(NSUInteger)0
+                  destinationOrigin:MTLOriginMake(dstx, dsty, 0)];
 
         if ([mtlTex isMipmapped]) {
-            [blitEncoder generateMipmapsForTexture:tex];
+            [blitEncoder generateMipmapsForTexture:texture];
+        }
+        if (texture.usage == MTLTextureUsageRenderTarget) {
+            [blitEncoder synchronizeTexture:texture slice:0 level:0];
         }
 
         [blitEncoder endEncoding];
@@ -444,7 +277,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
-(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
+   (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
     jintArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
     jint w, jint h, jint scanStride)
 {
@@ -453,7 +286,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 
-    id<MTLTexture> tex = [mtlTex getTexture];
+    id<MTLTexture> texture = [mtlTex getTexture];
 
     jint length = pixData ?
         (*env)->GetArrayLength(env, pixData) :
@@ -485,19 +318,21 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
     @autoreleasepool {
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
-        [blitEncoder synchronizeTexture:tex slice:0 level:0];
         [blitEncoder copyFromBuffer:pixelMTLBuf
-                sourceOffset:(NSUInteger)offset
-                sourceBytesPerRow:(NSUInteger)scanStride
+                       sourceOffset:(NSUInteger)offset
+                  sourceBytesPerRow:(NSUInteger)scanStride
                 sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
-                sourceSize:MTLSizeMake(w, h, 1)
-                toTexture:tex
-                destinationSlice:(NSUInteger)0
-                destinationLevel:(NSUInteger)0
-                destinationOrigin:MTLOriginMake(dstx, dsty, 0)];
+                         sourceSize:MTLSizeMake(w, h, 1)
+                          toTexture:texture
+                   destinationSlice:(NSUInteger)0
+                   destinationLevel:(NSUInteger)0
+                  destinationOrigin:MTLOriginMake(dstx, dsty, 0)];
 
         if ([mtlTex isMipmapped]) {
-            [blitEncoder generateMipmapsForTexture:tex];
+            [blitEncoder generateMipmapsForTexture:texture];
+        }
+        if (texture.usage == MTLTextureUsageRenderTarget) {
+            [blitEncoder synchronizeTexture:texture slice:0 level:0];
         }
 
         [blitEncoder endEncoding];
@@ -508,7 +343,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateYUV422
-(JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jbyteArray pixData, jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride) {
+   (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jbyteArray pixData,
+    jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride) {
     TEX_LOG(@"\n");
     TEX_LOG(@"-> Native: MTLTexture_nUpdateYUV422 srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);

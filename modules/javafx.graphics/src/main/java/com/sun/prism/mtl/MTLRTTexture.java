@@ -148,7 +148,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
                                          WrapMode wrapMode, boolean msaa);
     native private static long nCreateRT2(long context, long pTex, int pw, int ph);
     native private static void nReadPixels(long nativeHandle, int[] pixBuffer);
-    native private static void nReadPixelsFromContextRTT(long nativeHandle, IntBuffer pixBuffer);
+    native private static void nReadPixelsFromRTT(long nativeHandle, IntBuffer pixBuffer);
     native private static long nGetPixelDataPtr(long nativeHandle);
     native private static void nInitRTT(long pTex, int[] pix);
 
@@ -167,7 +167,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
         // In future, if needed, need to implement pix as ByteBuffer
         if (pix instanceof IntBuffer) {
             //MTLLog.Debug("MTLRTTexture(): readPixels -- IntBuffer.");
-            nReadPixelsFromContextRTT(nTexPtr, (IntBuffer)pix);
+            nReadPixelsFromRTT(nTexPtr, (IntBuffer)pix);
             //pix = IntBuffer.wrap(pixels);
             return true;
         }

@@ -1573,17 +1573,21 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
     id<MTLCommandBuffer> commandBuffer = [pCtx getCurrentCommandBuffer];
     @autoreleasepool {
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
-        [blitEncoder synchronizeTexture:src slice:0 level:0];
-        [blitEncoder synchronizeTexture:dst slice:0 level:0];
+        if (src.usage == MTLTextureUsageRenderTarget) {
+            [blitEncoder synchronizeTexture:src slice:0 level:0];
+        }
+        if (dst.usage == MTLTextureUsageRenderTarget) {
+            [blitEncoder synchronizeTexture:dst slice:0 level:0];
+        }
         [blitEncoder copyFromTexture:src
-                sourceSlice:(NSUInteger)0
-                sourceLevel:(NSUInteger)0
-                sourceOrigin:MTLOriginMake(0, 0, 0)
-                sourceSize:MTLSizeMake(src.width, src.height, src.depth)
-                toTexture:dst
-                destinationSlice:(NSUInteger)0
-                destinationLevel:(NSUInteger)0
-                destinationOrigin:MTLOriginMake(0, 0, 0)];
+                         sourceSlice:(NSUInteger)0
+                         sourceLevel:(NSUInteger)0
+                        sourceOrigin:MTLOriginMake(0, 0, 0)
+                          sourceSize:MTLSizeMake(src.width, src.height, src.depth)
+                           toTexture:dst
+                    destinationSlice:(NSUInteger)0
+                    destinationLevel:(NSUInteger)0
+                   destinationOrigin:MTLOriginMake(0, 0, 0)];
         [blitEncoder endEncoding];
     }
     return;
