@@ -324,6 +324,9 @@
         }
     }
 
+    currentRingBufferIndex = [MetalRingBuffer updateBufferInUse];
+    [argsRingBuffer resetOffsets];
+    [dataRingBuffer resetOffsets];
     [currentCommandBuffer release];
     currentCommandBuffer = nil;
 }
@@ -342,9 +345,6 @@
             currentCommandBuffer = [[commandQueue commandBuffer] retain];
         }
         currentCommandBuffer.label = @"JFX Command Buffer";
-        currentRingBufferIndex = [MetalRingBuffer updateBufferInUse];
-        [argsRingBuffer resetOffsets];
-        [dataRingBuffer resetOffsets];
     }
     return currentCommandBuffer;
 }
