@@ -58,7 +58,7 @@ public class HeadlessApplication extends Application {
     }
     @Override
     protected void _invokeAndWait(Runnable runnable) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        processor.invokeAndWait(runnable);
     }
 
     @Override
