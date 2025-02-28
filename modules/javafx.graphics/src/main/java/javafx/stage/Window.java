@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -333,7 +333,7 @@ public class Window implements EventTarget {
 
     /**
      * Sets x and y properties on this Window so that it is centered on the
-     * curent screen.
+     * current screen.
      * The current screen is determined from the intersection of current window bounds and
      * visual bounds of all screens.
      */
@@ -853,7 +853,7 @@ public class Window implements EventTarget {
                 // Set scene impl on stage impl
                 updatePeerScene(SceneHelper.getPeer(newScene));
 
-                // Fix for RT-15432: we should update new Scene's stylesheets, if the
+                // Fix for JDK-8113774: we should update new Scene's stylesheets, if the
                 // window is already showing. For not yet shown windows, the update is
                 // performed in doVisibleChanging()
                 if (isShowing()) {

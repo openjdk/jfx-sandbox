@@ -33,6 +33,8 @@ import com.sun.javafx.geom.PickRay;
 import com.sun.javafx.scene.input.PickResultChooser;
 
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javafx.scene.Group;
 import javafx.scene.GroupShim;
@@ -278,6 +280,22 @@ public class ParentTest {
     }
 
     @Test
+    public void testSortChildren() {
+        Rectangle rect1 = new Rectangle();
+        rect1.setId("1");
+        Rectangle rect2 = new Rectangle();
+        rect2.setId("2");
+        Rectangle rect3 = new Rectangle();
+        rect3.setId("3");
+
+        Group g = new Group();
+        g.getChildren().addAll(rect3, rect1, rect2);
+        g.getChildren().sort(Comparator.comparing(node -> node.getId()));
+
+        assertEquals(List.of(rect1, rect2, rect3), g.getChildren());
+    }
+
+    @Test
     public void testGetChildrenUnmodifiable() {
         Rectangle rect1 = new Rectangle();
         Rectangle rect2 = new Rectangle();
@@ -491,7 +509,7 @@ public class ParentTest {
         stage.setScene(scene);
         stage.show();
 
-        // there are assertions tested down the stack (see RT-21746)
+        // there are assertions tested down the stack (see JDK-8115729)
     }
 
     private static class LGroup extends Group {
