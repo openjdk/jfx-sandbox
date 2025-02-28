@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2112,7 +2112,7 @@ public class FXMLLoader {
     public static final String JAVAFX_VERSION = System.getProperty("javafx.version");
 
     /**
-     * Contains the current fx namepsace version.
+     * Contains the current fx namespace version.
      * @since JavaFX 8.0
      */
     public static final String FX_NAMESPACE_VERSION = "1";
@@ -2450,7 +2450,7 @@ public class FXMLLoader {
      * Returns the static load flag.
      */
     boolean isStaticLoad() {
-        // SB-dependency: RT-21226 has been filed to track this
+        // SB-dependency: JDK-8102312 has been filed to track this
         return staticLoad;
     }
 
@@ -2460,7 +2460,7 @@ public class FXMLLoader {
      * @param staticLoad
      */
     void setStaticLoad(boolean staticLoad) {
-        // SB-dependency: RT-21226 has been filed to track this
+        // SB-dependency: JDK-8102312 has been filed to track this
         this.staticLoad = staticLoad;
     }
 
@@ -2472,7 +2472,7 @@ public class FXMLLoader {
      * @since 9
      */
     public LoadListener getLoadListener() {
-        // SB-dependency: RT-21228 has been filed to track this
+        // SB-dependency: JDK-8091571 has been filed to track this
         return loadListener;
     }
 
@@ -2484,7 +2484,7 @@ public class FXMLLoader {
      * @since 9
      */
     public final void setLoadListener(LoadListener loadListener) {
-        // SB-dependency: RT-21228 has been filed to track this
+        // SB-dependency: JDK-8091571 has been filed to track this
         this.loadListener = loadListener;
     }
 
