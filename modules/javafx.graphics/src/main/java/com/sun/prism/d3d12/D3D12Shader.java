@@ -81,7 +81,7 @@ public class D3D12Shader extends BaseGraphicsResource implements Shader {
         mIntBuffer.clear();
         mIntBuffer.put(i0);
         mIntBuffer.put(i1);
-        setConstants(name, mIntBuffer, 0, 2);
+        setConstants(name, mIntBuffer, 0, 1);
     }
 
     @Override
@@ -90,7 +90,7 @@ public class D3D12Shader extends BaseGraphicsResource implements Shader {
         mIntBuffer.put(i0);
         mIntBuffer.put(i1);
         mIntBuffer.put(i2);
-        setConstants(name, mIntBuffer, 0, 3);
+        setConstants(name, mIntBuffer, 0, 1);
     }
 
     @Override
@@ -100,7 +100,7 @@ public class D3D12Shader extends BaseGraphicsResource implements Shader {
         mIntBuffer.put(i1);
         mIntBuffer.put(i2);
         mIntBuffer.put(i3);
-        setConstants(name, mIntBuffer, 0, 4);
+        setConstants(name, mIntBuffer, 0, 1);
     }
 
     @Override
@@ -115,7 +115,7 @@ public class D3D12Shader extends BaseGraphicsResource implements Shader {
         mFloatBuffer.clear();
         mFloatBuffer.put(f0);
         mFloatBuffer.put(f1);
-        setConstants(name, mFloatBuffer, 0, 2);
+        setConstants(name, mFloatBuffer, 0, 1);
     }
 
     @Override
@@ -124,7 +124,7 @@ public class D3D12Shader extends BaseGraphicsResource implements Shader {
         mFloatBuffer.put(f0);
         mFloatBuffer.put(f1);
         mFloatBuffer.put(f2);
-        setConstants(name, mFloatBuffer, 0, 3);
+        setConstants(name, mFloatBuffer, 0, 1);
     }
 
     @Override
@@ -134,17 +134,21 @@ public class D3D12Shader extends BaseGraphicsResource implements Shader {
         mFloatBuffer.put(f1);
         mFloatBuffer.put(f2);
         mFloatBuffer.put(f3);
-        setConstants(name, mFloatBuffer, 0, 4);
+        setConstants(name, mFloatBuffer, 0, 1);
     }
 
     @Override
     public void setConstants(String name, IntBuffer buf, int off, int count) {
-        mContext.getDevice().setShaderConstants(mResource.getShader(), name, buf, off, count);
+        // NOTE: count means amount of HLSL int4's (so count == 1 expects buf to have 4 ints)
+        // D3D12 native side expects this to be actual element count, so we'll multiply it by 4 here
+        mContext.getDevice().setShaderConstants(mResource.getShader(), name, buf, off, count * 4);
     }
 
     @Override
     public void setConstants(String name, FloatBuffer buf, int off, int count) {
-        mContext.getDevice().setShaderConstants(mResource.getShader(), name, buf, off, count);
+        // NOTE: count means count of HLSL float4's (so count == 1 expects buf to have 4 floats)
+        // D3D12 native side expects this to be actual element count, so we'll multiply it by 4 here
+        mContext.getDevice().setShaderConstants(mResource.getShader(), name, buf, off, count * 4);
     }
 
     @Override
