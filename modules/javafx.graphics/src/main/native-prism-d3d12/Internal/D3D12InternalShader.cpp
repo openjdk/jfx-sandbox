@@ -245,12 +245,6 @@ void InternalShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& com
 
         switch (ra.type)
         {
-        case ResourceAssignmentType::ROOT_CONSTANT:
-        {
-            const uint8_t* srcPtr = mConstantBufferStorage.data() + ra.offsetInCBStorage;
-            commandList->SetGraphicsRoot32BitConstants(ra.rootIndex, ra.sizeInCBStorage / sizeof(DWORD), srcPtr, 0);
-            break;
-        }
         case ResourceAssignmentType::DESCRIPTOR:
         {
             commandList->SetGraphicsRootConstantBufferView(ra.rootIndex, r.region.gpu);

@@ -71,12 +71,6 @@ private:
 
     uint32_t GetTotalBindingSize(const JSLC::ResourceBinding& binding) const;
     bool RequiresTexturesDTable(const JSLC::ShaderResourceCollection& resources) const;
-    bool ShouldCBufferHaveDescriptor(const JSLC::ShaderResourceCollection& resources, bool hasTextures) const;
-
-    inline bool IsCBufferDataViaDescriptor() const
-    {
-        return mCBufferDescriptorIndex > 0;
-    }
 
 public:
     NativeShader(const NIPtr<NativeDevice>& nativeDevice);

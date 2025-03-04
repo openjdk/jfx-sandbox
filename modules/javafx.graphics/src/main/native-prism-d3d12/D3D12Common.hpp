@@ -362,7 +362,6 @@ enum class TextureWrapMode: unsigned int
 // see D3D12Shader.hpp
 enum class ResourceAssignmentType: uint32_t
 {
-    ROOT_CONSTANT,
     DESCRIPTOR,
     DESCRIPTOR_TABLE_TEXTURES,
     DESCRIPTOR_TABLE_CBUFFERS,
@@ -373,7 +372,6 @@ inline const char* ResourceAssignmentTypeToString(ResourceAssignmentType type)
 {
     switch (type)
     {
-    case ResourceAssignmentType::ROOT_CONSTANT: return "ROOT_CONSTANT";
     case ResourceAssignmentType::DESCRIPTOR: return "DESCRIPTOR";
     case ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES: return "DESCRIPTOR_TABLE_TEXTURES";
     case ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS: return "DESCRIPTOR_TABLE_CBUFFERS";

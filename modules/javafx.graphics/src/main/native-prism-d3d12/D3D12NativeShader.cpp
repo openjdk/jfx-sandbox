@@ -99,24 +99,6 @@ bool NativeShader::RequiresTexturesDTable(const JSLC::ShaderResourceCollection& 
     return false;
 }
 
-bool NativeShader::ShouldCBufferHaveDescriptor(const JSLC::ShaderResourceCollection& resources, bool hasTextures) const
-{
-    uint32_t totalSlotsTaken = 16 + (hasTextures ? 1 : 0);
-
-    for (auto& resource: resources)
-    {
-        if (resource.type == JSLC::ResourceBindingType::CONSTANT_32BIT ||
-            resource.type == JSLC::ResourceBindingType::CONSTANT_64BIT ||
-            resource.type == JSLC::ResourceBindingType::CONSTANT_96BIT ||
-            resource.type == JSLC::ResourceBindingType::CONSTANT_128BIT)
-        {
-            totalSlotsTaken += GetTotalBindingSize(resource);
-        }
-    }
-
-    return (totalSlotsTaken > MAX_AVAILABLE_SLOTS);
-}
-
 NativeShader::NativeShader(const NIPtr<NativeDevice>& nativeDevice)
     : Shader()
     , mNativeDevice(nativeDevice)
@@ -248,8 +230,6 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
         currentParamIndex++;
     }
 
-    bool cbufferViaDescriptor = ShouldCBufferHaveDescriptor(mShaderResources, mTextureDTableIndex > 0);
-
     rsParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
     for (auto& binding: mShaderResources)
     {
@@ -295,34 +275,13 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
             uint32_t bindingSizeBytes = bindingSlots * sizeof(DWORD);
             uint32_t paddedBindingSize = Internal::Utils::Align<uint32_t>(bindingSizeBytes, 16);
 
-            if (!cbufferViaDescriptor)
-            {
-                // enough space to put data directly in RS as a root constant
-                rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-                rsParam.Constants.Num32BitValues = bindingSlots;
-                rsParam.Constants.RegisterSpace = 0;
-                rsParam.Constants.ShaderRegister = binding.slot;
-                rsParams.emplace_back(rsParam);
-
-                AddShaderResource(
-                    binding.name,
-                    ResourceAssignment (
-                        ResourceAssignmentType::ROOT_CONSTANT, currentParamIndex, 0, bindingSizeBytes, constantDataTotalSize
-                    )
-                );
-                usedSlots += bindingSlots;
-                ++currentParamIndex;
-            }
-            else
-            {
-                // emplace the assignment for future reference in SetConstants()
-                AddShaderResource(
-                    binding.name,
-                    ResourceAssignment (
-                        ResourceAssignmentType::DESCRIPTOR, currentParamIndex, 0, bindingSizeBytes, constantDataTotalSize
-                    )
-                );
-            }
+            // emplace the assignment for future reference in SetConstants()
+            AddShaderResource(
+                binding.name,
+                ResourceAssignment (
+                    ResourceAssignmentType::DESCRIPTOR, currentParamIndex, 0, bindingSizeBytes, constantDataTotalSize
+                )
+            );
 
             constantDataTotalSize += paddedBindingSize;
             break;
@@ -332,19 +291,14 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
         }
     }
 
-    if (cbufferViaDescriptor)
-    {
-        // CBuffer data won't fit inside Root Signature as Root Constants,
-        // we will have one Root Descriptor fitting all this data
-        rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-        rsParam.Descriptor.RegisterSpace = 0;
-        rsParam.Descriptor.ShaderRegister = 0;
-        rsParams.emplace_back(rsParam);
+    rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    rsParam.Descriptor.RegisterSpace = 0;
+    rsParam.Descriptor.ShaderRegister = 0;
+    rsParams.emplace_back(rsParam);
 
-        usedSlots += ROOT_DESCRIPTOR_SLOT_SIZE;
-        mCBufferDescriptorIndex = currentParamIndex;
-        ++currentParamIndex;
-    }
+    usedSlots += ROOT_DESCRIPTOR_SLOT_SIZE;
+    mCBufferDescriptorIndex = currentParamIndex;
+    ++currentParamIndex;
 
     D3D12NI_LOG_DEBUG("Shader %s resource assignments (used %u slots):", mName.c_str(), usedSlots);
     for (const auto& r: mShaderResourceAssignments)
@@ -415,47 +369,21 @@ void NativeShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, 
         }
     }
 
-    if (IsCBufferDataViaDescriptor())
-    {
-        mLastAllocatedCBufferRegion = helpers.constantAllocator(mConstantBufferStorage.size(), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+    mLastAllocatedCBufferRegion = helpers.constantAllocator(mConstantBufferStorage.size(), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 
-        if (mLastAllocatedCBufferRegion)
-        {
-            memcpy(mLastAllocatedCBufferRegion.cpu, mConstantBufferStorage.data(), mConstantBufferStorage.size());
-        }
-        else
-        {
-            // should not happen
-            D3D12NI_LOG_ERROR("Failed to allocate cbuffer descriptor");
-        }
+    if (mLastAllocatedCBufferRegion)
+    {
+        memcpy(mLastAllocatedCBufferRegion.cpu, mConstantBufferStorage.data(), mConstantBufferStorage.size());
+    }
+    else
+    {
+        // should not happen
+        D3D12NI_LOG_ERROR("Failed to allocate cbuffer descriptor");
     }
 }
 
 void NativeShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const
 {
-    for (const auto& rIt: mShaderResourceAssignments)
-    {
-        const ResourceAssignment& r = rIt.second;
-
-        switch (r.type)
-        {
-        case ResourceAssignmentType::ROOT_CONSTANT:
-        {
-            const uint8_t* srcPtr = mConstantBufferStorage.data() + r.offsetInCBStorage;
-            commandList->SetGraphicsRoot32BitConstants(r.rootIndex, r.sizeInCBStorage / sizeof(DWORD), srcPtr, 0);
-            break;
-        }
-        case ResourceAssignmentType::DESCRIPTOR:
-        case ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS:
-        case ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES:
-        case ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS:
-            // ignored - will be set later via its ways
-            break;
-        default:
-            D3D12NI_LOG_ERROR("Unrecognized resource assignment type for resource %s", rIt.first.c_str());
-        }
-    }
-
     // texture descriptor table
     if (mTextureDTableIndex > 0)
     {
@@ -463,7 +391,7 @@ void NativeShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& comma
         commandList->SetGraphicsRootDescriptorTable(mSamplerDTableIndex, mLastAllocatedSamplerDescriptors.gpu);
     }
 
-    if (IsCBufferDataViaDescriptor() && mLastAllocatedCBufferRegion)
+    if (mLastAllocatedCBufferRegion)
     {
         commandList->SetGraphicsRootConstantBufferView(mCBufferDescriptorIndex, mLastAllocatedCBufferRegion.gpu);
     }
