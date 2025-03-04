@@ -141,7 +141,8 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
 
     @Override
     public boolean lockResources(PresentableState pState) {
-        if (mState != pState ||
+        if (mWidth != pState.getRenderWidth() ||
+            mHeight != pState.getRenderHeight() ||
             mRenderScaleX != pState.getRenderScaleX() ||
             mRenderScaleY != pState.getRenderScaleY()) {
             return true;
