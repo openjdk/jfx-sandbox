@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,6 +63,7 @@ class CommandListPool: public IWaitableOperation
     size_t mCurrentCommandList;
 
     void ResetCurrentCommandList();
+    void WaitForAvailableCommandList();
 
 public:
     CommandListPool(const NIPtr<NativeDevice>& nativeDevice);
@@ -76,6 +77,8 @@ public:
 
     inline const D3D12GraphicsCommandListPtr& CurrentCommandList()
     {
+        if (mCommandLists[mCurrentCommandList].state == CommandListState::Closed) WaitForAvailableCommandList();
+
         D3D12NI_ASSERT(mCommandLists[mCurrentCommandList].state != CommandListState::Closed, "Attempted to access closed Command List");
         if (mCommandLists[mCurrentCommandList].state == CommandListState::Available) ResetCurrentCommandList();
         return mCommandLists[mCurrentCommandList].commandList;

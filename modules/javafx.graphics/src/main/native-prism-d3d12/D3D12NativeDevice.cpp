@@ -220,6 +220,24 @@ NativeDevice::~NativeDevice()
 {
     D3D12NI_LOG_DEBUG("Destroying device");
 
+    // ensures the pipeline is purged
+    mMidFrameWaitable.reset();
+    SignalMidFrame();
+    WaitMidFrame();
+
+    if (mRingBuffer) mRingBuffer.reset();
+    if (mConstantRingBuffer) mConstantRingBuffer.reset();
+    if (m2DIndexBuffer) m2DIndexBuffer.reset();
+    if (mCommandListPool) mCommandListPool.reset();
+    if (mShaderLibrary) mShaderLibrary.reset();
+    if (mRenderingContext) mRenderingContext.reset();
+    if (mRTVHeap) mRTVHeap.reset();
+    if (mDSVHeap) mDSVHeap.reset();
+    if (mResourceDisposer) mResourceDisposer.reset();
+    if (mRootSignatureManager) mRootSignatureManager.reset();
+
+    mWaitableOps.clear();
+
     if (mFence) mFence.Reset();
     if (mCommandQueue) mCommandQueue.Reset();
     if (mDevice) mDevice.Reset();
@@ -337,27 +355,6 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     mPhongVS = GetInternalShader(Constants::PHONG_VS_NAME);
 
     return true;
-}
-
-void NativeDevice::ReleaseInternals()
-{
-    // ensures the pipeline is purged
-    mMidFrameWaitable.reset();
-    SignalMidFrame();
-    WaitMidFrame();
-
-    if (mRingBuffer) mRingBuffer.reset();
-    if (mConstantRingBuffer) mConstantRingBuffer.reset();
-    if (m2DIndexBuffer) m2DIndexBuffer.reset();
-    if (mCommandListPool) mCommandListPool.reset();
-    if (mShaderLibrary) mShaderLibrary.reset();
-    if (mRenderingContext) mRenderingContext.reset();
-    if (mRTVHeap) mRTVHeap.reset();
-    if (mDSVHeap) mDSVHeap.reset();
-    if (mResourceDisposer) mResourceDisposer.reset();
-    if (mRootSignatureManager) mRootSignatureManager.reset();
-
-    mWaitableOps.clear();
 }
 
 NIPtr<Internal::Buffer> NativeDevice::CreateBuffer(const void* initialData, size_t size, bool cpuWriteable, D3D12_RESOURCE_STATES finalState)
@@ -1183,7 +1180,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nReleaseNat
 {
     if (!ptr) return;
 
-    D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->ReleaseInternals();
     D3D12::FreeNIObject<D3D12::NativeDevice>(ptr);
 }
 

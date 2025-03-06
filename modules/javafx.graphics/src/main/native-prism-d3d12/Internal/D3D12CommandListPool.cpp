@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,12 @@ void CommandListPool::ResetCurrentCommandList()
     D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to reset current command list");
 
     mCommandLists[mCurrentCommandList].state = CommandListState::Active;
+}
+
+void CommandListPool::WaitForAvailableCommandList()
+{
+    mNativeDevice->SignalMidFrame(); // this will do nothing if something else already signaled the queue
+    mNativeDevice->WaitMidFrame();
 }
 
 CommandListPool::CommandListPool(const NIPtr<NativeDevice>& nativeDevice)
@@ -195,8 +201,6 @@ bool CommandListPool::SubmitCurrentCommandList()
 
     ++mCurrentCommandList;
     if (mCurrentCommandList == mCommandLists.size()) mCurrentCommandList = 0;
-
-    D3D12NI_ASSERT(mCommandLists[mCurrentCommandList].state == CommandListState::Available, "New command list not available");
 
     return true;
 }
