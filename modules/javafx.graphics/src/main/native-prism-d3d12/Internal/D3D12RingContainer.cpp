@@ -169,15 +169,15 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
             return std::move(r);
         }
     }
-    else if (mTail <= mHead)
+    else if (mTail < mHead)
     {
-        if (mTail + size > mHead)
+        if (mTail + size >= mHead)
         {
             // Ring Container might overflow, pause and wait until last flush is done
             AwaitNextCheckpoint();
             // head could've moved behind us, so we should also check if that's the case.
             // If head is still ahead of us, double-check the condition before leaving
-            if (mTail < mHead && mTail + size > mHead)
+            if (mTail < mHead && mTail + size >= mHead)
             {
                 D3D12NI_LOG_ERROR("Ring Container too small to hold %ld data (h: %ld, t: %ld, size %ld, used %ld)", size, mHead, mTail, mSize, mUsed);
                 return Region();
