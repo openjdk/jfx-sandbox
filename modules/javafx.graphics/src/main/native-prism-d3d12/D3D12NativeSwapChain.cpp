@@ -191,6 +191,25 @@ bool NativeSwapChain::Present()
         params.pDirtyRects = &mDirtyRegion;
     }
 
+    HRESULT hr = mSwapChain->Present1(mSwapInterval, mPresentFlags, &params);
+    //D3D12NI_RET_IF_FAILED(hr, false, "Failed to Present on Swap Chain");
+    if (FAILED(hr))
+    {
+        _com_error __e(hr);
+        D3D12NI_LOG_ERROR("%s: %x (%ws)", "Failed to Present on Swap Chain", hr, __e.ErrorMessage());
+        if (hr == DXGI_ERROR_DEVICE_REMOVED)
+        {
+            HRESULT reason = mNativeDevice->GetDevice()->GetDeviceRemovedReason();
+            _com_error comReason(reason);
+            D3D12NI_LOG_ERROR("Device removed reason: %x (%ws)", reason, comReason.ErrorMessage());
+        }
+        return false;
+    }
+
+    NIPtr<Internal::Waitable> waitable = mNativeDevice->Signal();
+    // store current waitable onto our collection, we'll wait for them some other time
+    mPastFrameWaitables.push_back(std::move(waitable));
+
     NIPtr<Internal::Waitable> oldWaitable;
     // await older frames
     if (mPastFrameWaitables.size() >= mBufferCount)
@@ -204,13 +223,6 @@ bool NativeSwapChain::Present()
             return false;
         }
     }
-
-    HRESULT hr = mSwapChain->Present1(mSwapInterval, mPresentFlags, &params);
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to Present on Swap Chain");
-
-    NIPtr<Internal::Waitable> waitable = mNativeDevice->Signal();
-    // store current waitable onto our collection, we'll wait for them some other time
-    mPastFrameWaitables.push_back(std::move(waitable));
 
     mNativeDevice->AdvanceCommandAllocator();
 
