@@ -108,6 +108,12 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
         return Region();
     }
 
+    if (size == 0)
+    {
+        D3D12NI_LOG_ERROR("%s: Attempted to allocate 0 ring container slots", mDebugName.c_str());
+        return Region();
+    }
+
     size = Utils::Align(size, alignment);
 
     if (size > mSize)
@@ -207,7 +213,6 @@ void RingContainer::OnQueueSignal(uint64_t fenceValue)
 {
     if (mUncommitted > 0)
     {
-        D3D12NI_LOG_DEBUG("%s: Queue signal, emplace checkpoint %u tail %u fence", mDebugName.c_str(), mTail, fenceValue);
         mCheckpoints.emplace_back(mTail, fenceValue);
         mUncommitted = 0;
     }
@@ -215,8 +220,6 @@ void RingContainer::OnQueueSignal(uint64_t fenceValue)
 
 void RingContainer::OnFenceSignaled(uint64_t fenceValue)
 {
-    D3D12NI_LOG_DEBUG("%s: Fence signaled %u checkpoints %u", mDebugName.c_str(), fenceValue, mCheckpoints.size());
-
     while (!mCheckpoints.empty())
     {
         if (fenceValue < mCheckpoints.front().fenceValue)

@@ -178,18 +178,8 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
     barrier.Transition.StateAfter = finalState;
     mNativeDevice->GetCurrentCommandList()->ResourceBarrier(1, &barrier);
 
-    // submit the copy to execute
-    mNativeDevice->FlushCommandList();
-
-    // TODO: D3D12: OPTIMIZATION - Technically we don't have to wait for the execution to end here.
-    // We would have to employ some global Ring Buffer as a staging buffer though. That's a
-    // separate challenge, but it could speed things up on initialization phase.
-    NIPtr<Internal::Waitable> waitable = mNativeDevice->Signal();
-    if (!waitable->Wait())
-    {
-        D3D12NI_LOG_ERROR("Failed to wait for temporary Command List");
-        return false;
-    }
+    // pass Staging Buffer along to release after the command list is flushed
+    if (stagingResource) mNativeDevice->MarkResourceDisposed(stagingResource);
 
     mDebugName = L"Buffer_#";
     mDebugName += std::to_wstring(counter++);
