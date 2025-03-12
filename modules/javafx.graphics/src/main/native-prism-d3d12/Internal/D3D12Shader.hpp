@@ -104,7 +104,7 @@ public:
     bool SetConstants(const std::string& name, const void* data, size_t size);
     bool SetConstantsInArray(const std::string& name, uint32_t idx, const void* data, size_t size);
 
-    virtual void PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) = 0;
+    virtual bool PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) = 0;
     virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const = 0;
 
     inline const std::string& GetName() const

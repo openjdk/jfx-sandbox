@@ -68,7 +68,7 @@ private:
 
 protected:
     virtual void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) = 0;
-    virtual void PrepareStep(RenderingContextState& state) {}
+    virtual bool PrepareStep(RenderingContextState& state) { return true; }
 
 public:
     RenderingStep()
@@ -91,12 +91,12 @@ public:
 
     // Prepare should be called before Apply(), however ONLY inside RenderingContext.
     // Since Apply() calls will follow right after, we do not need to set the flags here.
-    virtual void Prepare(RenderingContextState& state)
+    virtual bool Prepare(RenderingContextState& state)
     {
-        if (mOptimizeApply && mIsApplied) return;
-        if (mDependency && !mDependency(state)) return;
+        if (mOptimizeApply && mIsApplied) return true;
+        if (mDependency && !mDependency(state)) return true;
 
-        PrepareStep(state);
+        return PrepareStep(state);
     }
 
     void ClearApplied()
@@ -140,11 +140,11 @@ public:
         RenderingStep::Apply(commandList, state);
     }
 
-    void Prepare(RenderingContextState& state) override final
+    bool Prepare(RenderingContextState& state) override final
     {
-        if (!mIsSet) return;
+        if (!mIsSet) return true;
 
-        RenderingStep::Prepare(state);
+        return RenderingStep::Prepare(state);
     }
 
     void Set(T prop)
@@ -313,9 +313,9 @@ class ScissorRenderingParameter: public RenderingParameter<D3D12_RECT>
 
 class ResourceRenderingStep: public RenderingStep
 {
-    void PrepareStep(RenderingContextState& state) override final
+    bool PrepareStep(RenderingContextState& state) override final
     {
-        state.resourceManager.PrepareResources();
+        return state.resourceManager.PrepareResources();
     }
 
     void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
@@ -333,7 +333,7 @@ struct Transforms
 
 class TransformRenderingParameter: public RenderingParameter<Transforms>
 {
-    void PrepareStep(RenderingContextState& state) override
+    bool PrepareStep(RenderingContextState& state) override
     {
         switch (state.resourceManager.GetVertexShader()->GetMode())
         {
@@ -341,14 +341,17 @@ class TransformRenderingParameter: public RenderingParameter<Transforms>
         {
             // 2D only requires a combined world-view-proj matrix; camera pos is ignored
             Matrix<float> wvp = mParameter.viewProjTransform.Mul(mParameter.worldTransform);
-            state.resourceManager.GetVertexShader()->SetConstants("WorldViewProj", wvp.Data(), sizeof(Matrix<float>));
-            break;
+            return state.resourceManager.GetVertexShader()->SetConstants("WorldViewProj", wvp.Data(), sizeof(Matrix<float>));
         }
         case ShaderPipelineMode::PHONG_3D:
         {
             // 3D requires all parameters as separate components
-            state.resourceManager.GetVertexShader()->SetConstants("gData", &mParameter, sizeof(Transforms));
-            break;
+            return state.resourceManager.GetVertexShader()->SetConstants("gData", &mParameter, sizeof(Transforms));
+        }
+        default:
+        {
+            D3D12NI_LOG_ERROR("Unknown Shader Pipeline Mode");
+            return false;
         }
         }
     }
@@ -414,9 +417,9 @@ class ComputeRootSignatureRenderingParameter: public RenderingParameter<D3D12Roo
 
 class ComputeResourceRenderingStep: public RenderingStep
 {
-    void PrepareStep(RenderingContextState& state) override final
+    bool PrepareStep(RenderingContextState& state) override final
     {
-        state.resourceManager.PrepareComputeResources();
+        return state.resourceManager.PrepareComputeResources();
     }
 
     void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final

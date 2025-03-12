@@ -318,12 +318,16 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
         return false;
     }
 
+    mRingBuffer->SetDebugName("Main Ring Buffer");
+
     mConstantRingBuffer = std::make_shared<Internal::RingBuffer>(shared_from_this());
     if (!mConstantRingBuffer->Init(1024 * 1024, 768 * 1024))
     {
         D3D12NI_LOG_ERROR("Failed to initialize constant data Ring Buffer");
         return false;
     }
+
+    mConstantRingBuffer->SetDebugName("Constant Ring Buffer");
 
     mRTVHeap = std::make_shared<Internal::DescriptorHeap>(shared_from_this());
     if (!mRTVHeap->Init(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false))
@@ -523,7 +527,11 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     mRenderingContext->SetFillMode(D3D12_FILL_MODE_SOLID);
 
     // apply Rendering Context details
-    mRenderingContext->Apply();
+    if (!mRenderingContext->Apply())
+    {
+        D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Rendering skipped.");
+        return;
+    }
 
     // we separately ensure that textures bound to the Context are in correct state
     // there can be a situation where a Texture was bound to the Context and then updated
@@ -585,7 +593,11 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
         mRenderingContext->SetTexture(i, material->GetMap(static_cast<TextureMapType>(i)));
     }
 
-    mRenderingContext->Apply();
+    if (!mRenderingContext->Apply())
+    {
+        D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping mesh view rendering.");
+        return;
+    }
 
     mRenderingContext->EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
@@ -957,7 +969,12 @@ bool NativeDevice::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
         cs->SetConstants("gData", &constants, sizeof(constants));
 
         mRenderingContext->ClearComputeResourcesApplied();
-        mRenderingContext->ApplyCompute();
+
+        if (!mRenderingContext->ApplyCompute())
+        {
+            D3D12NI_LOG_ERROR("Failed to apply Rendering Context Compute settings");
+            return false;
+        }
 
         // transition base level to non-PS-resource
         texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,

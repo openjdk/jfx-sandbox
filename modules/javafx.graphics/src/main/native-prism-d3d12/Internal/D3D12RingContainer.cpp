@@ -207,6 +207,7 @@ void RingContainer::OnQueueSignal(uint64_t fenceValue)
 {
     if (mUncommitted > 0)
     {
+        D3D12NI_LOG_DEBUG("%s: Queue signal, emplace checkpoint %u tail %u fence", mDebugName.c_str(), mTail, fenceValue);
         mCheckpoints.emplace_back(mTail, fenceValue);
         mUncommitted = 0;
     }
@@ -214,6 +215,8 @@ void RingContainer::OnQueueSignal(uint64_t fenceValue)
 
 void RingContainer::OnFenceSignaled(uint64_t fenceValue)
 {
+    D3D12NI_LOG_DEBUG("%s: Fence signaled %u checkpoints %u", mDebugName.c_str(), fenceValue, mCheckpoints.size());
+
     while (!mCheckpoints.empty())
     {
         if (fenceValue < mCheckpoints.front().fenceValue)

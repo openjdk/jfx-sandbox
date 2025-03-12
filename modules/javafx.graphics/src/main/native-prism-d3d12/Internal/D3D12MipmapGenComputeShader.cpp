@@ -64,18 +64,18 @@ bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mo
     return true;
 }
 
-void MipmapGenComputeShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
+bool MipmapGenComputeShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
 {
     if (mConstantBufferStorage.size() != sizeof(CBuffer))
     {
         D3D12NI_LOG_ERROR("MipmapGenCS: Invalid Constant Buffer Storage");
-        return;
+        return false;
     }
 
     if (!textures[0])
     {
         D3D12NI_LOG_ERROR("MipmapGenCS: Failed to prepare resources; a texture must be bound to slot 0");
-        return;
+        return false;
     }
 
     const CBuffer* cb = reinterpret_cast<const CBuffer*>(mConstantBufferStorage.data());
@@ -84,7 +84,7 @@ void MipmapGenComputeShader::PrepareShaderResources(const ShaderResourceHelpers&
     if (!mTextureDTable)
     {
         D3D12NI_LOG_ERROR("MipmapGenCS: Failed to prepare resources; allocation of 1 SRV descriptor failed");
-        return;
+        return false;
     }
 
     // SRV heap is also used for UAVs
@@ -92,14 +92,14 @@ void MipmapGenComputeShader::PrepareShaderResources(const ShaderResourceHelpers&
     if (!mUAVDTable)
     {
         D3D12NI_LOG_ERROR("MipmapGenCS: Failed to prepare resources; allocation of %d UAV descriptors failed", cb->numLevels);
-        return;
+        return false;
     }
 
     mCBufferView = helpers.constantAllocator(sizeof(CBuffer), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
     if (!mCBufferView)
     {
         D3D12NI_LOG_ERROR("MipmapGenCS: Failed to prepare resources; allocation of CBV region failed");
-        return;
+        return false;
     }
 
     memcpy(mCBufferView.cpu, mConstantBufferStorage.data(), sizeof(CBuffer));
@@ -113,6 +113,8 @@ void MipmapGenComputeShader::PrepareShaderResources(const ShaderResourceHelpers&
     {
         textures[0]->WriteUAVToDescriptor(mUAVDTable.CPU(i), (cb->sourceLevel + 1) + i);
     }
+
+    return true;
 }
 
 void MipmapGenComputeShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const

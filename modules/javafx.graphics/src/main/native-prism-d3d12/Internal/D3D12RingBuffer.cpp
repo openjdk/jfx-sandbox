@@ -92,7 +92,9 @@ bool RingBuffer::Init(size_t size, size_t flushThreshold)
 RingBuffer::Region RingBuffer::Reserve(size_t size, size_t alignment)
 {
     RingContainer::Region region = ReserveInternal(size, alignment);
-    return Region(mCPUPtr + region.offsetFromStart, mGPUPtr + region.offsetFromStart, region.size, region.offsetFromStart);
+    if (region.size == 0) return RingBuffer::Region();
+
+    return RingBuffer::Region(mCPUPtr + region.offsetFromStart, mGPUPtr + region.offsetFromStart, region.size, region.offsetFromStart);
 }
 
 } // namespace Internal

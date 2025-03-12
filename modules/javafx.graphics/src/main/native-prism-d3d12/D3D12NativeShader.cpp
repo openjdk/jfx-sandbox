@@ -336,7 +336,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     return true;
 }
 
-void NativeShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
+bool NativeShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
 {
     if (mTextureDTableIndex > 0)
     {
@@ -355,8 +355,8 @@ void NativeShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, 
         // should not happen
         if ((!mLastAllocatedSRVDescriptors || !mLastAllocatedSamplerDescriptors) && usedTextures != 0)
         {
-            D3D12NI_LOG_ERROR("Descriptor Tables are NULL, but we have textures we need to use");
-            return;
+            D3D12NI_LOG_ERROR("Native Shader %s: Descriptor Tables are NULL, but we have textures we need to use", mName.c_str());
+            return false;
         }
 
         for (uint32_t i = 0; i < usedTextures; ++i)
@@ -366,25 +366,34 @@ void NativeShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, 
                 textures[i]->WriteSRVToDescriptor(mLastAllocatedSRVDescriptors.CPU(i));
                 textures[i]->WriteSamplerToDescriptor(mLastAllocatedSamplerDescriptors.CPU(i));
             }
+            else
+            {
+                helpers.nullSRVCreator(D3D12_SRV_DIMENSION_TEXTURE2D, mLastAllocatedSRVDescriptors.CPU(i));
+            }
         }
     }
 
-    mLastAllocatedCBufferRegion = helpers.constantAllocator(mConstantBufferStorage.size(), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+    if (mConstantBufferStorage.size() > 0)
+    {
+        mLastAllocatedCBufferRegion = helpers.constantAllocator(mConstantBufferStorage.size(), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
 
-    if (mLastAllocatedCBufferRegion)
-    {
-        memcpy(mLastAllocatedCBufferRegion.cpu, mConstantBufferStorage.data(), mConstantBufferStorage.size());
+        if (mLastAllocatedCBufferRegion)
+        {
+            memcpy(mLastAllocatedCBufferRegion.cpu, mConstantBufferStorage.data(), mConstantBufferStorage.size());
+        }
+        else
+        {
+            // should not happen
+            D3D12NI_LOG_ERROR("Native shader %s: Failed to allocate cbuffer descriptor", mName.c_str());
+            return false;
+        }
     }
-    else
-    {
-        // should not happen
-        D3D12NI_LOG_ERROR("Failed to allocate cbuffer descriptor");
-    }
+
+    return true;
 }
 
 void NativeShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const
 {
-    // texture descriptor table
     if (mTextureDTableIndex > 0)
     {
         commandList->SetGraphicsRootDescriptorTable(mTextureDTableIndex, mLastAllocatedSRVDescriptors.gpu);

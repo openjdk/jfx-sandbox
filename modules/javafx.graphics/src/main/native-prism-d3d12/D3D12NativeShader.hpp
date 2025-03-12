@@ -78,7 +78,7 @@ public:
 
     bool Init(const std::string& name, void* code, size_t size);
 
-    virtual void PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) override;
+    virtual bool PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) override;
     virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
 
     inline const D3D12RootSignaturePtr& GetRootSignature() const

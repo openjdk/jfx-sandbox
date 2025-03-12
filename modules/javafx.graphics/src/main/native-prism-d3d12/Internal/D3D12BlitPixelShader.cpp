@@ -60,32 +60,34 @@ bool BlitPixelShader::Init(const std::string& name, ShaderPipelineMode mode, D3D
     return true;
 }
 
-void BlitPixelShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
+bool BlitPixelShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
 {
     if (!textures[0])
     {
         D3D12NI_LOG_ERROR("BlitPS: Failed to prepare resources; source texture must be bound to slot 0");
-        return;
+        return false;
     }
 
     mSourceTextureDTable = helpers.rvAllocator(1);
     if (!mSourceTextureDTable)
     {
         D3D12NI_LOG_ERROR("BlitPS: Failed to prepare resources; allocation of SRV descriptor for source texture failed");
-        return;
+        return false;
     }
 
     mSourceTextureSamplerDTable = helpers.samplerAllocator(1);
     if (!mSourceTextureSamplerDTable)
     {
         D3D12NI_LOG_ERROR("BlitPS: Failed to prepare resources; allocation of Sampler descriptor for source texture failed");
-        return;
+        return false;
     }
 
     // write textrue descriptor tables
     // we assume slot 0 is source and slot 1 is destination
     textures[0]->WriteSRVToDescriptor(mSourceTextureDTable.CPU(0));
     textures[0]->WriteSamplerToDescriptor(mSourceTextureSamplerDTable.CPU(0));
+
+    return true;
 }
 
 void BlitPixelShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const

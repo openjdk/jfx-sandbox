@@ -105,8 +105,8 @@ public:
 
     bool Init();
 
-    void Apply();
-    void ApplyCompute();
+    bool Apply();
+    bool ApplyCompute();
     void EnsureBoundTextureStates(D3D12_RESOURCE_STATES state);
     void Clear(float r, float g, float b, float a);
 

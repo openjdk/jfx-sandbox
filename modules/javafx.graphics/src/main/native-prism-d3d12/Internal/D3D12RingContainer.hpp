@@ -127,7 +127,7 @@ public:
 
     inline void SetDebugName(const std::string& name)
     {
-        mDebugName = "Ring Container " + name;
+        mDebugName = "Ring Container '" + name + '\'';
     }
 };
 

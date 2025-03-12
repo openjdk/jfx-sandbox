@@ -267,11 +267,11 @@ void RenderingContext::RestoreStashedParameters()
     }
 }
 
-void RenderingContext::Apply()
+bool RenderingContext::Apply()
 {
     // Prepare rendering steps. These should do all necessary allocations.
-    mTransforms.Prepare(mState);
-    mResources.Prepare(mState);
+    if (!mTransforms.Prepare(mState)) return false;
+    if (!mResources.Prepare(mState)) return false;
 
     // there can only be one Pipeline State on a command list
     // To prevent using an incorrect Pipeline State after this Apply call we'll reset the compute PSO flag
@@ -281,6 +281,7 @@ void RenderingContext::Apply()
     // Apply changes on current Command List. Below calls must NOT do any operations
     // which might submit the Command List (ex. Ring Container allocations).
     const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
+    if (!commandList) return false;
 
     mRenderTarget.Apply(commandList, mState);
     mViewport.Apply(commandList, mState);
@@ -297,22 +298,27 @@ void RenderingContext::Apply()
     mPrimitiveTopology.Apply(commandList, mState);
     mVertexBuffer.Apply(commandList, mState);
     mIndexBuffer.Apply(commandList, mState);
+
+    return true;
 }
 
-void RenderingContext::ApplyCompute()
+bool RenderingContext::ApplyCompute()
 {
-    mComputeResources.Prepare(mState);
+    if (!mComputeResources.Prepare(mState)) return false;
 
     // there can only be one Pipeline State on a command list
     // To prevent using an incorrect Pipeline State after this Apply call we'll reset the graphics' PSO flag
     mPipelineState.ClearApplied();
 
     const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
+    if (!commandList) return false;
 
     mComputePipelineState.Apply(commandList, mState);
     mComputeRootSignature.Apply(commandList, mState);
     mDescriptorHeap.Apply(commandList, mState);
     mComputeResources.Apply(commandList, mState);
+
+    return true;
 }
 
 void RenderingContext::EnsureBoundTextureStates(D3D12_RESOURCE_STATES state)

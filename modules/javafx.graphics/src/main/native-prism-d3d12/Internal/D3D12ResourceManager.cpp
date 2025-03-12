@@ -78,6 +78,9 @@ ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
     mShaderHelpers.nullSRVCreator = [this](D3D12_SRV_DIMENSION dimension, D3D12_CPU_DESCRIPTOR_HANDLE descriptor)
         {
             D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+            D3D12NI_ZERO_STRUCT(srvDesc);
+            srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             srvDesc.ViewDimension = dimension;
             mNativeDevice->GetDevice()->CreateShaderResourceView(nullptr, &srvDesc, descriptor);
         };
@@ -97,10 +100,12 @@ ResourceManager::~ResourceManager()
 }
 
 // Assumes it is called only if attached shader resources change or we switch to a new Command List
-void ResourceManager::PrepareResources()
+bool ResourceManager::PrepareResources()
 {
-    mVertexShader->PrepareShaderResources(mShaderHelpers, mTextures);
-    mPixelShader->PrepareShaderResources(mShaderHelpers, mTextures);
+    if (!mVertexShader->PrepareShaderResources(mShaderHelpers, mTextures)) return false;
+    if (!mPixelShader->PrepareShaderResources(mShaderHelpers, mTextures)) return false;
+
+    return true;
 }
 
 void ResourceManager::ApplyResources(const D3D12GraphicsCommandListPtr& commandList) const
@@ -109,9 +114,9 @@ void ResourceManager::ApplyResources(const D3D12GraphicsCommandListPtr& commandL
     mPixelShader->ApplyShaderResources(commandList);
 }
 
-void ResourceManager::PrepareComputeResources()
+bool ResourceManager::PrepareComputeResources()
 {
-    mComputeShader->PrepareShaderResources(mShaderHelpers, mTextures);
+    return mComputeShader->PrepareShaderResources(mShaderHelpers, mTextures);
 }
 
 void ResourceManager::ApplyComputeResources(const D3D12GraphicsCommandListPtr& commandList) const

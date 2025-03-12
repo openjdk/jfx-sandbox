@@ -151,11 +151,16 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
     return true;
 }
 
-void InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
+bool InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
 {
     for (size_t i = 0; i < mCBufferDTables.size(); ++i)
     {
         mCBufferDTables[i].dtable = helpers.rvAllocator(mCBufferDTables[i].count);
+        if (!mCBufferDTables[i].dtable)
+        {
+            D3D12NI_LOG_ERROR("InternalShader %s: Failed to allocate CBV DTable #%d for %d descriptors", mName.c_str(), mCBufferDTables[i].rootIndex, mCBufferDTables[i].count);
+            return false;
+        }
     }
 
     for (size_t i = 0; i < mCBufferDescriptorRegions.size(); ++i)
@@ -171,6 +176,7 @@ void InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers
         else
         {
             D3D12NI_LOG_ERROR("InternalShader %s: Failed to reserve space for constant buffer at RS index %u", mName.c_str(), cbr.assignment.rootIndex);
+            return false;
         }
 
         if (cbr.assignment.type == ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS)
@@ -193,6 +199,7 @@ void InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers
             if (idx == mCBufferDTables.size())
             {
                 D3D12NI_LOG_ERROR("InternalShader %s: Couldn't find descriptor table entry for Constant Buffer at RS index %u:%u", mName.c_str(), mCBufferDescriptorRegions[i].assignment.rootIndex, mCBufferDescriptorRegions[i].assignment.index);
+                return false;
             }
         }
     }
@@ -203,14 +210,14 @@ void InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers
         if (!mTextureDTable)
         {
             D3D12NI_LOG_ERROR("Internal shader %s: Failed to allocate DTable for %u textures", mName.c_str(), mTextureCount);
-            return;
+            return false;
         }
 
         mSamplerDTable = helpers.samplerAllocator(mSamplerCount);
         if (!mSamplerDTable)
         {
             D3D12NI_LOG_ERROR("Internal shader %s: Failed to allocate DTable for %u samplers", mName.c_str(), mSamplerCount);
-            return;
+            return false;
         }
 
         uint32_t usedTextures = Constants::MAX_TEXTURE_UNITS;
@@ -222,8 +229,8 @@ void InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers
         // should not happen
         if ((!mTextureDTable || !mSamplerDTable) && usedTextures != 0)
         {
-            D3D12NI_LOG_ERROR("Descriptor Tables are NULL, but we have textures we need to use");
-            return;
+            D3D12NI_LOG_ERROR("Internal shader %s: Descriptor Tables are NULL, but we have textures we need to use", mName.c_str());
+            return false;
         }
 
         for (uint32_t i = 0; i < usedTextures; ++i)
@@ -239,6 +246,8 @@ void InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers
             }
         }
     }
+
+    return true;
 }
 
 void InternalShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const
@@ -257,14 +266,14 @@ void InternalShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& com
         case ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS:
         case ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES:
         case ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS:
-            // ignored - will be set later via its ways
+            // ignored - will be set later
             break;
         default:
-            D3D12NI_LOG_ERROR("Unrecognized resource assignment type for resource at RS index %u", ra.rootIndex);
+            D3D12NI_LOG_ERROR("Internal shader %s: Unrecognized resource assignment type for resource at RS index %u", mName.c_str(), ra.rootIndex);
         }
     }
 
-    if (mTextureCount > 0)
+    if (mTextureCount > 0 && mTextureDTable && mSamplerDTable)
     {
         commandList->SetGraphicsRootDescriptorTable(mTextureDTableRSIndex, mTextureDTable.gpu);
         commandList->SetGraphicsRootDescriptorTable(mSamplerDTableRSIndex, mSamplerDTable.gpu);

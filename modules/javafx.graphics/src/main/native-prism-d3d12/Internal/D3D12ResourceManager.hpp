@@ -59,8 +59,8 @@ public:
     ResourceManager(const NIPtr<NativeDevice>& nativeDevice);
     ~ResourceManager();
 
-    void PrepareResources();
-    void PrepareComputeResources();
+    bool PrepareResources();
+    bool PrepareComputeResources();
     void ApplyResources(const D3D12GraphicsCommandListPtr& commandList) const;
     void ApplyComputeResources(const D3D12GraphicsCommandListPtr& commandList) const;
     void ClearTextureUnit(uint32_t slot);
