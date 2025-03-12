@@ -45,12 +45,16 @@ ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
         D3D12NI_LOG_ERROR("Failed to initialize SRV Ring Descriptor Heap");
     }
 
+    mSRVHeap.SetDebugName("SRV Descriptor Heap");
+
     // we always have the same amount of samplers as descriptors
     // so keep below heap the same size as mSRVHeap
     if (!mSamplerHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, 512, 256))
     {
         D3D12NI_LOG_ERROR("Failed to initialize Sampler Ring Descriptor Heap");
     }
+
+    mSamplerHeap.SetDebugName("Sampler Heap");
 
     mShaderHelpers.constantAllocator = [this](size_t size, size_t alignment) -> RingBuffer::Region
         {

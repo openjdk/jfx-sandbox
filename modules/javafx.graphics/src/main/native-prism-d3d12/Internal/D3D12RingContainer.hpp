@@ -61,6 +61,8 @@ class RingContainer: public IWaitableOperation
     };
     std::deque<Checkpoint> mCheckpoints;
 
+    std::string mDebugName;
+
     void FlushCommandList();
     void CheckThreshold();
     bool AwaitNextCheckpoint();
@@ -121,6 +123,11 @@ public:
     inline size_t Size() const
     {
         return mSize;
+    }
+
+    inline void SetDebugName(const std::string& name)
+    {
+        mDebugName = "Ring Container " + name;
     }
 };
 

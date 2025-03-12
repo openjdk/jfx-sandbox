@@ -80,6 +80,7 @@ RingContainer::RingContainer(const NIPtr<NativeDevice>& nativeDevice)
     , mTail(0)
 {
     mNativeDevice->RegisterWaitableOperation(this);
+    mDebugName = "Ring Container";
 }
 
 RingContainer::~RingContainer()
@@ -87,7 +88,7 @@ RingContainer::~RingContainer()
     mNativeDevice->UnregisterWaitableOperation(this);
     mNativeDevice.reset();
 
-    D3D12NI_LOG_DEBUG("RingContainer destroyed");
+    D3D12NI_LOG_TRACE("%s destroyed", mDebugName.c_str());
 }
 
 bool RingContainer::InitInternal(size_t size, size_t flushThreshold)
@@ -103,7 +104,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
     // alignment has to be a power of two
     if ((alignment == 0) || (alignment & (alignment - 1)) != 0)
     {
-        D3D12NI_LOG_ERROR("Ring Container allocation alignment must be a power of two; was %ld", alignment);
+        D3D12NI_LOG_ERROR("%s allocation alignment must be a power of two; was %ld", mDebugName.c_str(), alignment);
         return Region();
     }
 
@@ -111,7 +112,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
 
     if (size > mSize)
     {
-        D3D12NI_LOG_ERROR("Requested data too big: %ld", size);
+        D3D12NI_LOG_ERROR("%s: Requested data too big: %ld", mDebugName.c_str(), size);
         return Region();
     }
 
@@ -120,8 +121,8 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
         AwaitNextCheckpoint();
         if (mUsed == mSize)
         {
-            D3D12NI_LOG_ERROR("Ring Container fully allocated, cannot allocate %ld bytes (h: %ld t: %ld used: %ld size %ld)",
-                size, mHead, mTail, mUsed, mSize);
+            D3D12NI_LOG_ERROR("%s fully allocated, cannot allocate %ld bytes (h: %ld t: %ld used: %ld size %ld)",
+                mDebugName.c_str(), size, mHead, mTail, mUsed, mSize);
             return Region();
         }
     }
@@ -137,7 +138,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
             size_t allocSize = newTail - mTail;
             mUsed += allocSize;
             mUncommitted += allocSize;
-            D3D12NI_ASSERT(mUsed <= mSize, "Used is larger than size, probably underflowed (%ld vs %ld)", mUsed, mSize);
+            D3D12NI_ASSERT(mUsed <= mSize, "%s: Used is larger than size, probably underflowed (%ld vs %ld)", mDebugName.c_str(), mUsed, mSize);
 
             Region r(allocSize, mTail);
             mTail = newTail;
@@ -151,7 +152,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
                 AwaitNextCheckpoint();
                 if (size > mHead)
                 {
-                    D3D12NI_LOG_ERROR("Ring Container too small to hold %ld data (h: %ld, t: %ld, size %ld)", size, mHead, mTail, mSize);
+                    D3D12NI_LOG_ERROR("%s: Ring Container too small to hold %ld data (h: %ld, t: %ld, size %ld)", mDebugName.c_str(), size, mHead, mTail, mSize);
                     return Region(0, 0);
                 }
             }
@@ -161,7 +162,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
             size_t allocSize = newTail + (mSize - mTail); // size + padding to the end of the buffer
             mUsed += allocSize;
             mUncommitted += allocSize;
-            D3D12NI_ASSERT(mUsed <= mSize, "Used is larger than size, probably underflowed (%ld vs %ld)", mUsed, mSize);
+            D3D12NI_ASSERT(mUsed <= mSize, "%s: Used is larger than size, probably underflowed (%ld vs %ld)", mDebugName.c_str(), mUsed, mSize);
 
             Region r(size, 0);
             mTail = newTail;
@@ -179,7 +180,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
             // If head is still ahead of us, double-check the condition before leaving
             if (mTail < mHead && mTail + size >= mHead)
             {
-                D3D12NI_LOG_ERROR("Ring Container too small to hold %ld data (h: %ld, t: %ld, size %ld, used %ld)", size, mHead, mTail, mSize, mUsed);
+                D3D12NI_LOG_ERROR("%s: too small to hold %ld data (h: %ld, t: %ld, size %ld, used %ld)", mDebugName.c_str(), size, mHead, mTail, mSize, mUsed);
                 return Region();
             }
         }
@@ -189,7 +190,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
         size_t allocSize = newTail - mTail; // size + padding to alignment
         mUsed += allocSize;
         mUncommitted += allocSize;
-        D3D12NI_ASSERT(mUsed <= mSize, "Used is larger than size, probably underflowed (%ld vs %ld)", mUsed, mSize);
+        D3D12NI_ASSERT(mUsed <= mSize, "%s: Used is larger than size, probably underflowed (%ld vs %ld)", mDebugName.c_str(), mUsed, mSize);
 
         Region r(allocSize, mTail);
         mTail = newTail;
@@ -198,7 +199,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
     }
 
     // Another confidence check, but we should never end up here
-    D3D12NI_LOG_ERROR("Ring Container overflow - tried to allocate past head (h: %ld, t: %ld, size: %ld)", mHead, mTail, size);
+    D3D12NI_LOG_ERROR("%s: overflow - tried to allocate past head (h: %ld, t: %ld, size: %ld)", mDebugName.c_str(), mHead, mTail, size);
     return Region();
 }
 
@@ -234,18 +235,18 @@ void RingContainer::OnFenceSignaled(uint64_t fenceValue)
         {
             // frame's tail is after head - not looped yet
             // subtract from frame's tail to old (current?) mHead
-            D3D12NI_ASSERT(frameTail - mHead >= 0, "Invalid frameTail - mHead %d", frameTail - mHead);
+            D3D12NI_ASSERT(frameTail - mHead >= 0, "%s: Invalid frameTail - mHead %d", mDebugName.c_str(), frameTail - mHead);
             mUsed -= frameTail - mHead;
         }
         else
         {
             // frame's tail is before head - looped
             // subtract end-of-buffer data (size - mHeat) and beginning (frame's tail - 0)
-            D3D12NI_ASSERT((mSize - mHead) + frameTail >= 0, "Invalid size-head + tail %d", (mSize - mHead) + frameTail);
+            D3D12NI_ASSERT((mSize - mHead) + frameTail >= 0, "%s: Invalid size-head + tail %d", mDebugName.c_str(), (mSize - mHead) + frameTail);
             mUsed -= (mSize - mHead) + frameTail;
         }
 
-        D3D12NI_ASSERT(mUsed <= mSize, "Used is larger than size, probably underflowed (%ld vs %ld)", mUsed, mSize);
+        D3D12NI_ASSERT(mUsed <= mSize, "%s: Used is larger than size, probably underflowed (%ld vs %ld)", mDebugName.c_str(), mUsed, mSize);
 
         // update mHead to current frame's tail & discard frame checkpoint
         mHead = frameTail;
