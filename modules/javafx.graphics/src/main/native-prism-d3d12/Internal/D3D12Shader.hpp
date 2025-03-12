@@ -85,6 +85,7 @@ public:
     using ResourceViewAllocator = std::function<DescriptorData(size_t count)>;
     using SamplerAllocator = std::function<DescriptorData(size_t count)>;
     using CBVCreator = std::function<void(D3D12_GPU_VIRTUAL_ADDRESS cbufferPtr, UINT size, D3D12_CPU_DESCRIPTOR_HANDLE destDescriptor)>;
+    using NullResourceViewCreator = std::function<void(D3D12_SRV_DIMENSION dimension, D3D12_CPU_DESCRIPTOR_HANDLE descriptor)>;
 
     // TODO: D3D12: This probably can be done nicer, if InternalShader and this class can be made aware
     //              of NativeDevice... Explore that alternative
@@ -94,6 +95,7 @@ public:
         ResourceViewAllocator rvAllocator; // allocates resource views (SRV, UAV)
         SamplerAllocator samplerAllocator;
         CBVCreator cbvCreator;
+        NullResourceViewCreator nullSRVCreator;
     };
 
     Shader();

@@ -233,6 +233,10 @@ void InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers
                 textures[i]->WriteSRVToDescriptor(mTextureDTable.CPU(i));
                 textures[i]->WriteSamplerToDescriptor(mSamplerDTable.CPU(i));
             }
+            else
+            {
+                helpers.nullSRVCreator(D3D12_SRV_DIMENSION_TEXTURE2D, mTextureDTable.CPU(i));
+            }
         }
     }
 }

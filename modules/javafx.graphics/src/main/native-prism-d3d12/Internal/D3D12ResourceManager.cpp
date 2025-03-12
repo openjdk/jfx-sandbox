@@ -71,6 +71,12 @@ ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
             cbvDesc.SizeInBytes = size;
             mNativeDevice->GetDevice()->CreateConstantBufferView(&cbvDesc, destDescriptor);
         };
+    mShaderHelpers.nullSRVCreator = [this](D3D12_SRV_DIMENSION dimension, D3D12_CPU_DESCRIPTOR_HANDLE descriptor)
+        {
+            D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+            srvDesc.ViewDimension = dimension;
+            mNativeDevice->GetDevice()->CreateShaderResourceView(nullptr, &srvDesc, descriptor);
+        };
 }
 
 ResourceManager::~ResourceManager()
