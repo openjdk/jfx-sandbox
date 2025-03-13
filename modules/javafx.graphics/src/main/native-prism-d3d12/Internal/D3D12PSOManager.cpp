@@ -148,7 +148,7 @@ bool PSOManager::ConstructNewPSO(const GraphicsPSOParameters& params)
         desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
         desc.DepthStencilState.DepthEnable = true;
         desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-        desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+        desc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
     }
     else
     {
@@ -188,6 +188,7 @@ bool PSOManager::ConstructNewPSO(const GraphicsPSOParameters& params)
     }
     catch (const std::exception& e)
     {
+        (void)e; // prevents "unused" warning when running a Release build
         D3D12NI_LOG_ERROR("Failed to emplace new PSO to cache: %s", e.what());
         return false;
     }
