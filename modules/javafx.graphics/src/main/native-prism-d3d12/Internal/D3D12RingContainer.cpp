@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,7 @@
 
 #include "../D3D12NativeDevice.hpp"
 
-#include "Internal/D3D12Utils.hpp"
+#include "D3D12Utils.hpp"
 
 
 namespace D3D12 {
@@ -114,61 +114,73 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
         return Region();
     }
 
+    size_t alignedTail = Utils::Align(mTail, alignment);
     size = Utils::Align(size, alignment);
 
     if (size > mSize)
     {
-        D3D12NI_LOG_ERROR("%s: Requested data too big: %ld", mDebugName.c_str(), size);
+        D3D12NI_LOG_ERROR("%s: Requested data too big after alignment: %ld", mDebugName.c_str(), size);
         return Region();
     }
 
-    if (mUsed == mSize)
+    // check if this Reserve() will overfill the buffer and if so wait until it frees up
+    size_t sizeToEnd = mSize - alignedTail;
+    if (sizeToEnd < size)
     {
-        AwaitNextCheckpoint();
-        if (mUsed == mSize)
+        // special case, we'll have to loop-around
+        if (mUsed + sizeToEnd + size >= mSize)
         {
-            D3D12NI_LOG_ERROR("%s fully allocated, cannot allocate %ld bytes (h: %ld t: %ld used: %ld size %ld)",
-                mDebugName.c_str(), size, mHead, mTail, mUsed, mSize);
-            return Region();
+            AwaitNextCheckpoint();
+            if (mUsed + sizeToEnd + size >= mSize)
+            {
+                D3D12NI_LOG_ERROR("%s fully allocated, cannot allocate %ld bytes (h: %ld t: %ld used: %ld size %ld)",
+                    mDebugName.c_str(), size, mHead, mTail, mUsed, mSize);
+                return Region();
+            }
+        }
+    }
+    else
+    {
+        // most cases - padding to alignment + requested size
+        if (mUsed + (alignedTail - mTail) + size >= mSize)
+        {
+            AwaitNextCheckpoint();
+            if (mUsed + size + alignedTail - mTail >= mSize)
+            {
+                D3D12NI_LOG_ERROR("%s fully allocated, cannot allocate %ld bytes (h: %ld t: %ld used: %ld size %ld)",
+                    mDebugName.c_str(), size, mHead, mTail, mUsed, mSize);
+                return Region();
+            }
         }
     }
 
-    if (mTail >= mHead)
+    if (alignedTail >= mHead)
     {
         // tail is past head, so we haven't "looped around" yet
         // figure out if we can still allocate, or do we have to loop
-        if (mTail + size <= mSize)
+        if ((alignedTail + size) <= mSize)
         {
             // not crossing past buffer's total size, reserve and return
-            size_t newTail = mTail + size;
+            size_t newTail = alignedTail + size;
             size_t allocSize = newTail - mTail;
             mUsed += allocSize;
             mUncommitted += allocSize;
-            D3D12NI_ASSERT(mUsed <= mSize, "%s: Used is larger than size, probably underflowed (%ld vs %ld)", mDebugName.c_str(), mUsed, mSize);
+            D3D12NI_ASSERT(mUsed <= mSize, "%s: Used is larger than size, probably underflowed (%ld vs %ld)", mUsed, mSize);
 
-            Region r(allocSize, mTail);
+            Region r(size, alignedTail);
             mTail = newTail;
             CheckThreshold();
             return std::move(r);
         }
         else
         {
-            if (size > mHead)
-            {
-                AwaitNextCheckpoint();
-                if (size > mHead)
-                {
-                    D3D12NI_LOG_ERROR("%s: Ring Container too small to hold %ld data (h: %ld, t: %ld, size %ld)", mDebugName.c_str(), size, mHead, mTail, mSize);
-                    return Region(0, 0);
-                }
-            }
-
             // loop-around - beginning of ring Container still has enough room
+            // also re-check - padding to the end of the buffer might've misled the Await condition above
             size_t newTail = size;
-            size_t allocSize = newTail + (mSize - mTail); // size + padding to the end of the buffer
+            size_t allocSize = size + mSize - mTail; // size + padding to the end of the buffer
             mUsed += allocSize;
             mUncommitted += allocSize;
-            D3D12NI_ASSERT(mUsed <= mSize, "%s: Used is larger than size, probably underflowed (%ld vs %ld)", mDebugName.c_str(), mUsed, mSize);
+            D3D12NI_ASSERT(mUsed <= mSize, "%s: Used is larger than size, probably underflowed (%ld vs %ld)", mUsed, mSize);
 
             Region r(size, 0);
             mTail = newTail;
@@ -178,27 +190,14 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
     }
     else if (mTail < mHead)
     {
-        if (mTail + size >= mHead)
-        {
-            // Ring Container might overflow, pause and wait until last flush is done
-            AwaitNextCheckpoint();
-            // head could've moved behind us, so we should also check if that's the case.
-            // If head is still ahead of us, double-check the condition before leaving
-            if (mTail < mHead && mTail + size >= mHead)
-            {
-                D3D12NI_LOG_ERROR("%s: too small to hold %ld data (h: %ld, t: %ld, size %ld, used %ld)", mDebugName.c_str(), size, mHead, mTail, mSize, mUsed);
-                return Region();
-            }
-        }
-
         // tail is before head but we have enough room to allocate the data
-        size_t newTail = mTail + size;
-        size_t allocSize = newTail - mTail; // size + padding to alignment
+        size_t newTail = alignedTail + size;
+        size_t allocSize = newTail - mTail;
         mUsed += allocSize;
         mUncommitted += allocSize;
-        D3D12NI_ASSERT(mUsed <= mSize, "%s: Used is larger than size, probably underflowed (%ld vs %ld)", mDebugName.c_str(), mUsed, mSize);
+        D3D12NI_ASSERT(mUsed <= mSize, "%s: Used is larger than size, probably underflowed (%ld vs %ld)", mUsed, mSize);
 
-        Region r(allocSize, mTail);
+        Region r(size, alignedTail);
         mTail = newTail;
         CheckThreshold();
         return std::move(r);

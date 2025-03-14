@@ -500,7 +500,7 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     // reserve space on Ring Buffer
     // This can cause a command list flush, so better do it early
     Internal::RingBuffer::Region vertexRegion = mRingBuffer->Reserve(elementCount * 8 * sizeof(float), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
-    if (vertexRegion.cpu == 0)
+    if (!vertexRegion)
     {
         D3D12NI_LOG_ERROR("Ring Buffer allocation failed");
         return;
