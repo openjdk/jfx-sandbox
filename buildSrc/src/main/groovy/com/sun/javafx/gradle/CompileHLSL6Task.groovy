@@ -30,7 +30,11 @@ class CompileHLSL6Task extends NativeCompileTask {
 
     protected void doCompile(File sourceFile, File outputFile){
         project.exec({
-            commandLine = ["$project.DXC", "/T", "ps_6_0", "/Fo", "$outputFile", "$sourceFile"]
+            def DEBUG_FLAGS = [ "/Zi", "/Qembed_debug", "/O0" ]
+            commandLine = ["$project.DXC", "/T", "ps_6_0", "/Fo", "$outputFile", "$sourceFile"];
+            if (project.ext.CONF == "DebugNative") {
+                commandLine.addAll(DEBUG_FLAGS);
+            }
             environment(project.WINDOWS_NATIVE_COMPILE_ENVIRONMENT);
         });
     }

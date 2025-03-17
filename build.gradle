@@ -2571,6 +2571,7 @@ project(":graphics") {
                 def PASSTHROUGH_VS_SRC = file("src/main/native-prism-d3d12/hlsl6/PassThroughVS.hlsl")
                 def MIPMAP_GEN_CS_SRC = file("src/main/native-prism-d3d12/hlsl6/MipmapGenCS.hlsl")
                 def BLIT_PS_SRC = file("src/main/native-prism-d3d12/hlsl6/BlitPS.hlsl")
+                def DEBUG_FLAGS = [ "/Zi", "/Qembed_debug", "/O0" ]
                 def jobs = [
                         ["$DXC", "/T", "vs_6_0", "/Fo", "$buildDir/hlsl6/Native/PassThroughVS.cso", "$PASSTHROUGH_VS_SRC"],
                         ["$DXC", "/T", "cs_6_0", "/Fo", "$buildDir/hlsl6/Native/MipmapGenCS.cso", "$MIPMAP_GEN_CS_SRC"],
@@ -2627,6 +2628,9 @@ project(":graphics") {
                         ["$DXC", "/T", "ps_6_0", "/Fo", "$buildDir/hlsl6/Native/Mtl1PS_b3mi.cso", "/DSpec=3", "/DSType=3", "/DBump=1", "/DIllumMap=1", "$PS_3D_SRC"],
                         ["$DXC", "/T", "vs_6_0", "/Fo", "$buildDir/hlsl6/Native/Mtl1VS.cso", "$VS_3D_SRC"]
                 ]
+                if (IS_DEBUG_NATIVE) {
+                    jobs.each { job -> job.addAll(DEBUG_FLAGS); }
+                }
                 final ExecutorService executor = Executors.newFixedThreadPool(Integer.parseInt(project.NUM_COMPILE_THREADS.toString()));
                 final CountDownLatch latch = new CountDownLatch(jobs.size());
                 List futures = new ArrayList<Future>();
