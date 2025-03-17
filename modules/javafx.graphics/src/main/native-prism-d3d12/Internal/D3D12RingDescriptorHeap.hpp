@@ -69,10 +69,13 @@ public:
      */
     DescriptorData Reserve(size_t count);
 
+    void SetDebugName(const std::string& name);
+
     const D3D12DescriptorHeapPtr& GetHeap() const
     {
         return mHeap;
     }
+
 };
 
 } // namespace Internal

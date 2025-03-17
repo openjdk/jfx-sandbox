@@ -28,9 +28,7 @@
 #include "../D3D12NativeDevice.hpp"
 #include "../D3D12Constants.hpp"
 
-#if DEBUG
-#include <codecvt>
-#endif // DEBUG
+#include "D3D12Utils.hpp"
 
 
 namespace D3D12 {
@@ -163,10 +161,9 @@ bool PSOManager::ConstructNewPSO(const GraphicsPSOParameters& params)
 
 #if DEBUG
     std::wstring name = L"GPSO-";
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    name += converter.from_bytes(params.vertexShader->GetName());
+    name += Utils::ToWString(params.vertexShader->GetName());
     name += L"-";
-    name += converter.from_bytes(params.pixelShader->GetName());
+    name += Utils::ToWString(params.pixelShader->GetName());
     name += L"-";
     name += CompositeModeToWString(params.compositeMode);
     name += L"-";
@@ -210,8 +207,7 @@ bool PSOManager::ConstructNewPSO(const ComputePSOParameters& params)
 
 #if DEBUG
     std::wstring name = L"CPSO-";
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    name += converter.from_bytes(params.shader->GetName());
+    name += Utils::ToWString(params.shader->GetName());
 
     pipelineState->SetName(name.c_str());
 

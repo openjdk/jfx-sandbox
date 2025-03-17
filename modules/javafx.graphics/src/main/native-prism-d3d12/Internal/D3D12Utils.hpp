@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,16 @@
 #pragma once
 
 #include <algorithm>
+#include <codecvt>
+#include <string>
 
 namespace D3D12 {
 namespace Internal {
 
 class Utils
 {
+    static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> mConverter;
+
 public:
     template <typename T>
     static inline T Align(T offset, T alignment)
@@ -61,6 +65,16 @@ public:
     static inline uint32_t CalcMipmapLevels(uint32_t width, uint32_t height)
     {
         return static_cast<uint32_t>(std::floor(std::log2(std::max<uint32_t>(width, height)))) + 1;
+    }
+
+    static inline std::wstring Utils::ToWString(const std::string& s)
+    {
+        return mConverter.from_bytes(s);
+    }
+
+    static inline std::string Utils::ToString(const std::wstring& s)
+    {
+        return mConverter.to_bytes(s);
     }
 };
 

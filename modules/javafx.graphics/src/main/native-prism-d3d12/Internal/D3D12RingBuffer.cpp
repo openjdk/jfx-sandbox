@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@
 #include "D3D12RingBuffer.hpp"
 
 #include "../D3D12NativeDevice.hpp"
+
+#include "D3D12Utils.hpp"
 
 
 namespace D3D12 {
@@ -95,6 +97,16 @@ RingBuffer::Region RingBuffer::Reserve(size_t size, size_t alignment)
     if (region.size == 0) return RingBuffer::Region();
 
     return RingBuffer::Region(mCPUPtr + region.offsetFromStart, mGPUPtr + region.offsetFromStart, region.size, region.offsetFromStart);
+}
+
+void RingBuffer::SetDebugName(const std::string& name)
+{
+    RingContainer::SetDebugName(name);
+
+    if (mBufferResource)
+    {
+        mBufferResource->SetName(Utils::ToWString(name).c_str());
+    }
 }
 
 } // namespace Internal

@@ -27,7 +27,7 @@
 
 #include "../D3D12NativeDevice.hpp"
 
-#include <codecvt>
+#include "D3D12Utils.hpp"
 
 
 namespace D3D12 {
@@ -167,9 +167,8 @@ void DescriptorHeap::Free(const DescriptorData& data)
 
 void DescriptorHeap::SetName(const std::string& name)
 {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     mName = name;
-    mHeap->SetName(converter.from_bytes(name).c_str());
+    mHeap->SetName(Utils::ToWString(name).c_str());
 }
 
 } // namespace Internal

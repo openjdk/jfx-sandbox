@@ -27,17 +27,17 @@
 
 #include "Internal/D3D12Debug.hpp"
 #include "Internal/D3D12Logger.hpp"
+#include "Internal/D3D12Utils.hpp"
 #include "Internal/JNIString.hpp"
 
 #include <vector>
-#include <codecvt>
 #include <com_sun_prism_d3d12_ni_D3D12NativeInstance.h>
 
 #define D3D12NI_FILL_DEVICE_ERROR(hr, info) \
 do { \
     _com_error __e(hr); \
     info.deviceError = hr; \
-    info.deviceErrorReason = converter.to_bytes(__e.ErrorMessage()); \
+    info.deviceErrorReason = ::D3D12::Internal::Utils::ToString(__e.ErrorMessage()); \
 } while (0)
 
 
@@ -132,15 +132,13 @@ int NativeInstance::GetAdapterOrdinal(HMONITOR monitor)
 
 bool NativeInstance::CanCreateDevice(uint32_t adapterIdx, Internal::DeviceInformation& info) const
 {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
     if (adapterIdx >= mDXGIAdapterDescs.size())
     {
         D3D12NI_FILL_DEVICE_ERROR(DXGI_ERROR_NOT_FOUND, info);
         return false;
     }
 
-    info.description = converter.to_bytes(mDXGIAdapterDescs[adapterIdx].Description);
+    info.description = Internal::Utils::ToString(mDXGIAdapterDescs[adapterIdx].Description);
 
     HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx], D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr);
     D3D12NI_FILL_DEVICE_ERROR(hr, info);
@@ -149,15 +147,13 @@ bool NativeInstance::CanCreateDevice(uint32_t adapterIdx, Internal::DeviceInform
 
 bool NativeInstance::GetAdapterInformation(uint32_t adapterIdx, Internal::AdapterInformation& info) const
 {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
     if (adapterIdx >= mDXGIAdapterDescs.size())
     {
         return false;
     }
 
     const DXGI_ADAPTER_DESC1& adapterDesc = mDXGIAdapterDescs[adapterIdx];
-    info.description = converter.to_bytes(adapterDesc.Description);
+    info.description = Internal::Utils::ToString(adapterDesc.Description);
     info.vendorID = adapterDesc.VendorId;
     info.deviceID = adapterDesc.DeviceId;
     info.subSysID = adapterDesc.SubSysId;
@@ -171,8 +167,7 @@ bool NativeInstance::GetAdapterInformation(uint32_t adapterIdx, Internal::Adapte
 
 bool NativeInstance::GetDeviceInformation(uint32_t adapterIdx, Internal::DeviceInformation& info) const
 {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    info.description = converter.to_bytes(mDXGIAdapterDescs[adapterIdx].Description);
+    info.description = Internal::Utils::ToString(mDXGIAdapterDescs[adapterIdx].Description);
 
     D3D12DevicePtr device;
     HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx], D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));

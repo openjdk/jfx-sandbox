@@ -26,6 +26,7 @@
 #include "D3D12RingDescriptorHeap.hpp"
 
 #include "D3D12Debug.hpp"
+#include "D3D12Utils.hpp"
 
 #include "../D3D12NativeDevice.hpp"
 
@@ -102,6 +103,16 @@ DescriptorData RingDescriptorHeap::Reserve(size_t count)
     if (r.size == 0) return DescriptorData();
 
     return DescriptorData::Form(mCPUHeapStart.ptr, mGPUHeapStart.ptr, static_cast<UINT>(r.offsetFromStart), static_cast<UINT>(count), mIncrementSize);
+}
+
+void RingDescriptorHeap::SetDebugName(const std::string& name)
+{
+    RingContainer::SetDebugName(name);
+
+    if (mHeap)
+    {
+        mHeap->SetName(Utils::ToWString(name).c_str());
+    }
 }
 
 
