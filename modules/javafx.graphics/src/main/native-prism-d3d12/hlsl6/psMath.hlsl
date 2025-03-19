@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -119,5 +119,7 @@ void computeLight(float i, float3 normal, float3 refl, float specPower, float3 t
 
     float3 attenuatedColor = gLight[i].color.rgb * spotlightFactor / invAttnFactor;
     diff += saturate(dot(normal, l)) * attenuatedColor;
-    spec += pow(saturate(dot(-refl, l)), specPower) * attenuatedColor;
+    if (specPower > 0.0) {
+        spec += pow(saturate(dot(-refl, l)), specPower) * attenuatedColor;
+    }
 }

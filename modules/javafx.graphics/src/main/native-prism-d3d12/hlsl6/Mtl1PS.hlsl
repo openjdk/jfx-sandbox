@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -124,7 +124,7 @@ float4 main(PsInput psInput) : SV_TARGET0 {
     float3 diffLightColor = 0;
     float3 specLightColor = 0;
 
-    for (int i = 0; i < numLights; i++) {
+    for (int i = 0; i < numShaderLights; i++) {
         //  needed for pixel lighting
         //  float3 worldVecToLight = gLightsPos[i].xyz - worldPixelPos;
         //  worldVecToLight = getLocalVector(worldVecToLight, worldNormals);
