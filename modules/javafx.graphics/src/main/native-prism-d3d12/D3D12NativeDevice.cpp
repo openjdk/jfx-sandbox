@@ -670,11 +670,6 @@ void NativeDevice::SetViewProjTransform(const Internal::Matrix<float>& matrix)
 bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box_UINT32& src,
                                const NIPtr<NativeRenderTarget>& dstRT, const Coords_Box_UINT32& dst)
 {
-    D3D12NI_LOG_DEBUG("BlitTexture: from RT %S %ux%u - %ux%u %uxMSAA to RT %S %ux%u - %ux%u %uxMSAA",
-        srcRT->GetTexture()->GetDebugName().c_str(), src.x0, src.y0, src.x1, src.y1, srcRT->GetMSAASamples(),
-        dstRT->GetTexture()->GetDebugName().c_str(), dst.x0, dst.y0, dst.x1, dst.y1, dstRT->GetMSAASamples()
-    );
-
     if (dstRT->GetMSAASamples() > 1)
     {
         // TODO: D3D12: should it? I'm pretty sure D3D9's StretchRect did not support it.
@@ -691,8 +686,6 @@ bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coo
     {
         if (srcRT->GetMSAASamples() == 1)
         {
-            D3D12NI_LOG_DEBUG("BlitTexture: Fast non-MSAA path");
-
             D3D12_TEXTURE_COPY_LOCATION srcLoc;
             D3D12NI_ZERO_STRUCT(srcLoc);
             srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
@@ -721,8 +714,6 @@ bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coo
         }
         else
         {
-            D3D12NI_LOG_DEBUG("BlitTexture: Fast MSAA path");
-
             // use ResolveSubresourceRegion
             D3D12_RECT srcRect;
             srcRect.left = src.x0;
@@ -760,8 +751,6 @@ bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coo
 
         if (srcRT->GetMSAASamples() > 1)
         {
-            D3D12NI_LOG_DEBUG("BlitTexture: Slow MSAA path");
-
             // create intermediate tex, use ResolveSubresource() to populate it
             intermediateTexture = std::make_shared<NativeTexture>(shared_from_this());
             if (!intermediateTexture->Init(srcWidth, srcHeight, srcRT->GetTexture()->GetFormat(),
@@ -783,7 +772,6 @@ bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coo
         }
         else
         {
-            D3D12NI_LOG_DEBUG("BlitTexture: Slow non-MSAA path");
             sourceTexture = srcRT->GetTexture();
         }
 
