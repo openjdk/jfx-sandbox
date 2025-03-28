@@ -85,7 +85,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         depthStencilDescriptor.depthWriteEnabled = NO;
         depthStencilState[0] = [[context getDevice] newDepthStencilStateWithDescriptor:depthStencilDescriptor];
 
-        depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionLess;
+        depthStencilDescriptor.depthCompareFunction = MTLCompareFunctionLessEqual;
         depthStencilDescriptor.depthWriteEnabled = YES;
         depthStencilState[1] = [[context getDevice] newDepthStencilStateWithDescriptor:depthStencilDescriptor];
     }
@@ -129,7 +129,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     }
     NSNumber *keySampleCount = [NSNumber numberWithInt:sampleCount];
     id<MTLRenderPipelineState> clearRttPipeState;
-    if ([context isDepthEnabled]) {
+    if ([context clearDepth]) {
         clearRttPipeState = clearRttPipeStateDepthDict[keySampleCount];
     } else {
         clearRttPipeState = clearRttPipeStateNoDepthDict[keySampleCount];
@@ -140,7 +140,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         pipeDesc.fragmentFunction = [self getFunction:@"clearFF"];
         pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //[[context getRTT] getPixelFormat]; //rtt.pixelFormat
         pipeDesc.sampleCount = sampleCount;
-        if ([context isDepthEnabled]) {
+        if ([context clearDepth]) {
             pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
         } else {
             pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatInvalid;
@@ -151,7 +151,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         [pipeDesc release];
         pipeDesc = nil;
         NSAssert(clearRttPipeState, @"Failed to create clear pipeline state: %@", error);
-        if ([context isDepthEnabled]) {
+        if ([context clearDepth]) {
             [clearRttPipeStateDepthDict setObject:clearRttPipeState forKey:keySampleCount];
         } else {
             [clearRttPipeStateNoDepthDict setObject:clearRttPipeState forKey:keySampleCount];

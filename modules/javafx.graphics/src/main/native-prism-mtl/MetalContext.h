@@ -144,7 +144,6 @@ typedef enum VertexInputIndex {
 - (id<MTLRenderPipelineState>) getPhongPipelineState;
 - (NSUInteger) getCurrentBufferIndex;
 
-- (void) resetRenderPass;
 - (void) updateDepthDetails:(bool)depthTest;
 - (void) verifyDepthTexture;
 
@@ -199,6 +198,7 @@ typedef enum VertexInputIndex {
         y:(float)y z:(float)z;
 - (vector_float4) getCameraPosition;
 - (MTLScissorRect) getScissorRect;
+- (bool) clearDepth;
 - (bool) isDepthEnabled;
 - (bool) isScissorEnabled;
 - (bool) isCurrentRTT:(MetalRTTexture*)rttPtr;

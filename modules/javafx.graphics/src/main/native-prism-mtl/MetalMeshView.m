@@ -258,7 +258,6 @@
         indexType:[mesh getIndexType]
         indexBuffer:[mesh getIndexBuffer]
         indexBufferOffset:0];
-    [context resetRenderPass];
 }
 
 - (void) release
