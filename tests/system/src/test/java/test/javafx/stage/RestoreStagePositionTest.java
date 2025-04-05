@@ -64,6 +64,8 @@ public class RestoreStagePositionTest {
         public void start(Stage primaryStage) throws Exception {
             primaryStage.setScene(new Scene(new VBox()));
             stage = primaryStage;
+            stage.setWidth(300);
+            stage.setHeight(300);
             stage.setX(300);
             stage.setY(400);
             stage.addEventHandler(WindowEvent.WINDOW_SHOWN, e ->
@@ -118,6 +120,134 @@ public class RestoreStagePositionTest {
 
         Assertions.assertEquals(x, stage.getX(), 0.1, "Window was moved");
         Assertions.assertEquals(y, stage.getY(), 0.1, "Window was moved");
+    }
+
+    @Test
+    public void testUnFullscreenChangedPosition() throws Exception {
+        // Disable on Mac until JDK-8176813 is fixed
+        assumeTrue(!PlatformUtil.isMac());
+
+        CountDownLatch latch = new CountDownLatch(3);
+
+        stage.xProperty().addListener((observable, oldValue, newValue) -> latch.countDown());
+        stage.yProperty().addListener((observable, oldValue, newValue) -> latch.countDown());
+
+        int x = 100;
+        int y = 150;
+
+        stage.fullScreenProperty().addListener((observable, oldValue, newValue) -> {
+            if (Boolean.TRUE.equals(newValue)) {
+                stage.setX(x);
+                stage.setY(y);
+            } else {
+                latch.countDown();
+            }
+        });
+
+        Platform.runLater(() -> stage.setFullScreen(true));
+        Thread.sleep(500);
+        Platform.runLater(() -> stage.setFullScreen(false));
+        latch.await(5, TimeUnit.SECONDS);
+        Thread.sleep(1000);
+
+        Assertions.assertEquals(x, stage.getX(), 0.1, "Window failed to restore position set while fullscreen");
+        Assertions.assertEquals(y, stage.getY(), 0.1, "Window failed to restore position set while fullscreen");
+    }
+
+    @Test
+    public void testUnFullscreenChangedSize() throws Exception {
+        // Disable on Mac until JDK-8176813 is fixed
+        assumeTrue(!PlatformUtil.isMac());
+
+        CountDownLatch latch = new CountDownLatch(3);
+
+        stage.widthProperty().addListener((observable, oldValue, newValue) -> latch.countDown());
+        stage.heightProperty().addListener((observable, oldValue, newValue) -> latch.countDown());
+
+        int w = 100;
+        int h = 150;
+
+        stage.fullScreenProperty().addListener((observable, oldValue, newValue) -> {
+            if (Boolean.TRUE.equals(newValue)) {
+                stage.setWidth(w);
+                stage.setHeight(h);
+            } else {
+                latch.countDown();
+            }
+        });
+
+        Platform.runLater(() -> stage.setFullScreen(true));
+        Thread.sleep(500);
+        Platform.runLater(() -> stage.setFullScreen(false));
+        latch.await(5, TimeUnit.SECONDS);
+        Thread.sleep(1000);
+
+        Assertions.assertEquals(w, stage.getWidth(), 0.1, "Window failed to restore size set while fullscreen");
+        Assertions.assertEquals(h, stage.getHeight(), 0.1, "Window failed to restore size set while fullscreen");
+    }
+
+    @Test
+    public void testUnMaximizeChangedPosition() throws Exception {
+        // Disable on Mac until JDK-8176813 is fixed
+        assumeTrue(!PlatformUtil.isMac());
+
+        CountDownLatch latch = new CountDownLatch(3);
+
+        stage.xProperty().addListener((observable, oldValue, newValue) -> latch.countDown());
+        stage.yProperty().addListener((observable, oldValue, newValue) -> latch.countDown());
+
+        int x = 100;
+        int y = 150;
+
+        stage.maximizedProperty().addListener((observable, oldValue, newValue) -> {
+            if (Boolean.TRUE.equals(newValue)) {
+                stage.setX(x);
+                stage.setY(y);
+            } else {
+                latch.countDown();
+            }
+        });
+
+        Platform.runLater(() -> stage.setMaximized(true));
+        Thread.sleep(500);
+        Platform.runLater(() -> stage.setMaximized(false));
+        latch.await(5, TimeUnit.SECONDS);
+        Thread.sleep(1000);
+
+        Assertions.assertEquals(x, stage.getX(), 0.1, "Window failed to restore position set while maximized");
+        Assertions.assertEquals(y, stage.getY(), 0.1, "Window failed to restore position set while maximized");
+    }
+
+    @Test
+    public void testUnMaximizedChangedSize() throws Exception {
+        // Disable on Mac until JDK-8176813 is fixed
+        assumeTrue(!PlatformUtil.isMac());
+
+        CountDownLatch latch = new CountDownLatch(3);
+
+        stage.xProperty().addListener((observable, oldValue, newValue) -> latch.countDown());
+        stage.yProperty().addListener((observable, oldValue, newValue) -> latch.countDown());
+
+        int w = 100;
+        int h = 150;
+
+        stage.maximizedProperty().addListener((observable, oldValue, newValue) -> {
+            if (Boolean.TRUE.equals(newValue)) {
+                stage.setWidth(w);
+                stage.setHeight(h);
+            } else {
+                latch.countDown();
+            }
+        });
+
+        Platform.runLater(() -> stage.setMaximized(true));
+        Thread.sleep(500);
+        Platform.runLater(() -> stage.setMaximized(false));
+        latch.await(5, TimeUnit.SECONDS);
+        Thread.sleep(1000);
+
+        Assertions.assertEquals(w, stage.getWidth(), 0.1, "Window failed to restore size set while maximized");
+        Assertions.assertEquals(h, stage.getHeight(), 0.1, "Window failed to restore size set while maximized");
     }
 
     @Test
