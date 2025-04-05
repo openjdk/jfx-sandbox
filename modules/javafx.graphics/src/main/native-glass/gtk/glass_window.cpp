@@ -477,7 +477,7 @@ bool WindowContext::isEnabled() {
 }
 
 void WindowContext::process_map() {
-    update_requested_state();
+    g_idle_add((GSourceFunc) update_requested_state_later, this);
 }
 
 void WindowContext::process_focus(GdkEventFocus *event) {
@@ -1150,7 +1150,11 @@ void WindowContext::process_state(GdkEventWindowState *event) {
         g_idle_add((GSourceFunc) update_window_size_location_later, this);
     }
 
-    g_idle_add((GSourceFunc) update_requested_state_later, this);
+    if (event->changed_mask & (GDK_WINDOW_STATE_ICONIFIED
+                                | GDK_WINDOW_STATE_MAXIMIZED
+                                | GDK_WINDOW_STATE_FULLSCREEN)) {
+        g_idle_add((GSourceFunc) update_requested_state_later, this);
+    }
 }
 
 void WindowContext::process_realize() {
