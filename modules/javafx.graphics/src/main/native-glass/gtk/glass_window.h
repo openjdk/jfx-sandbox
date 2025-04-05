@@ -133,9 +133,8 @@ private:
     GdkWindow* gdk_window;
     GdkWMFunction gdk_windowManagerFunctions;
 
-    bool fullscreen_requested;
-    bool maximize_requested;
-    bool iconify_requested;
+    gint requested_state_mask;
+
     bool is_mouse_entered;
     bool is_disabled;
     bool on_top;
