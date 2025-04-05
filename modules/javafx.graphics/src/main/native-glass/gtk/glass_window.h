@@ -135,6 +135,7 @@ private:
 
     bool fullscreen_requested;
     bool maximize_requested;
+    bool iconify_requested;
     bool is_mouse_entered;
     bool is_disabled;
     bool on_top;
@@ -235,6 +236,8 @@ public:
 
     GtkWindow *get_gtk_window();
     void update_window_size_location();
+    void update_requested_state();
+
     ~WindowContext();
 
 protected:
