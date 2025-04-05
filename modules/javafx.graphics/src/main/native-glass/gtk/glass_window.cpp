@@ -961,6 +961,7 @@ void WindowContext::update_window_size_location() {
         return;
     }
 
+    g_print("update_window_size_location()");
     geometry.needs_to_restore_size = false;
     int w = (geometry.final_width.type == BOUNDSTYPE_WINDOW) ? geometry_get_window_width(&geometry) : -1;
     int h = (geometry.final_height.type == BOUNDSTYPE_WINDOW) ? geometry_get_window_height(&geometry) : -1;
@@ -1358,11 +1359,13 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
         geometry.y = y;
     }
 
-    if (requested_state_mask & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED)
-        || is_window_maximized(gdk_window)
-        || is_window_fullscreen(gdk_window)) {
-        geometry.needs_to_restore_size = true;
-        return;
+    if (GDK_IS_WINDOW(gdk_window)) {
+        GdkWindowState current_state = gdk_window_get_state(gdk_window);
+        if (requested_state_mask & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED)
+            || current_state & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED)) {
+            geometry.needs_to_restore_size = true;
+            return;
+        }
     }
 
     if (newW > 0 || newH > 0) {

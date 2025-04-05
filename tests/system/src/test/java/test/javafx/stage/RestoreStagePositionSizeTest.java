@@ -41,14 +41,14 @@ import org.junit.jupiter.api.Test;
 import com.sun.javafx.PlatformUtil;
 import test.util.Util;
 
-public class RestoreStagePositionTest {
+public class RestoreStagePositionSizeTest {
     static CountDownLatch startupLatch = new CountDownLatch(1);
     static Stage stage;
 
     public static void main(String[] args) throws Exception {
         initFX();
         try {
-            RestoreStagePositionTest test = new RestoreStagePositionTest();
+            RestoreStagePositionSizeTest test = new RestoreStagePositionSizeTest();
             test.testUfullscreenPosition();
             test.testDemaximizedPosition();
         } catch (Throwable e) {
