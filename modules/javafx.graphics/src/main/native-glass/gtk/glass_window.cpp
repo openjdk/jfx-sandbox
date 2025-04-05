@@ -975,6 +975,23 @@ void WindowContext::update_requested_state() {
     GdkWindowState current_state = gdk_window_get_state(gdk_window);
 
     // Precedence is iconified, fullscreen, maximized
+    if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED)
+           && (current_state & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
+        g_print("update_requested_state() -> maximize\n");
+        // enable the functionality on the window manager as it might ignore the maximize command,
+        // for example when the window is undecorated.
+        GdkWMFunction wmf = (GdkWMFunction)(gdk_windowManagerFunctions | GDK_FUNC_MAXIMIZE);
+        gdk_window_set_functions(gdk_window, wmf);
+
+        gtk_window_maximize(GTK_WINDOW(gtk_widget));
+    }
+
+    if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN)
+           && (current_state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
+        g_print("update_requested_state() -> fullscreen\n");
+        gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
+    }
+
     if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED)
           && (current_state & GDK_WINDOW_STATE_ICONIFIED) == 0) {
         g_print("update_requested_state() -> iconify\n");
@@ -984,19 +1001,6 @@ void WindowContext::update_requested_state() {
         gdk_window_set_functions(gdk_window, wmf);
 
         gtk_window_iconify(GTK_WINDOW(gtk_widget));
-    } else if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN)
-       && (current_state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
-        g_print("update_requested_state() -> fullscreen\n");
-        gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
-    } else if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED)
-           && (current_state & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
-        g_print("update_requested_state() -> maximize\n");
-        // enable the functionality on the window manager as it might ignore the maximize command,
-        // for example when the window is undecorated.
-        GdkWMFunction wmf = (GdkWMFunction)(gdk_windowManagerFunctions | GDK_FUNC_MAXIMIZE);
-        gdk_window_set_functions(gdk_window, wmf);
-
-        gtk_window_maximize(GTK_WINDOW(gtk_widget));
     }
 
     if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED) == 0
