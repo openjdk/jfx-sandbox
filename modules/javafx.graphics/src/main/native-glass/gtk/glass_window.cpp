@@ -974,34 +974,9 @@ void WindowContext::update_window_size_location() {
 void WindowContext::update_requested_state() {
     GdkWindowState current_state = gdk_window_get_state(gdk_window);
 
-    // in reverse-order of precedence
-    if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED)
-            && (current_state & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
-        g_print("update_requested_state() -> maximize\n");
-        // enable the functionality on the window manager as it might ignore the maximize command,
-        // for example when the window is undecorated.
-        GdkWMFunction wmf = (GdkWMFunction)(gdk_windowManagerFunctions | GDK_FUNC_MAXIMIZE);
-        gdk_window_set_functions(gdk_window, wmf);
-
-        gtk_window_maximize(GTK_WINDOW(gtk_widget));
-    } else if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED) == 0
-                    && (current_state & GDK_WINDOW_STATE_MAXIMIZED)) {
-        g_print("update_requested_state() -> unmaximize\n");
-        gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
-    }
-
-    if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN)
-            && (current_state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
-        g_print("update_requested_state() -> fullscreen\n");
-        gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
-    } else if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN) == 0
-            && (current_state & GDK_WINDOW_STATE_FULLSCREEN)) {
-        g_print("update_requested_state() -> unfullscreen\n");
-        gtk_window_unfullscreen(GTK_WINDOW(gtk_widget));
-    }
-
+    // Precedence is iconified, fullscreen, maximized
     if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED)
-            && (current_state & GDK_WINDOW_STATE_ICONIFIED) == 0) {
+          && (current_state & GDK_WINDOW_STATE_ICONIFIED) == 0) {
         g_print("update_requested_state() -> iconify\n");
         // in this case - the window manager will not support the programatic
         // request to iconify - so we need to disable this until we are restored.
@@ -1009,7 +984,34 @@ void WindowContext::update_requested_state() {
         gdk_window_set_functions(gdk_window, wmf);
 
         gtk_window_iconify(GTK_WINDOW(gtk_widget));
-    } else if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED) == 0
+    } else if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN)
+       && (current_state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
+        g_print("update_requested_state() -> fullscreen\n");
+        gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
+    } else if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED)
+           && (current_state & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
+        g_print("update_requested_state() -> maximize\n");
+        // enable the functionality on the window manager as it might ignore the maximize command,
+        // for example when the window is undecorated.
+        GdkWMFunction wmf = (GdkWMFunction)(gdk_windowManagerFunctions | GDK_FUNC_MAXIMIZE);
+        gdk_window_set_functions(gdk_window, wmf);
+
+        gtk_window_maximize(GTK_WINDOW(gtk_widget));
+    }
+
+    if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED) == 0
+                     && (current_state & GDK_WINDOW_STATE_MAXIMIZED)) {
+        g_print("update_requested_state() -> unmaximize\n");
+        gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
+    }
+
+    if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN) == 0
+          && (current_state & GDK_WINDOW_STATE_FULLSCREEN)) {
+        g_print("update_requested_state() -> unfullscreen\n");
+        gtk_window_unfullscreen(GTK_WINDOW(gtk_widget));
+    }
+
+    if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED) == 0
             && (current_state & GDK_WINDOW_STATE_ICONIFIED)) {
         g_print("update_requested_state() -> deiconify\n");
         gtk_window_deiconify(GTK_WINDOW(gtk_widget));
@@ -1110,7 +1112,6 @@ void WindowContext::process_property_notify(GdkEventProperty *event) {
 }
 
 void WindowContext::process_state(GdkEventWindowState *event) {
-
     if (event->changed_mask & (GDK_WINDOW_STATE_ICONIFIED
                                 | GDK_WINDOW_STATE_MAXIMIZED
                                 | GDK_WINDOW_STATE_FULLSCREEN)) {
@@ -1132,8 +1133,7 @@ void WindowContext::process_state(GdkEventWindowState *event) {
             requested_state_mask |= GDK_WINDOW_STATE_MAXIMIZED;
         } else {
             stateChangeEvent = com_sun_glass_events_WindowEvent_RESTORE;
-            if ((gdk_windowManagerFunctions & GDK_FUNC_MINIMIZE) == 0
-                || (gdk_windowManagerFunctions & GDK_FUNC_MAXIMIZE) == 0) {
+            if ((gdk_windowManagerFunctions & GDK_FUNC_MINIMIZE) == 0) {
                 // in this case - the window manager will not support the programatic
                 // request to iconify / maximize - so we need to restore it now.
                 gdk_window_set_functions(gdk_window, gdk_windowManagerFunctions);
