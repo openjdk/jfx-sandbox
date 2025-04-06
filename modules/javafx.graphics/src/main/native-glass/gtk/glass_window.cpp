@@ -380,7 +380,8 @@ WindowContext::WindowContext(jobject _jwindow, WindowContext* _owner, long _scre
             resizable(),
             im_ctx() {
     jwindow = mainEnv->NewGlobalRef(_jwindow);
-    gdk_windowManagerFunctions = wmf;
+    initial_wmf = wmf;
+    current_wmf = wmf;
 
     jview = NULL;
     gdk_window = NULL;
@@ -980,9 +981,7 @@ void WindowContext::update_requested_state() {
         g_print("update_requested_state() -> maximize\n");
         // enable the functionality on the window manager as it might ignore the maximize command,
         // for example when the window is undecorated.
-        GdkWMFunction wmf = (GdkWMFunction)(gdk_windowManagerFunctions | GDK_FUNC_MAXIMIZE);
-        gdk_window_set_functions(gdk_window, wmf);
-
+        add_wmf(GDK_FUNC_MAXIMIZE);
         gtk_window_maximize(GTK_WINDOW(gtk_widget));
     }
 
@@ -995,11 +994,7 @@ void WindowContext::update_requested_state() {
     if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED)
           && (current_state & GDK_WINDOW_STATE_ICONIFIED) == 0) {
         g_print("update_requested_state() -> iconify\n");
-        // in this case - the window manager will not support the programatic
-        // request to iconify - so we need to disable this until we are restored.
-        GdkWMFunction wmf = (GdkWMFunction)(gdk_windowManagerFunctions | GDK_FUNC_MINIMIZE);
-        gdk_window_set_functions(gdk_window, wmf);
-
+        add_wmf(GDK_FUNC_MINIMIZE);
         gtk_window_iconify(GTK_WINDOW(gtk_widget));
     }
 
@@ -1128,20 +1123,13 @@ void WindowContext::process_state(GdkEventWindowState *event) {
         if (event->changed_mask & GDK_WINDOW_STATE_ICONIFIED
             && event->new_window_state & GDK_WINDOW_STATE_ICONIFIED) {
             stateChangeEvent = com_sun_glass_events_WindowEvent_MINIMIZE;
-
             requested_state_mask |= GDK_WINDOW_STATE_ICONIFIED;
         } else if (event->changed_mask & GDK_WINDOW_STATE_MAXIMIZED
                &&  event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) {
             stateChangeEvent = com_sun_glass_events_WindowEvent_MAXIMIZE;
-
             requested_state_mask |= GDK_WINDOW_STATE_MAXIMIZED;
         } else {
             stateChangeEvent = com_sun_glass_events_WindowEvent_RESTORE;
-            if ((gdk_windowManagerFunctions & GDK_FUNC_MINIMIZE) == 0) {
-                // in this case - the window manager will not support the programatic
-                // request to iconify / maximize - so we need to restore it now.
-                gdk_window_set_functions(gdk_window, gdk_windowManagerFunctions);
-            }
         }
 
         if(jwindow) {
@@ -1153,10 +1141,12 @@ void WindowContext::process_state(GdkEventWindowState *event) {
 
         if ((event->new_window_state & GDK_WINDOW_STATE_ICONIFIED) == 0) {
             requested_state_mask &= ~GDK_WINDOW_STATE_ICONIFIED;
+            remove_wmf(GDK_FUNC_MINIMIZE);
         }
 
         if ((event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
             requested_state_mask &= ~GDK_WINDOW_STATE_MAXIMIZED;
+            remove_wmf(GDK_FUNC_MAXIMIZE);
         }
 
         g_idle_add((GSourceFunc) update_requested_state_later, this);
@@ -1185,8 +1175,8 @@ void WindowContext::process_realize() {
     g_object_set_data_full(G_OBJECT(gdk_window), GDK_WINDOW_DATA_CONTEXT, this, NULL);
     gdk_window_register_dnd(gdk_window);
 
-    if (gdk_windowManagerFunctions) {
-        gdk_window_set_functions(gdk_window, gdk_windowManagerFunctions);
+    if (initial_wmf) {
+        gdk_window_set_functions(gdk_window, initial_wmf);
     }
 }
 
@@ -1421,15 +1411,21 @@ void WindowContext::applyShapeMask(void* data, uint width, uint height) {
 }
 
 void WindowContext::set_minimized(bool minimize) {
-    requested_state_mask = (minimize) ? requested_state_mask | GDK_WINDOW_STATE_ICONIFIED
-                            :  requested_state_mask & ~GDK_WINDOW_STATE_ICONIFIED;
+    if (minimize) {
+        requested_state_mask != GDK_WINDOW_STATE_ICONIFIED;
+    } else {
+        requested_state_mask &= ~GDK_WINDOW_STATE_ICONIFIED;
+    }
 
     update_requested_state();
 }
 
 void WindowContext::set_maximized(bool maximize) {
-    requested_state_mask = (maximize) ? requested_state_mask | GDK_WINDOW_STATE_MAXIMIZED
-                            :  requested_state_mask & ~GDK_WINDOW_STATE_MAXIMIZED;
+    if (maximize) {
+        requested_state_mask != GDK_WINDOW_STATE_MAXIMIZED;
+    } else {
+        requested_state_mask &= ~GDK_WINDOW_STATE_MAXIMIZED;
+    }
 
     update_requested_state();
 }
@@ -1536,6 +1532,20 @@ bool WindowContext::effective_on_top() {
         return (topO && topO->effective_on_top()) || on_top;
     }
     return on_top;
+}
+
+void WindowContext::add_wmf(GdkWMFunction wmf) {
+    if ((initial_wmf & wmf) == 0) {
+        current_wmf = (GdkWMFunction)((int)current_wmf | (int)wmf);
+        gdk_window_set_functions(gdk_window, current_wmf);
+    }
+}
+
+void WindowContext::remove_wmf(GdkWMFunction wmf) {
+    if ((initial_wmf & wmf) == 0) {
+        current_wmf = (GdkWMFunction)((int)current_wmf & ~(int)wmf);
+        gdk_window_set_functions(gdk_window, current_wmf);
+    }
 }
 
 void WindowContext::notify_on_top(bool top) {

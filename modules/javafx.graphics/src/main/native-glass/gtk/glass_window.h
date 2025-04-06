@@ -131,7 +131,8 @@ private:
 
     GtkWidget* gtk_widget;
     GdkWindow* gdk_window;
-    GdkWMFunction gdk_windowManagerFunctions;
+    GdkWMFunction initial_wmf;
+    GdkWMFunction current_wmf;
 
     gint requested_state_mask;
 
@@ -242,6 +243,8 @@ public:
 protected:
     void applyShapeMask(void*, uint width, uint height);
 private:
+    void add_wmf(GdkWMFunction);
+    void remove_wmf(GdkWMFunction);
     void notify_on_top(bool);
     void request_frame_extents();
     void update_frame_extents();
