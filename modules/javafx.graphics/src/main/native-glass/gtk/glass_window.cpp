@@ -62,16 +62,17 @@ static gboolean update_requested_state_later(gpointer user_data) {
 }
 
 static jint get_current_window_glass_state(GdkWindow *window) {
-    jint jWindowState = com_sun_glass_events_WindowEvent_RESIZE;
 
     GdkWindowState state = gdk_window_get_state(window);
-    if ((state & GDK_WINDOW_STATE_ICONIFIED) != 0) {
-        jWindowState = com_sun_glass_events_WindowEvent_MINIMIZE;
-    } else if ((state & GDK_WINDOW_STATE_MAXIMIZED) != 0) {
-        jWindowState = com_sun_glass_events_WindowEvent_MAXIMIZE;
+    if (state & GDK_WINDOW_STATE_ICONIFIED) {
+        g_print("current state = ICONIFIED\n");
+        return com_sun_glass_events_WindowEvent_MINIMIZE;
+    } else if (state & GDK_WINDOW_STATE_MAXIMIZED) {
+        g_print("current state = MAXIMIZED\n");
+        return com_sun_glass_events_WindowEvent_MAXIMIZE;
     }
 
-    return jWindowState;
+    return com_sun_glass_events_WindowEvent_RESIZE;
 }
 
 //------------------------- SIGNALS
@@ -303,28 +304,10 @@ void destroy_and_delete_ctx(WindowContext* ctx) {
     }
 }
 
-static gboolean is_window_maximized(GdkWindow *gdk_window) {
-    if (GDK_IS_WINDOW(gdk_window)) {
-        GdkWindowState state = gdk_window_get_state(gdk_window);
-        return (state & GDK_WINDOW_STATE_MAXIMIZED) != 0;
-    }
-
-    return FALSE;
-}
-
 static gboolean is_window_fullscreen(GdkWindow *gdk_window) {
     if (GDK_IS_WINDOW(gdk_window)) {
         GdkWindowState state = gdk_window_get_state(gdk_window);
         return (state & GDK_WINDOW_STATE_FULLSCREEN) != 0;
-    }
-
-    return FALSE;
-}
-
-static gboolean is_window_iconified(GdkWindow *gdk_window) {
-    if (GDK_IS_WINDOW(gdk_window)) {
-        GdkWindowState state = gdk_window_get_state(gdk_window);
-        return (state & GDK_WINDOW_STATE_ICONIFIED) != 0;
     }
 
     return FALSE;
@@ -979,16 +962,22 @@ void WindowContext::update_requested_state() {
     if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED)
            && (current_state & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
         g_print("update_requested_state() -> maximize\n");
-        // enable the functionality on the window manager as it might ignore the maximize command,
-        // for example when the window is undecorated.
         add_wmf(GDK_FUNC_MAXIMIZE);
         gtk_window_maximize(GTK_WINDOW(gtk_widget));
+    } else if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED) == 0
+                     && (current_state & GDK_WINDOW_STATE_MAXIMIZED)) {
+        g_print("update_requested_state() -> unmaximize\n");
+        gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
     }
 
     if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN)
            && (current_state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
         g_print("update_requested_state() -> fullscreen\n");
         gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
+    } else if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN) == 0
+          && (current_state & GDK_WINDOW_STATE_FULLSCREEN)) {
+        g_print("update_requested_state() -> unfullscreen\n");
+        gtk_window_unfullscreen(GTK_WINDOW(gtk_widget));
     }
 
     if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED)
@@ -996,21 +985,7 @@ void WindowContext::update_requested_state() {
         g_print("update_requested_state() -> iconify\n");
         add_wmf(GDK_FUNC_MINIMIZE);
         gtk_window_iconify(GTK_WINDOW(gtk_widget));
-    }
-
-    if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED) == 0
-                     && (current_state & GDK_WINDOW_STATE_MAXIMIZED)) {
-        g_print("update_requested_state() -> unmaximize\n");
-        gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
-    }
-
-    if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN) == 0
-          && (current_state & GDK_WINDOW_STATE_FULLSCREEN)) {
-        g_print("update_requested_state() -> unfullscreen\n");
-        gtk_window_unfullscreen(GTK_WINDOW(gtk_widget));
-    }
-
-    if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED) == 0
+    } else if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED) == 0
             && (current_state & GDK_WINDOW_STATE_ICONIFIED)) {
         g_print("update_requested_state() -> deiconify\n");
         gtk_window_deiconify(GTK_WINDOW(gtk_widget));
@@ -1114,45 +1089,67 @@ void WindowContext::process_state(GdkEventWindowState *event) {
     if (event->changed_mask & (GDK_WINDOW_STATE_ICONIFIED
                                 | GDK_WINDOW_STATE_MAXIMIZED
                                 | GDK_WINDOW_STATE_FULLSCREEN)) {
-        jint stateChangeEvent;
 
-        int ww, wh;
-        ww = gdk_window_get_width(gdk_window) + geometry.extents.left + geometry.extents.right;
-        wh = gdk_window_get_height(gdk_window) + geometry.extents.top + geometry.extents.bottom;
+         // FULLSCREEN not here because it's not in WindowEvent
+        if (event->changed_mask & (GDK_WINDOW_STATE_ICONIFIED
+                                    | GDK_WINDOW_STATE_MAXIMIZED)) {
+
+            jint current_state = com_sun_glass_events_WindowEvent_RESTORE;
+
+            int ww, wh;
+            ww = gdk_window_get_width(gdk_window) + geometry.extents.left + geometry.extents.right;
+            wh = gdk_window_get_height(gdk_window) + geometry.extents.top + geometry.extents.bottom;
+
+            // In rever-se order of precedence
+            if (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) {
+                current_state = com_sun_glass_events_WindowEvent_MAXIMIZE;
+                requested_state_mask |= GDK_WINDOW_STATE_MAXIMIZED;
+            }
+
+            if (event->new_window_state & GDK_WINDOW_STATE_ICONIFIED) {
+                current_state = com_sun_glass_events_WindowEvent_MINIMIZE;
+                requested_state_mask |= GDK_WINDOW_STATE_ICONIFIED;
+            }
+
+            if(jwindow) {
+                mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
+                         current_state,
+                         ww, wh);
+                CHECK_JNI_EXCEPTION(mainEnv)
+
+                // TODO remove after 8351867
+                int w, h;
+                glass_gdk_window_get_size(gdk_window, &w, &h);
+                if (jview) {
+                    mainEnv->CallVoidMethod(jview,
+                            jViewNotifyRepaint,
+                            0, 0, w, h);
+                    CHECK_JNI_EXCEPTION(mainEnv);
+                }
+            }
+        }
 
         if (event->changed_mask & GDK_WINDOW_STATE_ICONIFIED
-            && event->new_window_state & GDK_WINDOW_STATE_ICONIFIED) {
-            stateChangeEvent = com_sun_glass_events_WindowEvent_MINIMIZE;
-            requested_state_mask |= GDK_WINDOW_STATE_ICONIFIED;
-        } else if (event->changed_mask & GDK_WINDOW_STATE_MAXIMIZED
-               &&  event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) {
-            stateChangeEvent = com_sun_glass_events_WindowEvent_MAXIMIZE;
-            requested_state_mask |= GDK_WINDOW_STATE_MAXIMIZED;
-        } else {
-            stateChangeEvent = com_sun_glass_events_WindowEvent_RESTORE;
-        }
-
-        if(jwindow) {
-            mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
-                     stateChangeEvent,
-                     ww, wh);
-            CHECK_JNI_EXCEPTION(mainEnv)
-        }
-
-        if ((event->new_window_state & GDK_WINDOW_STATE_ICONIFIED) == 0) {
+            && (event->new_window_state & GDK_WINDOW_STATE_ICONIFIED) == 0) {
+            g_print("state / iconified = false\n");
             requested_state_mask &= ~GDK_WINDOW_STATE_ICONIFIED;
             remove_wmf(GDK_FUNC_MINIMIZE);
         }
 
-        if ((event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
+        if (event->changed_mask & GDK_WINDOW_STATE_MAXIMIZED
+            && (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
+            g_print("state / maximized = false\n");
             requested_state_mask &= ~GDK_WINDOW_STATE_MAXIMIZED;
             remove_wmf(GDK_FUNC_MAXIMIZE);
         }
 
         g_idle_add((GSourceFunc) update_requested_state_later, this);
 
-        bool restored = event->changed_mask & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_FULLSCREEN)
-                        && !(event->new_window_state & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_FULLSCREEN));
+        // this only accounts MAXIMIZED and FULLSCREEN
+        bool restored = event->changed_mask & (GDK_WINDOW_STATE_MAXIMIZED
+                                                | GDK_WINDOW_STATE_FULLSCREEN)
+                        && !(event->new_window_state & (GDK_WINDOW_STATE_MAXIMIZED
+                                                           | GDK_WINDOW_STATE_FULLSCREEN));
 
         // In case the size or location changed while maximized of fullscreened
         if (restored && geometry.needs_to_restore_size) {
@@ -1369,6 +1366,7 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
         GdkWindowState current_state = gdk_window_get_state(gdk_window);
         if (requested_state_mask & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED)
             || current_state & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED)) {
+            g_print("->needs to restore size\n");
             geometry.needs_to_restore_size = true;
             return;
         }
@@ -1412,7 +1410,7 @@ void WindowContext::applyShapeMask(void* data, uint width, uint height) {
 
 void WindowContext::set_minimized(bool minimize) {
     if (minimize) {
-        requested_state_mask != GDK_WINDOW_STATE_ICONIFIED;
+        requested_state_mask |= GDK_WINDOW_STATE_ICONIFIED;
     } else {
         requested_state_mask &= ~GDK_WINDOW_STATE_ICONIFIED;
     }
@@ -1421,8 +1419,9 @@ void WindowContext::set_minimized(bool minimize) {
 }
 
 void WindowContext::set_maximized(bool maximize) {
+    g_print("set_maximized %d\n", maximize);
     if (maximize) {
-        requested_state_mask != GDK_WINDOW_STATE_MAXIMIZED;
+        requested_state_mask |= GDK_WINDOW_STATE_MAXIMIZED;
     } else {
         requested_state_mask &= ~GDK_WINDOW_STATE_MAXIMIZED;
     }

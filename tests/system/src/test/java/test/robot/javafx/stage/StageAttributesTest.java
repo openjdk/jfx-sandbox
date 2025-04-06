@@ -25,11 +25,6 @@
 
 package test.robot.javafx.stage;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
-import static test.util.Util.TIMEOUT;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
@@ -37,8 +32,14 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.junit.jupiter.api.Test;
-import com.sun.javafx.PlatformUtil;
 import test.robot.testharness.VisualTestBase;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static test.util.Util.TIMEOUT;
 
 public class StageAttributesTest extends VisualTestBase {
 
@@ -102,10 +103,6 @@ public class StageAttributesTest extends VisualTestBase {
 
     @Test
     public void testIconifiedStage() throws InterruptedException {
-        // Skip on Linux due to:
-        //  - JDK-8316423
-        assumeTrue(!PlatformUtil.isLinux());
-
         setupStages(true, true);
 
         runAndWait(() -> {
@@ -127,10 +124,6 @@ public class StageAttributesTest extends VisualTestBase {
 
     @Test
     public void testMaximizedStage() throws InterruptedException {
-        // Skip on Linux due to:
-        //  - JDK-8316423
-        assumeTrue(!PlatformUtil.isLinux());
-
         setupStages(false, true);
 
         runAndWait(() -> {
@@ -165,10 +158,6 @@ public class StageAttributesTest extends VisualTestBase {
 
     @Test
     public void testFullScreenStage() throws InterruptedException {
-        // Skip on Linux due to:
-        //  - JDK-8316423
-        assumeTrue(!PlatformUtil.isLinux());
-
         setupStages(false, true);
 
         runAndWait(() -> {
@@ -202,10 +191,6 @@ public class StageAttributesTest extends VisualTestBase {
 
     @Test
     public void testIconifiedStageBeforeShow() throws InterruptedException {
-        // Skip on Linux due to:
-        //  - JDK-8316423
-        assumeTrue(!PlatformUtil.isLinux());
-
         setupStages(true, false);
 
         runAndWait(() -> {
@@ -231,11 +216,6 @@ public class StageAttributesTest extends VisualTestBase {
 
     @Test
     public void testMaximizedStageBeforeShow() throws InterruptedException {
-        // Skip on Linux due to:
-        //  - JDK-8316423
-        //  - JDK-8316425
-        assumeTrue(!PlatformUtil.isLinux());
-
         setupStages(false, false);
 
         runAndWait(() -> {
@@ -271,11 +251,6 @@ public class StageAttributesTest extends VisualTestBase {
 
     @Test
     public void testFullScreenStageBeforeShow() throws InterruptedException {
-        // Skip on Linux due to:
-        //  - JDK-8316423
-        //  - JDK-8316425
-        assumeTrue(!PlatformUtil.isLinux());
-
         setupStages(false, false);
 
         runAndWait(() -> {
@@ -304,6 +279,48 @@ public class StageAttributesTest extends VisualTestBase {
         runAndWait(() -> {
             // top left corner (plus some tolerance) should NOT show decorations
             Color color = getColor((int)topStage.getX() + 5, (int)topStage.getY() + 5);
+            assertColorEquals(TOP_COLOR, color, TOLERANCE);
+        });
+    }
+
+    @Test
+    public void testAttributesPrecedenceFullScreenAndIconified() throws InterruptedException {
+        setupStages(false, false);
+
+        runAndWait(() -> {
+            Color color = getColor(200, 200);
+            assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
+
+            topStage.setMaximized(true);
+            topStage.setFullScreen(true);
+            topStage.setIconified(true);
+            topStage.show();
+        });
+
+        // wait a bit to let window system animate the change
+        sleep(1000);
+
+        runAndWait(() -> {
+            assertTrue(topStage.isFullScreen());
+//            assertTrue(topStage.isMaximized());
+            assertTrue(topStage.isIconified());
+
+            Color color = getColor(200, 200);
+            assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
+        });
+
+        sleep(100);
+
+        runAndWait(() -> topStage.setIconified(false));
+
+        sleep(1000);
+
+        runAndWait(() -> {
+            assertTrue(topStage.isFullScreen());
+            assertFalse(topStage.isIconified());
+            assertTrue(topStage.isMaximized());
+
+            Color color = getColor(200, 200);
             assertColorEquals(TOP_COLOR, color, TOLERANCE);
         });
     }

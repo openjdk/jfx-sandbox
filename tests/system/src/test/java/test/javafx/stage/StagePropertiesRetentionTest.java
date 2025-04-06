@@ -34,7 +34,6 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import test.util.Util;
@@ -44,13 +43,12 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class RestoreStageTest {
+public class StagePropertiesRetentionTest {
     private static CountDownLatch startupLatch = new CountDownLatch(1);
     private static final int POS_X = 100;
     private static final int POS_Y = 150;
     private static final int WIDTH = 100;
     private static final int HEIGHT = 150;
-
 
     private static Stage stage;
 
@@ -60,10 +58,10 @@ public class RestoreStageTest {
         public void start(Stage primaryStage) throws Exception {
             primaryStage.setScene(new Scene(new VBox()));
             stage = primaryStage;
-            stage.setWidth(300);
-            stage.setHeight(300);
-            stage.setX(300);
-            stage.setY(400);
+            stage.setWidth(WIDTH);
+            stage.setHeight(HEIGHT);
+            stage.setX(POS_X);
+            stage.setY(POS_Y);
             stage.addEventHandler(WindowEvent.WINDOW_SHOWN, e ->
                                     Platform.runLater(startupLatch::countDown));
             stage.show();
@@ -81,90 +79,66 @@ public class RestoreStageTest {
     }
 
     @Test
-    public void testUnFullscreenChangedPosition() throws Exception {
+    public void testFullscreenShouldNotChangeStagesSize() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
                 new KeyFrame(Duration.millis(300), e -> stage.setFullScreen(true)),
                 new KeyFrame(Duration.millis(600), e -> {
-                    stage.setX(POS_X);
-                    stage.setY(POS_Y);
+                    assertEquals(WIDTH, stage.getWidth(), "Entering fullscreen mode changed the Stage's width");
+                    assertEquals(HEIGHT, stage.getHeight(), "Entering fullscreen mode changed the Stage's height");
                 }),
-                new KeyFrame(Duration.millis(900), e -> stage.setFullScreen(false)),
                 new KeyFrame(Duration.millis(900), e -> latch.countDown())
         );
         timeline.play();
-
         latch.await(5, TimeUnit.SECONDS);
-        Thread.sleep(300);
-
-        assertEquals(POS_X, stage.getX(), "Window failed to restore position set while fullscreened");
-        assertEquals(POS_Y, stage.getY(),  "Window failed to restore position set while fullscreened");
     }
 
     @Test
-    public void testUnFullscreenChangedSize() throws Exception {
+    public void testFullscreenShouldNotChangeStagesLocation() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
                 new KeyFrame(Duration.millis(300), e -> stage.setFullScreen(true)),
                 new KeyFrame(Duration.millis(600), e -> {
-                    stage.setWidth(WIDTH);
-                    stage.setHeight(HEIGHT);
+                    assertEquals(POS_X, stage.getX(), "Entering fullscreen mode changed the Stage's X position");
+                    assertEquals(POS_Y, stage.getY(), "Entering fullscreen mode changed the Stage's Y position");
                 }),
-                new KeyFrame(Duration.millis(900), e -> stage.setFullScreen(false)),
                 new KeyFrame(Duration.millis(900), e -> latch.countDown())
         );
         timeline.play();
-
         latch.await(5, TimeUnit.SECONDS);
-        Thread.sleep(300);
-
-        assertEquals(WIDTH, stage.getWidth(), "Window failed to restore size set while fullscreened");
-        assertEquals(HEIGHT, stage.getHeight(),  "Window failed to restore size set while fullscreened");
     }
 
     @Test
-    public void testUnMaximzeChangedPosition() throws Exception {
+    public void testMaximizeShouldNotChangeStagesLocation() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
                 new KeyFrame(Duration.millis(300), e -> stage.setMaximized(true)),
                 new KeyFrame(Duration.millis(600), e -> {
-                    stage.setX(POS_X);
-                    stage.setY(POS_Y);
+                    assertEquals(POS_X, stage.getX(), "Maximized mode changed the Stage's X position");
+                    assertEquals(POS_Y, stage.getY(), "Maximized mode changed the Stage's Y position");
                 }),
-                new KeyFrame(Duration.millis(900), e -> stage.setMaximized(false)),
                 new KeyFrame(Duration.millis(900), e -> latch.countDown())
         );
         timeline.play();
-
         latch.await(5, TimeUnit.SECONDS);
-        Thread.sleep(300);
-
-        assertEquals(POS_X, stage.getX(), "Window failed to restore position set while maximized");
-        assertEquals(POS_Y, stage.getY(),  "Window failed to restore position set while maximized");
     }
 
     @Test
-    public void testUnMaximizeChangedSize() throws Exception {
+    public void testMaximizeShouldNotChangeStagesSize() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
                 new KeyFrame(Duration.millis(300), e -> stage.setMaximized(true)),
                 new KeyFrame(Duration.millis(600), e -> {
-                    stage.setWidth(WIDTH);
-                    stage.setHeight(HEIGHT);
+                    assertEquals(WIDTH, stage.getWidth(), "Maximized mode changed the Stage's width");
+                    assertEquals(HEIGHT, stage.getHeight(), "Maximized mode changed the Stage's height");
                 }),
-                new KeyFrame(Duration.millis(900), e -> stage.setMaximized(false)),
                 new KeyFrame(Duration.millis(900), e -> latch.countDown())
         );
         timeline.play();
-
         latch.await(5, TimeUnit.SECONDS);
-        Thread.sleep(300);
-
-        assertEquals(WIDTH, stage.getWidth(), "Window failed to restore size set while maximized");
-        assertEquals(HEIGHT, stage.getHeight(),  "Window failed to restore size set while maximized");
     }
 }
