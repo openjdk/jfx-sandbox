@@ -26,16 +26,16 @@ package test.javafx.stage;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import test.util.Util;
 
@@ -44,40 +44,53 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class RestoreStageTest {
+public class StageRestorePropertiesTest {
     private static CountDownLatch startupLatch = new CountDownLatch(1);
     private static final int POS_X = 100;
     private static final int POS_Y = 150;
     private static final int WIDTH = 100;
     private static final int HEIGHT = 150;
 
+    private Stage stage;
 
-    private static Stage stage;
+    @BeforeEach
+    public void initTest() {
+        CountDownLatch shownLatch = new CountDownLatch(1);
 
-    public static class TestApp extends Application {
-
-        @Override
-        public void start(Stage primaryStage) throws Exception {
-            primaryStage.setScene(new Scene(new VBox()));
-            stage = primaryStage;
+        Platform.runLater(() -> {
+            stage = new Stage();
+            stage.setTitle("Stage Restore Properties Test");
+            stage.setScene(new Scene(new StackPane(), Color.CHOCOLATE));
             stage.setWidth(300);
             stage.setHeight(300);
             stage.setX(300);
-            stage.setY(400);
-            stage.addEventHandler(WindowEvent.WINDOW_SHOWN, e ->
-                                    Platform.runLater(startupLatch::countDown));
+            stage.setY(300);
+            stage.setOnShown(e -> shownLatch.countDown());
             stage.show();
-        }
+        });
+
+        Util.waitForLatch(shownLatch, 5, "Stage failed to show");
     }
 
     @BeforeAll
     public static void initFX() {
-        Util.launch(startupLatch, TestApp.class);
+        Platform.setImplicitExit(false);
+        Util.startup(startupLatch, startupLatch::countDown);
     }
 
     @AfterAll
     public static void teardown() {
         Util.shutdown();
+    }
+
+    @AfterEach
+    public void cleanup() {
+        if (stage != null) {
+            CountDownLatch hideLatch = new CountDownLatch(1);
+            stage.setOnHidden(e -> hideLatch.countDown());
+            Platform.runLater(stage::hide);
+            Util.waitForLatch(hideLatch, 5, "Stage failed to hide");
+        }
     }
 
     @Test
@@ -91,7 +104,7 @@ public class RestoreStageTest {
                     stage.setY(POS_Y);
                 }),
                 new KeyFrame(Duration.millis(900), e -> stage.setFullScreen(false)),
-                new KeyFrame(Duration.millis(900), e -> latch.countDown())
+                new KeyFrame(Duration.millis(1200), e -> latch.countDown())
         );
         timeline.play();
 
@@ -113,7 +126,7 @@ public class RestoreStageTest {
                     stage.setHeight(HEIGHT);
                 }),
                 new KeyFrame(Duration.millis(900), e -> stage.setFullScreen(false)),
-                new KeyFrame(Duration.millis(900), e -> latch.countDown())
+                new KeyFrame(Duration.millis(1200), e -> latch.countDown())
         );
         timeline.play();
 
@@ -135,7 +148,7 @@ public class RestoreStageTest {
                     stage.setY(POS_Y);
                 }),
                 new KeyFrame(Duration.millis(900), e -> stage.setMaximized(false)),
-                new KeyFrame(Duration.millis(900), e -> latch.countDown())
+                new KeyFrame(Duration.millis(1200), e -> latch.countDown())
         );
         timeline.play();
 
@@ -157,7 +170,7 @@ public class RestoreStageTest {
                     stage.setHeight(HEIGHT);
                 }),
                 new KeyFrame(Duration.millis(900), e -> stage.setMaximized(false)),
-                new KeyFrame(Duration.millis(900), e -> latch.countDown())
+                new KeyFrame(Duration.millis(1200), e -> latch.countDown())
         );
         timeline.play();
 

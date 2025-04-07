@@ -26,15 +26,16 @@ package test.javafx.stage;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 import javafx.util.Duration;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import test.util.Util;
 
@@ -50,33 +51,48 @@ public class StagePropertiesRetentionTest {
     private static final int WIDTH = 100;
     private static final int HEIGHT = 150;
 
-    private static Stage stage;
+    private Stage stage;
 
-    public static class TestApp extends Application {
+    @BeforeEach
+    public void initTest() {
+        CountDownLatch shownLatch = new CountDownLatch(1);
 
-        @Override
-        public void start(Stage primaryStage) throws Exception {
-            primaryStage.setScene(new Scene(new VBox()));
-            stage = primaryStage;
+        Platform.runLater(() -> {
+            stage = new Stage();
+            stage.setTitle("Properties Retention Test");
+            stage.setScene(new Scene(new StackPane(), Color.SEAGREEN));
             stage.setWidth(WIDTH);
             stage.setHeight(HEIGHT);
             stage.setX(POS_X);
             stage.setY(POS_Y);
-            stage.addEventHandler(WindowEvent.WINDOW_SHOWN, e ->
-                                    Platform.runLater(startupLatch::countDown));
+            stage.setOnShown(e -> shownLatch.countDown());
             stage.show();
-        }
+        });
+
+        Util.waitForLatch(shownLatch, 5, "Stage failed to show");
     }
 
     @BeforeAll
     public static void initFX() {
-        Util.launch(startupLatch, TestApp.class);
+        Platform.setImplicitExit(false);
+        Util.startup(startupLatch, startupLatch::countDown);
     }
 
     @AfterAll
     public static void teardown() {
         Util.shutdown();
     }
+
+    @AfterEach
+    public void cleanup() {
+        if (stage != null) {
+            CountDownLatch hideLatch = new CountDownLatch(1);
+            stage.setOnHidden(e -> hideLatch.countDown());
+            Platform.runLater(stage::hide);
+            Util.waitForLatch(hideLatch, 5, "Stage failed to hide");
+        }
+    }
+
 
     @Test
     public void testFullscreenShouldNotChangeStagesSize() throws Exception {
