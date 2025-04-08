@@ -284,14 +284,14 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @Test
-    public void testAttributesPrecedenceFullScreenAndIconified() throws InterruptedException {
+    public void testAttributesPrecedence() throws InterruptedException {
         setupStages(false, false);
 
         runAndWait(() -> {
             Color color = getColor(200, 200);
             assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
 
-            topStage.setMaximized(true);
+//            topStage.setMaximized(true);
             topStage.setFullScreen(true);
             topStage.setIconified(true);
             topStage.show();

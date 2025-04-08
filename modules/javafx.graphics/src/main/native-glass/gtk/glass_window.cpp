@@ -61,6 +61,12 @@ static gboolean update_requested_state_later(gpointer user_data) {
     return G_SOURCE_REMOVE;
 }
 
+static gboolean repaint_later(gpointer user_data) {
+    WindowContext *ctx = ((WindowContext *) user_data);
+    ctx->process_paint();
+    return G_SOURCE_REMOVE;
+}
+
 static jint get_current_window_glass_state(GdkWindow *window) {
 
     GdkWindowState state = gdk_window_get_state(window);
@@ -562,6 +568,7 @@ void WindowContext::process_paint() {
         int w = gtk_widget_get_allocated_width(gtk_widget);
         int h = gtk_widget_get_allocated_height(gtk_widget);
 
+        g_print("jViewNotifyRepaint: %d, %d\n", w, h);
         mainEnv->CallVoidMethod(jview, jViewNotifyRepaint, 0, 0, w, h);
         CHECK_JNI_EXCEPTION(mainEnv)
     }
@@ -1116,16 +1123,6 @@ void WindowContext::process_state(GdkEventWindowState *event) {
                          current_state,
                          ww, wh);
                 CHECK_JNI_EXCEPTION(mainEnv)
-
-                // TODO remove after 8351867
-                int w, h;
-                glass_gdk_window_get_size(gdk_window, &w, &h);
-                if (jview) {
-                    mainEnv->CallVoidMethod(jview,
-                            jViewNotifyRepaint,
-                            0, 0, w, h);
-                    CHECK_JNI_EXCEPTION(mainEnv);
-                }
             }
         }
 
@@ -1134,6 +1131,8 @@ void WindowContext::process_state(GdkEventWindowState *event) {
             g_print("state / iconified = false\n");
             requested_state_mask &= ~GDK_WINDOW_STATE_ICONIFIED;
             remove_wmf(GDK_FUNC_MINIMIZE);
+            // TODO remove after 8351867
+            g_idle_add((GSourceFunc) repaint_later, this);
         }
 
         if (event->changed_mask & GDK_WINDOW_STATE_MAXIMIZED
