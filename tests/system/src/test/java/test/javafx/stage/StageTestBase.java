@@ -39,7 +39,6 @@ import test.util.Util;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
-
 public abstract class StageTestBase {
     private static final CountDownLatch STARTUP_LATCH = new CountDownLatch(1);
     private static Throwable currentThrowable = null;
