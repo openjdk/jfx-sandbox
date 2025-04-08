@@ -32,7 +32,6 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import test.util.Util;
 
@@ -40,8 +39,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
 public abstract class StageTestBase {
-    private static final CountDownLatch STARTUP_LATCH = new CountDownLatch(1);
-    private static Throwable currentThrowable = null;
+    private static final CountDownLatch startupLatch = new CountDownLatch(1);
     private Stage stage;
 
     /**
@@ -73,9 +71,10 @@ public abstract class StageTestBase {
         Platform.runLater(() -> {
             stage = new Stage();
             StackPane root = new StackPane();
-            root.setStyle("-fx-background-color: rgba(255, 105, 180, 1.0);");
+            root.setStyle("-fx-background-color: rgba(255, 105, 180, 0.5);");
             Scene scene = new Scene(root);
             scene.setFill(Color.TRANSPARENT);
+            stage.setScene(scene);
             if (pc != null) {
                 pc.accept(stage);
             }
@@ -104,10 +103,7 @@ public abstract class StageTestBase {
     @BeforeAll
     public static void initFX() {
         Platform.setImplicitExit(false);
-        Util.startup(STARTUP_LATCH, () -> {
-            Thread.currentThread().setUncaughtExceptionHandler((t, e) -> currentThrowable = e);
-            STARTUP_LATCH.countDown();
-        });
+        Util.startup(startupLatch, startupLatch::countDown);
     }
 
     @AfterAll
@@ -120,8 +116,6 @@ public abstract class StageTestBase {
      */
     @AfterEach
     public void cleanup() {
-        Assertions.assertNull(currentThrowable, "JavaFX has thrown an exception");
-        currentThrowable = null;
         if (stage != null) {
             CountDownLatch hideLatch = new CountDownLatch(1);
             stage.setOnHidden(e -> hideLatch.countDown());

@@ -1380,15 +1380,19 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
         } else {
             gtk_window_set_default_size(GTK_WINDOW(gtk_widget), newW, newH);
 
-            int w = geometry_get_window_width(&geometry);
-            int h = geometry_get_window_height(&geometry);
+            if (jwindow) {
+                int w = geometry_get_window_width(&geometry);
+                int h = geometry_get_window_height(&geometry);
 
-            mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
-                         com_sun_glass_events_WindowEvent_RESIZE, w, h);
-            CHECK_JNI_EXCEPTION(mainEnv)
+                mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
+                             com_sun_glass_events_WindowEvent_RESIZE, w, h);
+                CHECK_JNI_EXCEPTION(mainEnv)
 
-            mainEnv->CallVoidMethod(jview, jViewNotifyResize, newW, newH);
-            CHECK_JNI_EXCEPTION(mainEnv)
+                if (jview) {
+                    mainEnv->CallVoidMethod(jview, jViewNotifyResize, newW, newH);
+                    CHECK_JNI_EXCEPTION(mainEnv)
+                }
+            }
         }
 
         geometry.size_assigned = true;
