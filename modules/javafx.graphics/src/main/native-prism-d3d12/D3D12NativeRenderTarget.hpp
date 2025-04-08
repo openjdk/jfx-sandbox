@@ -72,6 +72,11 @@ public:
         return mDepthTestEnabled;
     }
 
+    inline const bool HasDepthTexture() const
+    {
+        return (mDepthTexture != nullptr);
+    }
+
     inline Internal::DescriptorData GetDescriptorData() const
     {
         return mDescriptors;

@@ -120,7 +120,7 @@ public:
     int GetMaximumTextureSize() const;
     void MarkResourceDisposed(const D3D12ResourcePtr& texture);
 
-    void Clear(float r, float g, float b, float a);
+    void Clear(float r, float g, float b, float a, bool clearDepth);
     void ClearTextureUnit(uint32_t unit);
     void CopyToSwapChain(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src);
     void ResolveToSwapChain(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src);

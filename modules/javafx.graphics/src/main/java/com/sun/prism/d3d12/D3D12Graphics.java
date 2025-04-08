@@ -40,7 +40,8 @@ public class D3D12Graphics extends BaseShaderGraphics {
     public void clear(Color color) {
         mContext.validateClearOp(this);
         getRenderTarget().setOpaque(color.isOpaque());
-        mContext.getDevice().clear(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha());
+        mContext.getDevice().clear(color.getRed(), color.getGreen(), color.getBlue(), color.getAlpha(),
+                                   isDepthBuffer());
     }
 
     @Override

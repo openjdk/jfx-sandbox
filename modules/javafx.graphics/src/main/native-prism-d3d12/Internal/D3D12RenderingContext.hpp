@@ -106,7 +106,7 @@ public:
     bool Apply();
     bool ApplyCompute();
     void EnsureBoundTextureStates(D3D12_RESOURCE_STATES state);
-    void Clear(float r, float g, float b, float a);
+    void Clear(float r, float g, float b, float a, bool clearDepth);
 
     void ClearTextureUnit(uint32_t unit);
     void SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView);

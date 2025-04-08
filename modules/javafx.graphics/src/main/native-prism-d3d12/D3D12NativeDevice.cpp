@@ -456,9 +456,9 @@ void NativeDevice::MarkResourceDisposed(const D3D12ResourcePtr& resource)
     mResourceDisposer->MarkDisposed(resource);
 }
 
-void NativeDevice::Clear(float r, float g, float b, float a)
+void NativeDevice::Clear(float r, float g, float b, float a, bool clearDepth)
 {
-    mRenderingContext->Clear(r, g, b, a);
+    mRenderingContext->Clear(r, g, b, a, clearDepth);
 }
 
 void NativeDevice::ClearTextureUnit(uint32_t unit)
@@ -1303,11 +1303,11 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nGetMaximum
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nClear
-    (JNIEnv* env, jobject obj, jlong ptr, jfloat r, jfloat g, jfloat b, jfloat a)
+    (JNIEnv* env, jobject obj, jlong ptr, jfloat r, jfloat g, jfloat b, jfloat a, jboolean clearDepth)
 {
     if (!ptr) return;
 
-    D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->Clear(r, g, b, a);
+    D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->Clear(r, g, b, a, static_cast<bool>(clearDepth));
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCopyToSwapChain

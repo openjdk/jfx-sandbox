@@ -289,11 +289,7 @@ class RenderTargetRenderingParameter: public RenderingParameter<NIPtr<NativeRend
         if (!mParameter) return;
 
         mParameter->EnsureState(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        if (mParameter->IsDepthTestEnabled())
-        {
-            mParameter->EnsureDepthState(commandList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-            commandList->ClearDepthStencilView(mParameter->GetDSVDescriptor().cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-        }
+        mParameter->EnsureDepthState(commandList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
         const Internal::DescriptorData& rtData = mParameter->GetDescriptorData();
         commandList->OMSetRenderTargets(

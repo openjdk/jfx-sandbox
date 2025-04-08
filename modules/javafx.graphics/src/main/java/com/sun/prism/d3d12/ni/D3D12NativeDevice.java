@@ -53,7 +53,7 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
     private native long nCreateTexture(long ptr, int width, int height, int format, int usage, int wrapMode, int samples, boolean useMipmap, boolean isRTT);
     private native int nGetMaximumMSAASampleSize(long ptr, int format);
     private native int nGetMaximumTextureSize(long ptr);
-    private native void nClear(long ptr, float r, float g, float b, float a);
+    private native void nClear(long ptr, float r, float g, float b, float a, boolean clearDepth);
     private native void nCopyToSwapChain(long ptr, long dstSwapChain, long srcTexture);
     private native void nResolveToSwapChain(long ptr, long dstSwapChain, long srcTexture);
     private native void nRenderMeshView(long ptr, long meshViewPtr);
@@ -136,8 +136,8 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
         ));
     }
 
-    public void clear(float r, float g, float b, float a) {
-        nClear(ptr, r, g, b, a);
+    public void clear(float r, float g, float b, float a, boolean clearDepth) {
+        nClear(ptr, r, g, b, a, clearDepth);
     }
 
     public void copyToSwapChain(D3D12NativeSwapChain dst, D3D12NativeTexture src) {

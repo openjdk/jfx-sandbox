@@ -88,7 +88,7 @@ bool RenderingContext::Init()
     return true;
 }
 
-void RenderingContext::Clear(float r, float g, float b, float a)
+void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth)
 {
     if (!mRenderTarget.IsSet()) return;
 
@@ -98,7 +98,15 @@ void RenderingContext::Clear(float r, float g, float b, float a)
 
     float rgba[4] = { r, g, b, a };
     mNativeDevice->GetCurrentCommandList()->ClearRenderTargetView(rtData.CPU(0), rgba, 1, &GetScissor().Get());
-    // Depth Buffer is cleared when applying RenderTarget onto a Command List
+    // NOTE: Here we check by NativeRenderTarget::HasDepthTexture() and not IsDepthTestEnabled()
+    // Prism can sometimes set the RTT with depth test disabled, but then request its clear with
+    // the depth texture (ex. hello.HelloViewOrder) and only afterwards re-set the RTT again enabling
+    // depth testing. So we have to disregard the depth test flag, otherwise we would miss this DSV clear.
+    if (clearDepth && mRenderTarget.Get()->HasDepthTexture())
+    {
+        mRenderTarget.Get()->EnsureDepthState(mNativeDevice->GetCurrentCommandList(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        mNativeDevice->GetCurrentCommandList()->ClearDepthStencilView(mRenderTarget.Get()->GetDSVDescriptor().cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+    }
 }
 
 void RenderingContext::ClearTextureUnit(uint32_t unit)
