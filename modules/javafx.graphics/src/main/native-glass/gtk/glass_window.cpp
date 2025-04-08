@@ -252,13 +252,6 @@ static gboolean event_realize(GtkWidget *widget, gpointer user_data) {
     return FALSE;
 }
 
-static gboolean event_screen_changed(GtkWidget *widget, GdkScreen *previous_screen, gpointer user_data) {
-    WindowContext *ctx = USER_PTR_TO_CTX(user_data);
-    ctx->process_screen_changed();
-
-    return FALSE;
-}
-
 //------------------------- SIGNALS END
 
 static int geometry_get_window_width(const WindowGeometry *windowGeometry) {
@@ -401,7 +394,6 @@ WindowContext::WindowContext(jobject _jwindow, WindowContext* _owner, long _scre
     g_signal_connect(G_OBJECT(gtk_widget), "configure-event", G_CALLBACK(event_configure), this);
     g_signal_connect_after(G_OBJECT(gtk_widget), "property-notify-event", G_CALLBACK(event_property_notify), this);
     g_signal_connect(G_OBJECT(gtk_widget), "draw", G_CALLBACK(event_draw), this);
-    g_signal_connect(G_OBJECT(gtk_widget), "screen-changed", G_CALLBACK(event_screen_changed), this);
     g_signal_connect(G_OBJECT(gtk_widget), "map-event", G_CALLBACK(event_map), this);
 
     if (gchar* app_name = get_application_name()) {
@@ -1083,7 +1075,7 @@ bool WindowContext::get_frame_extents_property(int *top, int *left,
 }
 
 void WindowContext::process_property_notify(GdkEventProperty *event) {
-    static GdkAtom atom_net_wm_state = gdk_atom_intern_static_string("_NET_WM_STATE");
+    g_print("PROPERTY NOTIFY\n");
 
     if (event->window == gdk_window) {
         if (event->atom == get_net_frame_extents_atom()) {
@@ -1231,27 +1223,25 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
         geometry.y = root_y;
     }
 
-    return false;
-}
-
-void WindowContext::process_screen_changed() {
     glong to_screen = getScreenPtrForLocation(geometry.x, geometry.y);
     if (to_screen != -1 && to_screen != screen) {
         if (jwindow) {
             //notify screen changed
             jobject jScreen = createJavaScreen(mainEnv, to_screen);
             mainEnv->CallVoidMethod(jwindow, jWindowNotifyMoveToAnotherScreen, jScreen);
-            CHECK_JNI_EXCEPTION(mainEnv)
+            CHECK_JNI_EXCEPTION_RET(mainEnv, false)
         }
         screen = to_screen;
     }
+
+    return false;
 }
 
 void WindowContext::update_window_constraints() {
-//    if (!is_window_floating(gdk_window)) {
-//        // window is not floating on the screen
-//        return;
-//    }
+    if (!is_window_floating(gdk_window)) {
+        // window is not floating on the screen
+        return;
+    }
 
     GdkGeometry hints;
 

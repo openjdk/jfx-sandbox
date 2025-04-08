@@ -447,6 +447,7 @@ static void process_events(GdkEvent* event, gpointer data) {
         if (event->any.type == GDK_PROPERTY_NOTIFY) {
             if (event->property.atom == gdk_atom_intern_static_string("_NET_WORKAREA")
                     || event->property.atom == gdk_atom_intern_static_string("_NET_CURRENT_DESKTOP")) {
+                g_print("call screen_settings_changed\n");
                 screen_settings_changed(gdk_screen_get_default(), NULL);
             }
         }

@@ -34,75 +34,6 @@
 jfloat OverrideUIScale = -1.0f;
 int DEFAULT_DPI = 96;
 
-static guint get_current_desktop(GdkScreen *screen) {
-    Display* display = gdk_x11_display_get_xdisplay(gdk_display_get_default());
-    Atom currentDesktopAtom = XInternAtom(display, "_NET_CURRENT_DESKTOP", True);
-    guint ret = 0;
-
-    Atom type;
-    int format;
-    gulong num, left;
-    unsigned long *data = NULL;
-
-    if (currentDesktopAtom == None) {
-        return 0;
-    }
-
-    int result = XGetWindowProperty(display,
-                                    GDK_WINDOW_XID(gdk_screen_get_root_window(screen)),
-                                    currentDesktopAtom, 0, G_MAXLONG, False, XA_CARDINAL,
-                                    &type, &format, &num, &left, (unsigned char **)&data);
-
-    if ((result == Success) && (data != NULL)) {
-        if (type == XA_CARDINAL && format == 32) {
-            ret = data[0];
-        }
-
-        XFree(data);
-    }
-
-    return ret;
-
-}
-
-static GdkRectangle get_screen_workarea(GdkScreen *screen) {
-    Display* display = gdk_x11_display_get_xdisplay(gdk_display_get_default());
-    GdkRectangle ret = { 0, 0, gdk_screen_get_width(screen), gdk_screen_get_height(screen)};
-
-    Atom workareaAtom = XInternAtom(display, "_NET_WORKAREA", True);
-
-    Atom type;
-    int format;
-    gulong num, left;
-    unsigned long *data = NULL;
-
-    if (workareaAtom == None) {
-        return ret;
-    }
-
-    int result = XGetWindowProperty(display,
-                                    GDK_WINDOW_XID(gdk_screen_get_root_window(screen)),
-                                    workareaAtom, 0, G_MAXLONG, False, AnyPropertyType,
-                                    &type, &format, &num, &left, (unsigned char **)&data);
-
-    if ((result == Success) && (data != NULL)) {
-        if (type != None && format == 32) {
-            guint current_desktop = get_current_desktop(screen);
-            if (current_desktop < num / 4) {
-                ret.x = data[current_desktop * 4];
-                ret.y = data[current_desktop * 4 + 1];
-                ret.width = data[current_desktop * 4 + 2];
-                ret.height = data[current_desktop * 4 + 3];
-            }
-        }
-
-        XFree(data);
-    }
-
-    return ret;
-
-}
-
 jfloat getUIScale(GdkScreen* screen) {
     jfloat uiScale;
     if (OverrideUIScale > 0.0f) {
@@ -128,7 +59,9 @@ jfloat getUIScale(GdkScreen* screen) {
 
 static jobject createJavaScreen(JNIEnv* env, GdkScreen* screen, gint monitor_idx)
 {
-    GdkRectangle workArea = get_screen_workarea(screen);
+    GdkRectangle workArea;
+    gdk_screen_get_monitor_workarea(screen, monitor_idx, &workArea);
+
     LOG4("Work Area: x:%d, y:%d, w:%d, h:%d\n", workArea.x, workArea.y, workArea.width, workArea.height);
 
     GdkRectangle monitor_geometry;
@@ -227,6 +160,8 @@ glong getScreenPtrForLocation(gint x, gint y) {
 void screen_settings_changed(GdkScreen* screen, gpointer user_data) {
     (void)screen;
     (void)user_data;
+
+    g_print("fn screen_settings_changed\n");
 
     mainEnv->CallStaticVoidMethod(jScreenCls, jScreenNotifySettingsChanged);
     LOG_EXCEPTION(mainEnv);

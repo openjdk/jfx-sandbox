@@ -201,7 +201,6 @@ public:
     void process_realize();
     void process_property_notify(GdkEventProperty*);
     bool process_configure(GdkEventConfigure*);
-    void process_screen_changed();
     void process_delete();
     void process_destroy();
 
