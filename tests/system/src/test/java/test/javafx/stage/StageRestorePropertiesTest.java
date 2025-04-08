@@ -31,12 +31,13 @@ import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import test.util.Util;
 
 import java.util.concurrent.CountDownLatch;
@@ -53,13 +54,12 @@ public class StageRestorePropertiesTest {
 
     private Stage stage;
 
-    @BeforeEach
-    public void initTest() {
-        CountDownLatch shownLatch = new CountDownLatch(1);
+    private void setupTest(StageStyle stageStyle) {
+       CountDownLatch shownLatch = new CountDownLatch(1);
 
         Platform.runLater(() -> {
             stage = new Stage();
-            stage.setTitle("Stage Restore Properties Test");
+            stage.initStyle(stageStyle);
             stage.setScene(new Scene(new StackPane(), Color.CHOCOLATE));
             stage.setWidth(300);
             stage.setHeight(300);
@@ -93,8 +93,10 @@ public class StageRestorePropertiesTest {
         }
     }
 
-    @Test
-    public void testUnFullscreenChangedPosition() throws Exception {
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    public void testUnFullscreenChangedPosition(StageStyle stageStyle) throws Exception {
+        setupTest(stageStyle);
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
@@ -109,14 +111,16 @@ public class StageRestorePropertiesTest {
         timeline.play();
 
         latch.await(5, TimeUnit.SECONDS);
-        Thread.sleep(300);
+        Util.sleep(300);
 
         assertEquals(POS_X, stage.getX(), "Window failed to restore position set while fullscreened");
         assertEquals(POS_Y, stage.getY(),  "Window failed to restore position set while fullscreened");
     }
 
-    @Test
-    public void testUnFullscreenChangedSize() throws Exception {
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    public void testUnFullscreenChangedSize(StageStyle stageStyle) throws Exception {
+        setupTest(stageStyle);
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
@@ -131,14 +135,16 @@ public class StageRestorePropertiesTest {
         timeline.play();
 
         latch.await(5, TimeUnit.SECONDS);
-        Thread.sleep(300);
+        Util.sleep(300);
 
         assertEquals(WIDTH, stage.getWidth(), "Window failed to restore size set while fullscreened");
         assertEquals(HEIGHT, stage.getHeight(),  "Window failed to restore size set while fullscreened");
     }
 
-    @Test
-    public void testUnMaximzeChangedPosition() throws Exception {
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    public void testUnMaximzeChangedPosition(StageStyle stageStyle) throws Exception {
+        setupTest(stageStyle);
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
@@ -153,14 +159,16 @@ public class StageRestorePropertiesTest {
         timeline.play();
 
         latch.await(5, TimeUnit.SECONDS);
-        Thread.sleep(300);
+        Util.sleep(300);
 
         assertEquals(POS_X, stage.getX(), "Window failed to restore position set while maximized");
         assertEquals(POS_Y, stage.getY(),  "Window failed to restore position set while maximized");
     }
 
-    @Test
-    public void testUnMaximizeChangedSize() throws Exception {
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    public void testUnMaximizeChangedSize(StageStyle stageStyle) throws Exception {
+        setupTest(stageStyle);
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
@@ -175,7 +183,7 @@ public class StageRestorePropertiesTest {
         timeline.play();
 
         latch.await(5, TimeUnit.SECONDS);
-        Thread.sleep(300);
+        Util.sleep(300);
 
         assertEquals(WIDTH, stage.getWidth(), "Window failed to restore size set while maximized");
         assertEquals(HEIGHT, stage.getHeight(),  "Window failed to restore size set while maximized");

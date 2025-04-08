@@ -31,12 +31,13 @@ import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import test.util.Util;
 
 import java.util.concurrent.CountDownLatch;
@@ -53,14 +54,12 @@ public class StagePropertiesRetentionTest {
 
     private Stage stage;
 
-    @BeforeEach
-    public void initTest() {
+    private void setupTest(StageStyle stageStyle) throws Exception {
         CountDownLatch shownLatch = new CountDownLatch(1);
-
         Platform.runLater(() -> {
             stage = new Stage();
-            stage.setTitle("Properties Retention Test");
             stage.setScene(new Scene(new StackPane(), Color.SEAGREEN));
+            stage.initStyle(stageStyle);
             stage.setWidth(WIDTH);
             stage.setHeight(HEIGHT);
             stage.setX(POS_X);
@@ -93,9 +92,10 @@ public class StagePropertiesRetentionTest {
         }
     }
 
-
-    @Test
-    public void testFullscreenShouldNotChangeStagesSize() throws Exception {
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    public void testFullscreenShouldNotChangeStagesSize(StageStyle stageStyle) throws Exception {
+        setupTest(stageStyle);
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
@@ -110,8 +110,10 @@ public class StagePropertiesRetentionTest {
         latch.await(5, TimeUnit.SECONDS);
     }
 
-    @Test
-    public void testFullscreenShouldNotChangeStagesLocation() throws Exception {
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    public void testFullscreenShouldNotChangeStagesLocation(StageStyle stageStyle) throws Exception {
+        setupTest(stageStyle);
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
@@ -126,8 +128,10 @@ public class StagePropertiesRetentionTest {
         latch.await(5, TimeUnit.SECONDS);
     }
 
-    @Test
-    public void testMaximizeShouldNotChangeStagesLocation() throws Exception {
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    public void testMaximizeShouldNotChangeStagesLocation(StageStyle stageStyle) throws Exception {
+        setupTest(stageStyle);
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
@@ -142,8 +146,10 @@ public class StagePropertiesRetentionTest {
         latch.await(5, TimeUnit.SECONDS);
     }
 
-    @Test
-    public void testMaximizeShouldNotChangeStagesSize() throws Exception {
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    public void testMaximizeShouldNotChangeStagesSize(StageStyle stageStyle) throws Exception {
+        setupTest(stageStyle);
         CountDownLatch latch = new CountDownLatch(1);
 
         Timeline timeline = new Timeline(
