@@ -85,6 +85,13 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::RingBuffer> mConstantRingBuffer; // used purely for CBuffers for Shaders
     NIPtr<Internal::Waitable> mMidFrameWaitable; // TODO: D3D12: This is constantly (de)allocated, avoid that.
 
+    struct Transforms
+    {
+        Coords_XYZW_FLOAT cameraPos;
+        Internal::Matrix<float> worldTransform;
+        Internal::Matrix<float> viewProjTransform;
+    } mTransforms;
+
     bool Build2DIndexBuffer();
     void AssembleVertexData(void* buffer, const Internal::MemoryView<float>& vertices,
                             const Internal::MemoryView<signed char>& colors, UINT elementCount);

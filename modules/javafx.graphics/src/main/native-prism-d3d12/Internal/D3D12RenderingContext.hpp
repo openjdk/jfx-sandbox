@@ -70,7 +70,6 @@ class RenderingContext
         PrimitiveTopologyRenderingParameter primitiveTopology;
         NativeTextureBank textures;
         RenderTargetRenderingParameter renderTarget;
-        TransformRenderingParameter transforms;
         ViewportRenderingParameter viewport;
     } mRuntimeParametersStash;
 
@@ -85,7 +84,6 @@ class RenderingContext
     ScissorRenderingParameter mScissor; // used when explicitly set by updateClipRect()
     ScissorRenderingParameter mDefaultScissor; // used when scissor testing is disabled
     ResourceRenderingStep mResources;
-    TransformRenderingParameter mTransforms;
     ViewportRenderingParameter mViewport;
 
     inline ScissorRenderingParameter& GetScissor()
@@ -116,9 +114,6 @@ public:
     void SetRenderTarget(const NIPtr<NativeRenderTarget>& renderTarget);
     void SetScissor(bool enabled, const D3D12_RECT& scissor);
     void SetTexture(uint32_t unit, const NIPtr<NativeTexture>& texture);
-    void SetCameraPos(const Coords_XYZW_FLOAT& pos);
-    void SetViewProjTransform(const Matrix<float>& transform);
-    void SetWorldTransform(const Matrix<float>& transform);
 
     void SetCompositeMode(CompositeMode mode);
     void SetCullMode(D3D12_CULL_MODE mode);

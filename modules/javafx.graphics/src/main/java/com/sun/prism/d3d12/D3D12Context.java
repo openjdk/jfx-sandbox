@@ -89,7 +89,7 @@ class D3D12Context extends BaseShaderContext {
         if (camera instanceof NGDefaultCamera) {
             ((NGDefaultCamera) camera).validate(w, h);
             camera.getProjViewTx(mViewProjTx);
-        } else {
+        } else if (camera != null) {
             camera.getProjViewTx(mViewProjTx);
             // TODO: D3D12: verify that this is the right solution. There may be
             // other use-cases where rendering needs different viewport size.
@@ -102,7 +102,6 @@ class D3D12Context extends BaseShaderContext {
 
         // Set projection view matrix
         mDevice.setViewProjTransform(mViewProjTx);
-
         mCameraPos = camera.getPositionInWorld(mCameraPos);
 
         return mState;
@@ -125,22 +124,23 @@ class D3D12Context extends BaseShaderContext {
         }
 
         final GeneralTransform3D perspectiveTransform = getPerspectiveTransformNoClone();
-        mScratchTx.setIdentity();
         if (xform.isIdentity() && perspectiveTransform.isIdentity()) {
-            // noop
+            mDevice.setWorldTransform(BaseTransform.IDENTITY_TRANSFORM);
         } else if (perspectiveTransform.isIdentity()) {
-            mScratchTx.mul(xform);
+            mDevice.setWorldTransform(xform);
         } else {
-            mScratchTx.mul(xform).mul(perspectiveTransform);
+            mScratchTx.setIdentity().mul(xform).mul(perspectiveTransform);
+            mDevice.setWorldTransform(mScratchTx);
         }
-
-        // TODO: D3D12: this does not take shader into account. Maybe it should?
-        mDevice.setWorldTransform(mScratchTx);
     }
 
     @Override
     protected void updateWorldTransform(BaseTransform xform) {
-        mDevice.setWorldTransform(xform);
+        if (xform == null) {
+            mDevice.setWorldTransform(BaseTransform.IDENTITY_TRANSFORM);
+        } else {
+            mDevice.setWorldTransform(xform);
+        }
     }
 
     @Override

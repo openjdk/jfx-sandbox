@@ -289,7 +289,6 @@ class RenderTargetRenderingParameter: public RenderingParameter<NIPtr<NativeRend
         if (!mParameter) return;
 
         mParameter->EnsureState(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-
         if (mParameter->IsDepthTestEnabled())
         {
             mParameter->EnsureDepthState(commandList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -321,63 +320,6 @@ class ResourceRenderingStep: public RenderingStep
     void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
     {
         state.resourceManager.ApplyResources(commandList);
-    }
-};
-
-struct Transforms
-{
-    Coords_XYZW_FLOAT cameraPos;
-    Matrix<float> worldTransform;
-    Matrix<float> viewProjTransform;
-};
-
-class TransformRenderingParameter: public RenderingParameter<Transforms>
-{
-    bool PrepareStep(RenderingContextState& state) override
-    {
-        switch (state.resourceManager.GetVertexShader()->GetMode())
-        {
-        case ShaderPipelineMode::UI_2D:
-        {
-            // 2D only requires a combined world-view-proj matrix; camera pos is ignored
-            Matrix<float> wvp = mParameter.viewProjTransform.Mul(mParameter.worldTransform);
-            return state.resourceManager.GetVertexShader()->SetConstants("WorldViewProj", wvp.Data(), sizeof(Matrix<float>));
-        }
-        case ShaderPipelineMode::PHONG_3D:
-        {
-            // 3D requires all parameters as separate components
-            return state.resourceManager.GetVertexShader()->SetConstants("gData", &mParameter, sizeof(Transforms));
-        }
-        default:
-        {
-            D3D12NI_LOG_ERROR("Unknown Shader Pipeline Mode");
-            return false;
-        }
-        }
-    }
-
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
-    {
-        // noop
-    }
-
-public:
-    void SetWorldTransform(const Matrix<float>& transform)
-    {
-        mParameter.worldTransform = transform;
-        FlagSet();
-    }
-
-    void SetViewProjTransform(const Matrix<float>& transform)
-    {
-        mParameter.viewProjTransform = transform;
-        FlagSet();
-    }
-
-    void SetCameraPos(const Coords_XYZW_FLOAT& pos)
-    {
-        mParameter.cameraPos = pos;
-        FlagSet();
     }
 };
 

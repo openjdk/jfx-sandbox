@@ -44,7 +44,6 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     , mScissor()
     , mDefaultScissor()
     , mResources()
-    , mTransforms()
     , mViewport()
 {
     D3D12NI_LOG_DEBUG("RenderingContext: D3D12 API opts are %s", Config::Instance().IsApiOptsEnabled() ? "enabled" : "disabled");
@@ -59,7 +58,6 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     };
     mRootSignature.SetDependency(psoDep);
     mDescriptorHeap.SetDependency(psoDep);
-    mTransforms.SetDependency(psoDep);
     mResources.SetDependency(psoDep);
 
     // Use the default scissor only if other custom scissor rect is not set
@@ -129,8 +127,8 @@ void RenderingContext::SetRenderTarget(const NIPtr<NativeRenderTarget>& renderTa
     D3D12NI_ZERO_STRUCT(viewport);
     viewport.Width = static_cast<float>(renderTarget->GetWidth());
     viewport.Height = static_cast<float>(renderTarget->GetHeight());
-    viewport.MinDepth = 0.0f;
-    viewport.MaxDepth = 1.0f;
+    viewport.MinDepth = -1.0f;
+    viewport.MaxDepth =  1.0f;
     viewport.TopLeftX = 0;
     viewport.TopLeftY = 0;
     mViewport.Set(viewport);
@@ -157,24 +155,6 @@ void RenderingContext::SetScissor(bool enabled, const D3D12_RECT& scissor)
 void RenderingContext::SetTexture(uint32_t unit, const NIPtr<NativeTexture>& texture)
 {
     mState.resourceManager.SetTexture(unit, texture);
-    ClearResourcesApplied();
-}
-
-void RenderingContext::SetCameraPos(const Coords_XYZW_FLOAT& pos)
-{
-    mTransforms.SetCameraPos(pos);
-    ClearResourcesApplied();
-}
-
-void RenderingContext::SetViewProjTransform(const Matrix<float>& transform)
-{
-    mTransforms.SetViewProjTransform(transform);
-    ClearResourcesApplied();
-}
-
-void RenderingContext::SetWorldTransform(const Matrix<float>& transform)
-{
-    mTransforms.SetWorldTransform(transform);
     ClearResourcesApplied();
 }
 
@@ -246,7 +226,6 @@ void RenderingContext::StashParamters()
     mRuntimeParametersStash.pipelineState.Set(mPipelineState.Get());
     mRuntimeParametersStash.primitiveTopology.Set(mPrimitiveTopology.Get());
     mRuntimeParametersStash.renderTarget.Set(mRenderTarget.Get());
-    mRuntimeParametersStash.transforms.Set(mTransforms.Get());
 
     for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
     {
@@ -259,7 +238,6 @@ void RenderingContext::RestoreStashedParameters()
     SetRenderTarget(mRuntimeParametersStash.renderTarget.Get());
     mPipelineState.Set(mRuntimeParametersStash.pipelineState.Get());
     mPrimitiveTopology.Set(mRuntimeParametersStash.primitiveTopology.Get());
-    mTransforms.Set(mRuntimeParametersStash.transforms.Get());
 
     for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
     {
@@ -270,7 +248,6 @@ void RenderingContext::RestoreStashedParameters()
 bool RenderingContext::Apply()
 {
     // Prepare rendering steps. These should do all necessary allocations.
-    if (!mTransforms.Prepare(mState)) return false;
     if (!mResources.Prepare(mState)) return false;
 
     // there can only be one Pipeline State on a command list
@@ -292,7 +269,6 @@ bool RenderingContext::Apply()
     mPipelineState.Apply(commandList, mState);
     mRootSignature.Apply(commandList, mState);
     mDescriptorHeap.Apply(commandList, mState);
-    mTransforms.Apply(commandList, mState);
     mResources.Apply(commandList, mState);
 
     mPrimitiveTopology.Apply(commandList, mState);
@@ -339,7 +315,6 @@ void RenderingContext::ClearAppliedFlags()
     mScissor.ClearApplied();
     mDefaultScissor.ClearApplied();
     mResources.ClearApplied();
-    mTransforms.ClearApplied();
     mViewport.ClearApplied();
 
     mComputePipelineState.ClearApplied();

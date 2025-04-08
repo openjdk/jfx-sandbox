@@ -521,6 +521,10 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     ibView.Format = DXGI_FORMAT_R16_UINT;
     mRenderingContext->SetIndexBuffer(ibView);
 
+    Internal::Matrix<float> wvp = mTransforms.viewProjTransform.Mul(mTransforms.worldTransform);
+    mPassthroughVS->SetConstants("WorldViewProj", wvp.Data(), sizeof(Internal::Matrix<float>));
+    mRenderingContext->ClearResourcesApplied();
+
     mRenderingContext->SetVertexShader(mPassthroughVS);
     mRenderingContext->SetPixelShader(mCurrent2DShader);
     mRenderingContext->SetCullMode(D3D12_CULL_MODE_NONE);
@@ -568,7 +572,9 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
         ps->SetConstantsInArray("gLight", i, meshView->GetPSLightSpecPtr(i), sizeof(PSLightSpec));
     }
 
+    mPhongVS->SetConstants("gData", &mTransforms, sizeof(Transforms));
     ps->SetConstants("gColor", &meshView->GetPSColorSpec(), sizeof(PSColorSpec));
+    mRenderingContext->ClearResourcesApplied();
 
     const NIPtr<NativeMesh>& mesh = meshView->GetMesh();
 
@@ -654,17 +660,17 @@ void NativeDevice::SetTexture(uint32_t unit, const NIPtr<NativeTexture>& texture
 
 void NativeDevice::SetCameraPos(const Coords_XYZW_FLOAT& pos)
 {
-    mRenderingContext->SetCameraPos(pos);
+    mTransforms.cameraPos = pos;
 }
 
 void NativeDevice::SetWorldTransform(const Internal::Matrix<float>& matrix)
 {
-    mRenderingContext->SetWorldTransform(matrix);
+    mTransforms.worldTransform = matrix;
 }
 
 void NativeDevice::SetViewProjTransform(const Internal::Matrix<float>& matrix)
 {
-    mRenderingContext->SetViewProjTransform(matrix);
+    mTransforms.viewProjTransform = matrix;
 }
 
 bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box_UINT32& src,
@@ -792,6 +798,7 @@ bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coo
 
         // temporarily store whatever context state we have right now
         mRenderingContext->StashParamters();
+        mPassthroughVS->SetConstants("WorldViewProj", Internal::Matrix<float>::IDENTITY.Data(), sizeof(Internal::Matrix<float>));
 
         mRenderingContext->SetVertexShader(mPassthroughVS);
         mRenderingContext->SetPixelShader(blitShader);
@@ -801,8 +808,6 @@ bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coo
 
         mRenderingContext->SetTexture(0, sourceTexture);
         mRenderingContext->SetRenderTarget(dstRT);
-        mRenderingContext->SetWorldTransform(Internal::Matrix<float>::IDENTITY);
-        mRenderingContext->SetViewProjTransform(Internal::Matrix<float>::IDENTITY);
         mRenderingContext->SetCompositeMode(CompositeMode::SRC);
 
         mRenderingContext->Apply();
