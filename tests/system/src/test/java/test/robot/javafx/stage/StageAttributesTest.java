@@ -25,6 +25,11 @@
 
 package test.robot.javafx.stage;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static test.util.Util.TIMEOUT;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
@@ -33,13 +38,6 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.junit.jupiter.api.Test;
 import test.robot.testharness.VisualTestBase;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static test.util.Util.TIMEOUT;
 
 public class StageAttributesTest extends VisualTestBase {
 
