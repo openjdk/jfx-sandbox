@@ -48,6 +48,7 @@
 #define MOUSE_BACK_BTN 8
 #define MOUSE_FORWARD_BTN 9
 
+
 static gboolean update_window_size_location_later(gpointer user_data) {
     WindowContext *ctx = ((WindowContext *) user_data);
     ctx->update_window_size_location();
@@ -432,20 +433,23 @@ jobject WindowContext::get_jwindow() {
 }
 
 bool WindowContext::isEnabled() {
-    if (jwindow) {
-        bool result = (JNI_TRUE == mainEnv->CallBooleanMethod(jwindow, jWindowIsEnabled));
-        LOG_EXCEPTION(mainEnv)
-        return result;
-    } else {
-        return false;
-    }
+    return !is_disabled;
+//    if (jwindow) {
+//        bool result = (JNI_TRUE == mainEnv->CallBooleanMethod(jwindow, jWindowIsEnabled));
+//        LOG_EXCEPTION(mainEnv)
+//        return result;
+//    } else {
+//        return false;
+//    }
 }
 
 void WindowContext::process_map() {
+    g_print("process_map\n");
     gdk_threads_add_idle((GSourceFunc) update_requested_state_later, this);
 }
 
 void WindowContext::process_focus(GdkEventFocus *event) {
+    g_print("process_focus\n");
     if (!event->in && WindowContext::sm_grab_window == this) {
         ungrab_focus();
     }
@@ -539,6 +543,7 @@ void WindowContext::process_delete() {
 }
 
 void WindowContext::process_repaint(GdkRectangle *rect) {
+    g_print("process_repaint\n");
     if (jview) {
         mainEnv->CallVoidMethod(jview, jViewNotifyRepaint, rect->x, rect->y,
                                   rect->width, rect->height);
@@ -899,6 +904,15 @@ void WindowContext::set_background(float r, float g, float b) {
     gtk_widget_override_background_color(gtk_widget, GTK_STATE_FLAG_NORMAL, &rgba);
 }
 
+GdkAtom WindowContext::get_net_frame_extents_atom() {
+    static GdkAtom atom = NULL;
+    if (atom == NULL) {
+        atom = gdk_atom_intern_static_string("_NET_FRAME_EXTENTS");
+    }
+    return atom;
+}
+
+
 void WindowContext::request_frame_extents() {
     Display *display = GDK_DISPLAY_XDISPLAY(gdk_window_get_display(gdk_window));
     static Atom rfeAtom = XInternAtom(display, "_NET_REQUEST_FRAME_EXTENTS", False);
@@ -1055,14 +1069,15 @@ bool WindowContext::get_frame_extents_property(int *top, int *left,
 }
 
 void WindowContext::process_property_notify(GdkEventProperty *event) {
-    if (event->window == gdk_window) {
-        if (event->atom == gdk_atom_intern_static_string("_NET_FRAME_EXTENTS")) {
-            update_frame_extents();
-        }
+    g_print("process_property_notify\n");
+
+    if (event->atom == get_net_frame_extents_atom()) {
+        update_frame_extents();
     }
 }
 
 void WindowContext::process_state(GdkEventWindowState *event) {
+    g_print("process_state\n");
     if (event->changed_mask & (GDK_WINDOW_STATE_ICONIFIED
                                 | GDK_WINDOW_STATE_MAXIMIZED
                                 | GDK_WINDOW_STATE_FULLSCREEN)) {
@@ -1131,6 +1146,7 @@ void WindowContext::process_state(GdkEventWindowState *event) {
 }
 
 void WindowContext::process_realize() {
+    g_print("process_realize\n");
     gdk_window = gtk_widget_get_window(gtk_widget);
 
     if (frame_type == TITLED) {

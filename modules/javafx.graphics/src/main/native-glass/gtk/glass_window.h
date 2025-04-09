@@ -245,6 +245,7 @@ private:
     void add_wmf(GdkWMFunction);
     void remove_wmf(GdkWMFunction);
     void notify_on_top(bool);
+    GdkAtom get_net_frame_extents_atom();
     void request_frame_extents();
     void update_frame_extents();
     void set_cached_extents(WindowFrameExtents ex);
