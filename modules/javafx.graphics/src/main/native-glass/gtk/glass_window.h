@@ -191,7 +191,7 @@ public:
 
     void process_map();
     void process_focus(GdkEventFocus*);
-    void process_paint();
+    void process_repaint(GdkRectangle*);
     void process_mouse_button(GdkEventButton*);
     void process_mouse_motion(GdkEventMotion*);
     void process_mouse_scroll(GdkEventScroll*);

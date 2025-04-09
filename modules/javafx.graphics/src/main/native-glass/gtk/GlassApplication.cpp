@@ -176,8 +176,7 @@ JNIEXPORT void JNICALL Java_com_sun_glass_ui_gtk_GtkApplication__1init
 
     glass_gdk_x11_display_set_window_scale(gdk_display_get_default(), 1);
 
-//TODO: disabled
-//    gdk_event_handler_set(process_events, NULL, NULL);
+    gdk_event_handler_set(process_events, NULL, NULL);
 
     GdkScreen *default_gdk_screen = gdk_screen_get_default();
     if (default_gdk_screen != NULL) {
@@ -186,9 +185,6 @@ JNIEXPORT void JNICALL Java_com_sun_glass_ui_gtk_GtkApplication__1init
         g_signal_connect(G_OBJECT(default_gdk_screen), "size-changed",
                          G_CALLBACK(screen_settings_changed), NULL);
     }
-
-    GdkWindow *root = gdk_screen_get_root_window(default_gdk_screen);
-    gdk_window_set_events(root, static_cast<GdkEventMask>(gdk_window_get_events(root) | GDK_PROPERTY_CHANGE_MASK));
 
     platformSupport = new PlatformSupport(env, obj);
 
@@ -391,6 +387,7 @@ JNIEXPORT jint JNICALL Java_com_sun_glass_ui_gtk_GtkApplication_staticView_1getM
     if (multi_click_dist == -1) {
         g_object_get(gtk_settings_get_default(), "gtk-double-click-distance", &multi_click_dist, NULL);
     }
+
     return multi_click_dist;
 }
 
@@ -432,27 +429,7 @@ JNIEXPORT jobject JNICALL Java_com_sun_glass_ui_gtk_GtkApplication_getPlatformPr
 
 } // extern "C"
 
-
 static void process_events(GdkEvent* event, gpointer data) {
-    GdkWindow* window = event->any.window;
-    WindowContext *ctx = window != NULL ? (WindowContext*)
-        g_object_get_data(G_OBJECT(window), GDK_WINDOW_DATA_CONTEXT) : NULL;
-
-    if (ctx != NULL) {
-        gtk_main_do_event(event);
-        return;
-    }
-
-    if (window == gdk_screen_get_root_window(gdk_screen_get_default())) {
-        if (event->any.type == GDK_PROPERTY_NOTIFY) {
-            if (event->property.atom == gdk_atom_intern_static_string("_NET_WORKAREA")
-                    || event->property.atom == gdk_atom_intern_static_string("_NET_CURRENT_DESKTOP")) {
-                g_print("call screen_settings_changed\n");
-                screen_settings_changed(gdk_screen_get_default(), NULL);
-            }
-        }
-    }
-
     //process only for non-FX windows
     if (process_events_prev != NULL) {
         (*process_events_prev)(event, data);
