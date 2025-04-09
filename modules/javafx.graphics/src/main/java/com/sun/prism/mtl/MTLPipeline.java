@@ -42,19 +42,16 @@ public class MTLPipeline extends GraphicsPipeline {
     private static MTLResourceFactory mtlResourceFactory;
 
     static {
-        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
-            String libName = "prism_mtl";
+        String libName = "prism_mtl";
 
-            if (PrismSettings.verbose) {
-                MTLLog.Debug("Loading native metal library, named: " + libName);
-            }
-            NativeLibLoader.loadLibrary(libName);
-            if (PrismSettings.verbose) {
-                MTLLog.Debug("Succeeded: Loading native metal library.");
-            }
-            theInstance = new MTLPipeline();
-            return null;
-        });
+        if (PrismSettings.verbose) {
+            MTLLog.Debug("Loading native metal library, named: " + libName);
+        }
+        NativeLibLoader.loadLibrary(libName);
+        if (PrismSettings.verbose) {
+            MTLLog.Debug("Succeeded: Loading native metal library.");
+        }
+        theInstance = new MTLPipeline();
     }
 
     private MTLPipeline() {
