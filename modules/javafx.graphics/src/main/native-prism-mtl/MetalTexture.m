@@ -187,7 +187,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
         [blitEncoder copyFromBuffer:pixelMTLBuf
-                       sourceOffset:(NSUInteger)offset
+                       sourceOffset:(NSUInteger)offset + (srcy * scanStride + srcx * sizeof(jbyte))
                   sourceBytesPerRow:(NSUInteger)scanStride
                 sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
                          sourceSize:MTLSizeMake(w, h, 1)
@@ -253,7 +253,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
         [blitEncoder copyFromBuffer:pixelMTLBuf
-                       sourceOffset:(NSUInteger)offset
+                       sourceOffset:(NSUInteger)offset + (srcy * scanStride + srcx * sizeof(jfloat))
                   sourceBytesPerRow:(NSUInteger)scanStride
                 sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
                          sourceSize:MTLSizeMake(w, h, 1)
@@ -319,7 +319,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
         [blitEncoder copyFromBuffer:pixelMTLBuf
-                       sourceOffset:(NSUInteger)offset
+                       sourceOffset:(NSUInteger)offset + (srcy * scanStride + srcx * sizeof(jint))
                   sourceBytesPerRow:(NSUInteger)scanStride
                 sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
                          sourceSize:MTLSizeMake(w, h, 1)
