@@ -119,13 +119,13 @@ bool WindowContext::hasIME() {
     return im_ctx.enabled;
 }
 
-bool WindowContext::filterIME(GdkEventKey* event) {
+bool WindowContext::filterIME(GdkEvent *event) {
     if (!hasIME()) {
         return false;
     }
 
     im_ctx.on_key_event = true;
-    bool filtered = gtk_im_context_filter_keypress(im_ctx.ctx, event);
+    bool filtered = gtk_im_context_filter_keypress(im_ctx.ctx, &event->key);
 
     if (filtered && im_ctx.send_keypress) {
         im_ctx.send_keypress = false;

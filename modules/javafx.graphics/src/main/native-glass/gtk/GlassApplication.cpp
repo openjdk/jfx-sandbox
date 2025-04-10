@@ -456,7 +456,8 @@ bool is_window_enabled_for_event(GdkWindow * window, WindowContext *ctx, gint ev
     return TRUE;
 }
 
-static void process_events(GdkEvent* event, gpointer data) {
+static void process_events(GdkEvent* event, gpointer data)
+{
     GdkWindow* window = event->any.window;
     WindowContext *ctx = window != NULL ? (WindowContext*)
         g_object_get_data(G_OBJECT(window), GDK_WINDOW_DATA_CONTEXT) : NULL;
@@ -468,7 +469,7 @@ static void process_events(GdkEvent* event, gpointer data) {
 
     EventsCounterHelper helper(ctx);
 
-    if ((event->type == GDK_KEY_PRESS || event->type == GDK_KEY_RELEASE) && ctx != NULL && ctx->filterIME(&event->key)) {
+    if ((event->type == GDK_KEY_PRESS || event->type == GDK_KEY_RELEASE) && ctx != NULL && ctx->filterIME(event)) {
         return;
     }
 

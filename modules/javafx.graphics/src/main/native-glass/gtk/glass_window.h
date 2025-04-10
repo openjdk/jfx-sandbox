@@ -22,7 +22,8 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-#pragma once
+#ifndef GLASS_WINDOW_H
+#define        GLASS_WINDOW_H
 
 #define USER_PTR_TO_CTX(value) ((WindowContext *) value)
 
@@ -165,7 +166,7 @@ public:
 
     bool isEnabled();
     bool hasIME();
-    bool filterIME(GdkEventKey *);
+    bool filterIME(GdkEvent*);
     void enableOrResetIME();
     void setOnPreEdit(bool);
     void commitIME(gchar *);
@@ -281,3 +282,6 @@ public:
         }
     }
 };
+
+#endif        /* GLASS_WINDOW_H */
+
