@@ -31,7 +31,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import test.robot.testharness.VisualTestBase;
@@ -98,11 +97,11 @@ public class StageAttributesTest extends VisualTestBase {
             assertTrue(topShownLatch.await(TIMEOUT, TimeUnit.MILLISECONDS), "Timeout waiting for top stage to be shown");
         }
 
-        sleep(300);
+        sleep(500);
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
     public void testIconifiedStage(StageStyle stageStyle) throws InterruptedException {
         setupStages(true, true, stageStyle);
 
@@ -114,7 +113,7 @@ public class StageAttributesTest extends VisualTestBase {
         });
 
         // wait a bit to let window system animate the change
-        sleep(300);
+        sleep(500);
 
         runAndWait(() -> {
             assertTrue(topStage.isIconified());
@@ -124,7 +123,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
     public void testMaximizedStage(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, true, stageStyle);
 
@@ -136,7 +135,7 @@ public class StageAttributesTest extends VisualTestBase {
         });
 
         // wait a bit to let window system animate the change
-        sleep(300);
+        sleep(500);
 
         runAndWait(() -> {
             assertTrue(topStage.isMaximized());
@@ -163,7 +162,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
     public void testFullScreenStage(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, true, stageStyle);
 
@@ -175,7 +174,7 @@ public class StageAttributesTest extends VisualTestBase {
         });
 
         // wait a bit to let window system animate the change
-        sleep(300);
+        sleep(500);
 
         runAndWait(() -> {
             assertTrue(topStage.isFullScreen());
@@ -197,7 +196,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
     public void testIconifiedStageBeforeShow(StageStyle stageStyle) throws InterruptedException {
         setupStages(true, false, stageStyle);
 
@@ -211,7 +210,7 @@ public class StageAttributesTest extends VisualTestBase {
         });
 
         // wait a bit to let window system animate the change
-        sleep(300);
+        sleep(500);
 
         runAndWait(() -> {
             assertTrue(topStage.isIconified());
@@ -223,7 +222,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
     public void testMaximizedStageBeforeShow(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, false, stageStyle);
 
@@ -236,7 +235,7 @@ public class StageAttributesTest extends VisualTestBase {
         });
 
         // wait a bit to let window system animate the change
-        sleep(300);
+        sleep(500);
 
         runAndWait(() -> {
             assertTrue(topStage.isMaximized());
@@ -263,7 +262,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
     public void testFullScreenStageBeforeShow(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, false, stageStyle);
 
@@ -276,7 +275,7 @@ public class StageAttributesTest extends VisualTestBase {
         });
 
         // wait a bit to let window system animate the change
-        sleep(300);
+        sleep(500);
 
         runAndWait(() -> {
             assertTrue(topStage.isFullScreen());
@@ -302,7 +301,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED"})
+    @EnumSource(names = {"UNDECORATED"})
     public void testAttributesPrecedence(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, false, stageStyle);
 
@@ -342,7 +341,6 @@ public class StageAttributesTest extends VisualTestBase {
 
             topStage.setFullScreen(false);
         });
-
 
         sleep(500);
 

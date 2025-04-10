@@ -96,9 +96,9 @@ public abstract class StageTestBase {
      */
     protected void setupStageStyle(StageStyle stageStyle, Consumer<Stage> pc) {
         if (stageStyle == StageStyle.TRANSPARENT) {
-            setupStage(pc);
-        } else  {
             setupTransparentStage(pc);
+        } else  {
+            setupStage(pc);
         }
     }
 
