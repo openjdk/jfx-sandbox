@@ -56,11 +56,16 @@ class GlassWindowEventHandler extends Window.EventHandler implements Supplier<Vo
                 stage.stageListener.changedIconified(true);
                 break;
             case WindowEvent.MAXIMIZE:
-                stage.stageListener.changedIconified(false);
                 stage.stageListener.changedMaximized(true);
                 break;
-            case WindowEvent.RESTORE:
+//            case WindowEvent.RESTORE:
+//                stage.stageListener.changedIconified(false);
+//                stage.stageListener.changedMaximized(false);
+//                break;
+            case WindowEvent.UNMINIMIZE:
                 stage.stageListener.changedIconified(false);
+                break;
+            case WindowEvent.UNMAXIMIZE:
                 stage.stageListener.changedMaximized(false);
                 break;
             case WindowEvent.MOVE: {

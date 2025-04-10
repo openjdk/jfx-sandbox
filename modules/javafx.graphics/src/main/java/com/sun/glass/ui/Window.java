@@ -164,10 +164,10 @@ public abstract class Window {
      */
     @Native public static final int MODAL = 1 << 9;
 
-    final static public class State {
-        @Native public static final int NORMAL = 1;
-        @Native public static final int MINIMIZED = 2;
-        @Native public static final int MAXIMIZED = 3;
+    public static final class State {
+        @Native public static final int NORMAL     = 1 << 0;
+        @Native public static final int MINIMIZED  = 1 << 2;
+        @Native public static final int MAXIMIZED  = 1 << 3;
     }
 
     /**
@@ -434,7 +434,7 @@ public abstract class Window {
 
     public boolean isMinimized() {
         Application.checkEventThread();
-        return (this.state == State.MINIMIZED);
+        return (this.state & State.MINIMIZED) != 0;
     }
 
     protected abstract boolean _minimize(long ptr, boolean minimize);
@@ -448,7 +448,7 @@ public abstract class Window {
 
     public boolean isMaximized() {
         Application.checkEventThread();
-        return (this.state == State.MAXIMIZED);
+        return (this.state & State.MAXIMIZED) != 0;
     }
 
     protected abstract boolean _maximize(long ptr, boolean maximize, boolean wasMaximized);
@@ -1204,28 +1204,41 @@ public abstract class Window {
      *   - WindowEvent.RESTORE
      */
     protected void notifyResize(final int type, final int width, final int height) {
-        if (type == WindowEvent.MINIMIZE) {
-            this.state = State.MINIMIZED;
-        } else {
-            if (type == WindowEvent.MAXIMIZE) {
-                this.state = State.MAXIMIZED;
-            } else { // WindowEvent.RESIZE or WindowEvent.RESTORE
-                this.state = State.NORMAL;
-            }
+        switch (type) {
+            case WindowEvent.MAXIMIZE:
+                this.state |= State.MAXIMIZED;
+                break;
+            case WindowEvent.UNMAXIMIZE:
+                this.state &= ~State.MAXIMIZED;
+                break;
+            case WindowEvent.MINIMIZE:
+                this.state |= State.MINIMIZED;
+                break;
+            case WindowEvent.UNMINIMIZE:
+                this.state &= ~State.MINIMIZED;
+                break;
+            default:
+                break;
+        }
+
+        System.out.printf("Minimized %d%n", this.state & State.MINIMIZED);
+        System.out.printf("Maximized %d%n", this.state & State.MAXIMIZED);
+
+        // update moveRect/resizeRect
+        if ((state & State.MINIMIZED) != 0) {
             this.width = width;
             this.height = height;
-
-            // update moveRect/resizeRect
-            if (this.helper != null){
-                this.helper.updateRectangles();
+            if (helper != null) {
+                helper.updateRectangles();
             }
         }
+
         handleWindowEvent(System.nanoTime(), type);
 
         /*
          * Send RESIZE notification as MAXIMIZE and RESTORE change the window size
          */
-        if (type == WindowEvent.MAXIMIZE || type == WindowEvent.RESTORE) {
+        if (type == WindowEvent.MAXIMIZE || WindowEvent.isRestore(type)) {
             handleWindowEvent(System.nanoTime(), WindowEvent.RESIZE);
         }
     }

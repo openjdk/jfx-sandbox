@@ -317,7 +317,7 @@ public class StageAttributesTest extends VisualTestBase {
         });
 
         // wait a bit to let window system animate the change
-        sleep(300);
+        sleep(500);
 
         runAndWait(() -> {
             assertTrue(topStage.isFullScreen());
@@ -330,7 +330,7 @@ public class StageAttributesTest extends VisualTestBase {
             topStage.setIconified(false);
         });
 
-        sleep(300);
+        sleep(500);
 
         runAndWait(() -> {
             assertTrue(topStage.isFullScreen());
@@ -344,7 +344,7 @@ public class StageAttributesTest extends VisualTestBase {
         });
 
 
-        sleep(300);
+        sleep(500);
 
         runAndWait(() -> {
             assertFalse(topStage.isFullScreen());
@@ -356,7 +356,7 @@ public class StageAttributesTest extends VisualTestBase {
             topStage.setMaximized(false);
         });
 
-        sleep(1000);
+        sleep(500);
 
         runAndWait(() -> {
             assertFalse(topStage.isFullScreen());
