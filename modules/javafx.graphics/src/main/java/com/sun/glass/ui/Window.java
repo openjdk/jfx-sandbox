@@ -1201,7 +1201,8 @@ public abstract class Window {
      *   - WindowEvent.RESIZE
      *   - WindowEvent.MINIMIZE
      *   - WindowEvent.MAXIMIZE
-     *   - WindowEvent.RESTORE
+     *   - WindowEvent.UNMINIMIZE
+     *   - WindowEvent.UNMAXIMIZE
      */
     protected void notifyResize(final int type, final int width, final int height) {
         switch (type) {
@@ -1224,21 +1225,11 @@ public abstract class Window {
         System.out.printf("Minimized %d%n", this.state & State.MINIMIZED);
         System.out.printf("Maximized %d%n", this.state & State.MAXIMIZED);
 
-        // update moveRect/resizeRect
-        if ((state & State.MINIMIZED) != 0) {
-            this.width = width;
-            this.height = height;
-            if (helper != null) {
-                helper.updateRectangles();
-            }
-        }
-
         handleWindowEvent(System.nanoTime(), type);
 
-        /*
-         * Send RESIZE notification as MAXIMIZE and RESTORE change the window size
-         */
-        if (type == WindowEvent.MAXIMIZE || WindowEvent.isRestore(type)) {
+        if (type != WindowEvent.MINIMIZE) {
+            this.width = width;
+            this.height = height;
             handleWindowEvent(System.nanoTime(), WindowEvent.RESIZE);
         }
     }
