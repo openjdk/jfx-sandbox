@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class StageProgamaticallyChangeSizeWhileUnresizableTest extends StageTestBase {
+public class StageProgamaticallyResizeUnresizableTest extends StageTestBase {
     private static final int WIDTH = 300;
     private static final int HEIGHT = 300;
 
@@ -70,7 +70,7 @@ public class StageProgamaticallyChangeSizeWhileUnresizableTest extends StageTest
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
     public void testMaximizeUnresizable(StageStyle stageStyle) throws Exception {
         setupStageStyle(stageStyle, s -> {
             s.initStyle(stageStyle);
@@ -94,7 +94,7 @@ public class StageProgamaticallyChangeSizeWhileUnresizableTest extends StageTest
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
     public void testMaximizeMaxSize(StageStyle stageStyle) throws Exception {
         int maxSize = 500;
 
@@ -134,7 +134,7 @@ public class StageProgamaticallyChangeSizeWhileUnresizableTest extends StageTest
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
     public void testMaxSizeShouldBeProgramaticallyResized(StageStyle stageStyle) throws Exception {
         int maxSize = 300;
         int newSize = 500;

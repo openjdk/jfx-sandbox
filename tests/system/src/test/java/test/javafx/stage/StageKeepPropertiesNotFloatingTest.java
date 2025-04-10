@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class StageShouldNotChangePropertiesWhileNotFloatingTest extends StageTestBase {
+public class StageKeepPropertiesNotFloatingTest extends StageTestBase {
     private static final int POS_X = 100;
     private static final int POS_Y = 150;
     private static final int WIDTH = 100;
@@ -57,7 +57,7 @@ public class StageShouldNotChangePropertiesWhileNotFloatingTest extends StageTes
 
     @ParameterizedTest
     @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testFullscreenShouldNotChangeProperties(StageStyle stageStyle) throws InterruptedException {
+    public void testFullscreenShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, null);
 
         doTimeLine(() -> getStage().setFullScreen(true),
@@ -71,7 +71,7 @@ public class StageShouldNotChangePropertiesWhileNotFloatingTest extends StageTes
 
     @ParameterizedTest
     @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testMaximizeShouldNotChangeProperties(StageStyle stageStyle) throws InterruptedException {
+    public void testMaximizeShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, null);
 
         doTimeLine(() -> getStage().setMaximized(true),
