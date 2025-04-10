@@ -40,36 +40,6 @@ public class StageProgamaticallyResizeUnresizableTest extends StageTestBase {
     private static final int HEIGHT = 300;
 
     @ParameterizedTest
-    @EnumSource(names = {"UNDECORATED", "TRANSPARENT"})
-    public void testMaximizeUndecorated(StageStyle stageStyle) throws Exception {
-        int pos = 100;
-
-        setupStageStyle(stageStyle, s -> {
-            s.setX(pos);
-            s.setY(pos);
-            s.setWidth(WIDTH);
-            s.setHeight(HEIGHT);
-        });
-
-        CountDownLatch latch = new CountDownLatch(1);
-
-        getStage().maximizedProperty().addListener((observable, oldValue, newValue) -> {
-            if (Boolean.TRUE.equals(newValue)) {
-                latch.countDown();
-            }
-        });
-
-        Util.runAndWait(() -> getStage().setMaximized(true));
-        latch.await(5, TimeUnit.SECONDS);
-
-        Util.sleep(500);
-
-        assertTrue(getStage().isMaximized(), "Stage should be maximized");
-        assertEquals(pos, getStage().getX(), "Stage maximized position changed");
-        assertEquals(pos, getStage().getY(), "Stage maximized position changed");
-    }
-
-    @ParameterizedTest
     @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
     public void testMaximizeUnresizable(StageStyle stageStyle) throws Exception {
         setupStageStyle(stageStyle, s -> {

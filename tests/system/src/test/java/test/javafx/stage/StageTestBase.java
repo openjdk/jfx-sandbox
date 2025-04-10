@@ -52,6 +52,7 @@ public abstract class StageTestBase {
 
             stage = new Stage();
             stage.setScene(new Scene(new StackPane(), Color.HOTPINK));
+            stage.setAlwaysOnTop(true);
             if (pc != null) {
                 pc.accept(stage);
             }
@@ -75,6 +76,7 @@ public abstract class StageTestBase {
             Scene scene = new Scene(root);
             scene.setFill(Color.TRANSPARENT);
             stage.setScene(scene);
+            stage.setAlwaysOnTop(true);
             if (pc != null) {
                 pc.accept(stage);
             }

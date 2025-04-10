@@ -103,9 +103,9 @@ static gboolean is_window_floating(GdkWindow *gdk_window) {
     if (GDK_IS_WINDOW(gdk_window)) {
         GdkWindowState state = gdk_window_get_state(gdk_window);
 
-        return (state & GDK_WINDOW_STATE_ICONIFIED) == 0
-            && (state & GDK_WINDOW_STATE_MAXIMIZED) == 0
-            && (state & GDK_WINDOW_STATE_FULLSCREEN) == 0;
+        return (state & GDK_WINDOW_STATE_ICONIFIED)
+            || (state & GDK_WINDOW_STATE_MAXIMIZED)
+            || (state & GDK_WINDOW_STATE_FULLSCREEN);
     }
 
     return FALSE;
@@ -944,19 +944,21 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
     geometry.view_y = origin_y - root_y;
 
     if (jwindow) {
-        mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
-                 com_sun_glass_events_WindowEvent_RESIZE,
-                 ww, wh);
-        CHECK_JNI_EXCEPTION_RET(mainEnv, false)
+        if ((state & GDK_WINDOW_STATE_MAXIMIZED) == 0
+            && (state & GDK_WINDOW_STATE_FULLSCREEN == 0)) {
+            mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
+                     com_sun_glass_events_WindowEvent_RESIZE,
+                     ww, wh);
+            CHECK_JNI_EXCEPTION_RET(mainEnv, false)
+
+            mainEnv->CallVoidMethod(jwindow, jWindowNotifyMove, root_x, root_y);
+            CHECK_JNI_EXCEPTION_RET(mainEnv, false)
+        }
 
         if (jview) {
             mainEnv->CallVoidMethod(jview, jViewNotifyResize, event->width, event->height);
             CHECK_JNI_EXCEPTION_RET(mainEnv, false)
         }
-
-        //TODO: avoid reporting if not moved?
-        mainEnv->CallVoidMethod(jwindow, jWindowNotifyMove, root_x, root_y);
-        CHECK_JNI_EXCEPTION_RET(mainEnv, false)
     }
 
     // Floating

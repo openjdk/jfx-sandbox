@@ -51,6 +51,8 @@ public class StageMaximizeUndecoratedTest extends StageTestBase {
             s.setHeight(HEIGHT);
         });
 
+        Util.sleep(300);
+
         CountDownLatch latch = new CountDownLatch(1);
 
         getStage().maximizedProperty().addListener((observable, oldValue, newValue) -> {
@@ -62,7 +64,7 @@ public class StageMaximizeUndecoratedTest extends StageTestBase {
         Util.runAndWait(() -> getStage().setMaximized(true));
         latch.await(5, TimeUnit.SECONDS);
 
-        Util.sleep(500);
+        Util.sleep(300);
 
         assertTrue(getStage().isMaximized(), "Stage should be maximized");
         assertEquals(pos, getStage().getX(), "Stage maximized position changed");
