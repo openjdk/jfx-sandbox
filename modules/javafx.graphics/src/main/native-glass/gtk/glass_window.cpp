@@ -896,7 +896,6 @@ void WindowContext::process_state(GdkEventWindowState *event) {
 
     // In case the size or location changed while maximized of fullscreened
     if (restored && geometry.needs_to_restore_size) {
-        g_print("RESTORED\n");
         update_window_size_location();
     }
 }
@@ -932,8 +931,8 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
     int ww = event->width + geometry.extents.left + geometry.extents.right;
     int wh = event->height + geometry.extents.top + geometry.extents.bottom;
 
-    g_print("Configure Event - send_event: %d, x: %d, y: %d, width: %d, height: %d\n",
-            event->send_event, event->x, event->y, event->width, event->height);
+//    g_print("Configure Event - send_event: %d, x: %d, y: %d, width: %d, height: %d\n",
+//            event->send_event, event->x, event->y, event->width, event->height);
 
     gint root_x, root_y, origin_x, origin_y;
     gdk_window_get_root_origin(gdk_window, &root_x, &root_y);
@@ -1063,8 +1062,8 @@ void WindowContext::set_visible(bool visible) {
 
 void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h, int cw, int ch,
                                   float gravity_x, float gravity_y) {
-     fprintf(stderr, "set_bounds -> x = %d, y = %d, xset = %d, yset = %d, w = %d, h = %d, cw = %d, ch = %d, gx = %f, gy = %f\n",
-            x, y, xSet, ySet, w, h, cw, ch, gravity_x, gravity_y);
+//     g_print("set_bounds -> x = %d, y = %d, xset = %d, yset = %d, w = %d, h = %d, cw = %d, ch = %d, gx = %f, gy = %f\n",
+//            x, y, xSet, ySet, w, h, cw, ch, gravity_x, gravity_y);
     // newW / newH are view/content sizes
     int newW = 0;
     int newH = 0;
