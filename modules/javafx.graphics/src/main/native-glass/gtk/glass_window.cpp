@@ -36,8 +36,6 @@
 
 #include <com_sun_glass_ui_Window_Level.h>
 
-#include <X11/extensions/Xdamage.h> // for Damage events (needs libXdamage-dev)
-
 #include <cairo.h>
 #include <cairo-xlib.h>
 #include <gdk/gdkx.h>
@@ -49,7 +47,6 @@
 
 #define MOUSE_BACK_BTN 8
 #define MOUSE_FORWARD_BTN 9
-
 
 static gboolean event_realize(GtkWidget *widget, gpointer user_data) {
     WindowContext *ctx = USER_PTR_TO_CTX(user_data);
@@ -221,13 +218,6 @@ jobject WindowContext::get_jwindow() {
 
 bool WindowContext::isEnabled() {
     return !is_disabled;
-//    if (jwindow) {
-//        bool result = (JNI_TRUE == mainEnv->CallBooleanMethod(jwindow, jWindowIsEnabled));
-//        LOG_EXCEPTION(mainEnv)
-//        return result;
-//    } else {
-//        return false;
-//    }
 }
 
 void WindowContext::process_map() {

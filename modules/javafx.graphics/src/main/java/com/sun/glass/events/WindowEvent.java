@@ -51,12 +51,6 @@ public class WindowEvent {
     @Native final static public int FOCUS_DISABLED        = 545;
     @Native final static public int FOCUS_UNGRAB          = 546;
 
-    public static boolean isRestore(final int type) {
-        return switch (type) {
-            case RESTORE, UNMAXIMIZE, UNMINIMIZE -> true;
-            default -> false;
-        };
-    }
 
     public static String getEventName(final int eventType) {
         return switch (eventType) {

@@ -182,4 +182,11 @@ class GtkWindow extends Window {
         long ptr = super.getRawHandle();
         return ptr == 0L ? 0L : _getNativeWindowImpl(ptr);
     }
+
+    @Override
+    protected void notifyMove(int x, int y) {
+        if (this.x != x || this.y != y) {
+            super.notifyMove(x, y);
+        }
+    }
 }
