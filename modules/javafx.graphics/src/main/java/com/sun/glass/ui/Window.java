@@ -1222,9 +1222,6 @@ public abstract class Window {
                 break;
         }
 
-        System.out.printf("Minimized %d%n", this.state & State.MINIMIZED);
-        System.out.printf("Maximized %d%n", this.state & State.MAXIMIZED);
-
         handleWindowEvent(System.nanoTime(), type);
 
         if (type != WindowEvent.MINIMIZE) {
