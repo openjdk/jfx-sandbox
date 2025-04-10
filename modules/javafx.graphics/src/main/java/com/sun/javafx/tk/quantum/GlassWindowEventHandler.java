@@ -58,12 +58,13 @@ class GlassWindowEventHandler extends Window.EventHandler implements Supplier<Vo
             case WindowEvent.MAXIMIZE:
                 stage.stageListener.changedMaximized(true);
                 break;
-//            case WindowEvent.RESTORE:
-//                stage.stageListener.changedIconified(false);
-//                stage.stageListener.changedMaximized(false);
-//                break;
+            case WindowEvent.RESTORE:
+                stage.stageListener.changedIconified(false);
+                stage.stageListener.changedMaximized(false);
+                break;
             case WindowEvent.UNMINIMIZE:
                 stage.stageListener.changedIconified(false);
+                repaint();
                 break;
             case WindowEvent.UNMAXIMIZE:
                 stage.stageListener.changedMaximized(false);
@@ -89,13 +90,7 @@ class GlassWindowEventHandler extends Window.EventHandler implements Supplier<Vo
                 stage.stageListener.changedLocation(newx, newy);
                 //We need to sync the new x,y for painting
                 if (!Application.GetApplication().hasWindowManager()) {
-                    QuantumToolkit.runWithRenderLock(() -> {
-                        GlassScene scene = stage.getScene();
-                        if (scene != null) {
-                            scene.updateSceneState();
-                        }
-                        return null;
-                    });
+                    repaint();
                 }
                 break;
             }
@@ -111,14 +106,7 @@ class GlassWindowEventHandler extends Window.EventHandler implements Supplier<Vo
                 float outScaleY = window.getOutputScaleY();
                 stage.stageListener.changedScale(outScaleX, outScaleY);
                 // We need to sync the new scales for painting
-                QuantumToolkit.runWithRenderLock(() -> {
-                    GlassScene scene = stage.getScene();
-                    if (scene != null) {
-                        scene.entireSceneNeedsRepaint();
-                        scene.updateSceneState();
-                    }
-                    return null;
-                });
+                repaint();
                 break;
             }
             case WindowEvent.FOCUS_GAINED:
@@ -156,6 +144,16 @@ class GlassWindowEventHandler extends Window.EventHandler implements Supplier<Vo
                 break;
         }
         return null;
+    }
+
+    private void repaint() {
+        QuantumToolkit.runWithRenderLock(() -> {
+            GlassScene scene = stage.getScene();
+            if (scene != null) {
+                scene.updateSceneState();
+            }
+            return null;
+        });
     }
 
     @Override

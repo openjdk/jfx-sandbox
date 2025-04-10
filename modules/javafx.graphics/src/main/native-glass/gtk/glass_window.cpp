@@ -355,7 +355,7 @@ void WindowContext::process_delete() {
 }
 
 void WindowContext::process_repaint(GdkRectangle *rect) {
-    g_print("process_repaint\n");
+//    g_print("process_repaint\n");
     if (jview) {
         mainEnv->CallVoidMethod(jview, jViewNotifyRepaint, rect->x, rect->y,
                                   rect->width, rect->height);
@@ -984,16 +984,13 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
 
     // Work around to ignore the event if the window should be fullscreened
     if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN) && (state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
+        g_print("process_configure ignored while waiting for fullscreen\n");
         return true;
     }
 
     if (state & GDK_WINDOW_STATE_ICONIFIED) {
         g_print("process_configure / GDK_WINDOW_STATE_ICONIFIED\n");
         return false;
-    }
-
-    if (state & GDK_WINDOW_STATE_MAXIMIZED) {
-        g_print("process_configure / GDK_WINDOW_STATE_MAXIMIZED\n");
     }
 
     int ww = event->width + geometry.extents.left + geometry.extents.right;
@@ -1012,14 +1009,11 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
     geometry.view_y = origin_y - root_y;
 
     if (jwindow) {
-//        //TODO: report state / size?
-        if(jwindow) {
-            mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
-                     com_sun_glass_events_WindowEvent_RESIZE,
-                     ww, wh);
-            CHECK_JNI_EXCEPTION_RET(mainEnv, false)
-        }
-
+        g_print("jWindowNotifyResize: %d, %d\n", ww, wh);
+        mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
+                 com_sun_glass_events_WindowEvent_RESIZE,
+                 ww, wh);
+        CHECK_JNI_EXCEPTION_RET(mainEnv, false)
 
         if (jview) {
             g_print("jViewNotifyResize: %d, %d\n", event->width, event->height);
