@@ -55,6 +55,13 @@ static gboolean event_realize(GtkWidget *widget, gpointer user_data) {
     return FALSE;
 }
 
+static gboolean update_requested_state_later(gpointer user_data) {
+    WindowContext *ctx = USER_PTR_TO_CTX(user_data);
+    ctx->update_requested_state();
+
+    return G_SOURCE_REMOVE;
+}
+
 static int geometry_get_window_width(const WindowGeometry *windowGeometry) {
      return (windowGeometry->final_width.type == BOUNDSTYPE_WINDOW)
                    ? windowGeometry->final_width.value
@@ -887,6 +894,8 @@ void WindowContext::process_state(GdkEventWindowState *event) {
                  ww, wh);
         CHECK_JNI_EXCEPTION(mainEnv)
     }
+
+//    g_idle_add((GSourceFunc) update_requested_state_later, this);
 
     // this only accounts MAXIMIZED and FULLSCREEN
     bool restored = event->changed_mask & (GDK_WINDOW_STATE_MAXIMIZED

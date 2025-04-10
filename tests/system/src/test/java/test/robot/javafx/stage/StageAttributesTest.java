@@ -38,6 +38,7 @@ import test.robot.testharness.VisualTestBase;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static test.util.Util.TIMEOUT;
@@ -301,7 +302,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"UNDECORATED"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
     public void testAttributesPrecedence(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, false, stageStyle);
 
@@ -319,9 +320,7 @@ public class StageAttributesTest extends VisualTestBase {
         sleep(500);
 
         runAndWait(() -> {
-            assertTrue(topStage.isFullScreen());
-            assertTrue(topStage.isMaximized());
-            assertTrue(topStage.isIconified());
+            assertStates(true, true, true);
 
             Color color = getColor(200, 200);
             assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
@@ -332,9 +331,7 @@ public class StageAttributesTest extends VisualTestBase {
         sleep(500);
 
         runAndWait(() -> {
-            assertTrue(topStage.isFullScreen());
-            assertFalse(topStage.isIconified());
-            assertTrue(topStage.isMaximized());
+            assertStates(true, false, true);
 
             Color color = getColor(200, 200);
             assertColorEquals(TOP_COLOR, color, TOLERANCE);
@@ -345,9 +342,7 @@ public class StageAttributesTest extends VisualTestBase {
         sleep(500);
 
         runAndWait(() -> {
-            assertFalse(topStage.isFullScreen());
-            assertFalse(topStage.isIconified());
-            assertTrue(topStage.isMaximized());
+            assertStates(false, false, true);
 
             Color color = getColor(200, 200);
             assertColorEquals(TOP_COLOR, color, TOLERANCE);
@@ -357,12 +352,16 @@ public class StageAttributesTest extends VisualTestBase {
         sleep(500);
 
         runAndWait(() -> {
-            assertFalse(topStage.isFullScreen());
-            assertFalse(topStage.isIconified());
-            assertFalse(topStage.isMaximized());
+            assertStates(false, false, false);
 
             Color color = getColor(200, 200);
             assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
         });
+    }
+
+    private void assertStates(boolean fullScreen, boolean iconified, boolean maximized) {
+        assertEquals(fullScreen, topStage.isFullScreen());
+        assertEquals(iconified, topStage.isIconified());
+        assertEquals(maximized, topStage.isMaximized());
     }
 }
