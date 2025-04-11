@@ -138,6 +138,7 @@ bool PSOManager::ConstructNewPSO(const GraphicsPSOParameters& params)
     desc.RasterizerState.CullMode = params.cullMode;
     desc.RasterizerState.FillMode = params.fillMode;
     desc.RasterizerState.FrontCounterClockwise = true;
+    desc.RasterizerState.DepthClipEnable = true;
 
     desc.DepthStencilState.StencilEnable = false;
 

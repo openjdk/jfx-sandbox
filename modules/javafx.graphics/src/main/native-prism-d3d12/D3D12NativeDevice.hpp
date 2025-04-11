@@ -79,6 +79,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::Shader> mPassthroughVS;
     NIPtr<Internal::Shader> mPhongVS;
     NIPtr<Internal::Shader> mCurrent2DShader;
+    CompositeMode m2DCompositeMode;
     NIPtr<Internal::CommandListPool> mCommandListPool;
     NIPtr<Internal::Buffer> m2DIndexBuffer;
     NIPtr<Internal::RingBuffer> mRingBuffer; // used for larger data (ex. 2D Vertex Buffer, texture upload)

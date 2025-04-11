@@ -521,10 +521,12 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     ibView.Format = DXGI_FORMAT_R16_UINT;
     mRenderingContext->SetIndexBuffer(ibView);
 
+    // TODO this SetConstants call should be done more efficiently ie. only when transforms change
     Internal::Matrix<float> wvp = mTransforms.viewProjTransform.Mul(mTransforms.worldTransform);
     mPassthroughVS->SetConstants("WorldViewProj", wvp.Data(), sizeof(Internal::Matrix<float>));
     mRenderingContext->ClearResourcesApplied();
 
+    mRenderingContext->SetCompositeMode(m2DCompositeMode);
     mRenderingContext->SetVertexShader(mPassthroughVS);
     mRenderingContext->SetPixelShader(mCurrent2DShader);
     mRenderingContext->SetCullMode(D3D12_CULL_MODE_NONE);
@@ -612,7 +614,7 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
 
 void NativeDevice::SetCompositeMode(CompositeMode mode)
 {
-    mRenderingContext->SetCompositeMode(mode);
+    m2DCompositeMode = mode;
 }
 
 void NativeDevice::UnsetPixelShader()

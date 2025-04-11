@@ -135,8 +135,8 @@ void RenderingContext::SetRenderTarget(const NIPtr<NativeRenderTarget>& renderTa
     D3D12NI_ZERO_STRUCT(viewport);
     viewport.Width = static_cast<float>(renderTarget->GetWidth());
     viewport.Height = static_cast<float>(renderTarget->GetHeight());
-    viewport.MinDepth = -1.0f;
-    viewport.MaxDepth =  1.0f;
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
     viewport.TopLeftX = 0;
     viewport.TopLeftY = 0;
     mViewport.Set(viewport);
@@ -170,17 +170,22 @@ void RenderingContext::SetTexture(uint32_t unit, const NIPtr<NativeTexture>& tex
 
 void RenderingContext::SetCompositeMode(CompositeMode mode)
 {
+    if (mode == mPipelineState.Get().compositeMode) return;
+
     mPipelineState.SetCompositeMode(mode);
-    ClearResourcesApplied();
 }
 
 void RenderingContext::SetCullMode(D3D12_CULL_MODE mode)
 {
+    if (mode == mPipelineState.Get().cullMode) return;
+
     mPipelineState.SetCullMode(mode);
 }
 
 void RenderingContext::SetFillMode(D3D12_FILL_MODE mode)
 {
+    if (mode == mPipelineState.Get().fillMode) return;
+
     mPipelineState.SetFillMode(mode);
 }
 

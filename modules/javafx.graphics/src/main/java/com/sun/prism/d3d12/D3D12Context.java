@@ -55,6 +55,7 @@ class D3D12Context extends BaseShaderContext {
     private static final Affine3D mScratchAffine3DTx = new Affine3D();
     private GeneralTransform3D mScratchTx = new GeneralTransform3D();
     private GeneralTransform3D mViewProjTx = new GeneralTransform3D();
+    private static double[] tempAdjustClipSpaceMat = new double[16];
 
     D3D12Context(D3D12NativeDevice device, Screen screen, D3D12ResourceFactory factory) {
         super(screen, factory, NUM_QUADS);
@@ -75,6 +76,23 @@ class D3D12Context extends BaseShaderContext {
         return maxSamples < 2 ? 1 : (maxSamples < 4 ? 2 : 4);
     }
 
+    /**
+     * OpenGL projection transform use z-range of [-1, 1] while D3D expects it
+     * to be [0, 1], so we need to adjust the matrix, see JDK-8123305.
+     * NOTE: Even though in 12 we can define Viewport dimensions (see NI
+     * RenderingContext::SetRenderTarget) the limits for min/max depth are still
+     * in range 0 to 1, so this step is necessary with D3D12 as well.
+     */
+    private GeneralTransform3D adjustClipSpace(GeneralTransform3D projViewTx) {
+        double[] m = projViewTx.get(tempAdjustClipSpaceMat);
+        m[8] = (m[8] + m[12])/2;
+        m[9] = (m[9] + m[13])/2;
+        m[10] = (m[10] + m[14])/2;
+        m[11] = (m[11] + m[15])/2;
+        projViewTx.set(m);
+        return projViewTx;
+    }
+
     @Override
     protected State updateRenderTarget(RenderTarget target, NGCamera camera, boolean depthTest) {
         if (checkDisposed()) return null;
@@ -88,9 +106,9 @@ class D3D12Context extends BaseShaderContext {
         // Need to validate the camera before getting its computed data.
         if (camera instanceof NGDefaultCamera) {
             ((NGDefaultCamera) camera).validate(w, h);
-            camera.getProjViewTx(mViewProjTx);
+            mViewProjTx = adjustClipSpace(camera.getProjViewTx(mViewProjTx));
         } else if (camera != null) {
-            camera.getProjViewTx(mViewProjTx);
+            mViewProjTx = adjustClipSpace(camera.getProjViewTx(mViewProjTx));
             // TODO: D3D12: verify that this is the right solution. There may be
             // other use-cases where rendering needs different viewport size.
             double vw = camera.getViewWidth();
