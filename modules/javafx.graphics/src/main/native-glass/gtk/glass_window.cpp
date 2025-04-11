@@ -555,8 +555,9 @@ void WindowContext::process_key(GdkEventKey *event) {
             glassModifier);
     CHECK_JNI_EXCEPTION(mainEnv)
 
+    // TYPED events should only be sent for printable characters.
     // jview is checked again because previous call might be an exit key
-    if (press && key > 0 && jview) { // TYPED events should only be sent for printable characters.
+    if (press && key > 0 && jview) {
         mainEnv->CallVoidMethod(jview, jViewNotifyKey,
                 com_sun_glass_events_KeyEvent_TYPED,
                 com_sun_glass_events_KeyEvent_VK_UNDEFINED,
@@ -928,7 +929,8 @@ void WindowContext::process_realize() {
 bool WindowContext::process_configure(GdkEventConfigure *event) {
     GdkWindowState state = gdk_window_get_state(gdk_window);
 
-    // Work around to ignore the event if the window should be fullscreened
+    // Workaround: Ignore this event if the window is meant to be fullscreen (can happen on Xorg if fullscreen
+    // is set before showing the window)
     if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN) && (state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
         return true;
     }
@@ -952,9 +954,15 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
     geometry.view_x = origin_x - root_x;
     geometry.view_y = origin_y - root_y;
 
-    if (jwindow) {
-        if ((state & GDK_WINDOW_STATE_MAXIMIZED) == 0
-            && (state & GDK_WINDOW_STATE_FULLSCREEN == 0)) {
+    if (jview) {
+        mainEnv->CallVoidMethod(jview, jViewNotifyResize, event->width, event->height);
+        CHECK_JNI_EXCEPTION_RET(mainEnv, false)
+    }
+
+    // Do not save or report dimensions and location while not floating on the screen because those should not
+    // be updated on java side
+    if ((state & GDK_WINDOW_STATE_MAXIMIZED) == 0 && (state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
+        if (jwindow) {
             mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
                      com_sun_glass_events_WindowEvent_RESIZE,
                      ww, wh);
@@ -963,17 +971,6 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
             mainEnv->CallVoidMethod(jwindow, jWindowNotifyMove, root_x, root_y);
             CHECK_JNI_EXCEPTION_RET(mainEnv, false)
         }
-
-        if (jview) {
-            mainEnv->CallVoidMethod(jview, jViewNotifyResize, event->width, event->height);
-            CHECK_JNI_EXCEPTION_RET(mainEnv, false)
-        }
-    }
-
-    // Floating
-    if ((state & GDK_WINDOW_STATE_ICONIFIED) == 0
-        && (state & GDK_WINDOW_STATE_MAXIMIZED) == 0
-        && (state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
 
         geometry.final_width.value = (geometry.final_width.type == BOUNDSTYPE_CONTENT)
                 ? event->width : ww;
@@ -1001,9 +998,9 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
 }
 
 void WindowContext::update_window_constraints() {
+    // Prevent setFullScreen / setMaximized from updating geometry
     if (!is_window_floating(gdk_window)) {
-        // window is not floating on the screen
-        return;
+          return;
     }
 
     GdkGeometry hints;
@@ -1044,6 +1041,16 @@ void WindowContext::set_resizable(bool res) {
 void WindowContext::set_visible(bool visible) {
     if (visible) {
         gtk_widget_show(gtk_widget);
+
+        if (!geometry.size_assigned) {
+            set_bounds(0, 0, false, false, 320, 200, -1, -1, 0, 0);
+        }
+
+        // JDK-8220272 - fire event first because GDK_FOCUS_CHANGE is not always in order
+        if (jwindow && !is_disabled) {
+            mainEnv->CallVoidMethod(jwindow, jWindowNotifyFocus, com_sun_glass_events_WindowEvent_FOCUS_GAINED);
+            CHECK_JNI_EXCEPTION(mainEnv);
+        }
     } else {
         gtk_widget_hide(gtk_widget);
         if (jview && is_mouse_entered) {
@@ -1058,16 +1065,6 @@ void WindowContext::set_visible(bool visible) {
                     JNI_FALSE);
             CHECK_JNI_EXCEPTION(mainEnv)
         }
-    }
-
-    if (visible && !geometry.size_assigned) {
-        set_bounds(0, 0, false, false, 320, 200, -1, -1, 0, 0);
-    }
-
-    //JDK-8220272 - fire event first because GDK_FOCUS_CHANGE is not always in order
-    if (visible && jwindow && isEnabled()) {
-        mainEnv->CallVoidMethod(jwindow, jWindowNotifyFocus, com_sun_glass_events_WindowEvent_FOCUS_GAINED);
-        CHECK_JNI_EXCEPTION(mainEnv);
     }
 }
 
@@ -1116,6 +1113,8 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
 
     if (GDK_IS_WINDOW(gdk_window)) {
         GdkWindowState current_state = gdk_window_get_state(gdk_window);
+        // If it was requested to be or currently is fullscreen/maximized, just save the requested
+        // dimensions / location and set them later when restored
         if (requested_state_mask & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED)
             || current_state & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED)) {
             geometry.needs_to_restore_size = true;
@@ -1127,11 +1126,13 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
         // call update_window_constraints() to let gtk_window_resize succeed, because it's bound to geometry constraints
         update_window_constraints();
 
-        if (gtk_widget_get_realized(gtk_widget)) {
+        if (GDK_IS_WINDOW(gdk_window)) {
             gtk_window_resize(GTK_WINDOW(gtk_widget), newW, newH);
         } else {
             gtk_window_set_default_size(GTK_WINDOW(gtk_widget), newW, newH);
 
+            // If the GdkWindow is not yet created, report back to Java, becase the configure event
+            // won't happen
             if (jwindow) {
                 int w = geometry_get_window_width(&geometry);
                 int h = geometry_get_window_height(&geometry);
@@ -1139,11 +1140,11 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
                 mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
                              com_sun_glass_events_WindowEvent_RESIZE, w, h);
                 CHECK_JNI_EXCEPTION(mainEnv)
+            }
 
-                if (jview) {
-                    mainEnv->CallVoidMethod(jview, jViewNotifyResize, newW, newH);
-                    CHECK_JNI_EXCEPTION(mainEnv)
-                }
+            if (jview) {
+                mainEnv->CallVoidMethod(jview, jViewNotifyResize, newW, newH);
+                CHECK_JNI_EXCEPTION(mainEnv)
             }
         }
 
