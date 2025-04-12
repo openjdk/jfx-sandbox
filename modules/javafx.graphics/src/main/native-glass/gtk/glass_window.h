@@ -251,7 +251,6 @@ private:
     void update_ontop_tree(bool);
     bool on_top_inherited();
     bool effective_on_top();
-    GdkRectangle get_window_rect();
     WindowContext(WindowContext&);
     WindowContext& operator = (const WindowContext&);
 };

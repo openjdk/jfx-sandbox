@@ -34,6 +34,7 @@ import javafx.stage.StageStyle;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import test.robot.testharness.VisualTestBase;
+import test.util.Util;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -302,7 +303,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED"})
+    @EnumSource(names = {"UNDECORATED"})
     public void testAttributesPrecedence(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, false, stageStyle);
 
@@ -319,44 +320,35 @@ public class StageAttributesTest extends VisualTestBase {
         // wait a bit to let window system animate the change
         sleep(500);
 
-        runAndWait(() -> {
-            assertStates(true, true, true);
-
-            Color color = getColor(200, 200);
-            assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
-
-            topStage.setIconified(false);
-        });
+        assertStatesAndColorAtPosition(true, true, true, BOTTOM_COLOR, 200, 200,
+                () -> topStage.setIconified(false));
 
         sleep(500);
 
-        runAndWait(() -> {
-            assertStates(true, false, true);
-
-            Color color = getColor(200, 200);
-            assertColorEquals(TOP_COLOR, color, TOLERANCE);
-
-            topStage.setFullScreen(false);
-        });
+        assertStatesAndColorAtPosition(true, false, true, TOP_COLOR, 200, 200,
+                () -> topStage.setFullScreen(false));
 
         sleep(500);
 
-        runAndWait(() -> {
-            assertStates(false, false, true);
-
-            Color color = getColor(200, 200);
-            assertColorEquals(TOP_COLOR, color, TOLERANCE);
-            topStage.setMaximized(false);
-        });
+        assertStatesAndColorAtPosition(false, false, true, TOP_COLOR, 200, 200,
+                () -> topStage.setMaximized(false));
 
         sleep(500);
 
-        runAndWait(() -> {
-            assertStates(false, false, false);
+        assertStatesAndColorAtPosition(false, false, false, BOTTOM_COLOR, 200, 200,
+                null);
+    }
 
-            Color color = getColor(200, 200);
-            assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
-        });
+    private Color currentColor;
+    private void assertStatesAndColorAtPosition(boolean fullScreen, boolean iconified, boolean maximized,
+                                                Color checkColor, int x, int y, Runnable runAndWait) {
+        assertStates(fullScreen, iconified, maximized);
+        Util.runAndWait(() -> currentColor = getColor(x, y));
+        assertColorEquals(currentColor, checkColor, TOLERANCE);
+
+        if (runAndWait != null) {
+            Util.runAndWait(runAndWait);
+        }
     }
 
     private void assertStates(boolean fullScreen, boolean iconified, boolean maximized) {

@@ -36,6 +36,10 @@ public class WindowEvent {
 
     @Native final static public int MINIMIZE              = 531;
     @Native final static public int MAXIMIZE              = 532;
+
+    /**
+     * Deprecated in favor of specific restore events: {@link #UNMAXIMIZE} and {@link #UNMINIMIZE}.
+     */
     @Deprecated
     @Native final static public int RESTORE               = 533;
     @Native final static public int UNMINIMIZE            = 534;

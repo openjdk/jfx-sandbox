@@ -67,6 +67,7 @@ jmethodID jViewNotifyMenu;
 jfieldID  jViewPtr;
 
 jmethodID jWindowNotifyResize;
+jmethodID jWindowNotifyState;
 jmethodID jWindowNotifyMove;
 jmethodID jWindowNotifyDestroy;
 jmethodID jWindowNotifyClose;
@@ -240,7 +241,9 @@ JNI_OnLoad(JavaVM *jvm, void *reserved)
 
     clazz = env->FindClass("com/sun/glass/ui/Window");
     if (env->ExceptionCheck()) return JNI_ERR;
-    jWindowNotifyResize = env->GetMethodID(clazz, "notifyResize", "(III)V");
+    jWindowNotifyResize = env->GetMethodID(clazz, "notifyResize", "(II)V");
+    if (env->ExceptionCheck()) return JNI_ERR;
+    jWindowNotifyState = env->GetMethodID(clazz, "notifyState", "(I)V");
     if (env->ExceptionCheck()) return JNI_ERR;
     jWindowNotifyMove = env->GetMethodID(clazz, "notifyMove", "(II)V");
     if (env->ExceptionCheck()) return JNI_ERR;

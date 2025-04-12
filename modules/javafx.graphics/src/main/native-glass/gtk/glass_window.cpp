@@ -727,10 +727,11 @@ void WindowContext::update_window_size_location() {
     gtk_window_resize(GTK_WINDOW(gtk_widget), cw, ch);
 }
 
+// This function will decide the State it should currently be,
+// in the precedence order: Iconified, FullScreen, Maximized
 void WindowContext::update_requested_state() {
-    GdkWindowState current_state_mask = gdk_window_get_state(gdk_window);
-
     // In reverse order of precedence
+    int current_state_mask = gdk_window_get_state(gdk_window);
     if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED)
            && (current_state_mask & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
         add_wmf(GDK_FUNC_MAXIMIZE);
@@ -742,6 +743,7 @@ void WindowContext::update_requested_state() {
         gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
     }
 
+    current_state_mask = gdk_window_get_state(gdk_window);
     if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN)
            && (current_state_mask & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
         g_print("update_requested_state -> FULLSCREEN\n");
@@ -752,6 +754,7 @@ void WindowContext::update_requested_state() {
         gtk_window_unfullscreen(GTK_WINDOW(gtk_widget));
     }
 
+    current_state_mask = gdk_window_get_state(gdk_window);
     if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED)
           && (current_state_mask & GDK_WINDOW_STATE_ICONIFIED) == 0) {
         add_wmf(GDK_FUNC_MINIMIZE);
@@ -781,33 +784,30 @@ void WindowContext::update_frame_extents() {
 
             GdkRectangle rect = { left, top, (left + right), (top + bottom) };
 
+            int newW, newH;
+            gdk_window_get_geometry(gdk_window, NULL, NULL, &newW, &newH);
+
             // Here the user might change the desktop theme and in consequence
             // change decoration sizes. Note that width / height might have
             // different bound types
             if (geometry.final_width.type == BOUNDSTYPE_WINDOW) {
-                g_print("EXTENTS RECEIVED: Width Before -> %d\n", geometry.final_width.value);
                 // Re-add the extents and then subtract the new
-                geometry.final_width.value = geometry.final_width.value
-                        + ((geometry.frame_extents_received) ? geometry.extents.width : 0)
-                        - rect.width;
-                g_print("EXTENTS RECEIVED: Width After -> %d\n", geometry.final_width.value);
+                newW = newW
+                    + ((geometry.frame_extents_received) ? geometry.extents.width : 0)
+                    - rect.width;
             }
 
             if (geometry.final_height.type == BOUNDSTYPE_WINDOW) {
-                g_print("EXTENTS RECEIVED: Height Before -> %d\n", geometry.final_height.value);
                 // Re-add the extents and then subtract the new
-                geometry.final_height.value = geometry.final_height.value
-                        + ((geometry.frame_extents_received) ? geometry.extents.height : 0)
-                        - rect.height;
-                g_print("EXTENTS RECEIVED: Height After -> %d\n", geometry.final_height.value);
+                newH = newH
+                    + ((geometry.frame_extents_received) ? geometry.extents.height : 0)
+                    - rect.height;
             }
 
             geometry.extents = rect;
             geometry.frame_extents_received = true;
 
-            int newW = geometry_get_content_width(&geometry);
-            int newH = geometry_get_content_height(&geometry);
-
+            g_print("EXTENTS RECEIVED -> New content size: %d, %d\n", newW, newH);
             gtk_window_resize(GTK_WINDOW(gtk_widget), newW, newH);
 
             int x = geometry.x;
@@ -903,20 +903,23 @@ void WindowContext::process_state(GdkEventWindowState *event) {
         }
     }
 
-    int cw = geometry_get_content_width(&geometry);
-    int ch = geometry_get_content_height(&geometry);
-    int ww = geometry_get_window_width(&geometry);
-    int wh = geometry_get_window_height(&geometry);
-
-    if(jwindow && javaState != 0) {
-        mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
-                 javaState,
-                 ww, wh);
+    if (jwindow && javaState != 0) {
+        mainEnv->CallVoidMethod(jwindow, jWindowNotifyState, javaState);
         CHECK_JNI_EXCEPTION(mainEnv)
     }
 
     if (jview) {
+        // Those represent the real current size in the state
+        int cw = gdk_window_get_width(gdk_window);
+        int ch = gdk_window_get_height(gdk_window);
+
         mainEnv->CallVoidMethod(jview, jViewNotifyResize, cw, ch);
+        CHECK_JNI_EXCEPTION(mainEnv)
+
+        // Since FullScreen (or custom modes of maximized) can undecorate the
+        // window, request view position change
+        mainEnv->CallVoidMethod(jview, jViewNotifyView,
+                com_sun_glass_events_ViewEvent_MOVE);
         CHECK_JNI_EXCEPTION(mainEnv)
     }
 
@@ -954,6 +957,9 @@ void WindowContext::process_realize() {
 }
 
 bool WindowContext::process_configure(GdkEventConfigure *event) {
+    g_print("Configure Event - send_event: %d, x: %d, y: %d, width: %d, height: %d\n",
+            event->send_event, event->x, event->y, event->width, event->height);
+
     GdkWindowState state = gdk_window_get_state(gdk_window);
 
     // Workaround: Ignore this event if the window is meant to be fullscreen (can happen on Xorg if fullscreen
@@ -982,36 +988,39 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
         g_print("jViewNotifyResize: %d, %d\n", event->width, event->height);
         mainEnv->CallVoidMethod(jview, jViewNotifyResize, event->width, event->height);
         CHECK_JNI_EXCEPTION_RET(mainEnv, false)
+
+        mainEnv->CallVoidMethod(jview, jViewNotifyView,
+                com_sun_glass_events_ViewEvent_MOVE);
+        CHECK_JNI_EXCEPTION_RET(mainEnv, false)
     }
 
     // Do not save or report dimensions and location while not floating on the screen because those should not
     // be updated on java side
-    if ((state & GDK_WINDOW_STATE_MAXIMIZED) == 0 && (state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
+    if ((state & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_FULLSCREEN)) == 0) {
         // The returned values might be inaccurate if _NET_FRAME_EXTENTS has not been received yet.
         // They will be corrected later if the property is updated. However, since there is no guarantee
         // that _NET_FRAME_EXTENTS will ever be available, we set the best guess for now.
-        GdkRectangle rect = get_window_rect();
+        int ww = event->width + geometry.extents.width;
+        int wh = event->height + geometry.extents.height;
 
         if (jwindow) {
-            g_print("jWindowNotifyResize: %d, %d\n", rect.width, rect.height);
-            mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
-                     com_sun_glass_events_WindowEvent_RESIZE,
-                     rect.width, rect.height);
+            g_print("jWindowNotifyResize: %d, %d\n", ww, wh);
+            mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize, ww, wh);
             CHECK_JNI_EXCEPTION_RET(mainEnv, false)
 
-            mainEnv->CallVoidMethod(jwindow, jWindowNotifyMove, rect.x, rect.y);
+            mainEnv->CallVoidMethod(jwindow, jWindowNotifyMove, root_x, root_y);
             CHECK_JNI_EXCEPTION_RET(mainEnv, false)
         }
 
         geometry.final_width.value = (geometry.final_width.type == BOUNDSTYPE_CONTENT)
-                ? event->width : rect.width;
+                ? event->width : ww;
 
         geometry.final_height.value = (geometry.final_height.type == BOUNDSTYPE_CONTENT)
-                ? event->height : rect.height;
+                ? event->height : wh;
 
         // x and y represent the position of the top-left corner of the window relative to the desktop area
-        geometry.x = rect.x;
-        geometry.y = rect.y;
+        geometry.x = root_x;
+        geometry.y = root_y;
     }
 
     glong to_screen = getScreenPtrForLocation(geometry.x, geometry.y);
@@ -1162,16 +1171,15 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
         } else {
             gtk_window_set_default_size(GTK_WINDOW(gtk_widget), newW, newH);
 
-            // If the GdkWindow is not yet created, report back to Java, becase the configure event
+            // If the GdkWindow is not yet created, report back to Java, because the configure event
             // won't happen
-//            if (jwindow) {
-//                int w = geometry_get_window_width(&geometry);
-//                int h = geometry_get_window_height(&geometry);
-//
-//                mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize,
-//                             com_sun_glass_events_WindowEvent_RESIZE, w, h);
-//                CHECK_JNI_EXCEPTION(mainEnv)
-//            }
+            if (jwindow) {
+                int w = geometry_get_window_width(&geometry);
+                int h = geometry_get_window_height(&geometry);
+
+                mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize, w, h);
+                CHECK_JNI_EXCEPTION(mainEnv)
+            }
 
             if (jview) {
                 mainEnv->CallVoidMethod(jview, jViewNotifyResize, newW, newH);
@@ -1385,72 +1393,6 @@ void WindowContext::update_view_size() {
         }
     }
 }
-
-/* Returns a GdkRectangle of the window position and size in
- * the current window state (may be maximized dimensions of fullscreen)
- */
-GdkRectangle WindowContext::get_window_rect() {
-    GdkRectangle rect;
-
-    //TODO: check states
-    if (frame_type == TITLED) {
-        gdk_window_get_frame_extents(gdk_window, &rect);
-    } else {
-        gdk_window_get_position(gdk_window, &rect.x, &rect.y);
-        rect.width = gdk_window_get_width(gdk_window);
-        rect.height = gdk_window_get_height(gdk_window);
-    }
-
-    g_print("GdkRectangle get_window_rect { x: %d, y: %d, width: %d, height: %d }\n",
-         rect.x, rect.y, rect.width, rect.height);
-
-    return rect;
-}
-
-///*
-// * Returns a GdkRectangle where
-// * x is the X view position relative to the Window
-// * y is the Y view position relative to the Window
-// * width is the amount of pixels of the decoration top + bottom
-// * height is the amount of pixels of the decoration left + right
-// */
-//GdkRectangle WindowContext::get_frame_extents() {
-//    GdkRectangle rect;
-//
-//    if (frame_type == TITLED) {
-//        GdkRectangle extents_rect;
-//        gdk_window_get_frame_extents(gdk_window, &extents_rect);
-//
-//        g_print("GdkRectangle extents_rect { x: %d, y: %d, width: %d, height: %d }\n",
-//                extents_rect.x, extents_rect.y, extents_rect.width, extents_rect.height);
-//
-//        GdkRectangle window_rect;
-//        gdk_window_get_geometry(gdk_window, &window_rect.x, &window_rect.y,
-//                                &window_rect.width, &window_rect.height);
-//
-//        gdk_window_get_root_coords(gdk_window, 0, 0, &window_rect.x, &window_rect.y);
-//
-//        g_print("GdkRectangle window_rect { x: %d, y: %d, width: %d, height: %d }\n",
-//                        window_rect.x, window_rect.y, window_rect.width, window_rect.height);
-//
-//        rect.x = window_rect.x - extents_rect.x;
-//        rect.y = window_rect.y - extents_rect.y;
-//        rect.width = extents_rect.width - window_rect.width;
-//        rect.height = extents_rect.height - window_rect.height;
-//
-//        g_print("GdkRectangle frame_extents { x: %d, y: %d, width: %d, height: %d }\n",
-//             rect.x, rect.y, rect.width, rect.height);
-//
-//        return rect;
-//    }
-//
-//    rect.x = 0;
-//    rect.y = 0;
-//    rect.width = 0;
-//    rect.height = 0;
-//
-//    return rect;
-//}
 
 WindowContext::~WindowContext() {
     disableIME();

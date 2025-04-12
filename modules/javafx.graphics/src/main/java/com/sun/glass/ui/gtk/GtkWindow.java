@@ -134,7 +134,7 @@ class GtkWindow extends Window {
     protected boolean _maximize(long ptr, boolean maximize,
                                 boolean wasMaximized) {
         maximizeImpl(ptr, maximize, wasMaximized);
-        return wasMaximized;
+        return isMaximized();
     }
 
     @Override
@@ -181,12 +181,5 @@ class GtkWindow extends Window {
     public long getRawHandle() {
         long ptr = super.getRawHandle();
         return ptr == 0L ? 0L : _getNativeWindowImpl(ptr);
-    }
-
-    @Override
-    protected void notifyMove(int x, int y) {
-        if (this.x != x || this.y != y) {
-            super.notifyMove(x, y);
-        }
     }
 }

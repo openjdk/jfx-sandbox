@@ -1192,19 +1192,12 @@ public abstract class Window {
         setScreen(newScreen);
     }
 
-    protected void setState(int state) {
-        this.state = state;
-    }
-
     /**
-     * type values:
-     *   - WindowEvent.RESIZE
-     *   - WindowEvent.MINIMIZE
-     *   - WindowEvent.MAXIMIZE
-     *   - WindowEvent.UNMINIMIZE
-     *   - WindowEvent.UNMAXIMIZE
+     * Notifies the current window state
+     * @param type {@link WindowEvent#MINIMIZE}, {@link WindowEvent#UNMINIMIZE},
+     *             {@link WindowEvent#MAXIMIZE}, {@link WindowEvent#UNMAXIMIZE}
      */
-    protected void notifyResize(final int type, final int width, final int height) {
+    protected void notifyState(final int type) {
         switch (type) {
             case WindowEvent.MAXIMIZE:
                 this.state |= State.MAXIMIZED;
@@ -1222,11 +1215,49 @@ public abstract class Window {
                 break;
         }
 
-        handleWindowEvent(System.nanoTime(), type);
+        if ((type & (WindowEvent.MAXIMIZE | WindowEvent.UNMAXIMIZE
+                    | WindowEvent.MINIMIZE | WindowEvent.UNMINIMIZE)) == 0) {
+            handleWindowEvent(System.nanoTime(), type);
+        }
+    }
 
-        if (type != WindowEvent.MINIMIZE) {
+    protected void notifyResize(int width, int height) {
+        this.width = width;
+        this.height = height;
+        handleWindowEvent(System.nanoTime(), WindowEvent.RESIZE);
+    }
+
+    /**
+     * Deprecated: Call specific methods {@link #notifyResize(int, int)} or {@link #notifyState(int)}
+     * @param type {@link WindowEvent#RESIZE}, {@link WindowEvent#MINIMIZE}, {@link WindowEvent#UNMINIMIZE},
+     *             {@link WindowEvent#MAXIMIZE}, {@link WindowEvent#UNMAXIMIZE}, {@link WindowEvent#RESTORE}
+     * @param width the Window width value
+     * @param height the Window height value
+     */
+    @Deprecated
+    protected void notifyResize(final int type, final int width, final int height) {
+        if (type == WindowEvent.MINIMIZE) {
+            this.state = State.MINIMIZED;
+        } else {
+            if (type == WindowEvent.MAXIMIZE) {
+                this.state = State.MAXIMIZED;
+            } else { // WindowEvent.RESIZE or WindowEvent.RESTORE
+                this.state = State.NORMAL;
+            }
             this.width = width;
             this.height = height;
+
+            // update moveRect/resizeRect
+            if (this.helper != null){
+                this.helper.updateRectangles();
+            }
+        }
+        handleWindowEvent(System.nanoTime(), type);
+
+        /*
+         * Send RESIZE notification as MAXIMIZE and RESTORE change the window size
+         */
+        if (type == WindowEvent.MAXIMIZE || type == WindowEvent.RESTORE) {
             handleWindowEvent(System.nanoTime(), WindowEvent.RESIZE);
         }
     }

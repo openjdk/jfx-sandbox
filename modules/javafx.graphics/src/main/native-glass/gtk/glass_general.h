@@ -179,7 +179,8 @@ private:
     extern jmethodID jViewNotifyMenu; //com.sun.glass.ui.View#notifyMenu (IIIIZ)V
     extern jfieldID  jViewPtr; //com.sun.glass.ui.View.ptr
 
-    extern jmethodID jWindowNotifyResize; // com.sun.glass.ui.Window#notifyResize (III)V
+    extern jmethodID jWindowNotifyResize; // com.sun.glass.ui.Window#notifyResize (II)V
+    extern jmethodID jWindowNotifyState; // com.sun.glass.ui.Window#notifyState (I)V
     extern jmethodID jWindowNotifyMove; // com.sun.glass.ui.Window#notifyMove (II)V
     extern jmethodID jWindowNotifyDestroy; // com.sun.glass.ui.Window#notifyDestroy ()V
     extern jmethodID jWindowNotifyClose; // com.sun.glass.ui.Window#notifyClose ()V
