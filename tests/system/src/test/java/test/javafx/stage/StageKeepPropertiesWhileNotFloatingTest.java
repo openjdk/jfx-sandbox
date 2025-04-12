@@ -24,21 +24,15 @@
  */
 package test.javafx.stage;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.stage.StageStyle;
-import javafx.util.Duration;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import test.util.Util;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
-public class StageKeepPropertiesNotFloatingTest extends StageTestBase {
+public class StageKeepPropertiesWhileNotFloatingTest extends StageTestBase {
     private static final int POS_X = 100;
     private static final int POS_Y = 150;
     private static final int WIDTH = 100;

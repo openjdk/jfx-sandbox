@@ -301,13 +301,10 @@ public class StageStatesTest extends VisualTestBase {
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @MethodSource("testStageStatesParamSource")
-    public void testStageStatePrecedenceOrderOnShow(StageState stageState) throws InterruptedException {
+    public void testStageStatePrecedenceOrderBeforeShow(StageState stageState) throws InterruptedException {
         setupStages(false, false, stageState.stageStyle());
 
         runAndWait(() -> {
-            Color color = getColor(200, 200);
-            assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
-
             topStage.setMaximized(stageState.maximized());
             topStage.setFullScreen(stageState.fullscreen());
             topStage.setIconified(stageState.iconified());
@@ -315,8 +312,39 @@ public class StageStatesTest extends VisualTestBase {
         });
 
         assertStates(stageState.fullscreen(), stageState.iconified(), stageState.maximized());
+
+        runAndWait(() -> {
+            Color color = getColor(200, 200);
+
+            boolean bottom = (stageState.iconified() || (!stageState.fullscreen() && !stageState.maximized()));
+            assertColorEquals((bottom) ? BOTTOM_COLOR : TOP_COLOR, color, TOLERANCE);
+        });
     }
 
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @MethodSource("testStageStatesParamSource")
+    public void testStageStatePrecedenceOrderAfterShow(StageState stageState) throws InterruptedException {
+        setupStages(false, false, stageState.stageStyle());
+
+        runAndWait(() -> {
+            topStage.show();
+
+            topStage.setMaximized(stageState.maximized());
+            topStage.setFullScreen(stageState.fullscreen());
+            topStage.setIconified(stageState.iconified());
+        });
+
+        Util.sleep(500);
+
+        assertStates(stageState.fullscreen(), stageState.iconified(), stageState.maximized());
+
+        runAndWait(() -> {
+            Color color = getColor(200, 200);
+
+            boolean bottom = (stageState.iconified() || (!stageState.fullscreen() && !stageState.maximized()));
+            assertColorEquals((bottom) ? BOTTOM_COLOR : TOP_COLOR, color, TOLERANCE);
+        });
+    }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"DECORATED", "UNDECORATED"})
