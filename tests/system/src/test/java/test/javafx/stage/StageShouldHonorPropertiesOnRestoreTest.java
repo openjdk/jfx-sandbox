@@ -35,6 +35,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
 public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
     private static final int POS_X = 100;
@@ -70,8 +71,10 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
         latch.await(5, TimeUnit.SECONDS);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testUnFullscreenChangedPosition(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
@@ -86,8 +89,10 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
         assertEquals(POS_Y, getStage().getY(),  "Window failed to restore position set while fullscreened");
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testUnFullscreenChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
@@ -102,8 +107,10 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
         assertEquals(HEIGHT, getStage().getHeight(),  "Window failed to restore size set while fullscreened");
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testUnMaximzeChangedPosition(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
@@ -118,8 +125,10 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
         assertEquals(POS_Y, getStage().getY(),  "Window failed to restore position set while maximized");
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testUnMaximizeChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
@@ -134,8 +143,10 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
         assertEquals(HEIGHT, getStage().getHeight(),  "Window failed to restore size set while maximized");
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testDeIconfyChangedPosition(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
@@ -150,8 +161,10 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
         assertEquals(POS_Y, getStage().getY(),  "Window failed to restore position set while iconified");
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testDeIconifyChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 

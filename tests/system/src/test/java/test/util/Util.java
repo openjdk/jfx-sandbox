@@ -55,6 +55,8 @@ import com.sun.javafx.PlatformUtil;
  * Utility methods for life-cycle testing
  */
 public class Util {
+    public static final String PARAMETERIZED_TEST_DISPLAY = "{displayName} [{index}] {arguments}";
+
     /** Default startup timeout value in seconds */
     public static final int STARTUP_TIMEOUT = 15;
     /** Test timeout value in milliseconds */

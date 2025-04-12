@@ -35,6 +35,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
 public class StageKeepPropertiesNotFloatingTest extends StageTestBase {
     private static final int POS_X = 100;
@@ -54,8 +55,10 @@ public class StageKeepPropertiesNotFloatingTest extends StageTestBase {
         latch.await(5, TimeUnit.SECONDS);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testFullscreenShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, null);
 
@@ -68,8 +71,10 @@ public class StageKeepPropertiesNotFloatingTest extends StageTestBase {
            });
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testMaximizeShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, null);
 

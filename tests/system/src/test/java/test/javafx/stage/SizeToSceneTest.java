@@ -40,6 +40,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
+
 class SizeToSceneTest extends StageTestBase {
     private static final double STAGE_WIDTH = 300;
     private static final double STAGE_HEIGHT = 300;
@@ -81,8 +83,10 @@ class SizeToSceneTest extends StageTestBase {
         Assertions.assertEquals(SCENE_HEIGHT, getStage().getHeight(), getDelta(stageStyle));
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+                mode = EnumSource.Mode.INCLUDE,
+                names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeOnMaximizedThenSizeToScene(StageStyle stageStyle) {
         setupStageStyle(stageStyle, s -> {
             s.setMaximized(true);
@@ -92,8 +96,10 @@ class SizeToSceneTest extends StageTestBase {
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeOnFullscreenThenSizeToScene(StageStyle stageStyle) {
         setupStageStyle(stageStyle, s -> {
             s.setFullScreen(true);
@@ -103,8 +109,10 @@ class SizeToSceneTest extends StageTestBase {
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeOnSizeToSceneThenMaximized(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, Window::sizeToScene);
 
@@ -119,8 +127,10 @@ class SizeToSceneTest extends StageTestBase {
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeOnSizeToSceneThenFullscreen(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, Window::sizeToScene);
 
@@ -135,8 +145,10 @@ class SizeToSceneTest extends StageTestBase {
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeAfterShowSizeToSceneThenFullscreen(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, null);
 
@@ -152,8 +164,10 @@ class SizeToSceneTest extends StageTestBase {
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeAfterShowSizeToSceneThenMaximized(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, null);
 
@@ -169,8 +183,10 @@ class SizeToSceneTest extends StageTestBase {
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeAfterShowFullscreenThenSizeToScene(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, null);
 
@@ -186,8 +202,10 @@ class SizeToSceneTest extends StageTestBase {
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeAfterShowMaximizedThenSizeToScene(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, null);
 
@@ -203,16 +221,20 @@ class SizeToSceneTest extends StageTestBase {
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    void testInitialSizeOnSizeToScene(StageStyle stageStyle) {
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeOnSizeToScene(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, Window::sizeToScene);
 
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeFullscreenOnOffSizeToScene(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, null);
 
@@ -229,9 +251,11 @@ class SizeToSceneTest extends StageTestBase {
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    void testInitialSizeSizeToSceneFullscreenOnOff(StageStyle stageStyle) {
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeSizeToSceneFullscreenOnOff(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, s -> {
             s.sizeToScene();
             s.setFullScreen(true);
@@ -241,9 +265,10 @@ class SizeToSceneTest extends StageTestBase {
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeMaximizedOnOffSizeToScene(StageStyle stageStyle) {
         setupStageStyle(stageStyle, s -> {
             s.setMaximized(true);
@@ -254,8 +279,10 @@ class SizeToSceneTest extends StageTestBase {
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeSizeToSceneMaximizedOnOff(StageStyle stageStyle) {
         setupStageStyle(stageStyle, s -> {
             s.sizeToScene();

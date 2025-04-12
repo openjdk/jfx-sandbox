@@ -34,13 +34,16 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
 public class StageProgamaticallyResizeUnresizableTest extends StageTestBase {
     private static final int WIDTH = 300;
     private static final int HEIGHT = 300;
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
     public void testMaximizeUnresizable(StageStyle stageStyle) throws Exception {
         setupStageStyle(stageStyle, s -> {
             s.initStyle(stageStyle);
@@ -63,8 +66,10 @@ public class StageProgamaticallyResizeUnresizableTest extends StageTestBase {
         assertTrue(getStage().isMaximized(), "Unresizable stage should be maximized");
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
     public void testMaximizeMaxSize(StageStyle stageStyle) throws Exception {
         int maxSize = 500;
 
@@ -103,8 +108,10 @@ public class StageProgamaticallyResizeUnresizableTest extends StageTestBase {
         assertEquals(maxSize, getStage().getMaxHeight(), "Stage max height should have remained");
     }
 
-    @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
     public void testMaxSizeShouldBeProgramaticallyResized(StageStyle stageStyle) throws Exception {
         int maxSize = 300;
         int newSize = 500;

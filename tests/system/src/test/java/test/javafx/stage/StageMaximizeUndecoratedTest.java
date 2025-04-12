@@ -34,13 +34,16 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
 public class StageMaximizeUndecoratedTest extends StageTestBase {
     private static final int WIDTH = 300;
     private static final int HEIGHT = 300;
 
-    @ParameterizedTest
-    @EnumSource(names = {"UNDECORATED", "TRANSPARENT"})
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"UNDECORATED", "TRANSPARENT"})
     public void testMaximizeUndecorated(StageStyle stageStyle) throws Exception {
         int pos = 100;
 
