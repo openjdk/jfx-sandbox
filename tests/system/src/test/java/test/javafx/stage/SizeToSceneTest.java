@@ -43,8 +43,8 @@ import java.util.function.Consumer;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
 class SizeToSceneTest extends StageTestBase {
-    private static final double STAGE_WIDTH = 300;
-    private static final double STAGE_HEIGHT = 300;
+    private static final double STAGE_MIN_WIDTH = 300;
+    private static final double STAGE_MIN_HEIGHT = 300;
     private static final double SCENE_WIDTH = 130;
     private static final double SCENE_HEIGHT = 120;
     private static final double DECORATION_DELTA = 50;
@@ -59,8 +59,8 @@ class SizeToSceneTest extends StageTestBase {
     @Override
     protected void setupStageStyle(StageStyle stageStyle, Consumer<Stage> pc) {
         Consumer<Stage> cs = stage -> {
-            stage.setWidth(STAGE_WIDTH);
-            stage.setHeight(STAGE_HEIGHT);
+            stage.setMinWidth(STAGE_MIN_WIDTH);
+            stage.setMinHeight(STAGE_MIN_HEIGHT);
         };
 
         if (pc != null) {
