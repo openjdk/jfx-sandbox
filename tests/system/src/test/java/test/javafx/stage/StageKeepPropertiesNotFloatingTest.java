@@ -54,7 +54,6 @@ public class StageKeepPropertiesNotFloatingTest extends StageTestBase {
         latch.await(5, TimeUnit.SECONDS);
     }
 
-
     @ParameterizedTest
     @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testFullscreenShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {

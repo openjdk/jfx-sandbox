@@ -25,6 +25,7 @@
 package test.javafx.stage;
 
 import javafx.application.Platform;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -43,63 +44,50 @@ public abstract class StageTestBase {
     private Stage stage;
 
     /**
-     * Create and show a Stage
-     * @param pc A consumer that set Stage properties for the test or null
+     * Creates a Scene for the test stage acoording to the {@link StageStyle}
+     * @param stageStyle {@link StageStyle} of the Stage
+     * @return a {@link Scene}
      */
-    protected void setupStage(Consumer<Stage> pc) {
-        CountDownLatch shownLatch = new CountDownLatch(1);
-        Platform.runLater(() -> {
-
-            stage = new Stage();
-            stage.setScene(new Scene(new StackPane(), Color.HOTPINK));
-            stage.setAlwaysOnTop(true);
-            if (pc != null) {
-                pc.accept(stage);
-            }
-            stage.setOnShown(e -> shownLatch.countDown());
-            stage.show();
-        });
-
-        Util.waitForLatch(shownLatch, 5, "Stage failed to show");
-    }
-
-    /**
-     * Create and show a Transparent Stage
-     * @param pc A consumer that set Stage properties for the test or null
-     */
-    protected void setupTransparentStage(Consumer<Stage> pc) {
-        CountDownLatch shownLatch = new CountDownLatch(1);
-        Platform.runLater(() -> {
-            stage = new Stage();
-            StackPane root = new StackPane();
+    protected Scene createScene(StageStyle stageStyle) {
+        if (stageStyle == StageStyle.TRANSPARENT) {
+            Parent root = createRoot();
             root.setStyle("-fx-background-color: rgba(255, 105, 180, 0.5);");
             Scene scene = new Scene(root);
             scene.setFill(Color.TRANSPARENT);
-            stage.setScene(scene);
+
+            return scene;
+        }
+
+        return new Scene(createRoot(), Color.HOTPINK);
+    }
+
+    /**
+     * Gets the Scene root
+     */
+    protected Parent createRoot() {
+        return new StackPane();
+    }
+
+    /**
+     * Utility method to setup test Stages according to {@link StageStyle}
+     * @param stageStyle The Stage Style.
+     * @param pc A consumer to set state properties
+     */
+    protected void setupStageStyle(StageStyle stageStyle, Consumer<Stage> pc) {
+        CountDownLatch shownLatch = new CountDownLatch(1);
+        Platform.runLater(() -> {
+            stage = new Stage();
             stage.setAlwaysOnTop(true);
             if (pc != null) {
                 pc.accept(stage);
             }
             stage.initStyle(StageStyle.TRANSPARENT);
+            stage.setScene(createScene(stageStyle));
             stage.setOnShown(e -> shownLatch.countDown());
             stage.show();
         });
 
         Util.waitForLatch(shownLatch, 5, "Stage failed to show");
-    }
-
-    /**
-     * Utility method to call {@link #setupStage(Consumer)} or {@link #setupTransparentStage(Consumer)}
-     * @param stageStyle The Stage Style. If TRANSPARENT, it'll use {@link #setupTransparentStage(Consumer)}
-     *                   or else {@link #setupStage(Consumer)}
-     * @param pc A consumer to set state properties
-     */
-    protected void setupStageStyle(StageStyle stageStyle, Consumer<Stage> pc) {
-        if (stageStyle == StageStyle.TRANSPARENT) {
-            setupTransparentStage(pc);
-        } else  {
-            setupStage(pc.andThen(s -> s.initStyle(stageStyle)));
-        }
     }
 
     @BeforeAll

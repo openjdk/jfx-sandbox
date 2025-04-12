@@ -24,262 +24,245 @@
  */
 package test.javafx.stage;
 
-import javafx.application.Platform;
-import javafx.geometry.Rectangle2D;
-import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.stage.Screen;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.scene.Parent;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import test.util.Util;
+import javafx.stage.StageStyle;
+import javafx.stage.Window;
+import javafx.util.Duration;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+class SizeToSceneTest extends StageTestBase {
+    private static final double STAGE_WIDTH = 300;
+    private static final double STAGE_HEIGHT = 300;
+    private static final double SCENE_WIDTH = 130;
+    private static final double SCENE_HEIGHT = 120;
+    private static final double DECORATION_DELTA = 50;
 
-class SizeToSceneTest {
-
-    private static final int ROOT_SIZE = 360;
-    private static final int BOUNDS_DELTA = 50;
-
-    static CountDownLatch startupLatch = new CountDownLatch(1);
-    static Stage mainStage;
-
-    @BeforeAll
-    static void initFX() throws Exception {
-        Platform.setImplicitExit(false);
-        Util.startup(startupLatch, startupLatch::countDown);
+    @Override
+    protected Parent createRoot() {
+        StackPane root = new StackPane();
+        root.setPrefSize(SCENE_WIDTH, SCENE_HEIGHT);
+        return root;
     }
 
-    @AfterAll
-    static void teardown() {
-        Util.shutdown();
+    @Override
+    protected void setupStageStyle(StageStyle stageStyle, Consumer<Stage> pc) {
+        Consumer<Stage> cs = stage -> {
+            stage.setWidth(STAGE_WIDTH);
+            stage.setHeight(STAGE_HEIGHT);
+        };
+
+        if (pc != null) {
+            cs = cs.andThen(pc);
+        }
+
+        super.setupStageStyle(stageStyle, cs);
     }
 
-    @AfterEach
-    void afterEach() {
-        Util.runAndWait(() -> {
-            if (mainStage != null) {
-                mainStage.hide();
-            }
-        });
+    private double getDelta(StageStyle stageStyle) {
+        if (stageStyle != StageStyle.DECORATED && stageStyle != StageStyle.UTILITY) {
+            return DECORATION_DELTA;
+        }
+
+        return 0;
     }
 
-    private static void assertStageScreenBounds() {
-        Rectangle2D visualBounds = Screen.getPrimary().getVisualBounds();
-        double visualWidth = visualBounds.getWidth() - BOUNDS_DELTA;
-        double visualHeight = visualBounds.getHeight() - BOUNDS_DELTA;
-
-        Rectangle2D bounds = Screen.getPrimary().getBounds();
-        double width = bounds.getWidth() + BOUNDS_DELTA;
-        double height = bounds.getHeight() + BOUNDS_DELTA;
-
-        // There might be small inconsistencies because of decoration or different window managers.
-        assertTrue(mainStage.getWidth() >= visualWidth, mainStage.getWidth() + " >= " + visualWidth);
-        assertTrue(mainStage.getHeight() >= visualHeight, mainStage.getHeight() + " >= " + visualHeight);
-
-        assertTrue(mainStage.getWidth() <= width, mainStage.getWidth() + " <= " + width);
-        assertTrue(mainStage.getHeight() <= height, mainStage.getHeight() + " <= " + height);
+    private void assertWindowSizeMatchesToScene(StageStyle stageStyle) {
+        Assertions.assertEquals(SCENE_WIDTH, getStage().getWidth(), getDelta(stageStyle));
+        Assertions.assertEquals(SCENE_HEIGHT, getStage().getHeight(), getDelta(stageStyle));
     }
 
-    private static void assertStageSceneBounds() {
-        // There might be small inconsistencies because of decoration,
-        // so we expect the size to be between (inclusive) 360 and 410.
-        assertTrue(mainStage.getWidth() >= ROOT_SIZE, mainStage.getWidth() + " >= " + ROOT_SIZE);
-        assertTrue(mainStage.getHeight() >= ROOT_SIZE, mainStage.getHeight() + " >= " + ROOT_SIZE);
-
-        int maxThreshold = ROOT_SIZE + BOUNDS_DELTA;
-        assertTrue(mainStage.getWidth() <= maxThreshold, mainStage.getWidth() + " <= " + maxThreshold);
-        assertTrue(mainStage.getHeight() <= maxThreshold, mainStage.getHeight() + " <= " + maxThreshold);
-    }
-
-    private void createAndShowStage(Consumer<Stage> stageConsumer) {
-        final CountDownLatch shownLatch = new CountDownLatch(1);
-
-        Util.runAndWait(() -> {
-            mainStage = new Stage();
-
-            Button root = new Button();
-            root.setMinSize(ROOT_SIZE, ROOT_SIZE);
-            mainStage.setScene(new Scene(root));
-
-            stageConsumer.accept(mainStage);
-
-            shownLatch.countDown();
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeOnMaximizedThenSizeToScene(StageStyle stageStyle) {
+        setupStageStyle(stageStyle, s -> {
+            s.setMaximized(true);
+            s.sizeToScene();
         });
 
-        Util.waitForLatch(shownLatch, 5, "Stage failed to setup and show");
-        Util.sleep(500);
+        assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @Test
-    void testInitialSizeOnMaximizedThenSizeToScene() {
-        createAndShowStage(stage -> {
-            stage.setMaximized(true);
-            stage.sizeToScene();
-            stage.show();
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeOnFullscreenThenSizeToScene(StageStyle stageStyle) {
+        setupStageStyle(stageStyle, s -> {
+            s.setFullScreen(true);
+            s.sizeToScene();
         });
 
-        assertStageScreenBounds();
+        assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @Test
-    void testInitialSizeOnFullscreenThenSizeToScene() {
-        createAndShowStage(stage -> {
-            stage.setFullScreen(true);
-            stage.sizeToScene();
-            stage.show();
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeOnSizeToSceneThenMaximized(StageStyle stageStyle) throws InterruptedException {
+        setupStageStyle(stageStyle, Window::sizeToScene);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Timeline timeline = new Timeline(
+                new KeyFrame(Duration.millis(300), e -> getStage().setMaximized(true)),
+                new KeyFrame(Duration.millis(600), e -> latch.countDown())
+        );
+        timeline.play();
+        latch.await(5, TimeUnit.SECONDS);
+
+        assertWindowSizeMatchesToScene(stageStyle);
+    }
+
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeOnSizeToSceneThenFullscreen(StageStyle stageStyle) throws InterruptedException {
+        setupStageStyle(stageStyle, Window::sizeToScene);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Timeline timeline = new Timeline(
+                new KeyFrame(Duration.millis(300), e -> getStage().setFullScreen(true)),
+                new KeyFrame(Duration.millis(900), e -> latch.countDown())
+        );
+        timeline.play();
+        latch.await(5, TimeUnit.SECONDS);
+
+        assertWindowSizeMatchesToScene(stageStyle);
+    }
+
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeAfterShowSizeToSceneThenFullscreen(StageStyle stageStyle) throws InterruptedException {
+        setupStageStyle(stageStyle, null);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Timeline timeline = new Timeline(
+                new KeyFrame(Duration.millis(300), e -> getStage().sizeToScene()),
+                new KeyFrame(Duration.millis(600), e -> getStage().setFullScreen(true)),
+                new KeyFrame(Duration.millis(900), e -> latch.countDown())
+        );
+        timeline.play();
+        latch.await(5, TimeUnit.SECONDS);
+
+        assertWindowSizeMatchesToScene(stageStyle);
+    }
+
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeAfterShowSizeToSceneThenMaximized(StageStyle stageStyle) throws InterruptedException {
+        setupStageStyle(stageStyle, null);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Timeline timeline = new Timeline(
+                new KeyFrame(Duration.millis(300), e -> getStage().sizeToScene()),
+                new KeyFrame(Duration.millis(600), e -> getStage().setMaximized(true)),
+                new KeyFrame(Duration.millis(900), e -> latch.countDown())
+        );
+        timeline.play();
+        latch.await(5, TimeUnit.SECONDS);
+
+        assertWindowSizeMatchesToScene(stageStyle);
+    }
+
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeAfterShowFullscreenThenSizeToScene(StageStyle stageStyle) throws InterruptedException {
+        setupStageStyle(stageStyle, null);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Timeline timeline = new Timeline(
+                new KeyFrame(Duration.millis(300), e -> getStage().setFullScreen(true)),
+                new KeyFrame(Duration.millis(600), e -> getStage().sizeToScene()),
+                new KeyFrame(Duration.millis(900), e -> latch.countDown())
+        );
+        timeline.play();
+        latch.await(5, TimeUnit.SECONDS);
+
+        assertWindowSizeMatchesToScene(stageStyle);
+    }
+
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeAfterShowMaximizedThenSizeToScene(StageStyle stageStyle) throws InterruptedException {
+        setupStageStyle(stageStyle, null);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Timeline timeline = new Timeline(
+                new KeyFrame(Duration.millis(300), e -> getStage().setMaximized(true)),
+                new KeyFrame(Duration.millis(600), e -> getStage().sizeToScene()),
+                new KeyFrame(Duration.millis(900), e -> latch.countDown())
+        );
+        timeline.play();
+        latch.await(5, TimeUnit.SECONDS);
+
+        assertWindowSizeMatchesToScene(stageStyle);
+    }
+
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeOnSizeToScene(StageStyle stageStyle) {
+        setupStageStyle(stageStyle, Window::sizeToScene);
+
+        assertWindowSizeMatchesToScene(stageStyle);
+    }
+
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeFullscreenOnOffSizeToScene(StageStyle stageStyle) throws InterruptedException {
+        setupStageStyle(stageStyle, null);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Timeline timeline = new Timeline(
+                new KeyFrame(Duration.millis(300), e -> getStage().setFullScreen(true)),
+                new KeyFrame(Duration.millis(600), e -> getStage().sizeToScene()),
+                new KeyFrame(Duration.millis(900), e -> getStage().setFullScreen(false)),
+                new KeyFrame(Duration.millis(1900), e -> latch.countDown())
+        );
+        timeline.play();
+        latch.await(5, TimeUnit.SECONDS);
+
+        assertWindowSizeMatchesToScene(stageStyle);
+    }
+
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeSizeToSceneFullscreenOnOff(StageStyle stageStyle) {
+        setupStageStyle(stageStyle, s -> {
+            s.sizeToScene();
+            s.setFullScreen(true);
+            s.setFullScreen(false);
         });
 
-        assertStageScreenBounds();
+        assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @Test
-    void testInitialSizeOnSizeToSceneThenMaximized() {
-        createAndShowStage(stage -> {
-            stage.sizeToScene();
-            stage.setMaximized(true);
-            stage.show();
+
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeMaximizedOnOffSizeToScene(StageStyle stageStyle) {
+        setupStageStyle(stageStyle, s -> {
+            s.setMaximized(true);
+            s.sizeToScene();
+            s.setMaximized(false);
         });
 
-        assertStageScreenBounds();
+        assertWindowSizeMatchesToScene(stageStyle);
     }
 
-    @Test
-    void testInitialSizeOnSizeToSceneThenFullscreen() {
-        createAndShowStage(stage -> {
-            stage.sizeToScene();
-            stage.setFullScreen(true);
-            stage.show();
+    @ParameterizedTest
+    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testInitialSizeSizeToSceneMaximizedOnOff(StageStyle stageStyle) {
+        setupStageStyle(stageStyle, s -> {
+            s.sizeToScene();
+            s.setMaximized(true);
+            s.setMaximized(false);
         });
 
-        assertStageScreenBounds();
+        assertWindowSizeMatchesToScene(stageStyle);
     }
-
-    @Test
-    void testInitialSizeAfterShowSizeToSceneThenFullscreen() {
-        createAndShowStage(stage -> {
-            stage.show();
-
-            stage.sizeToScene();
-            stage.setFullScreen(true);
-        });
-
-        assertStageScreenBounds();
-    }
-
-    @Test
-    void testInitialSizeAfterShowSizeToSceneThenMaximized() {
-        createAndShowStage(stage -> {
-            stage.show();
-
-            stage.sizeToScene();
-            stage.setMaximized(true);
-        });
-
-        assertStageScreenBounds();
-    }
-
-    @Test
-    void testInitialSizeAfterShowFullscreenThenSizeToScene() {
-        createAndShowStage(stage -> {
-            stage.show();
-
-            stage.setFullScreen(true);
-            stage.sizeToScene();
-        });
-
-        assertStageScreenBounds();
-    }
-
-    @Test
-    void testInitialSizeAfterShowMaximizedThenSizeToScene() {
-        createAndShowStage(stage -> {
-            stage.show();
-
-            stage.setMaximized(true);
-            stage.sizeToScene();
-        });
-
-        assertStageScreenBounds();
-    }
-
-    @Test
-    void testInitialSizeOnSizeToScene() {
-        createAndShowStage(stage -> {
-            stage.sizeToScene();
-            stage.show();
-        });
-
-        assertStageSceneBounds();
-    }
-
-    @Test
-    void testInitialSizeFullscreenOnOffSizeToScene() {
-        createAndShowStage(stage -> {
-            stage.setWidth(100);
-            stage.setHeight(100);
-
-            stage.setFullScreen(true);
-            stage.sizeToScene();
-            stage.setFullScreen(false);
-
-            stage.show();
-        });
-
-        assertStageSceneBounds();
-    }
-
-    @Test
-    void testInitialSizeSizeToSceneFullscreenOnOff() {
-        createAndShowStage(stage -> {
-            stage.setWidth(100);
-            stage.setHeight(100);
-
-            stage.sizeToScene();
-            stage.setFullScreen(true);
-            stage.setFullScreen(false);
-
-            stage.show();
-        });
-
-        assertStageSceneBounds();
-    }
-
-    @Test
-    void testInitialSizeMaximizedOnOffSizeToScene() {
-        createAndShowStage(stage -> {
-            stage.setWidth(100);
-            stage.setHeight(100);
-
-            stage.setMaximized(true);
-            stage.sizeToScene();
-            stage.setMaximized(false);
-
-            stage.show();
-        });
-
-        assertStageSceneBounds();
-    }
-
-    @Test
-    void testInitialSizeSizeToSceneMaximizedOnOff() {
-        createAndShowStage(stage -> {
-            stage.setWidth(100);
-            stage.setHeight(100);
-
-            stage.sizeToScene();
-            stage.setMaximized(true);
-            stage.setMaximized(false);
-
-            stage.show();
-        });
-
-        assertStageSceneBounds();
-    }
-
 }
