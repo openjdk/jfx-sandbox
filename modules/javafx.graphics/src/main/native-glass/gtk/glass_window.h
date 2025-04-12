@@ -55,13 +55,6 @@ enum WindowType {
     POPUP
 };
 
-struct WindowFrameExtents {
-    int top;
-    int left;
-    int bottom;
-    int right;
-};
-
 static const guint MOUSE_BUTTONS_MASK = (guint) (GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK);
 
 enum BoundsType {
@@ -72,7 +65,8 @@ enum BoundsType {
 struct WindowGeometry {
     WindowGeometry(): final_width(), final_height(),
     size_assigned(false), needs_to_restore_size(false),
-    x(), y(), view_x(), view_y(), gravity_x(), gravity_y(), extents() {}
+    x(), y(), view_x(), view_y(), gravity_x(), gravity_y(), extents(),
+    frame_extents_received(false) {}
     // estimate of the final width the window will get after all pending
     // configure requests are processed by the window manager
     struct {
@@ -96,13 +90,14 @@ struct WindowGeometry {
     float gravity_x;
     float gravity_y;
 
-    WindowFrameExtents extents;
+    GdkRectangle extents;
+    bool frame_extents_received;
 };
 
 class WindowContext: public DeletedMemDebug<0xCC> {
 private:
-    static WindowFrameExtents normal_extents;
-    static WindowFrameExtents utility_extents;
+    static GdkRectangle normal_extents;
+    static GdkRectangle utility_extents;
 
     jlong screen;
     WindowFrameType frame_type;
@@ -249,13 +244,14 @@ private:
     GdkAtom get_net_frame_extents_atom();
     void request_frame_extents();
     void update_frame_extents();
-    void set_cached_extents(WindowFrameExtents ex);
-    WindowFrameExtents get_cached_extents();
+    void set_cached_extents(GdkRectangle ex);
+    GdkRectangle get_cached_extents();
     bool get_frame_extents_property(int *, int *, int *, int *);
     void update_window_constraints();
     void update_ontop_tree(bool);
     bool on_top_inherited();
     bool effective_on_top();
+    GdkRectangle get_window_rect();
     WindowContext(WindowContext&);
     WindowContext& operator = (const WindowContext&);
 };

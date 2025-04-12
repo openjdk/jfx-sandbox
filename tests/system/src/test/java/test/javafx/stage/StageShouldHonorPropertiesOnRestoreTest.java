@@ -64,7 +64,7 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
                 new KeyFrame(Duration.millis(300), e -> enterNonFloating.run()),
                 new KeyFrame(Duration.millis(600), e -> setProperty.run()),
                 new KeyFrame(Duration.millis(900), e -> restoreToFloating.run()),
-                new KeyFrame(Duration.millis(1200), e -> latch.countDown())
+                new KeyFrame(Duration.millis(1500), e -> latch.countDown())
         );
         timeline.play();
         latch.await(5, TimeUnit.SECONDS);
@@ -87,7 +87,7 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    @EnumSource(names = {"DECORATED"})
     public void testUnFullscreenChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 

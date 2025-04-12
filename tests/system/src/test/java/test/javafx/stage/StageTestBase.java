@@ -98,7 +98,7 @@ public abstract class StageTestBase {
         if (stageStyle == StageStyle.TRANSPARENT) {
             setupTransparentStage(pc);
         } else  {
-            setupStage(pc);
+            setupStage(pc.andThen(s -> s.initStyle(stageStyle)));
         }
     }
 

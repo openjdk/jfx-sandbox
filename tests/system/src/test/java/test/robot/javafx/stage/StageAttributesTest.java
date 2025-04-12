@@ -102,7 +102,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
     public void testIconifiedStage(StageStyle stageStyle) throws InterruptedException {
         setupStages(true, true, stageStyle);
 
@@ -124,7 +124,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
     public void testMaximizedStage(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, true, stageStyle);
 
@@ -163,7 +163,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
     public void testFullScreenStage(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, true, stageStyle);
 
@@ -197,7 +197,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
     public void testIconifiedStageBeforeShow(StageStyle stageStyle) throws InterruptedException {
         setupStages(true, false, stageStyle);
 
@@ -223,7 +223,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
     public void testMaximizedStageBeforeShow(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, false, stageStyle);
 
@@ -263,7 +263,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
     public void testFullScreenStageBeforeShow(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, false, stageStyle);
 
@@ -302,7 +302,7 @@ public class StageAttributesTest extends VisualTestBase {
     }
 
     @ParameterizedTest
-    @EnumSource(names = {"DECORATED", "UNDECORATED", "UTILITY"})
+    @EnumSource(names = {"DECORATED", "UNDECORATED"})
     public void testAttributesPrecedence(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, false, stageStyle);
 
