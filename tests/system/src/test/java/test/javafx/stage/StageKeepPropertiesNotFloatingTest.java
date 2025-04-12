@@ -30,6 +30,7 @@ import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import test.util.Util;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -43,18 +44,6 @@ public class StageKeepPropertiesNotFloatingTest extends StageTestBase {
     private static final int WIDTH = 100;
     private static final int HEIGHT = 150;
 
-    private void doTimeLine(Runnable setNonFloatingRunnable,
-                            Runnable assertRunnable) throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(1);
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.millis(300), e -> setNonFloatingRunnable.run()),
-                new KeyFrame(Duration.millis(600), e -> assertRunnable.run()),
-                new KeyFrame(Duration.millis(900), e -> latch.countDown())
-        );
-        timeline.play();
-        latch.await(5, TimeUnit.SECONDS);
-    }
-
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
@@ -62,13 +51,14 @@ public class StageKeepPropertiesNotFloatingTest extends StageTestBase {
     public void testFullscreenShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, null);
 
-        doTimeLine(() -> getStage().setFullScreen(true),
-           () -> {
-               assertEquals(WIDTH, getStage().getWidth(), "Entering fullscreen mode changed the Stage's width");
-               assertEquals(HEIGHT, getStage().getHeight(), "Entering fullscreen mode changed the Stage's height");
-               assertEquals(POS_X, getStage().getX(), "Entering fullscreen mode changed the Stage's X position");
-               assertEquals(POS_Y, getStage().getY(), "Entering fullscreen mode changed the Stage's Y position");
-           });
+        Util.doTimeLine(300,
+                () -> getStage().setFullScreen(true),
+                () -> {
+                    assertEquals(WIDTH, getStage().getWidth(), "Entering fullscreen mode changed the Stage's width");
+                    assertEquals(HEIGHT, getStage().getHeight(), "Entering fullscreen mode changed the Stage's height");
+                    assertEquals(POS_X, getStage().getX(), "Entering fullscreen mode changed the Stage's X position");
+                    assertEquals(POS_Y, getStage().getY(), "Entering fullscreen mode changed the Stage's Y position");
+                });
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
@@ -78,12 +68,13 @@ public class StageKeepPropertiesNotFloatingTest extends StageTestBase {
     public void testMaximizeShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
         setupStageStyle(stageStyle, null);
 
-        doTimeLine(() -> getStage().setMaximized(true),
-            () -> {
-                assertEquals(WIDTH, getStage().getWidth(), "Maximized mode changed the Stage's width");
-                assertEquals(HEIGHT, getStage().getHeight(), "Maximized mode changed the Stage's height");
-                assertEquals(POS_X, getStage().getX(), "Maximized mode changed the Stage's X position");
-                assertEquals(POS_Y, getStage().getY(), "Maximized mode changed the Stage's Y position");
-            });
+        Util.doTimeLine(300,
+                () -> getStage().setMaximized(true),
+                () -> {
+                    assertEquals(WIDTH, getStage().getWidth(), "Maximized mode changed the Stage's width");
+                    assertEquals(HEIGHT, getStage().getHeight(), "Maximized mode changed the Stage's height");
+                    assertEquals(POS_X, getStage().getX(), "Maximized mode changed the Stage's X position");
+                    assertEquals(POS_Y, getStage().getY(), "Maximized mode changed the Stage's Y position");
+                });
     }
 }

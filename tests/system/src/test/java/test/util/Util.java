@@ -36,8 +36,12 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
@@ -47,7 +51,9 @@ import javafx.scene.Scene;
 import javafx.scene.layout.Region;
 import javafx.scene.robot.Robot;
 import javafx.stage.Screen;
+import javafx.stage.Stage;
 import javafx.stage.Window;
+import javafx.util.Duration;
 import org.junit.jupiter.api.Assertions;
 import com.sun.javafx.PlatformUtil;
 
@@ -454,5 +460,54 @@ public class Util {
 
         String waylandDisplay = System.getenv("WAYLAND_DISPLAY");
         return waylandDisplay != null && !waylandDisplay.isEmpty();
+    }
+
+    /**
+     * Creates a {@link Timeline} where each {@link KeyFrame} runs a {@link Runnable}.
+     * Each {@link Runnable} will be scheduled at an increment of {@code msToIncrement} milliseconds.
+     *
+     * @param msToIncrement the number of milliseconds to increment between each {@link KeyFrame}
+     * @param runnables     the list of {@link Runnable} instances to execute sequentially
+     */
+    public static void doTimeLine(int msToIncrement, Runnable... runnables) {
+        int mills = msToIncrement;
+        Timeline timeline = new Timeline();
+        for (Runnable runnable : runnables) {
+            timeline.getKeyFrames().add(new KeyFrame(Duration.millis(mills), e -> runnable.run()));
+            mills += msToIncrement;
+        }
+
+        timeline.play();
+    }
+
+    /**
+     * Creates a {@link Timeline} where each {@link KeyFrame} executes a {@link Runnable}.
+     *
+     * @param runnables a {@link Map} where the key is the {@link Duration} at which to trigger the action,
+     *                  and the value is the {@link Runnable} to execute at that time
+     */
+    public static void doTimeLine(Map<Duration, Runnable> runnables) {
+        Timeline timeline = new Timeline();
+        timeline.setCycleCount(1);
+        runnables.forEach((duration, runnable) ->
+                timeline.getKeyFrames().add(new KeyFrame(duration, e -> runnable.run())));
+        timeline.play();
+    }
+
+    /**
+     * Finds the {@link Screen} where the top-left corner of the given {@link Stage} is located.
+     *
+     * @param stage the {@link Stage} to check
+     * @return the {@link Screen} containing the stage's top-left corner or {@link Screen#getPrimary()}
+     */
+    public static Screen getScreen(Stage stage) {
+        for (Screen screen : Screen.getScreens()) {
+            Rectangle2D bounds = screen.getVisualBounds();
+            if (bounds.contains(stage.getX(), stage.getY())) {
+                return screen;
+            }
+        }
+
+        return Screen.getPrimary();
     }
 }

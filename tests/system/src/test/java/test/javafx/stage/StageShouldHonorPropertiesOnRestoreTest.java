@@ -30,6 +30,7 @@ import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import test.util.Util;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -57,20 +58,6 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
         });
     }
 
-    private void doTimeLine(Runnable enterNonFloating,
-                            Runnable setProperty,
-                            Runnable restoreToFloating) throws InterruptedException {
-        CountDownLatch latch = new CountDownLatch(1);
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.millis(300), e -> enterNonFloating.run()),
-                new KeyFrame(Duration.millis(600), e -> setProperty.run()),
-                new KeyFrame(Duration.millis(900), e -> restoreToFloating.run()),
-                new KeyFrame(Duration.millis(1500), e -> latch.countDown())
-        );
-        timeline.play();
-        latch.await(5, TimeUnit.SECONDS);
-    }
-
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
@@ -78,12 +65,13 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
     public void testUnFullscreenChangedPosition(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        doTimeLine(() -> getStage().setFullScreen(true),
-                   () -> {
-                       getStage().setX(POS_X);
-                       getStage().setY(POS_Y);
-                   },
-                   () -> getStage().setFullScreen(false));
+        Util.doTimeLine(300,
+                () -> getStage().setFullScreen(true),
+                () -> {
+                    getStage().setX(POS_X);
+                    getStage().setY(POS_Y);
+                },
+                () -> getStage().setFullScreen(false));
 
         assertEquals(POS_X, getStage().getX(), "Window failed to restore position set while fullscreened");
         assertEquals(POS_Y, getStage().getY(),  "Window failed to restore position set while fullscreened");
@@ -96,7 +84,8 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
     public void testUnFullscreenChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        doTimeLine(() -> getStage().setFullScreen(true),
+        Util.doTimeLine(300,
+                () -> getStage().setFullScreen(true),
                 () -> {
                     getStage().setWidth(WIDTH);
                     getStage().setHeight(HEIGHT);
@@ -114,7 +103,8 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
     public void testUnMaximzeChangedPosition(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        doTimeLine(() -> getStage().setMaximized(true),
+        Util.doTimeLine(300,
+                () -> getStage().setMaximized(true),
                 () -> {
                     getStage().setX(POS_X);
                     getStage().setY(POS_Y);
@@ -132,7 +122,8 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
     public void testUnMaximizeChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        doTimeLine(() -> getStage().setMaximized(true),
+        Util.doTimeLine(300,
+                () -> getStage().setMaximized(true),
                 () -> {
                     getStage().setWidth(WIDTH);
                     getStage().setHeight(HEIGHT);
@@ -150,7 +141,8 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
     public void testDeIconfyChangedPosition(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        doTimeLine(() -> getStage().setIconified(true),
+        Util.doTimeLine(300,
+                () -> getStage().setIconified(true),
                 () -> {
                     getStage().setX(POS_X);
                     getStage().setY(POS_Y);
@@ -168,7 +160,8 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
     public void testDeIconifyChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        doTimeLine(() -> getStage().setIconified(true),
+        Util.doTimeLine(300,
+                () -> getStage().setIconified(true),
                 () -> {
                     getStage().setWidth(WIDTH);
                     getStage().setHeight(HEIGHT);

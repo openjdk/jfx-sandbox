@@ -25,8 +25,6 @@
 
 package test.robot.javafx.stage;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.layout.Background;
@@ -40,6 +38,7 @@ import javafx.util.Duration;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import test.robot.testharness.VisualTestBase;
+import test.util.Util;
 
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -60,8 +59,8 @@ public class StageMixedSizeTest extends VisualTestBase {
         final int initialContentSize = 300;
 
         setupContentSizeTestStage(initialContentSize, initialContentSize,
-                () -> doTimeLine(Map.of(500L, () -> testStage.setWidth(finalWidth),
-                                        1000L, latch::countDown)));
+                () -> Util.doTimeLine(Map.of(Duration.millis(500), () -> testStage.setWidth(finalWidth),
+                        Duration.seconds(1), latch::countDown)));
 
         assertTrue(latch.await(TIMEOUT, TimeUnit.MILLISECONDS), "Timeout waiting for test stage to be shown");
 
@@ -77,8 +76,8 @@ public class StageMixedSizeTest extends VisualTestBase {
         final int initialContentSize = 300;
 
         setupContentSizeTestStage(initialContentSize, initialContentSize,
-                () -> doTimeLine(Map.of(500L, () -> testStage.setHeight(finalHeight),
-                                        1000L, latch::countDown)));
+                () -> Util.doTimeLine(Map.of(Duration.millis(500), () -> testStage.setHeight(finalHeight),
+                        Duration.seconds(1), latch::countDown)));
 
         assertTrue(latch.await(TIMEOUT, TimeUnit.MILLISECONDS), "Timeout waiting for test stage to be shown");
 
@@ -101,13 +100,5 @@ public class StageMixedSizeTest extends VisualTestBase {
             testStage.setOnShown(e -> onShown.run());
             testStage.show();
         });
-    }
-
-    private void doTimeLine(Map<Long, Runnable> keyFrames) {
-        Timeline timeline = new Timeline();
-        timeline.setCycleCount(1);
-        keyFrames.forEach((duration, runnable) ->
-                timeline.getKeyFrames().add(new KeyFrame(Duration.millis(duration), e -> runnable.run())));
-        timeline.play();
     }
 }
