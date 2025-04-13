@@ -73,7 +73,7 @@ public abstract class StageTestBase {
      * @param stageStyle The Stage Style.
      * @param pc A consumer to set state properties
      */
-    protected void setupStageStyle(StageStyle stageStyle, Consumer<Stage> pc) {
+    protected void setupStageWithStyle(StageStyle stageStyle, Consumer<Stage> pc) {
         CountDownLatch shownLatch = new CountDownLatch(1);
         Platform.runLater(() -> {
             stage = new Stage();

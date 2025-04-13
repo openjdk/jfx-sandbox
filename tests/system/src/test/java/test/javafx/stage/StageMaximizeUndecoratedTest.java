@@ -47,7 +47,7 @@ public class StageMaximizeUndecoratedTest extends StageTestBase {
     public void testMaximizeUndecorated(StageStyle stageStyle) throws Exception {
         int pos = 100;
 
-        setupStageStyle(stageStyle, s -> {
+        setupStageWithStyle(stageStyle, s -> {
             s.setX(pos);
             s.setY(pos);
             s.setWidth(WIDTH);

@@ -712,6 +712,13 @@ void WindowContext::request_frame_extents() {
 }
 
 void WindowContext::update_window_size_location() {
+    //Still in max
+    if ((gdk_window_get_state(gdk_window) & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_FULLSCREEN))
+        || (requested_state_mask & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_FULLSCREEN))) {
+        g_print("update_window_size_location: skip update\n");
+        return;
+    }
+
     if (!geometry.needs_to_restore_size) {
         return;
     }
@@ -923,15 +930,16 @@ void WindowContext::process_state(GdkEventWindowState *event) {
         CHECK_JNI_EXCEPTION(mainEnv)
     }
 
-    // this only accounts MAXIMIZED and FULLSCREEN
-    bool restored = event->changed_mask & (GDK_WINDOW_STATE_MAXIMIZED
-                                            | GDK_WINDOW_STATE_FULLSCREEN)
-                    && !(event->new_window_state & (GDK_WINDOW_STATE_MAXIMIZED
-                                                       | GDK_WINDOW_STATE_FULLSCREEN));
+    // This only accounts MAXIMIZED and FULLSCREEN
+    bool restored = (event->changed_mask & (GDK_WINDOW_STATE_MAXIMIZED
+                                            | GDK_WINDOW_STATE_FULLSCREEN))
+                    && ((event->new_window_state & (GDK_WINDOW_STATE_MAXIMIZED
+                                            | GDK_WINDOW_STATE_FULLSCREEN)) == 0);
 
     // In case the size or location changed while maximized of fullscreened
     if (restored && geometry.needs_to_restore_size) {
         //Call if later because restore properties will still arrive
+        g_print("update_window_size_location_later\n");
         gdk_threads_add_idle((GSourceFunc) update_window_size_location_later, this);
     }
 }
@@ -1152,11 +1160,10 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
     }
 
     if (GDK_IS_WINDOW(gdk_window)) {
-        GdkWindowState current_state = gdk_window_get_state(gdk_window);
         // If it was requested to be or currently is fullscreen/maximized, just save the requested
         // dimensions / location and set them later when restored
         if ((requested_state_mask & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED))
-            || current_state & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED)) {
+            || (gdk_window_get_state(gdk_window) & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED))) {
             geometry.needs_to_restore_size = true;
             return;
         }

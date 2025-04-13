@@ -24,16 +24,10 @@
  */
 package test.javafx.stage;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.stage.StageStyle;
-import javafx.util.Duration;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import test.util.Util;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
@@ -50,7 +44,7 @@ public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
     private static final int SHOW_Y = 300;
 
     private void setupStageWithStyle(StageStyle style) {
-        super.setupStageStyle(style, s -> {
+        super.setupStageWithStyle(style, s -> {
             s.setWidth(SHOW_WIDTH);
             s.setHeight(SHOW_HEIGHT);
             s.setX(SHOW_X);

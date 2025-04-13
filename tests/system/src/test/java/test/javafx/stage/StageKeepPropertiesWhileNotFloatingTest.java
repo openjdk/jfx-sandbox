@@ -43,7 +43,7 @@ public class StageKeepPropertiesWhileNotFloatingTest extends StageTestBase {
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testFullscreenShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
-        setupStageStyle(stageStyle, null);
+        setupStageWithStyle(stageStyle, null);
 
         Util.doTimeLine(300,
                 () -> getStage().setFullScreen(true),
@@ -60,7 +60,7 @@ public class StageKeepPropertiesWhileNotFloatingTest extends StageTestBase {
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testMaximizeShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
-        setupStageStyle(stageStyle, null);
+        setupStageWithStyle(stageStyle, null);
 
         Util.doTimeLine(300,
                 () -> getStage().setMaximized(true),

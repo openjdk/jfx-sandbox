@@ -24,20 +24,16 @@
  */
 package test.javafx.stage;
 
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.scene.Parent;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
-import javafx.util.Duration;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import test.util.Util;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
@@ -57,7 +53,7 @@ class SizeToSceneTest extends StageTestBase {
     }
 
     @Override
-    protected void setupStageStyle(StageStyle stageStyle, Consumer<Stage> pc) {
+    protected void setupStageWithStyle(StageStyle stageStyle, Consumer<Stage> pc) {
         Consumer<Stage> cs = stage -> {
             stage.setMinWidth(STAGE_MIN_WIDTH);
             stage.setMinHeight(STAGE_MIN_HEIGHT);
@@ -67,11 +63,11 @@ class SizeToSceneTest extends StageTestBase {
             cs = cs.andThen(pc);
         }
 
-        super.setupStageStyle(stageStyle, cs);
+        super.setupStageWithStyle(stageStyle, cs);
     }
 
     private double getDelta(StageStyle stageStyle) {
-        if (stageStyle != StageStyle.DECORATED && stageStyle != StageStyle.UTILITY) {
+        if (stageStyle == StageStyle.DECORATED || stageStyle == StageStyle.UTILITY) {
             return DECORATION_DELTA;
         }
 
@@ -88,11 +84,12 @@ class SizeToSceneTest extends StageTestBase {
                 mode = EnumSource.Mode.INCLUDE,
                 names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeOnMaximizedThenSizeToScene(StageStyle stageStyle) {
-        setupStageStyle(stageStyle, s -> {
+        setupStageWithStyle(stageStyle, s -> {
             s.setMaximized(true);
             s.sizeToScene();
+            s.setMaximized(false);
         });
-
+        Util.sleep(500);
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
@@ -101,11 +98,12 @@ class SizeToSceneTest extends StageTestBase {
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeOnFullscreenThenSizeToScene(StageStyle stageStyle) {
-        setupStageStyle(stageStyle, s -> {
+        setupStageWithStyle(stageStyle, s -> {
             s.setFullScreen(true);
             s.sizeToScene();
+            s.setFullScreen(false);
         });
-
+        Util.sleep(500);
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
@@ -114,15 +112,10 @@ class SizeToSceneTest extends StageTestBase {
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeOnSizeToSceneThenMaximized(StageStyle stageStyle) throws InterruptedException {
-        setupStageStyle(stageStyle, Window::sizeToScene);
-
-        CountDownLatch latch = new CountDownLatch(1);
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.millis(300), e -> getStage().setMaximized(true)),
-                new KeyFrame(Duration.millis(600), e -> latch.countDown())
-        );
-        timeline.play();
-        latch.await(5, TimeUnit.SECONDS);
+        setupStageWithStyle(stageStyle, Window::sizeToScene);
+        Util.doTimeLine(500,
+                () -> getStage().setMaximized(true),
+                () -> getStage().setMaximized(false));
 
         assertWindowSizeMatchesToScene(stageStyle);
     }
@@ -132,16 +125,10 @@ class SizeToSceneTest extends StageTestBase {
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeOnSizeToSceneThenFullscreen(StageStyle stageStyle) throws InterruptedException {
-        setupStageStyle(stageStyle, Window::sizeToScene);
-
-        CountDownLatch latch = new CountDownLatch(1);
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.millis(300), e -> getStage().setFullScreen(true)),
-                new KeyFrame(Duration.millis(900), e -> latch.countDown())
-        );
-        timeline.play();
-        latch.await(5, TimeUnit.SECONDS);
-
+        setupStageWithStyle(stageStyle, Window::sizeToScene);
+        Util.doTimeLine(500,
+                () -> getStage().setFullScreen(true),
+                () -> getStage().setFullScreen(false));
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
@@ -150,17 +137,11 @@ class SizeToSceneTest extends StageTestBase {
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeAfterShowSizeToSceneThenFullscreen(StageStyle stageStyle) throws InterruptedException {
-        setupStageStyle(stageStyle, null);
-
-        CountDownLatch latch = new CountDownLatch(1);
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.millis(300), e -> getStage().sizeToScene()),
-                new KeyFrame(Duration.millis(600), e -> getStage().setFullScreen(true)),
-                new KeyFrame(Duration.millis(900), e -> latch.countDown())
-        );
-        timeline.play();
-        latch.await(5, TimeUnit.SECONDS);
-
+        setupStageWithStyle(stageStyle, null);
+        Util.doTimeLine(500,
+                () -> getStage().sizeToScene(),
+                () -> getStage().setFullScreen(true),
+                () -> getStage().setFullScreen(false));
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
@@ -169,17 +150,11 @@ class SizeToSceneTest extends StageTestBase {
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeAfterShowSizeToSceneThenMaximized(StageStyle stageStyle) throws InterruptedException {
-        setupStageStyle(stageStyle, null);
-
-        CountDownLatch latch = new CountDownLatch(1);
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.millis(300), e -> getStage().sizeToScene()),
-                new KeyFrame(Duration.millis(600), e -> getStage().setMaximized(true)),
-                new KeyFrame(Duration.millis(900), e -> latch.countDown())
-        );
-        timeline.play();
-        latch.await(5, TimeUnit.SECONDS);
-
+        setupStageWithStyle(stageStyle, null);
+        Util.doTimeLine(500,
+                () -> getStage().sizeToScene(),
+                () -> getStage().setMaximized(true),
+                () -> getStage().setMaximized(false));
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
@@ -188,17 +163,11 @@ class SizeToSceneTest extends StageTestBase {
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeAfterShowFullscreenThenSizeToScene(StageStyle stageStyle) throws InterruptedException {
-        setupStageStyle(stageStyle, null);
-
-        CountDownLatch latch = new CountDownLatch(1);
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.millis(300), e -> getStage().setFullScreen(true)),
-                new KeyFrame(Duration.millis(600), e -> getStage().sizeToScene()),
-                new KeyFrame(Duration.millis(900), e -> latch.countDown())
-        );
-        timeline.play();
-        latch.await(5, TimeUnit.SECONDS);
-
+        setupStageWithStyle(stageStyle, null);
+        Util.doTimeLine(500,
+                () -> getStage().setFullScreen(true),
+                () -> getStage().sizeToScene(),
+                () -> getStage().setFullScreen(false));
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
@@ -207,17 +176,12 @@ class SizeToSceneTest extends StageTestBase {
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeAfterShowMaximizedThenSizeToScene(StageStyle stageStyle) throws InterruptedException {
-        setupStageStyle(stageStyle, null);
+        setupStageWithStyle(stageStyle, null);
 
-        CountDownLatch latch = new CountDownLatch(1);
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.millis(300), e -> getStage().setMaximized(true)),
-                new KeyFrame(Duration.millis(600), e -> getStage().sizeToScene()),
-                new KeyFrame(Duration.millis(900), e -> latch.countDown())
-        );
-        timeline.play();
-        latch.await(5, TimeUnit.SECONDS);
-
+        Util.doTimeLine(500,
+                () -> getStage().setMaximized(true),
+                () -> getStage().sizeToScene(),
+                () -> getStage().setMaximized(false));
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
@@ -226,56 +190,8 @@ class SizeToSceneTest extends StageTestBase {
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeOnSizeToScene(StageStyle stageStyle) throws InterruptedException {
-        setupStageStyle(stageStyle, Window::sizeToScene);
-
-        assertWindowSizeMatchesToScene(stageStyle);
-    }
-
-    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    void testInitialSizeFullscreenOnOffSizeToScene(StageStyle stageStyle) throws InterruptedException {
-        setupStageStyle(stageStyle, null);
-
-        CountDownLatch latch = new CountDownLatch(1);
-        Timeline timeline = new Timeline(
-                new KeyFrame(Duration.millis(300), e -> getStage().setFullScreen(true)),
-                new KeyFrame(Duration.millis(600), e -> getStage().sizeToScene()),
-                new KeyFrame(Duration.millis(900), e -> getStage().setFullScreen(false)),
-                new KeyFrame(Duration.millis(1900), e -> latch.countDown())
-        );
-        timeline.play();
-        latch.await(5, TimeUnit.SECONDS);
-
-        assertWindowSizeMatchesToScene(stageStyle);
-    }
-
-    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    void testInitialSizeSizeToSceneFullscreenOnOff(StageStyle stageStyle) throws InterruptedException {
-        setupStageStyle(stageStyle, s -> {
-            s.sizeToScene();
-            s.setFullScreen(true);
-            s.setFullScreen(false);
-        });
-
-        assertWindowSizeMatchesToScene(stageStyle);
-    }
-
-    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    void testInitialSizeMaximizedOnOffSizeToScene(StageStyle stageStyle) {
-        setupStageStyle(stageStyle, s -> {
-            s.setMaximized(true);
-            s.sizeToScene();
-            s.setMaximized(false);
-        });
-
+        setupStageWithStyle(stageStyle, Window::sizeToScene);
+        Util.sleep(500);
         assertWindowSizeMatchesToScene(stageStyle);
     }
 
@@ -284,12 +200,13 @@ class SizeToSceneTest extends StageTestBase {
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testInitialSizeSizeToSceneMaximizedOnOff(StageStyle stageStyle) {
-        setupStageStyle(stageStyle, s -> {
+        setupStageWithStyle(stageStyle, s -> {
             s.sizeToScene();
             s.setMaximized(true);
             s.setMaximized(false);
         });
 
+        Util.sleep(500);
         assertWindowSizeMatchesToScene(stageStyle);
     }
 }
