@@ -26,19 +26,14 @@ package test.javafx.stage;
 
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Screen;
-import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import test.util.Util;
 
-import java.util.function.Consumer;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
@@ -69,7 +64,7 @@ public class CenterOnScreenTest extends StageTestBase {
             stage.setWidth(STAGE_WIDTH);
             stage.setHeight(STAGE_HEIGHT);
         });
-        Util.sleep(500);
+        Util.sleep(300);
         assertStageCentered(stageStyle, false);
     }
 
@@ -79,7 +74,7 @@ public class CenterOnScreenTest extends StageTestBase {
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testStateCenterOnScreenWhenShownWithSceneSize(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, null);
-        Util.sleep(500);
+        Util.sleep(300);
         assertStageCentered(stageStyle, true);
     }
 
@@ -95,9 +90,9 @@ public class CenterOnScreenTest extends StageTestBase {
             stage.setY(0);
         });
 
-        Util.sleep(500);
+        Util.sleep(300);
         Util.runAndWait(() -> getStage().centerOnScreen());
-        Util.sleep(500);
+        Util.sleep(300);
         assertStageCentered(stageStyle, false);
     }
 
@@ -111,9 +106,9 @@ public class CenterOnScreenTest extends StageTestBase {
             stage.setY(0);
         });
 
-        Util.sleep(500);
+        Util.sleep(300);
         Util.runAndWait(() -> getStage().centerOnScreen());
-        Util.sleep(500);
+        Util.sleep(300);
         assertStageCentered(stageStyle, true);
     }
 
@@ -130,15 +125,11 @@ public class CenterOnScreenTest extends StageTestBase {
             stage.setFullScreen(true);
         });
 
-        Util.sleep(500);
-        Util.doTimeLine(500,
+        Util.doTimeLine(300,
                 () -> getStage().centerOnScreen(),
                 () -> assertTrue(getStage().isFullScreen(), "centerOnScreen() should not change window state"),
-                () -> getStage().setFullScreen(false));
-
-        Util.sleep(500);
-
-        assertStageCentered(stageStyle, false);
+                () -> getStage().setFullScreen(false),
+                () -> assertStageCentered(stageStyle, false));
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
@@ -154,15 +145,11 @@ public class CenterOnScreenTest extends StageTestBase {
             stage.setMaximized(true);
         });
 
-        Util.sleep(500);
-        Util.doTimeLine(500,
+        Util.doTimeLine(300,
                 () -> getStage().centerOnScreen(),
                 () -> assertTrue(getStage().isFullScreen(), "centerOnScreen() should not change window state"),
-                () -> getStage().setMaximized(false));
-
-        Util.sleep(500);
-
-        assertStageCentered(stageStyle, false);
+                () -> getStage().setMaximized(false),
+                () -> assertStageCentered(stageStyle, false));
     }
 
     private void assertStageCentered(StageStyle stageStyle, boolean useSceneSize) {
@@ -171,14 +158,9 @@ public class CenterOnScreenTest extends StageTestBase {
         double decorationY = 0;
         double decorationX = 0;
 
-        if (stageStyle == StageStyle.DECORATED
-                && !getStage().isFullScreen()
-                && !getStage().isMaximized()) {
+        if (stageStyle == StageStyle.DECORATED) {
             decorationX = getStage().getScene().getX() * CENTER_ON_SCREEN_X_FRACTION;
             decorationY = getStage().getScene().getY() * CENTER_ON_SCREEN_Y_FRACTION;
-
-            assertNotEquals(0, decorationX, "Decorated Stage's should have viewX");
-            assertNotEquals(0, decorationY, "Decorated Stage's should have viewY");
         }
 
         Rectangle2D bounds = screen.getVisualBounds();

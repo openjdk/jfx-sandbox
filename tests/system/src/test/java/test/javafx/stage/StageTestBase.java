@@ -39,9 +39,11 @@ import test.util.Util;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 public abstract class StageTestBase {
     private static final CountDownLatch startupLatch = new CountDownLatch(1);
-    private Stage stage;
+    private Stage stage = null;
 
     /**
      * Creates a Scene for the test stage acoording to the {@link StageStyle}
@@ -76,6 +78,7 @@ public abstract class StageTestBase {
     protected void setupStageWithStyle(StageStyle stageStyle, Consumer<Stage> pc) {
         CountDownLatch shownLatch = new CountDownLatch(1);
         Util.runAndWait(() -> {
+            assertNull(stage, "Stage is not null");
             stage = new Stage();
             stage.setAlwaysOnTop(true);
             if (pc != null) {
@@ -111,6 +114,7 @@ public abstract class StageTestBase {
             stage.setOnHidden(e -> hideLatch.countDown());
             Util.runAndWait(stage::hide);
             Util.waitForLatch(hideLatch, 5, "Stage failed to hide");
+            stage = null;
         }
     }
 
