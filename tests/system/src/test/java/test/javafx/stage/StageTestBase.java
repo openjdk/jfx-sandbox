@@ -81,7 +81,7 @@ public abstract class StageTestBase {
             if (pc != null) {
                 pc.accept(stage);
             }
-            stage.initStyle(StageStyle.TRANSPARENT);
+            stage.initStyle(stageStyle);
             stage.setScene(createScene(stageStyle));
             stage.setOnShown(e -> shownLatch.countDown());
             stage.show();
