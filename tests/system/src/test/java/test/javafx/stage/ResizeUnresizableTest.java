@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
-public class StageResizeUnresizableTest extends StageTestBase {
+public class ResizeUnresizableTest extends StageTestBase {
     private static final int WIDTH = 300;
     private static final int HEIGHT = 300;
 

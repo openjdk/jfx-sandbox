@@ -29,14 +29,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import test.util.Util;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
-public class StageMaximizeUndecoratedTest extends StageTestBase {
+public class MaximizeUndecoratedTest extends StageTestBase {
     private static final int WIDTH = 300;
     private static final int HEIGHT = 300;
 
@@ -55,18 +52,7 @@ public class StageMaximizeUndecoratedTest extends StageTestBase {
         });
 
         Util.sleep(300);
-
-        CountDownLatch latch = new CountDownLatch(1);
-
-        getStage().maximizedProperty().addListener((observable, oldValue, newValue) -> {
-            if (Boolean.TRUE.equals(newValue)) {
-                latch.countDown();
-            }
-        });
-
         Util.runAndWait(() -> getStage().setMaximized(true));
-        latch.await(5, TimeUnit.SECONDS);
-
         Util.sleep(300);
 
         assertTrue(getStage().isMaximized(), "Stage should be maximized");

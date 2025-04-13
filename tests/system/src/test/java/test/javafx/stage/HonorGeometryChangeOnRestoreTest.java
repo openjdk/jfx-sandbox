@@ -32,7 +32,7 @@ import test.util.Util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
-public class StageShouldHonorPropertiesOnRestoreTest extends StageTestBase {
+public class HonorGeometryChangeOnRestoreTest extends StageTestBase {
     private static final int POS_X = 100;
     private static final int POS_Y = 150;
     private static final int WIDTH = 100;

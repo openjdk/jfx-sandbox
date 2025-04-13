@@ -75,7 +75,7 @@ public abstract class StageTestBase {
      */
     protected void setupStageWithStyle(StageStyle stageStyle, Consumer<Stage> pc) {
         CountDownLatch shownLatch = new CountDownLatch(1);
-        Platform.runLater(() -> {
+        Util.runAndWait(() -> {
             stage = new Stage();
             stage.setAlwaysOnTop(true);
             if (pc != null) {
@@ -109,7 +109,7 @@ public abstract class StageTestBase {
         if (stage != null) {
             CountDownLatch hideLatch = new CountDownLatch(1);
             stage.setOnHidden(e -> hideLatch.countDown());
-            Platform.runLater(stage::hide);
+            Util.runAndWait(stage::hide);
             Util.waitForLatch(hideLatch, 5, "Stage failed to hide");
         }
     }

@@ -476,7 +476,6 @@ public class Util {
             timeline.getKeyFrames().add(new KeyFrame(Duration.millis(mills), e -> runnable.run()));
             mills += msToIncrement;
         }
-
         timeline.play();
     }
 

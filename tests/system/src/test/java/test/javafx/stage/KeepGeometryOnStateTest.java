@@ -32,7 +32,7 @@ import test.util.Util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
-public class StageKeepPropertiesWhileNotFloatingTest extends StageTestBase {
+public class KeepGeometryOnStateTest extends StageTestBase {
     private static final int POS_X = 100;
     private static final int POS_Y = 150;
     private static final int WIDTH = 100;
@@ -45,14 +45,24 @@ public class StageKeepPropertiesWhileNotFloatingTest extends StageTestBase {
     public void testFullscreenShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
         setupStageWithStyle(stageStyle, null);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().setFullScreen(true),
-                () -> {
-                    assertEquals(WIDTH, getStage().getWidth(), "Entering fullscreen mode changed the Stage's width");
-                    assertEquals(HEIGHT, getStage().getHeight(), "Entering fullscreen mode changed the Stage's height");
-                    assertEquals(POS_X, getStage().getX(), "Entering fullscreen mode changed the Stage's X position");
-                    assertEquals(POS_Y, getStage().getY(), "Entering fullscreen mode changed the Stage's Y position");
-                });
+                this::assertSizePosition,
+                () -> getStage().setFullScreen(false),
+                this::assertSizePosition);
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    public void testFullscreenBeforeShowShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
+        setupStageWithStyle(stageStyle, s -> s.setFullScreen(true));
+
+        Util.doTimeLine(500,
+                this::assertSizePosition,
+                () -> getStage().setFullScreen(false),
+                this::assertSizePosition);
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
@@ -62,13 +72,30 @@ public class StageKeepPropertiesWhileNotFloatingTest extends StageTestBase {
     public void testMaximizeShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
         setupStageWithStyle(stageStyle, null);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().setMaximized(true),
-                () -> {
-                    assertEquals(WIDTH, getStage().getWidth(), "Maximized mode changed the Stage's width");
-                    assertEquals(HEIGHT, getStage().getHeight(), "Maximized mode changed the Stage's height");
-                    assertEquals(POS_X, getStage().getX(), "Maximized mode changed the Stage's X position");
-                    assertEquals(POS_Y, getStage().getY(), "Maximized mode changed the Stage's Y position");
-                });
+                this::assertSizePosition,
+                () -> getStage().setMaximized(false),
+                this::assertSizePosition);
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    public void testMaximizeBeforeShowShouldKeepProperties(StageStyle stageStyle) throws InterruptedException {
+        setupStageWithStyle(stageStyle, s -> s.setMaximized(true));
+
+        Util.doTimeLine(500,
+                this::assertSizePosition,
+                () -> getStage().setMaximized(false),
+                this::assertSizePosition);
+    }
+
+    private void assertSizePosition() {
+        assertEquals(WIDTH, getStage().getWidth(), "Stage's width should have remained");
+        assertEquals(HEIGHT, getStage().getHeight(), "Stage's height should have remained");
+        assertEquals(POS_X, getStage().getX(), "Stage's X position should have remained");
+        assertEquals(POS_Y, getStage().getY(), "Stage's Y position should have remained");
     }
 }
