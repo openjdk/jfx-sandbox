@@ -473,13 +473,18 @@ public class Util {
      * @param runnables     the list of {@link Runnable} instances to execute sequentially
      */
     public static void doTimeLine(int msToIncrement, Runnable... runnables) {
+        CountDownLatch latch = new CountDownLatch(1);
         int mills = msToIncrement;
         Timeline timeline = new Timeline();
+        timeline.setCycleCount(1);
         for (Runnable runnable : runnables) {
             timeline.getKeyFrames().add(new KeyFrame(Duration.millis(mills), e -> runnable.run()));
             mills += msToIncrement;
         }
+        timeline.setOnFinished(e -> latch.countDown());
         timeline.play();
+
+        Util.waitForLatch(latch, 5, "Timeout waiting for latch");
     }
 
     /**
@@ -489,11 +494,15 @@ public class Util {
      *                  and the value is the {@link Runnable} to execute at that time
      */
     public static void doTimeLine(Map<Duration, Runnable> runnables) {
+        CountDownLatch latch = new CountDownLatch(1);
         Timeline timeline = new Timeline();
         timeline.setCycleCount(1);
         runnables.forEach((duration, runnable) ->
                 timeline.getKeyFrames().add(new KeyFrame(duration, e -> runnable.run())));
+        timeline.setOnFinished(e -> latch.countDown());
         timeline.play();
+
+        Util.waitForLatch(latch, 5, "Timeout waiting for latch");
     }
 
     /**

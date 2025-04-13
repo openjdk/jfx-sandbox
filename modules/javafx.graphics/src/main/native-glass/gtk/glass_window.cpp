@@ -895,7 +895,7 @@ GdkRectangle WindowContext::get_cached_extents() {
 }
 
 void WindowContext::process_property_notify(GdkEventProperty *event) {
-    g_print("process_property_notify: %s\n", gdk_atom_name(event->atom));
+//    g_print("process_property_notify: %s\n", gdk_atom_name(event->atom));
     if (event->atom == get_net_frame_extents_atom()) {
         update_frame_extents();
     }

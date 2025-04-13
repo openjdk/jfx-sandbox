@@ -18,7 +18,7 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * Please contact Oracle, S Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
@@ -344,15 +344,15 @@ public class StageStatesTest extends VisualTestBase {
     public void testStageStatePrecedenceOrderBeforeShow(StageState stageState) throws InterruptedException {
         setupStages(false, false, stageState.stageStyle());
 
-        Util.doTimeLine(500,
+        Util.doTimeLine(300,
                 () -> {
                     for (Consumer<Stage> stageConsumer : stageState.initStates()) {
                         stageConsumer.accept(topStage);
                     }
                     topStage.show();
                 },
-                () -> assertStates(stageState.fullscreen(), stageState.iconified(), stageState.maximized()),
                 () -> {
+                    assertStates(stageState.fullscreen(), stageState.iconified(), stageState.maximized());
                     Color color = getColor(200, 200);
 
                     boolean bottom = (stageState.iconified() || (!stageState.fullscreen() && !stageState.maximized()));
@@ -372,8 +372,8 @@ public class StageStatesTest extends VisualTestBase {
             runnables.add(() -> stageConsumer.accept(topStage));
         }
 
-        runnables.add(() -> assertStates(stageState.fullscreen(), stageState.iconified(), stageState.maximized()));
         runnables.add(() -> {
+            assertStates(stageState.fullscreen(), stageState.iconified(), stageState.maximized());
             Color color = getColor(200, 200);
 
             boolean bottom = (stageState.iconified() || (!stageState.fullscreen() && !stageState.maximized()));
@@ -389,7 +389,7 @@ public class StageStatesTest extends VisualTestBase {
             throws InterruptedException {
         setupStages(false, false, stageStyle);
 
-        Util.doTimeLine(500,
+        Util.doTimeLine(300,
                 () -> {
                     Color color = getColor(200, 200);
                     assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
@@ -415,7 +415,7 @@ public class StageStatesTest extends VisualTestBase {
             throws InterruptedException {
         setupStages(false, false, stageStyle);
 
-        Util.doTimeLine(500,
+        Util.doTimeLine(300,
                 () -> {
                     Color color = getColor(200, 200);
                     assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
