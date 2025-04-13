@@ -36,9 +36,9 @@ public class WindowEvent {
 
     @Native final static public int MINIMIZE              = 531;
     @Native final static public int MAXIMIZE              = 532;
-
     /**
-     * Deprecated in favor of specific restore events: {@link #UNMAXIMIZE} and {@link #UNMINIMIZE}.
+     * Deprecated in favor of specific restore events: {@link #UNMAXIMIZE}
+     * and {@link #UNMINIMIZE}.
      */
     @Deprecated
     @Native final static public int RESTORE               = 533;
@@ -54,7 +54,6 @@ public class WindowEvent {
 
     @Native final static public int FOCUS_DISABLED        = 545;
     @Native final static public int FOCUS_UNGRAB          = 546;
-
 
     public static String getEventName(final int eventType) {
         return switch (eventType) {

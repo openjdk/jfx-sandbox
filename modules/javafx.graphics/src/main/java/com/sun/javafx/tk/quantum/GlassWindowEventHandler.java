@@ -110,8 +110,8 @@ class GlassWindowEventHandler extends Window.EventHandler implements Supplier<Vo
                 float pScaleX = window.getPlatformScaleX();
                 float pScaleY = window.getPlatformScaleY();
                 stage.stageListener.changedSize(window.getWidth()  / pScaleX,
-                                                window.getHeight() / pScaleY);
-                 break;
+                        window.getHeight() / pScaleY);
+                break;
             }
             case WindowEvent.RESCALE: {
                 float outScaleX = window.getOutputScaleX();

@@ -84,8 +84,8 @@ public abstract class Window {
 
     // window list
     static private final LinkedList<Window> visibleWindows = new LinkedList<>();
-     // Return a list of all visible windows.  Note that on platforms without a native window manager,
-     // this list will be sorted in proper z-order
+    // Return a list of all visible windows.  Note that on platforms without a native window manager,
+    // this list will be sorted in proper z-order
     static public synchronized List<Window> getWindows() {
         Application.checkEventThread();
         return Collections.unmodifiableList(Window.visibleWindows);
@@ -169,7 +169,6 @@ public abstract class Window {
         @Native public static final int MINIMIZED  = 1 << 2;
         @Native public static final int MAXIMIZED  = 1 << 3;
     }
-
     /**
      * Available window levels.
      *
@@ -256,7 +255,7 @@ public abstract class Window {
 
         if (((styleMask & UNIFIED) != 0)
                 && !Application.GetApplication().supportsUnifiedWindows()) {
-           styleMask &= ~UNIFIED;
+            styleMask &= ~UNIFIED;
         }
 
         if (((styleMask & TRANSPARENT) != 0)
@@ -397,7 +396,7 @@ public abstract class Window {
 
         if (shouldHandleEvent()) {
             if ((old == null && this.screen != null) ||
-                (old != null && !old.equals(this.screen))) {
+                    (old != null && !old.equals(this.screen))) {
                 this.eventHandler.handleScreenChangedEvent(this, System.nanoTime(), old, this.screen);
             }
         }
@@ -434,7 +433,7 @@ public abstract class Window {
 
     public boolean isMinimized() {
         Application.checkEventThread();
-        return (this.state & State.MINIMIZED) != 0;
+        return (this.state == State.MINIMIZED);
     }
 
     protected abstract boolean _minimize(long ptr, boolean minimize);
@@ -448,7 +447,7 @@ public abstract class Window {
 
     public boolean isMaximized() {
         Application.checkEventThread();
-        return (this.state & State.MAXIMIZED) != 0;
+        return (this.state == State.MAXIMIZED);
     }
 
     protected abstract boolean _maximize(long ptr, boolean maximize, boolean wasMaximized);
@@ -1039,9 +1038,9 @@ public abstract class Window {
         }
         checkNotClosed();
         if (_setMaximumSize(this.ptr,
-                    // for easier handling in native:
-                    width == Integer.MAX_VALUE ? -1 : width,
-                    height == Integer.MAX_VALUE ? -1 : height))
+                // for easier handling in native:
+                width == Integer.MAX_VALUE ? -1 : width,
+                height == Integer.MAX_VALUE ? -1 : height))
         {
             this.maximumWidth = width;
             this.maximumHeight = height;
@@ -1193,7 +1192,16 @@ public abstract class Window {
     }
 
     /**
-     * Notifies the current window state
+     * Deprecated: Use the {@link #notifyState(int)} as the Window can have
+     * multiple states at the same time.
+     */
+    @Deprecated
+    protected void setState(int state) {
+        this.state = state;
+    }
+
+    /**
+     * Notifies a window state change
      * @param type {@link WindowEvent#MINIMIZE}, {@link WindowEvent#UNMINIMIZE},
      *             {@link WindowEvent#MAXIMIZE}, {@link WindowEvent#UNMAXIMIZE}
      */
@@ -1216,11 +1224,18 @@ public abstract class Window {
         }
 
         if ((type & (WindowEvent.MAXIMIZE | WindowEvent.UNMAXIMIZE
-                    | WindowEvent.MINIMIZE | WindowEvent.UNMINIMIZE)) == 0) {
+                | WindowEvent.MINIMIZE | WindowEvent.UNMINIMIZE)) == 0) {
             handleWindowEvent(System.nanoTime(), type);
         }
     }
 
+    /**
+     * Notifies a window resize event. Note that it should notify only
+     * when the window is floating on the screen (not when maximized,
+     * iconified of fullscreen).
+     * @param width The width of the window
+     * @param height The height of the window
+     */
     protected void notifyResize(int width, int height) {
         this.width = width;
         this.height = height;
@@ -1421,7 +1436,7 @@ public abstract class Window {
         boolean contains(final int x, final int y) {
             return ((size > 0) &&
                     (x >= this.x) && (x < (this.x + this.width)) &&
-                        (y >= this.y) && (y < (this.y + this.height)));
+                    (y >= this.y) && (y < (this.y + this.height)));
         }
     }
 
@@ -1582,14 +1597,14 @@ public abstract class Window {
      * @param M standard transformation matrix for drawing the native text component derived from JavaFX component
      */
     public void requestInput(String text, int type, double width, double height,
-                                double Mxx, double Mxy, double Mxz, double Mxt,
-                                double Myx, double Myy, double Myz, double Myt,
-                                double Mzx, double Mzy, double Mzz, double Mzt) {
+                             double Mxx, double Mxy, double Mxz, double Mxt,
+                             double Myx, double Myy, double Myz, double Myt,
+                             double Mzx, double Mzy, double Mzz, double Mzt) {
         Application.checkEventThread();
         _requestInput(this.ptr, text, type, width, height,
-                        Mxx, Mxy, Mxz, Mxt,
-                        Myx, Myy, Myz, Myt,
-                        Mzx, Mzy, Mzz, Mzt);
+                Mxx, Mxy, Mxz, Mxt,
+                Myx, Myy, Myz, Myt,
+                Mzx, Mzy, Mzz, Mzt);
     }
 
     /**
@@ -1602,9 +1617,9 @@ public abstract class Window {
     }
 
     protected abstract void _requestInput(long ptr, String text, int type, double width, double height,
-                                            double Mxx, double Mxy, double Mxz, double Mxt,
-                                            double Myx, double Myy, double Myz, double Myt,
-                                            double Mzx, double Mzy, double Mzz, double Mzt);
+                                          double Mxx, double Mxy, double Mxz, double Mxt,
+                                          double Myx, double Myy, double Myz, double Myt,
+                                          double Mzx, double Mzy, double Mzz, double Mzt);
 
     protected abstract void _releaseInput(long ptr);
 
