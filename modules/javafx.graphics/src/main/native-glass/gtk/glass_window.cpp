@@ -242,8 +242,8 @@ void WindowContext::process_map() {
         gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
     }
 
-//    gdk_threads_add_idle((GSourceFunc) update_requested_state_later, this);
-    update_requested_state();
+    // Must be later on Xorg for the initial state before show to work
+    gdk_threads_add_idle((GSourceFunc) update_requested_state_later, this);
 }
 
 void WindowContext::process_focus(GdkEventFocus *event) {
@@ -339,10 +339,10 @@ void WindowContext::process_delete() {
     }
 }
 
-void WindowContext::process_repaint(GdkRectangle *rect) {
+void WindowContext::notify_repaint(GdkRectangle *rect) {
     if (jview) {
-        mainEnv->CallVoidMethod(jview, jViewNotifyRepaint, rect->x, rect->y,
-                                  rect->width, rect->height);
+//        g_print("jViewNotifyRepaint %d,%d / %d,%d\n", rect->x, rect->y, rect->width, rect->height);
+        mainEnv->CallVoidMethod(jview, jViewNotifyRepaint, rect->x, rect->y, rect->width, rect->height);
         CHECK_JNI_EXCEPTION(mainEnv)
     }
 }
@@ -854,7 +854,12 @@ void WindowContext::update_frame_extents() {
                 }
             }
 
-            gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
+            if (!is_in_geometry_freeze_state()) {
+                gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
+            } else {
+                geometry.x = x;
+                geometry.y = y;
+            }
         }
     }
 }
@@ -890,6 +895,7 @@ GdkRectangle WindowContext::get_cached_extents() {
 }
 
 void WindowContext::process_property_notify(GdkEventProperty *event) {
+    g_print("process_property_notify: %s\n", gdk_atom_name(event->atom));
     if (event->atom == get_net_frame_extents_atom()) {
         update_frame_extents();
     }
@@ -971,6 +977,8 @@ void WindowContext::process_state(GdkEventWindowState *event) {
 }
 
 void WindowContext::process_realize() {
+    g_print("process_realize\n");
+
     gdk_window = gtk_widget_get_window(gtk_widget);
 
     if (frame_type == TITLED) {
@@ -995,6 +1003,11 @@ void WindowContext::process_configure(GdkEventConfigure *event) {
             event->send_event, event->x, event->y, event->width, event->height);
 
     GdkWindowState state = gdk_window_get_state(gdk_window);
+
+    // Workaround: Ignore this event if the window is meant to be fullscreen (can happen on Xorg if fullscreen
+    // is set before showing the window)
+//    if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN) && (state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
+//    }
 
     if (state & GDK_WINDOW_STATE_ICONIFIED) {
         return;
@@ -1051,7 +1064,7 @@ void WindowContext::process_configure(GdkEventConfigure *event) {
         geometry.y = root_y;
     }
 
-    glong to_screen = getScreenPtrForLocation(geometry.x, geometry.y);
+    glong to_screen = getScreenPtrForLocation(event->x, event->y);
     if (to_screen != -1 && to_screen != screen) {
         if (jwindow) {
             //notify screen changed
@@ -1061,8 +1074,6 @@ void WindowContext::process_configure(GdkEventConfigure *event) {
         }
         screen = to_screen;
     }
-
-    return;
 }
 
 void WindowContext::update_window_constraints() {
@@ -1188,13 +1199,11 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
         geometry.y_set_value = y;
     }
 
-    if (GDK_IS_WINDOW(gdk_window)) {
-        // If it was requested to be or currently is fullscreen/maximized, just save the requested
-        // dimensions / location and set them later when restored
-        if (is_in_geometry_freeze_state()) {
-            geometry.needs_to_restore_size = true;
-            return;
-        }
+    // If it was requested to be or currently is fullscreen/maximized, just save the requested
+    // dimensions / location and set them later when restored
+    if (GDK_IS_WINDOW(gdk_window) && is_in_geometry_freeze_state()) {
+        geometry.needs_to_restore_size = true;
+        return;
     }
 
     if (newW > 0 || newH > 0) {

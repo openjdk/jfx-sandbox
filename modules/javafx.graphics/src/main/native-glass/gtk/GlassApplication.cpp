@@ -484,8 +484,8 @@ static void process_events(GdkEvent* event, gpointer data)
                     ctx->process_property_notify(&event->property);
                     break;
                 case GDK_CONFIGURE:
-                    ctx->process_configure(&event->configure);
                     gtk_main_do_event(event);
+                    ctx->process_configure(&event->configure);
                     break;
                 case GDK_FOCUS_CHANGE:
                     ctx->process_focus(&event->focus_change);
@@ -500,11 +500,11 @@ static void process_events(GdkEvent* event, gpointer data)
                     break;
                 case GDK_EXPOSE:
                 case GDK_DAMAGE:
-                    ctx->process_repaint(&event->expose.area);
+                    ctx->notify_repaint(&event->expose.area);
                     break;
                 case GDK_WINDOW_STATE:
-                    ctx->process_state(&event->window_state);
                     gtk_main_do_event(event);
+                    ctx->process_state(&event->window_state);
                     break;
                 case GDK_BUTTON_PRESS:
                 case GDK_BUTTON_RELEASE:
