@@ -65,8 +65,10 @@ enum BoundsType {
 struct WindowGeometry {
     WindowGeometry(): final_width(), final_height(),
     size_assigned(false), needs_to_restore_size(false),
-    x(), y(), view_x(), view_y(), gravity_x(), gravity_y(), extents(),
-    frame_extents_received(false) {}
+    x(), y(), x_set(false), y_set(false),
+    view_x(), view_y(),
+    gravity_x(), gravity_y(),
+    extents(),frame_extents_received(false) {}
     // estimate of the final width the window will get after all pending
     // configure requests are processed by the window manager
     struct {
@@ -84,6 +86,14 @@ struct WindowGeometry {
 
     int x;
     int y;
+
+    // x_set, y_set and x_set_value, y_set_value are set on set_bounds
+    bool x_set;
+    bool y_set;
+
+    int x_set_value;
+    int y_set_value;
+
     int view_x;
     int view_y;
 
@@ -196,7 +206,7 @@ public:
     void process_state(GdkEventWindowState*);
     void process_realize();
     void process_property_notify(GdkEventProperty*);
-    bool process_configure(GdkEventConfigure*);
+    void process_configure(GdkEventConfigure*);
     void process_delete();
     void process_destroy();
 
@@ -238,6 +248,7 @@ public:
 protected:
     void applyShapeMask(void*, uint width, uint height);
 private:
+    bool is_in_geometry_freeze_state();
     void add_wmf(GdkWMFunction);
     void remove_wmf(GdkWMFunction);
     void notify_on_top(bool);

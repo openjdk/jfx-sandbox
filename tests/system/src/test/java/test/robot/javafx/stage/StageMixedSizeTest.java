@@ -31,12 +31,15 @@ import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import test.robot.testharness.VisualTestBase;
 import test.util.Util;
 
@@ -45,6 +48,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 import static test.util.Util.TIMEOUT;
 
 public class StageMixedSizeTest extends VisualTestBase {
@@ -52,15 +56,16 @@ public class StageMixedSizeTest extends VisualTestBase {
     private static final double TOLERANCE = 0.07;
     private Stage testStage;
 
-    @Test
-    public void testSetWidthOnlyAfterShownOnContentSizeWindow() throws Exception {
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"DECORATED", "UNDECORATED"})
+    public void testSetWidthOnlyAfterShownOnContentSizeWindow(StageStyle stageStyle) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         final int finalWidth = 200;
         final int initialContentSize = 300;
 
-        setupContentSizeTestStage(initialContentSize, initialContentSize,
+        setupContentSizeTestStage(stageStyle, initialContentSize, initialContentSize,
                 () -> Util.doTimeLine(Map.of(Duration.millis(500), () -> testStage.setWidth(finalWidth),
-                        Duration.seconds(1), latch::countDown)));
+                                             Duration.seconds(1), latch::countDown)));
 
         assertTrue(latch.await(TIMEOUT, TimeUnit.MILLISECONDS), "Timeout waiting for test stage to be shown");
 
@@ -69,15 +74,16 @@ public class StageMixedSizeTest extends VisualTestBase {
         Assertions.assertEquals(finalWidth, testStage.getWidth(), "Window width should be " + finalWidth);
     }
 
-    @Test
-    public void testSetHeightOnlyAfterShownOnContentSizeWindow() throws Exception {
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"DECORATED", "UNDECORATED"})
+    public void testSetHeightOnlyAfterShownOnContentSizeWindow(StageStyle stageStyle) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         final int finalHeight = 200;
         final int initialContentSize = 300;
 
-        setupContentSizeTestStage(initialContentSize, initialContentSize,
+        setupContentSizeTestStage(stageStyle, initialContentSize, initialContentSize,
                 () -> Util.doTimeLine(Map.of(Duration.millis(500), () -> testStage.setHeight(finalHeight),
-                        Duration.seconds(1), latch::countDown)));
+                                             Duration.seconds(1), latch::countDown)));
 
         assertTrue(latch.await(TIMEOUT, TimeUnit.MILLISECONDS), "Timeout waiting for test stage to be shown");
 
@@ -86,14 +92,11 @@ public class StageMixedSizeTest extends VisualTestBase {
         Assertions.assertEquals(finalHeight, testStage.getHeight(), "Window height should be " + finalHeight);
     }
 
-    private void setupContentSizeTestStage(int width, int height, Runnable onShown) {
+    private void setupContentSizeTestStage(StageStyle stageStyle, int width, int height, Runnable onShown) {
         runAndWait(() -> {
             testStage = getStage(true);
-            testStage.initStyle(StageStyle.TRANSPARENT);
-            Pane pane = new Pane();
-            pane.setPrefSize(width, height);
-            pane.setBackground(new Background(new BackgroundFill(BACKGROUND_COLOR, CornerRadii.EMPTY, Insets.EMPTY)));
-            Scene scene = new Scene(pane);
+            testStage.initStyle(stageStyle);
+            Scene scene = new Scene(new StackPane(), width, height, BACKGROUND_COLOR);
             testStage.setScene(scene);
             testStage.setX(0);
             testStage.setY(0);

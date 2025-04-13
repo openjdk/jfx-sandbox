@@ -55,6 +55,13 @@ static gboolean event_realize(GtkWidget *widget, gpointer user_data) {
     return FALSE;
 }
 
+static gboolean update_requested_state_later(gpointer user_data) {
+    WindowContext *ctx = USER_PTR_TO_CTX(user_data);
+    ctx->update_requested_state();
+
+    return G_SOURCE_REMOVE;
+}
+
 static gboolean update_window_size_location_later(gpointer user_data) {
     WindowContext *ctx = USER_PTR_TO_CTX(user_data);
     ctx->update_window_size_location();
@@ -225,6 +232,17 @@ bool WindowContext::isEnabled() {
 
 void WindowContext::process_map() {
     g_print("process_map\n");
+
+    // Work around JDK-8337400 (Initial window position is not centered on Xorg)
+    if (geometry.x_set || geometry.y_set) {
+        int x = (geometry.x_set) ? geometry.x_set_value : geometry.x;
+        int y = (geometry.y_set) ? geometry.y_set_value : geometry.y;
+
+        g_print("move -> %d,%d\n", x, y);
+        gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
+    }
+
+//    gdk_threads_add_idle((GSourceFunc) update_requested_state_later, this);
     update_requested_state();
 }
 
@@ -712,14 +730,8 @@ void WindowContext::request_frame_extents() {
 }
 
 void WindowContext::update_window_size_location() {
-    //Still in max
-    if ((gdk_window_get_state(gdk_window) & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_FULLSCREEN))
-        || (requested_state_mask & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_FULLSCREEN))) {
+    if (!geometry.needs_to_restore_size || is_in_geometry_freeze_state()) {
         g_print("update_window_size_location: skip update\n");
-        return;
-    }
-
-    if (!geometry.needs_to_restore_size) {
         return;
     }
 
@@ -734,44 +746,50 @@ void WindowContext::update_window_size_location() {
     gtk_window_resize(GTK_WINDOW(gtk_widget), cw, ch);
 }
 
+
 // This function will decide the State it should currently be,
 // in the precedence order: Iconified, FullScreen, Maximized
 void WindowContext::update_requested_state() {
-    // In reverse order of precedence
-    int current_state_mask = gdk_window_get_state(gdk_window);
-    if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED)
-           && (current_state_mask & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
-        add_wmf(GDK_FUNC_MAXIMIZE);
-        g_print("update_requested_state -> MAXIMIZE\n");
-        gtk_window_maximize(GTK_WINDOW(gtk_widget));
-    } else if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED) == 0
-                     && (current_state_mask & GDK_WINDOW_STATE_MAXIMIZED)) {
-        g_print("update_requested_state -> UNMAXIMIZE\n");
-        gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
+
+    // Leave States
+    if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED) == 0
+            && (gdk_window_get_state(gdk_window) & GDK_WINDOW_STATE_ICONIFIED)) {
+        g_print("update_requested_state -> DEICONIFY\n");
+        gtk_window_deiconify(GTK_WINDOW(gtk_widget));
+        gdk_window_focus(gdk_window, GDK_CURRENT_TIME);
     }
 
-    current_state_mask = gdk_window_get_state(gdk_window);
-    if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN)
-           && (current_state_mask & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
-        g_print("update_requested_state -> FULLSCREEN\n");
-        gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
-    } else if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN) == 0
-          && (current_state_mask & GDK_WINDOW_STATE_FULLSCREEN)) {
+    if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN) == 0
+          && (gdk_window_get_state(gdk_window) & GDK_WINDOW_STATE_FULLSCREEN)) {
         g_print("update_requested_state -> UNFULLSCREEN\n");
         gtk_window_unfullscreen(GTK_WINDOW(gtk_widget));
     }
 
-    current_state_mask = gdk_window_get_state(gdk_window);
+    if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED) == 0
+          && (gdk_window_get_state(gdk_window) & GDK_WINDOW_STATE_MAXIMIZED)) {
+        g_print("update_requested_state -> UNMAXIMIZE\n");
+        gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
+    }
+
+    // Enter States - In reverse order of precedence
+    if ((requested_state_mask & GDK_WINDOW_STATE_MAXIMIZED)
+           && (gdk_window_get_state(gdk_window) & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
+        add_wmf(GDK_FUNC_MAXIMIZE);
+        g_print("update_requested_state -> MAXIMIZE\n");
+        gtk_window_maximize(GTK_WINDOW(gtk_widget));
+    }
+
+    if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN)
+           && (gdk_window_get_state(gdk_window) & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
+        g_print("update_requested_state -> FULLSCREEN\n");
+        gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
+    }
+
     if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED)
-          && (current_state_mask & GDK_WINDOW_STATE_ICONIFIED) == 0) {
+          && (gdk_window_get_state(gdk_window) & GDK_WINDOW_STATE_ICONIFIED) == 0) {
         add_wmf(GDK_FUNC_MINIMIZE);
         g_print("update_requested_state -> ICONIFY\n");
         gtk_window_iconify(GTK_WINDOW(gtk_widget));
-    } else if ((requested_state_mask & GDK_WINDOW_STATE_ICONIFIED) == 0
-            && (current_state_mask & GDK_WINDOW_STATE_ICONIFIED)) {
-        g_print("update_requested_state -> DEICONIFY\n");
-        gtk_window_deiconify(GTK_WINDOW(gtk_widget));
-        gdk_window_focus(gdk_window, GDK_CURRENT_TIME);
     }
 }
 
@@ -822,10 +840,18 @@ void WindowContext::update_frame_extents() {
 
             if (geometry.gravity_x != 0) {
                 x -= geometry.gravity_x * (float) (geometry.extents.width);
+
+                if (geometry.x_set) {
+                    geometry.x_set_value -= geometry.gravity_x * (float) (geometry.extents.width);
+                }
             }
 
             if (geometry.gravity_y != 0) {
                 y -= geometry.gravity_y  * (float) (geometry.extents.height);
+
+                if (geometry.y_set) {
+                    geometry.y_set_value -= geometry.gravity_y  * (float) (geometry.extents.height);
+                }
             }
 
             gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
@@ -964,20 +990,14 @@ void WindowContext::process_realize() {
     }
 }
 
-bool WindowContext::process_configure(GdkEventConfigure *event) {
+void WindowContext::process_configure(GdkEventConfigure *event) {
     g_print("Configure Event - send_event: %d, x: %d, y: %d, width: %d, height: %d\n",
             event->send_event, event->x, event->y, event->width, event->height);
 
     GdkWindowState state = gdk_window_get_state(gdk_window);
 
-    // Workaround: Ignore this event if the window is meant to be fullscreen (can happen on Xorg if fullscreen
-    // is set before showing the window)
-    if ((requested_state_mask & GDK_WINDOW_STATE_FULLSCREEN) && (state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
-        return true;
-    }
-
     if (state & GDK_WINDOW_STATE_ICONIFIED) {
-        return false;
+        return;
     }
 
     gint root_x, root_y, origin_x, origin_y;
@@ -995,11 +1015,11 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
     if (jview) {
         g_print("jViewNotifyResize: %d, %d\n", event->width, event->height);
         mainEnv->CallVoidMethod(jview, jViewNotifyResize, event->width, event->height);
-        CHECK_JNI_EXCEPTION_RET(mainEnv, false)
+        CHECK_JNI_EXCEPTION(mainEnv)
 
         mainEnv->CallVoidMethod(jview, jViewNotifyView,
                 com_sun_glass_events_ViewEvent_MOVE);
-        CHECK_JNI_EXCEPTION_RET(mainEnv, false)
+        CHECK_JNI_EXCEPTION(mainEnv)
     }
 
     // Do not save or report dimensions and location while not floating on the screen because those should not
@@ -1014,10 +1034,10 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
         if (jwindow) {
             g_print("jWindowNotifyResize: %d, %d\n", ww, wh);
             mainEnv->CallVoidMethod(jwindow, jWindowNotifyResize, ww, wh);
-            CHECK_JNI_EXCEPTION_RET(mainEnv, false)
+            CHECK_JNI_EXCEPTION(mainEnv)
 
             mainEnv->CallVoidMethod(jwindow, jWindowNotifyMove, root_x, root_y);
-            CHECK_JNI_EXCEPTION_RET(mainEnv, false)
+            CHECK_JNI_EXCEPTION(mainEnv)
         }
 
         geometry.final_width.value = (geometry.final_width.type == BOUNDSTYPE_CONTENT)
@@ -1037,12 +1057,12 @@ bool WindowContext::process_configure(GdkEventConfigure *event) {
             //notify screen changed
             jobject jScreen = createJavaScreen(mainEnv, to_screen);
             mainEnv->CallVoidMethod(jwindow, jWindowNotifyMoveToAnotherScreen, jScreen);
-            CHECK_JNI_EXCEPTION_RET(mainEnv, false)
+            CHECK_JNI_EXCEPTION(mainEnv)
         }
         screen = to_screen;
     }
 
-    return false;
+    return;
 }
 
 void WindowContext::update_window_constraints() {
@@ -1116,8 +1136,13 @@ void WindowContext::set_visible(bool visible) {
     }
 }
 
+bool WindowContext::is_in_geometry_freeze_state() {
+    return (requested_state_mask & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED)
+            || gdk_window_get_state(gdk_window) & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED));
+}
+
 void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h, int cw, int ch,
-                                  float gravity_x, float gravity_y) {
+                               float gravity_x, float gravity_y) {
      g_print("set_bounds -> x = %d, y = %d, xset = %d, yset = %d, w = %d, h = %d, cw = %d, ch = %d, gx = %f, gy = %f\n",
             x, y, xSet, ySet, w, h, cw, ch, gravity_x, gravity_y);
     // newW / newH are view/content sizes
@@ -1153,17 +1178,20 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
 
     if (xSet) {
         geometry.x = x;
+        geometry.x_set = true;
+        geometry.x_set_value = x;
     }
 
     if (ySet) {
         geometry.y = y;
+        geometry.y_set = true;
+        geometry.y_set_value = y;
     }
 
     if (GDK_IS_WINDOW(gdk_window)) {
         // If it was requested to be or currently is fullscreen/maximized, just save the requested
         // dimensions / location and set them later when restored
-        if ((requested_state_mask & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED))
-            || (gdk_window_get_state(gdk_window) & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED))) {
+        if (is_in_geometry_freeze_state()) {
             geometry.needs_to_restore_size = true;
             return;
         }

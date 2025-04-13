@@ -484,9 +484,8 @@ static void process_events(GdkEvent* event, gpointer data)
                     ctx->process_property_notify(&event->property);
                     break;
                 case GDK_CONFIGURE:
-                    if (!ctx->process_configure(&event->configure)) {
-                        gtk_main_do_event(event);
-                    }
+                    ctx->process_configure(&event->configure);
+                    gtk_main_do_event(event);
                     break;
                 case GDK_FOCUS_CHANGE:
                     ctx->process_focus(&event->focus_change);

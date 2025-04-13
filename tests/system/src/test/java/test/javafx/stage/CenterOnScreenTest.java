@@ -25,6 +25,9 @@
 package test.javafx.stage;
 
 import javafx.geometry.Rectangle2D;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -46,35 +49,63 @@ public class CenterOnScreenTest extends StageTestBase {
     private static final double STAGE_WIDTH = 400;
     private static final double STAGE_HEIGHT = 200;
 
+    // Must be cointained in Stage dimensions
+    private static final double SCENE_WIDTH = 300;
+    private static final double SCENE_HEIGHT = 100;
+
     @Override
-    public void setupStageWithStyle(StageStyle stageStyle, Consumer<Stage> sc) {
-        Consumer<Stage> stageConsumer = (stage) -> {
+    protected Parent createRoot() {
+        StackPane stackPane = new StackPane();
+        stackPane.setPrefSize(SCENE_WIDTH, SCENE_HEIGHT);
+        return stackPane;
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    public void testStateCenterOnScreenWhenShown(StageStyle stageStyle) {
+        setupStageWithStyle(stageStyle, stage -> {
             stage.setWidth(STAGE_WIDTH);
             stage.setHeight(STAGE_HEIGHT);
-        };
-
-        if (sc != null) {
-            stageConsumer = stageConsumer.andThen(sc);
-        }
-
-        super.setupStageWithStyle(stageStyle, stageConsumer);
+        });
+        Util.sleep(500);
+        assertStageCentered(stageStyle, false);
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testStateCenterOnScreenWhenShown(StageStyle stageStyle) throws Exception {
+    public void testStateCenterOnScreenWhenShownWithSceneSize(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, null);
         Util.sleep(500);
-        assertStageCentered(stageStyle);
+        assertStageCentered(stageStyle, true);
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testStateCenterOnScreenAfterShown(StageStyle stageStyle) throws Exception {
+    public void testStateCenterOnScreenAfterShown(StageStyle stageStyle) {
+        setupStageWithStyle(stageStyle, stage -> {
+            stage.setWidth(STAGE_WIDTH);
+            stage.setHeight(STAGE_HEIGHT);
+            stage.setX(0);
+            stage.setY(0);
+        });
+
+        Util.sleep(500);
+        Util.runAndWait(() -> getStage().centerOnScreen());
+        Util.sleep(500);
+        assertStageCentered(stageStyle, false);
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    public void testStateCenterOnScreenAfterShownWithSceneSize(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, stage -> {
             stage.setX(0);
             stage.setY(0);
@@ -83,15 +114,17 @@ public class CenterOnScreenTest extends StageTestBase {
         Util.sleep(500);
         Util.runAndWait(() -> getStage().centerOnScreen());
         Util.sleep(500);
-        assertStageCentered(stageStyle);
+        assertStageCentered(stageStyle, true);
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testStateCenterOnScreenWhileFullscreen(StageStyle stageStyle) throws Exception {
+    public void testStateCenterOnScreenWhileFullscreen(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, stage -> {
+            stage.setWidth(STAGE_WIDTH);
+            stage.setHeight(STAGE_HEIGHT);
             stage.setX(0);
             stage.setY(0);
             stage.setFullScreen(true);
@@ -105,17 +138,19 @@ public class CenterOnScreenTest extends StageTestBase {
 
         Util.sleep(500);
 
-        assertStageCentered(stageStyle);
+        assertStageCentered(stageStyle, false);
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testStateCenterOnScreenWhileMaximized(StageStyle stageStyle) throws Exception {
+    public void testStateCenterOnScreenWhileMaximized(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, stage -> {
             stage.setX(0);
             stage.setY(0);
+            stage.setWidth(STAGE_WIDTH);
+            stage.setHeight(STAGE_HEIGHT);
             stage.setMaximized(true);
         });
 
@@ -127,10 +162,10 @@ public class CenterOnScreenTest extends StageTestBase {
 
         Util.sleep(500);
 
-        assertStageCentered(stageStyle);
+        assertStageCentered(stageStyle, false);
     }
 
-    private void assertStageCentered(StageStyle stageStyle) {
+    private void assertStageCentered(StageStyle stageStyle, boolean useSceneSize) {
         Screen screen = Util.getScreen(getStage());
 
         double decorationY = 0;
@@ -148,10 +183,10 @@ public class CenterOnScreenTest extends StageTestBase {
 
         Rectangle2D bounds = screen.getVisualBounds();
         double centerX =
-                (bounds.getMinX() + (bounds.getWidth() - STAGE_WIDTH)
+                (bounds.getMinX() + (bounds.getWidth() - ((useSceneSize) ? SCENE_WIDTH : STAGE_WIDTH))
                         * CENTER_ON_SCREEN_X_FRACTION) - decorationX;
         double centerY =
-                (bounds.getMinY() + (bounds.getHeight() - STAGE_HEIGHT)
+                (bounds.getMinY() + (bounds.getHeight() - ((useSceneSize) ? SCENE_HEIGHT : STAGE_HEIGHT))
                         * CENTER_ON_SCREEN_Y_FRACTION) - decorationY;
 
         assertEquals(centerX, getStage().getX(), 1, "Stage is not centered in X axis");

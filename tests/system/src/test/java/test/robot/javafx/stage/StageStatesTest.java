@@ -37,9 +37,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 import test.robot.testharness.VisualTestBase;
 import test.util.Util;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.IntStream;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -282,68 +285,102 @@ public class StageStatesTest extends VisualTestBase {
         });
     }
 
-    private record StageState(StageStyle stageStyle, boolean iconified, boolean fullscreen, boolean maximized) {
+    private record StageState(StageStyle stageStyle,
+                              List<Consumer<Stage>> initStates,
+                              boolean iconified,
+                              boolean fullscreen,
+                              boolean maximized) {
 
     }
 
-    static Stream<StageState> testStageStatesParamSource() {
-        return Stream.of(StageStyle.DECORATED, StageStyle.UNDECORATED)
-                .flatMap(style ->
-                        IntStream.range(0, 8)
-                                .mapToObj(i -> new StageState(
-                                        style,
-                                        (i & 0b001) != 0,
-                                        (i & 0b010) != 0,
-                                        (i & 0b100) != 0
-                                ))
-                );
+    static final BiConsumer<Stage, Boolean> SET_MAXIMIZED = Stage::setMaximized;
+    static final BiConsumer<Stage, Boolean> SET_ICONIFIED = Stage::setIconified;
+    static final BiConsumer<Stage, Boolean> SET_FULL_SCREEN = Stage::setFullScreen;
+
+    static final List<List<BiConsumer<Stage, Boolean>>> INIT_STATES_PERMUTATION = List.of(
+            List.of(SET_MAXIMIZED, SET_ICONIFIED, SET_FULL_SCREEN),
+            List.of(SET_MAXIMIZED, SET_FULL_SCREEN, SET_ICONIFIED),
+            List.of(SET_ICONIFIED, SET_FULL_SCREEN, SET_MAXIMIZED),
+            List.of(SET_ICONIFIED, SET_MAXIMIZED, SET_FULL_SCREEN),
+            List.of(SET_FULL_SCREEN, SET_MAXIMIZED, SET_ICONIFIED),
+            List.of(SET_FULL_SCREEN, SET_ICONIFIED, SET_MAXIMIZED)
+    );
+
+    static final List<List<Boolean>> STATE_VALUE_PERMUTATION = List.of(
+            List.of(true, true, true),
+            List.of(true, true, false),
+            List.of(true, false, true),
+            List.of(false, true, true),
+            List.of(false, true, false),
+            List.of(false, false, false)
+    );
+
+    static final List<StageStyle> TEST_STATE_STYLES = List.of(StageStyle.DECORATED, StageStyle.UNDECORATED);
+
+    static Stream<StageState> testStatesPermutation() {
+        List<StageState> stageStates = new ArrayList<>();
+        for (List<BiConsumer<Stage, Boolean>> ss : INIT_STATES_PERMUTATION) {
+            for (List<Boolean> sp : STATE_VALUE_PERMUTATION) {
+                List<Consumer<Stage>> initStatesConsumer = getInitStateConsumers(ss, sp);
+                for (StageStyle style : TEST_STATE_STYLES) {
+                    stageStates.add(new StageState(style, initStatesConsumer, sp.get(0), sp.get(1), sp.get(2)));
+                }
+            }
+        }
+
+        return stageStates.stream();
+    }
+
+    private static List<Consumer<Stage>> getInitStateConsumers(List<BiConsumer<Stage, Boolean>> ss, List<Boolean> sp) {
+        return List.of(
+                (stage) -> ss.get(0).accept(stage, sp.get(0)),
+                (stage) -> ss.get(1).accept(stage, sp.get(1)),
+                (stage) -> ss.get(2).accept(stage, sp.get(2))
+        );
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @MethodSource("testStageStatesParamSource")
+    @MethodSource("testStatesPermutation")
     public void testStageStatePrecedenceOrderBeforeShow(StageState stageState) throws InterruptedException {
         setupStages(false, false, stageState.stageStyle());
 
-        runAndWait(() -> {
-            topStage.setMaximized(stageState.maximized());
-            topStage.setFullScreen(stageState.fullscreen());
-            topStage.setIconified(stageState.iconified());
-            topStage.show();
-        });
+        Util.doTimeLine(500,
+                () -> {
+                    for (Consumer<Stage> stageConsumer : stageState.initStates()) {
+                        stageConsumer.accept(topStage);
+                    }
+                    topStage.show();
+                },
+                () -> assertStates(stageState.fullscreen(), stageState.iconified(), stageState.maximized()),
+                () -> {
+                    Color color = getColor(200, 200);
 
-        assertStates(stageState.fullscreen(), stageState.iconified(), stageState.maximized());
-
-        runAndWait(() -> {
-            Color color = getColor(200, 200);
-
-            boolean bottom = (stageState.iconified() || (!stageState.fullscreen() && !stageState.maximized()));
-            assertColorEquals((bottom) ? BOTTOM_COLOR : TOP_COLOR, color, TOLERANCE);
-        });
+                    boolean bottom = (stageState.iconified() || (!stageState.fullscreen() && !stageState.maximized()));
+                    assertColorEquals((bottom) ? BOTTOM_COLOR : TOP_COLOR, color, TOLERANCE);
+                });
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @MethodSource("testStageStatesParamSource")
+    @MethodSource("testStatesPermutation")
     public void testStageStatePrecedenceOrderAfterShow(StageState stageState) throws InterruptedException {
         setupStages(false, false, stageState.stageStyle());
 
-        runAndWait(() -> {
-            topStage.show();
+        List<Runnable> runnables = new ArrayList<>();
+        runnables.add(() -> topStage.show());
 
-            topStage.setMaximized(stageState.maximized());
-            topStage.setFullScreen(stageState.fullscreen());
-            topStage.setIconified(stageState.iconified());
-        });
+        for (Consumer<Stage> stageConsumer : stageState.initStates()) {
+            runnables.add(() -> stageConsumer.accept(topStage));
+        }
 
-        Util.sleep(500);
-
-        assertStates(stageState.fullscreen(), stageState.iconified(), stageState.maximized());
-
-        runAndWait(() -> {
+        runnables.add(() -> assertStates(stageState.fullscreen(), stageState.iconified(), stageState.maximized()));
+        runnables.add(() -> {
             Color color = getColor(200, 200);
 
             boolean bottom = (stageState.iconified() || (!stageState.fullscreen() && !stageState.maximized()));
             assertColorEquals((bottom) ? BOTTOM_COLOR : TOP_COLOR, color, TOLERANCE);
         });
+
+        Util.doTimeLine(300, runnables.toArray(new Runnable[0]));
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
@@ -352,17 +389,16 @@ public class StageStatesTest extends VisualTestBase {
             throws InterruptedException {
         setupStages(false, false, stageStyle);
 
-        runAndWait(() -> {
-            Color color = getColor(200, 200);
-            assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
-
-            topStage.setMaximized(true);
-            topStage.setFullScreen(true);
-            topStage.setIconified(true);
-            topStage.show();
-        });
-
         Util.doTimeLine(500,
+                () -> {
+                    Color color = getColor(200, 200);
+                    assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
+
+                    topStage.setMaximized(true);
+                    topStage.setFullScreen(true);
+                    topStage.setIconified(true);
+                    topStage.show();
+                },
                 () -> assertStatesAndColorAtPosition(true, true, true, BOTTOM_COLOR,
                         () -> topStage.setIconified(false)),
                 () -> assertStatesAndColorAtPosition(true, false, true, TOP_COLOR,
@@ -379,17 +415,16 @@ public class StageStatesTest extends VisualTestBase {
             throws InterruptedException {
         setupStages(false, false, stageStyle);
 
-        runAndWait(() -> {
-            Color color = getColor(200, 200);
-            assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
-
-            topStage.setMaximized(true);
-            topStage.setFullScreen(true);
-            topStage.setIconified(true);
-            topStage.show();
-        });
-
         Util.doTimeLine(500,
+                () -> {
+                    Color color = getColor(200, 200);
+                    assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
+
+                    topStage.setFullScreen(true);
+                    topStage.setMaximized(true);
+                    topStage.setIconified(true);
+                    topStage.show();
+                },
                 () -> assertStatesAndColorAtPosition(true, true, true, BOTTOM_COLOR,
                         () -> topStage.setIconified(false)),
                 () -> assertStatesAndColorAtPosition(true, false, true, TOP_COLOR,
