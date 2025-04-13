@@ -51,14 +51,10 @@ public enum StageStyle {
     TRANSPARENT,
 
     /**
-     * A {@link javafx.stage.Stage} with {@link javafx.stage.StageStyle#UTILITY} is a lightweight
-     * window with minimal decorations, intended for supporting tasks like tool palettes or dialogs.
-     * <p>Utility stages typically restrict window operations such as maximize, minimize, or
-     * full screen. They are designed to float above primary windows without acting as a main
-     * application stage.</p>
-     * <p>Use cases include tool palettes, floating panels, and lightweight secondary dialogs.</p>
+     * Defines a {@code Stage} style with a solid white background and minimal
+     * platform decorations used for a utility window.
      */
-     UTILITY,
+    UTILITY,
 
     /**
      * Defines a {@code Stage} style with platform decorations and eliminates the border between
