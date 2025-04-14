@@ -56,14 +56,12 @@ class GlassWindowEventHandler extends Window.EventHandler implements Supplier<Vo
                 stage.stageListener.changedIconified(true);
                 break;
             case WindowEvent.MAXIMIZE:
+                stage.stageListener.changedIconified(false);
                 stage.stageListener.changedMaximized(true);
                 break;
             case WindowEvent.RESTORE:
                 stage.stageListener.changedIconified(false);
                 stage.stageListener.changedMaximized(false);
-                break;
-            case WindowEvent.UNMINIMIZE:
-                stage.stageListener.changedIconified(false);
                 QuantumToolkit.runWithRenderLock(() -> {
                     GlassScene scene = stage.getScene();
                     if (scene != null) {
@@ -71,9 +69,6 @@ class GlassWindowEventHandler extends Window.EventHandler implements Supplier<Vo
                     }
                     return null;
                 });
-                break;
-            case WindowEvent.UNMAXIMIZE:
-                stage.stageListener.changedMaximized(false);
                 break;
             case WindowEvent.MOVE: {
                 float wx = window.getX();
@@ -110,8 +105,8 @@ class GlassWindowEventHandler extends Window.EventHandler implements Supplier<Vo
                 float pScaleX = window.getPlatformScaleX();
                 float pScaleY = window.getPlatformScaleY();
                 stage.stageListener.changedSize(window.getWidth()  / pScaleX,
-                        window.getHeight() / pScaleY);
-                break;
+                                                window.getHeight() / pScaleY);
+                 break;
             }
             case WindowEvent.RESCALE: {
                 float outScaleX = window.getOutputScaleX();

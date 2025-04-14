@@ -179,8 +179,7 @@ private:
     extern jmethodID jViewNotifyMenu; //com.sun.glass.ui.View#notifyMenu (IIIIZ)V
     extern jfieldID  jViewPtr; //com.sun.glass.ui.View.ptr
 
-    extern jmethodID jWindowNotifyResize; // com.sun.glass.ui.Window#notifyResize (II)V
-    extern jmethodID jWindowNotifyState; // com.sun.glass.ui.Window#notifyState (I)V
+    extern jmethodID jWindowNotifyResize; // com.sun.glass.ui.Window#notifyResize (III)V
     extern jmethodID jWindowNotifyMove; // com.sun.glass.ui.Window#notifyMove (II)V
     extern jmethodID jWindowNotifyDestroy; // com.sun.glass.ui.Window#notifyDestroy ()V
     extern jmethodID jWindowNotifyClose; // com.sun.glass.ui.Window#notifyClose ()V
@@ -248,6 +247,8 @@ private:
 #define LOG3(msg, param1, param2, param3) {printf(msg, param1, param2, param3);fflush(stdout);}
 #define LOG4(msg, param1, param2, param3, param4) {printf(msg, param1, param2, param3, param4);fflush(stdout);}
 #define LOG5(msg, param1, param2, param3, param4, param5) {printf(msg, param1, param2, param3, param4, param5);fflush(stdout);}
+#define LOG10(msg, param1, param2, param3, param4, param5, param6, param7, param8, param9, param10) \
+    {printf(msg, param1, param2, param3, param4, param5, param6, param7, param8, param9, param10);fflush(stdout);}
 
 #define LOG_STRING_ARRAY(env, array) dump_jstring_array(env, array);
 

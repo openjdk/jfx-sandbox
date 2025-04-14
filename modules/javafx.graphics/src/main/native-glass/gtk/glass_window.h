@@ -139,8 +139,6 @@ private:
     GdkWMFunction initial_wmf;
     GdkWMFunction current_wmf;
 
-    gint requested_state_mask;
-
     bool is_mouse_entered;
     bool is_disabled;
     bool on_top;
@@ -254,6 +252,10 @@ private:
     void add_wmf(GdkWMFunction);
     void remove_wmf(GdkWMFunction);
     void notify_on_top(bool);
+    void notify_window_resize(int, int, int);
+    void notify_window_move(int, int);
+    void notify_view_resize(int, int);
+    void notify_view_move();
     GdkAtom get_net_frame_extents_atom();
     void request_frame_extents();
     void update_frame_extents();
