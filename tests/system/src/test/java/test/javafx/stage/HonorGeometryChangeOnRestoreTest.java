@@ -38,10 +38,10 @@ public class HonorGeometryChangeOnRestoreTest extends StageTestBase {
     private static final int WIDTH = 100;
     private static final int HEIGHT = 150;
 
-    private static final int SHOW_WIDTH = 300;
-    private static final int SHOW_HEIGHT = 300;
-    private static final int SHOW_X = 300;
-    private static final int SHOW_Y = 300;
+    private static final int SHOW_WIDTH = 500;
+    private static final int SHOW_HEIGHT = 500;
+    private static final int SHOW_X = 500;
+    private static final int SHOW_Y = 500;
 
     private void setupStageWithStyle(StageStyle style) {
         super.setupStageWithStyle(style, s -> {
@@ -59,7 +59,7 @@ public class HonorGeometryChangeOnRestoreTest extends StageTestBase {
     public void testUnFullscreenChangedPosition(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().setFullScreen(true),
                 () -> {
                     getStage().setX(POS_X);
@@ -78,7 +78,7 @@ public class HonorGeometryChangeOnRestoreTest extends StageTestBase {
     public void testUnFullscreenChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().setFullScreen(true),
                 () -> {
                     getStage().setWidth(WIDTH);
@@ -97,7 +97,7 @@ public class HonorGeometryChangeOnRestoreTest extends StageTestBase {
     public void testUnMaximzeChangedPosition(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().setMaximized(true),
                 () -> {
                     getStage().setX(POS_X);
@@ -116,7 +116,7 @@ public class HonorGeometryChangeOnRestoreTest extends StageTestBase {
     public void testUnMaximizeChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().setMaximized(true),
                 () -> {
                     getStage().setWidth(WIDTH);
@@ -135,7 +135,7 @@ public class HonorGeometryChangeOnRestoreTest extends StageTestBase {
     public void testDeIconfyChangedPosition(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().setIconified(true),
                 () -> {
                     getStage().setX(POS_X);
@@ -154,7 +154,7 @@ public class HonorGeometryChangeOnRestoreTest extends StageTestBase {
     public void testDeIconifyChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().setIconified(true),
                 () -> {
                     getStage().setWidth(WIDTH);

@@ -188,7 +188,7 @@ public class StageStatesTest extends VisualTestBase {
 
         // wait a little bit between getColor() calls - on macOS the below one
         // would fail without this wait
-        sleep(300);
+        sleep(500);
 
         runAndWait(() -> {
             // top left corner (plus some tolerance) should NOT show decorations
@@ -344,7 +344,7 @@ public class StageStatesTest extends VisualTestBase {
     public void testStageStatePrecedenceOrderBeforeShow(StageState stageState) throws InterruptedException {
         setupStages(false, false, stageState.stageStyle());
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> {
                     for (Consumer<Stage> stageConsumer : stageState.initStates()) {
                         stageConsumer.accept(topStage);
@@ -380,7 +380,7 @@ public class StageStatesTest extends VisualTestBase {
             assertColorEquals((bottom) ? BOTTOM_COLOR : TOP_COLOR, color, TOLERANCE);
         });
 
-        Util.doTimeLine(300, runnables.toArray(new Runnable[0]));
+        Util.doTimeLine(500, runnables.toArray(new Runnable[0]));
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
@@ -389,7 +389,7 @@ public class StageStatesTest extends VisualTestBase {
             throws InterruptedException {
         setupStages(false, false, stageStyle);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> {
                     Color color = getColor(200, 200);
                     assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
@@ -415,7 +415,7 @@ public class StageStatesTest extends VisualTestBase {
             throws InterruptedException {
         setupStages(false, false, stageStyle);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> {
                     Color color = getColor(200, 200);
                     assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);

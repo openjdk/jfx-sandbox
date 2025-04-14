@@ -48,11 +48,8 @@ public class ResizeUnresizableTest extends StageTestBase {
             s.setHeight(HEIGHT);
             s.setResizable(false);
         });
-
         Util.runAndWait(() -> getStage().setMaximized(true));
-
         Util.sleep(500);
-
         assertTrue(getStage().isMaximized(), "Unresizable stage should be maximized");
     }
 
@@ -69,9 +66,7 @@ public class ResizeUnresizableTest extends StageTestBase {
         });
 
         Util.runAndWait(() -> getStage().setFullScreen(true));
-
         Util.sleep(500);
-
         assertTrue(getStage().isFullScreen(), "Unresizable stage should be fullscreen");
     }
 

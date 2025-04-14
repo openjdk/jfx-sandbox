@@ -41,7 +41,7 @@ public class MaximizeUndecoratedTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"UNDECORATED", "TRANSPARENT"})
-    public void testMaximizeUndecorated(StageStyle stageStyle) throws Exception {
+    public void testMaximizeUndecorated(StageStyle stageStyle) {
         int pos = 100;
 
         setupStageWithStyle(stageStyle, s -> {

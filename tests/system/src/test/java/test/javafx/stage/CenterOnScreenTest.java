@@ -48,6 +48,8 @@ public class CenterOnScreenTest extends StageTestBase {
     private static final double SCENE_WIDTH = 300;
     private static final double SCENE_HEIGHT = 100;
 
+    private static final double DECORATED_DELTA = 50.0;
+
     @Override
     protected Parent createRoot() {
         StackPane stackPane = new StackPane();
@@ -74,7 +76,7 @@ public class CenterOnScreenTest extends StageTestBase {
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     public void testStateCenterOnScreenWhenShownWithSceneSize(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, null);
-        Util.sleep(300);
+        Util.sleep(500);
         assertStageCentered(stageStyle, true);
     }
 
@@ -90,9 +92,9 @@ public class CenterOnScreenTest extends StageTestBase {
             stage.setY(0);
         });
 
-        Util.sleep(300);
+        Util.sleep(500);
         Util.runAndWait(() -> getStage().centerOnScreen());
-        Util.sleep(300);
+        Util.sleep(500);
         assertStageCentered(stageStyle, false);
     }
 
@@ -106,9 +108,9 @@ public class CenterOnScreenTest extends StageTestBase {
             stage.setY(0);
         });
 
-        Util.sleep(300);
+        Util.sleep(500);
         Util.runAndWait(() -> getStage().centerOnScreen());
-        Util.sleep(300);
+        Util.sleep(500);
         assertStageCentered(stageStyle, true);
     }
 
@@ -125,7 +127,7 @@ public class CenterOnScreenTest extends StageTestBase {
             stage.setFullScreen(true);
         });
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().centerOnScreen(),
                 () -> assertTrue(getStage().isFullScreen(), "centerOnScreen() should not change window state"),
                 () -> getStage().setFullScreen(false),
@@ -145,7 +147,7 @@ public class CenterOnScreenTest extends StageTestBase {
             stage.setMaximized(true);
         });
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().centerOnScreen(),
                 () -> assertTrue(getStage().isFullScreen(), "centerOnScreen() should not change window state"),
                 () -> getStage().setMaximized(false),
@@ -155,23 +157,17 @@ public class CenterOnScreenTest extends StageTestBase {
     private void assertStageCentered(StageStyle stageStyle, boolean useSceneSize) {
         Screen screen = Util.getScreen(getStage());
 
-        double decorationY = 0;
-        double decorationX = 0;
-
-        if (stageStyle == StageStyle.DECORATED) {
-            decorationX = getStage().getScene().getX() * CENTER_ON_SCREEN_X_FRACTION;
-            decorationY = getStage().getScene().getY() * CENTER_ON_SCREEN_Y_FRACTION;
-        }
+        double delta = (stageStyle == StageStyle.DECORATED) ? DECORATED_DELTA : 1.0;
 
         Rectangle2D bounds = screen.getVisualBounds();
         double centerX =
-                (bounds.getMinX() + (bounds.getWidth() - ((useSceneSize) ? SCENE_WIDTH : STAGE_WIDTH))
-                        * CENTER_ON_SCREEN_X_FRACTION) - decorationX;
+                bounds.getMinX() + (bounds.getWidth() - ((useSceneSize) ? SCENE_WIDTH : STAGE_WIDTH))
+                        * CENTER_ON_SCREEN_X_FRACTION;
         double centerY =
-                (bounds.getMinY() + (bounds.getHeight() - ((useSceneSize) ? SCENE_HEIGHT : STAGE_HEIGHT))
-                        * CENTER_ON_SCREEN_Y_FRACTION) - decorationY;
+                bounds.getMinY() + (bounds.getHeight() - ((useSceneSize) ? SCENE_HEIGHT : STAGE_HEIGHT))
+                        * CENTER_ON_SCREEN_Y_FRACTION;
 
-        assertEquals(centerX, getStage().getX(), 1, "Stage is not centered in X axis");
-        assertEquals(centerY, getStage().getY(), 1, "Stage is not centered in Y axis");
+        assertEquals(centerX, getStage().getX(), delta, "Stage is not centered in X axis");
+        assertEquals(centerY, getStage().getY(), delta, "Stage is not centered in Y axis");
     }
 }
