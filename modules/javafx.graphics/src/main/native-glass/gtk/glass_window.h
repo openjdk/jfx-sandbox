@@ -35,7 +35,6 @@
 #include <vector>
 
 #include "DeletedMemDebug.h"
-
 #include "glass_view.h"
 
 enum WindowManager {
@@ -146,6 +145,8 @@ private:
     bool is_disabled;
     bool on_top;
     bool can_be_deleted;
+
+    GdkRGBA background_color;
 protected:
     /*
      * sm_grab_window points to WindowContext holding a mouse grab.
@@ -179,6 +180,7 @@ public:
     void disableIME();
 
     void paint(void*, jint, jint);
+    void paint_background(cairo_t *);
     GdkWindow *get_gdk_window();
     jobject get_jwindow();
     jobject get_jview();
@@ -197,7 +199,7 @@ public:
 
     void process_map();
     void process_focus(GdkEventFocus*);
-    void notify_repaint(GdkRectangle*);
+    bool notify_repaint(GdkRectangle*);
     void process_mouse_button(GdkEventButton*);
     void process_mouse_motion(GdkEventMotion*);
     void process_mouse_scroll(GdkEventScroll*);

@@ -500,7 +500,11 @@ static void process_events(GdkEvent* event, gpointer data)
                     break;
                 case GDK_EXPOSE:
                 case GDK_DAMAGE:
-                    ctx->notify_repaint(&event->expose.area);
+                    // Returns true if event should be interruted. Will not interrupt
+                    // if it needs to paint the background
+                    if (!ctx->notify_repaint(&event->expose.area)) {
+                        gtk_main_do_event(event);
+                    }
                     break;
                 case GDK_WINDOW_STATE:
                     gtk_main_do_event(event);

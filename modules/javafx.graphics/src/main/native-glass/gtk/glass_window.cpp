@@ -48,6 +48,13 @@
 #define MOUSE_BACK_BTN 8
 #define MOUSE_FORWARD_BTN 9
 
+static gboolean event_draw_background(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
+    WindowContext *ctx = USER_PTR_TO_CTX(user_data);
+    ctx->paint_background(cr);
+
+    return FALSE;
+}
+
 static gboolean event_realize(GtkWidget *widget, gpointer user_data) {
     WindowContext *ctx = USER_PTR_TO_CTX(user_data);
     ctx->process_realize();
@@ -161,19 +168,19 @@ WindowContext::WindowContext(jobject _jwindow, WindowContext* _owner, long _scre
     jwindow = mainEnv->NewGlobalRef(_jwindow);
     initial_wmf = wmf;
     current_wmf = wmf;
-
     jview = NULL;
     gdk_window = NULL;
-
     requested_state_mask = 0;
-
     is_mouse_entered = false;
     is_disabled = false;
     on_top = false;
     can_be_deleted = false;
+    // Default to white
+    background_color = { 1.0, 1.0, 1.0, 1.0 };
 
     gtk_widget = gtk_window_new(type == POPUP ? GTK_WINDOW_POPUP : GTK_WINDOW_TOPLEVEL);
     g_signal_connect(G_OBJECT(gtk_widget), "realize", G_CALLBACK(event_realize), this);
+    g_signal_connect(G_OBJECT(gtk_widget), "draw", G_CALLBACK(event_draw_background), this);
 
     if (gchar* app_name = get_application_name()) {
         gtk_window_set_wmclass(GTK_WINDOW(gtk_widget), app_name, app_name);
@@ -339,12 +346,17 @@ void WindowContext::process_delete() {
     }
 }
 
-void WindowContext::notify_repaint(GdkRectangle *rect) {
+// Returns false to not interrupt the EXPOSE event to Gtk, so we can paint the background (as there's no view)
+bool WindowContext::notify_repaint(GdkRectangle *rect) {
     if (jview) {
 //        g_print("jViewNotifyRepaint %d,%d / %d,%d\n", rect->x, rect->y, rect->width, rect->height);
         mainEnv->CallVoidMethod(jview, jViewNotifyRepaint, rect->x, rect->y, rect->width, rect->height);
-        CHECK_JNI_EXCEPTION(mainEnv)
+        CHECK_JNI_EXCEPTION_RET(mainEnv, true)
+
+        return true;
     }
+
+    return false;
 }
 
 void WindowContext::process_mouse_button(GdkEventButton *event) {
@@ -608,6 +620,14 @@ void WindowContext::paint(void* data, jint width, jint height) {
     cairo_surface_destroy(cairo_surface);
 }
 
+void WindowContext::paint_background(cairo_t *cr) {
+    GtkAllocation allocation;
+    gtk_widget_get_allocation(gtk_widget, &allocation);
+    gdk_cairo_set_source_rgba(cr, &background_color);
+    cairo_rectangle(cr, 0, 0, allocation.width, allocation.height);
+    cairo_fill(cr);
+}
+
 void WindowContext::add_child(WindowContext* child) {
     children.insert(child);
     gtk_window_set_transient_for(child->get_gtk_window(), this->get_gtk_window());
@@ -697,8 +717,9 @@ void WindowContext::set_cursor(GdkCursor* cursor) {
 }
 
 void WindowContext::set_background(float r, float g, float b) {
-    GdkRGBA rgba = {r, g, b, 1.};
-    gtk_widget_override_background_color(gtk_widget, GTK_STATE_FLAG_NORMAL, &rgba);
+    background_color.red = r;
+    background_color.green = g;
+    background_color.blue = b;
 }
 
 GdkAtom WindowContext::get_net_frame_extents_atom() {
