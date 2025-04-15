@@ -244,17 +244,17 @@ void WindowContext::process_map() {
     }
 
     was_mapped = true;
-
     LOG0("mapped\n");
 
     // Work around JDK-8337400 (Initial window position is not centered on Xorg)
-    if (geometry.x_set || geometry.y_set) {
-        int x = (geometry.x_set) ? geometry.x_set_value : geometry.x;
-        int y = (geometry.y_set) ? geometry.y_set_value : geometry.y;
-
-        LOG2("move (initial position work-around) -> %d,%d\n", x, y);
-        gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
-    }
+// TODO: currently breaks POPUP
+//    if (geometry.x_set || geometry.y_set) {
+//        int x = (geometry.x_set) ? geometry.x_set_value : geometry.x;
+//        int y = (geometry.y_set) ? geometry.y_set_value : geometry.y;
+//
+//        LOG2("move (initial position work-around) -> %d,%d\n", x, y);
+//        gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
+//    }
 
     // Must be later on Xorg for the initial state before show to work
     if (initial_state_mask != 0) {
@@ -838,6 +838,8 @@ void WindowContext::update_frame_extents() {
             int x = geometry.x;
             int y = geometry.y;
 
+            // Gravity x, y are used in centerOnScreen(). Here it's used to adjust the position
+            // accounting decorations
             if (geometry.gravity_x != 0) {
                 x -= geometry.gravity_x * (float) (geometry.extents.width);
 
@@ -922,10 +924,13 @@ void WindowContext::process_state(GdkEventWindowState *event) {
 
     if ((event->changed_mask & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_ICONIFIED))
         && (event->new_window_state & (GDK_WINDOW_STATE_MAXIMIZED | GDK_WINDOW_STATE_ICONIFIED)) == 0) {
+        LOG0("com_sun_glass_events_WindowEvent_RESTORE\n");
         notify_window_resize(com_sun_glass_events_WindowEvent_RESTORE, ww, wh);
     } else if (event->new_window_state & (GDK_WINDOW_STATE_ICONIFIED)) {
+        LOG0("com_sun_glass_events_WindowEvent_MINIMIZE\n");
         notify_window_resize(com_sun_glass_events_WindowEvent_MINIMIZE, 0, 0);
     } else if (event->new_window_state & (GDK_WINDOW_STATE_MAXIMIZED)) {
+        LOG0("com_sun_glass_events_WindowEvent_MAXIMIZE\n");
         notify_window_resize(com_sun_glass_events_WindowEvent_MAXIMIZE, ww, wh);
     }
 
@@ -947,11 +952,13 @@ void WindowContext::process_state(GdkEventWindowState *event) {
     if (event->changed_mask & GDK_WINDOW_STATE_FULLSCREEN) {
         if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) {
             if (jview) {
+                LOG0("com_sun_glass_events_ViewEvent_FULLSCREEN_ENTER\n");
                 mainEnv->CallVoidMethod(jview, jViewNotifyView, com_sun_glass_events_ViewEvent_FULLSCREEN_ENTER);
                 CHECK_JNI_EXCEPTION(mainEnv)
             }
         } else {
             if (jview) {
+                LOG0("com_sun_glass_events_ViewEvent_FULLSCREEN_EXIT\n");
                 mainEnv->CallVoidMethod(jview, jViewNotifyView, com_sun_glass_events_ViewEvent_FULLSCREEN_EXIT);
                 CHECK_JNI_EXCEPTION(mainEnv)
             }
@@ -1012,6 +1019,7 @@ void WindowContext::notify_view_resize(int width, int height) {
 
 void WindowContext::notify_view_move() {
     if (jview) {
+        LOG0("com_sun_glass_events_ViewEvent_MOVE\n");
         mainEnv->CallVoidMethod(jview, jViewNotifyView,
                 com_sun_glass_events_ViewEvent_MOVE);
         CHECK_JNI_EXCEPTION(mainEnv)
@@ -1044,7 +1052,7 @@ void WindowContext::process_configure(GdkEventConfigure *event) {
 
     // Do not save or report dimensions and location while fullscreen because those should not
     // be updated on java side
-    if ((state & GDK_WINDOW_STATE_FULLSCREEN) == 0 && (initial_state_mask & GDK_WINDOW_STATE_FULLSCREEN == 0)) {
+    if ((state & GDK_WINDOW_STATE_FULLSCREEN) == 0 && (initial_state_mask & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
         // The returned values might be inaccurate if _NET_FRAME_EXTENTS has not been received yet.
         // They will be corrected later if the property is updated. However, since there is no guarantee
         // that _NET_FRAME_EXTENTS will ever be available, we set the best guess for now.
@@ -1072,6 +1080,7 @@ void WindowContext::process_configure(GdkEventConfigure *event) {
     glong to_screen = getScreenPtrForLocation(event->x, event->y);
     if (to_screen != -1 && to_screen != screen) {
         if (jwindow) {
+            LOG0("jWindowNotifyMoveToAnotherScreen\n");
             //notify screen changed
             jobject jScreen = createJavaScreen(mainEnv, to_screen);
             mainEnv->CallVoidMethod(jwindow, jWindowNotifyMoveToAnotherScreen, jScreen);
