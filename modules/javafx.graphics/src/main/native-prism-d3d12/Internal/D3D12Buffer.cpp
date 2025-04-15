@@ -118,6 +118,12 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
         return true;
     }
 
+    if (mHeapType == D3D12_HEAP_TYPE_READBACK)
+    {
+        // nothing to process past this point for readback buffers, return
+        return true;
+    }
+
     // harder path since we'll have to ask the GPU to initialize the Resource for us.
     // We might want to either preload it with data, or simply transition to the desired
     // state (aka. finalState). All this can be only done via a Command Queue execution.
