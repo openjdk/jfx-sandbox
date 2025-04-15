@@ -143,7 +143,9 @@ private:
     bool is_disabled;
     bool on_top;
     bool can_be_deleted;
+    bool was_mapped;
 
+    gint initial_state_mask;
     GdkRGBA background_color;
 protected:
     /*
@@ -241,7 +243,7 @@ public:
 
     GtkWindow *get_gtk_window();
     void update_window_size_location();
-    void update_requested_state();
+    void enforce_initial_state();
 
     ~WindowContext();
 

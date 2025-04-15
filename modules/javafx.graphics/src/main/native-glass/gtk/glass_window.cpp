@@ -62,9 +62,9 @@ static gboolean event_realize(GtkWidget *widget, gpointer user_data) {
     return FALSE;
 }
 
-static gboolean update_requested_state_later(gpointer user_data) {
+static gboolean enforce_initial_state_later(gpointer user_data) {
     WindowContext *ctx = USER_PTR_TO_CTX(user_data);
-    ctx->update_requested_state();
+    ctx->enforce_initial_state();
 
     return G_SOURCE_REMOVE;
 }
@@ -146,7 +146,6 @@ static inline jint gtk_button_number_to_mouse_button(guint button) {
     }
 }
 
-
 WindowContext * WindowContext::sm_grab_window = NULL;
 WindowContext * WindowContext::sm_mouse_drag_window = NULL;
 
@@ -170,11 +169,12 @@ WindowContext::WindowContext(jobject _jwindow, WindowContext* _owner, long _scre
     current_wmf = wmf;
     jview = NULL;
     gdk_window = NULL;
-//    requested_state_mask = 0;
+    initial_state_mask = 0;
     is_mouse_entered = false;
     is_disabled = false;
     on_top = false;
     can_be_deleted = false;
+    was_mapped = false;
     // Default to white
     background_color = { 1.0, 1.0, 1.0, 1.0 };
 
@@ -238,6 +238,13 @@ bool WindowContext::isEnabled() {
 }
 
 void WindowContext::process_map() {
+    // We need only first map
+    if (was_mapped) {
+        return;
+    }
+
+    was_mapped = true;
+
     LOG0("mapped\n");
 
     // Work around JDK-8337400 (Initial window position is not centered on Xorg)
@@ -250,7 +257,9 @@ void WindowContext::process_map() {
     }
 
     // Must be later on Xorg for the initial state before show to work
-    gdk_threads_add_idle((GSourceFunc) update_requested_state_later, this);
+    if (initial_state_mask != 0) {
+        gdk_threads_add_idle((GSourceFunc) enforce_initial_state_later, this);
+    }
 }
 
 void WindowContext::process_focus(GdkEventFocus *event) {
@@ -767,13 +776,21 @@ void WindowContext::update_window_size_location() {
 }
 
 
-// This function will decide the State it should currently be,
-// in the precedence order: Iconified, FullScreen, Maximized
-void WindowContext::update_requested_state() {
-    //TODO
-    if (gdk_window_get_state(gdk_window) & GDK_WINDOW_STATE_FULLSCREEN) {
-        LOG0("IS FULLSCREEN\n");
+void WindowContext::enforce_initial_state() {
+    // Work-around when a state is set before shown
+    if (initial_state_mask & GDK_WINDOW_STATE_MAXIMIZED) {
+        gtk_window_maximize(GTK_WINDOW(gtk_widget));
     }
+
+    if (initial_state_mask & GDK_WINDOW_STATE_FULLSCREEN) {
+        gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
+    }
+
+    if (initial_state_mask & GDK_WINDOW_STATE_MAXIMIZED) {
+        gtk_window_maximize(GTK_WINDOW(gtk_widget));
+    }
+
+    initial_state_mask = 0;
 }
 
 void WindowContext::update_frame_extents() {
@@ -878,7 +895,7 @@ GdkRectangle WindowContext::get_cached_extents() {
 }
 
 void WindowContext::process_property_notify(GdkEventProperty *event) {
-//    g_print("process_property_notify: %s\n", gdk_atom_name(event->atom));
+//    LOG1("process_property_notify: %s\n", gdk_atom_name(event->atom));
     if (event->atom == get_net_frame_extents_atom()) {
         update_frame_extents();
     }
@@ -926,7 +943,6 @@ void WindowContext::process_state(GdkEventWindowState *event) {
     // Since FullScreen (or custom modes of maximized) can undecorate the
     // window, request view position change
     notify_view_move();
-
 
     if (event->changed_mask & GDK_WINDOW_STATE_FULLSCREEN) {
         if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) {
@@ -1028,7 +1044,7 @@ void WindowContext::process_configure(GdkEventConfigure *event) {
 
     // Do not save or report dimensions and location while fullscreen because those should not
     // be updated on java side
-    if ((state & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
+    if ((state & GDK_WINDOW_STATE_FULLSCREEN) == 0 && (initial_state_mask & GDK_WINDOW_STATE_FULLSCREEN == 0)) {
         // The returned values might be inaccurate if _NET_FRAME_EXTENTS has not been received yet.
         // They will be corrected later if the property is updated. However, since there is no guarantee
         // that _NET_FRAME_EXTENTS will ever be available, we set the best guess for now.
@@ -1231,9 +1247,11 @@ void WindowContext::applyShapeMask(void* data, uint width, uint height) {
 void WindowContext::set_minimized(bool minimize) {
     LOG1("set_minimized = %d\n", minimize);
     if (minimize) {
+        initial_state_mask |= GDK_WINDOW_STATE_ICONIFIED;
         add_wmf(GDK_FUNC_MINIMIZE);
         gtk_window_iconify(GTK_WINDOW(gtk_widget));
     } else {
+        initial_state_mask &= ~GDK_WINDOW_STATE_ICONIFIED;
         gtk_window_deiconify(GTK_WINDOW(gtk_widget));
         gdk_window_focus(gdk_window, GDK_CURRENT_TIME);
     }
@@ -1242,20 +1260,24 @@ void WindowContext::set_minimized(bool minimize) {
 void WindowContext::set_maximized(bool maximize) {
     LOG1("set_maximized = %d\n", maximize);
     if (maximize) {
+        initial_state_mask |= GDK_WINDOW_STATE_MAXIMIZED;
         add_wmf(GDK_FUNC_MAXIMIZE);
         gtk_window_maximize(GTK_WINDOW(gtk_widget));
     } else {
+        initial_state_mask &= ~GDK_WINDOW_STATE_MAXIMIZED;
         gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
     }
 }
 
 void WindowContext::enter_fullscreen() {
     LOG0("enter_fullscreen\n");
+    initial_state_mask |= GDK_WINDOW_STATE_FULLSCREEN;
     gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
 }
 
 void WindowContext::exit_fullscreen() {
     LOG0("exit_fullscreen\n");
+    initial_state_mask &= ~GDK_WINDOW_STATE_FULLSCREEN;
     gtk_window_unfullscreen(GTK_WINDOW(gtk_widget));
 }
 

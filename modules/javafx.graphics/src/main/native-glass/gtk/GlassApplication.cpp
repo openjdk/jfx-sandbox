@@ -507,6 +507,7 @@ static void process_events(GdkEvent* event, gpointer data)
                     }
                     break;
                 case GDK_WINDOW_STATE:
+                    // Let gtk handle it first, so state functions are updated
                     gtk_main_do_event(event);
                     ctx->process_state(&event->window_state);
                     break;
