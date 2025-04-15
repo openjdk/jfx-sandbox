@@ -186,6 +186,9 @@ JNIEXPORT void JNICALL Java_com_sun_glass_ui_gtk_GtkApplication__1init
                          G_CALLBACK(screen_settings_changed), NULL);
     }
 
+    GdkWindow *root = gdk_screen_get_root_window(default_gdk_screen);
+    gdk_window_set_events(root, static_cast<GdkEventMask>(gdk_window_get_events(root) | GDK_PROPERTY_CHANGE_MASK));
+
     platformSupport = new PlatformSupport(env, obj);
 
     // Set ibus to sync mode
@@ -479,13 +482,12 @@ static void process_events(GdkEvent* event, gpointer data)
         try {
             switch (event->type) {
                 case GDK_PROPERTY_NOTIFY:
-                    // let gtk handle it first to prevent a glitch
-                    gtk_main_do_event(event);
                     ctx->process_property_notify(&event->property);
+                    gtk_main_do_event(event);
                     break;
                 case GDK_CONFIGURE:
-                    gtk_main_do_event(event);
                     ctx->process_configure(&event->configure);
+                    gtk_main_do_event(event);
                     break;
                 case GDK_FOCUS_CHANGE:
                     ctx->process_focus(&event->focus_change);
