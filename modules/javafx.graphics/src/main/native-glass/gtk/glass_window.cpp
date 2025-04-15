@@ -50,6 +50,7 @@
 
 static gboolean event_draw_background(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
     WindowContext *ctx = USER_PTR_TO_CTX(user_data);
+    LOG0("event_draw_background");
     ctx->paint_background(cr);
 
     return FALSE;
@@ -105,10 +106,12 @@ static int geometry_get_content_height(WindowGeometry *windowGeometry) {
 }
 
 void destroy_and_delete_ctx(WindowContext* ctx) {
+    LOG0("destroy_and_delete_ctx\n");
     if (ctx) {
         ctx->process_destroy();
 
         if (!ctx->get_events_count()) {
+            LOG0("delete ctx\n");
             delete ctx;
         }
         // else: ctx will be deleted in EventsCounterHelper after completing
@@ -117,15 +120,14 @@ void destroy_and_delete_ctx(WindowContext* ctx) {
 }
 
 static gboolean is_window_floating(GdkWindow *gdk_window) {
-    if (GDK_IS_WINDOW(gdk_window)) {
-        GdkWindowState state = gdk_window_get_state(gdk_window);
+    if (!GDK_IS_WINDOW(gdk_window))
+        return FALSE;
 
-        return (state & GDK_WINDOW_STATE_ICONIFIED)
-            || (state & GDK_WINDOW_STATE_MAXIMIZED)
-            || (state & GDK_WINDOW_STATE_FULLSCREEN);
-    }
+    GdkWindowState state = gdk_window_get_state(gdk_window);
 
-    return FALSE;
+    return !(state & GDK_WINDOW_STATE_MAXIMIZED)
+        && !(state & GDK_WINDOW_STATE_FULLSCREEN)
+        && !(state & GDK_WINDOW_STATE_ICONIFIED);
 }
 
 static inline jint gtk_button_number_to_mouse_button(guint button) {
@@ -163,20 +165,19 @@ WindowContext::WindowContext(jobject _jwindow, WindowContext* _owner, long _scre
             owner(_owner),
             geometry(),
             resizable(),
-            im_ctx() {
+            im_ctx(),
+            background_color() {
     jwindow = mainEnv->NewGlobalRef(_jwindow);
     initial_wmf = wmf;
     current_wmf = wmf;
-    jview = NULL;
-    gdk_window = NULL;
-    initial_state_mask = 0;
+    // Default to white
+    background_color = { 1.0, 1.0, 1.0, 1.0 };
     is_mouse_entered = false;
     is_disabled = false;
     on_top = false;
     can_be_deleted = false;
     was_mapped = false;
-    // Default to white
-    background_color = { 1.0, 1.0, 1.0, 1.0 };
+    initial_state_mask = 0;
 
     gtk_widget = gtk_window_new(type == POPUP ? GTK_WINDOW_POPUP : GTK_WINDOW_TOPLEVEL);
     g_signal_connect(G_OBJECT(gtk_widget), "realize", G_CALLBACK(event_realize), this);
@@ -234,27 +235,30 @@ jobject WindowContext::get_jwindow() {
 }
 
 bool WindowContext::isEnabled() {
-    return !is_disabled;
+    if (jwindow) {
+        bool result = (JNI_TRUE == mainEnv->CallBooleanMethod(jwindow, jWindowIsEnabled));
+        LOG_EXCEPTION(mainEnv)
+        return result;
+    } else {
+        return false;
+    }
 }
 
 void WindowContext::process_map() {
     // We need only first map
-    if (was_mapped) {
-        return;
-    }
+    if (was_mapped || window_type == POPUP) return;
 
     was_mapped = true;
-    LOG0("mapped\n");
+    LOG1("%lu: mapped\n", XID());
 
     // Work around JDK-8337400 (Initial window position is not centered on Xorg)
-// TODO: currently breaks POPUP
-//    if (geometry.x_set || geometry.y_set) {
-//        int x = (geometry.x_set) ? geometry.x_set_value : geometry.x;
-//        int y = (geometry.y_set) ? geometry.y_set_value : geometry.y;
-//
-//        LOG2("move (initial position work-around) -> %d,%d\n", x, y);
-//        gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
-//    }
+    if (geometry.x_set || geometry.y_set) {
+        int x = (geometry.x_set) ? geometry.x_set_value : geometry.x;
+        int y = (geometry.y_set) ? geometry.y_set_value : geometry.y;
+
+        LOG2("move (initial position work-around) -> %d,%d\n", x, y);
+        gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
+    }
 
     // Must be later on Xorg for the initial state before show to work
     if (initial_state_mask != 0) {
@@ -306,6 +310,8 @@ bool WindowContext::is_dead() {
 }
 
 void WindowContext::process_destroy() {
+    LOG1("%lu: process_destroy\n", XID());
+
     if (owner) {
         owner->remove_child(this);
     }
@@ -349,7 +355,9 @@ void WindowContext::process_destroy() {
 }
 
 void WindowContext::process_delete() {
+    LOG1("%lu: process_delete\n", XID());
     if (jwindow && isEnabled()) {
+        LOG1("%lu: jWindowNotifyClose\n", XID());
         mainEnv->CallVoidMethod(jwindow, jWindowNotifyClose);
         CHECK_JNI_EXCEPTION(mainEnv)
     }
@@ -775,7 +783,6 @@ void WindowContext::update_window_size_location() {
     gtk_window_resize(GTK_WINDOW(gtk_widget), cw, ch);
 }
 
-
 void WindowContext::enforce_initial_state() {
     // Work-around when a state is set before shown
     if (initial_state_mask & GDK_WINDOW_STATE_MAXIMIZED) {
@@ -1140,7 +1147,7 @@ void WindowContext::set_visible(bool visible) {
         }
 
         // JDK-8220272 - fire event first because GDK_FOCUS_CHANGE is not always in order
-        if (jwindow && !is_disabled) {
+        if (jwindow && isEnabled()) {
             mainEnv->CallVoidMethod(jwindow, jWindowNotifyFocus, com_sun_glass_events_WindowEvent_FOCUS_GAINED);
             CHECK_JNI_EXCEPTION(mainEnv);
         }
@@ -1447,7 +1454,13 @@ void WindowContext::update_view_size() {
     }
 }
 
+gulong WindowContext::XID() {
+    return GDK_WINDOW_XID(gdk_window);
+}
+
 WindowContext::~WindowContext() {
+    LOG1("%lu: ~WindowContext\n", XID());
     disableIME();
     gtk_widget_destroy(gtk_widget);
 }
+

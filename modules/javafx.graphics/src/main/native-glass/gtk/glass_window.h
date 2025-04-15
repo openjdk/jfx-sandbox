@@ -36,6 +36,7 @@
 
 #include "DeletedMemDebug.h"
 #include "glass_view.h"
+#include "glass_general.h"
 
 enum WindowManager {
     COMPIZ,
@@ -103,6 +104,8 @@ struct WindowGeometry {
     bool frame_extents_received;
 };
 
+class WindowContext;
+
 class WindowContext: public DeletedMemDebug<0xCC> {
 private:
     static GdkRectangle normal_extents;
@@ -128,14 +131,14 @@ private:
         bool on_key_event;
     } im_ctx;
 
-    size_t events_processing_cnt;
+    size_t events_processing_cnt{};
 
     std::set<WindowContext*> children;
     jobject jwindow;
-    jobject jview;
+    jobject jview{};
 
-    GtkWidget* gtk_widget;
-    GdkWindow* gdk_window;
+    GtkWidget *gtk_widget;
+    GdkWindow *gdk_window{};
     GdkWMFunction initial_wmf;
     GdkWMFunction current_wmf;
 
@@ -250,6 +253,7 @@ public:
 protected:
     void applyShapeMask(void*, uint width, uint height);
 private:
+    gulong XID();
     bool is_in_geometry_freeze_state();
     void add_wmf(GdkWMFunction);
     void remove_wmf(GdkWMFunction);
@@ -268,8 +272,6 @@ private:
     void update_ontop_tree(bool);
     bool on_top_inherited();
     bool effective_on_top();
-    WindowContext(WindowContext&);
-    WindowContext& operator = (const WindowContext&);
 };
 
 void destroy_and_delete_ctx(WindowContext* ctx);
@@ -288,6 +290,7 @@ public:
         if (ctx != nullptr) {
             ctx->decrement_events_counter();
             if (ctx->is_dead() && ctx->get_events_count() == 0) {
+                LOG0("EventsCounterHelper: delete ctx\n");
                 delete ctx;
             }
             ctx = NULL;
