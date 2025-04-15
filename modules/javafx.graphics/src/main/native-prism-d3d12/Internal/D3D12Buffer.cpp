@@ -61,7 +61,7 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
     mSize = size;
 
     // create The Buffer
-    D3D12_RESOURCE_DESC1 resourceDesc;
+    D3D12_RESOURCE_DESC resourceDesc;
     D3D12NI_ZERO_STRUCT(resourceDesc);
     resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
     resourceDesc.Width = static_cast<UINT64>(size);
@@ -97,8 +97,8 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
         break;
     };
 
-    HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource2(&heapProps, D3D12_HEAP_FLAG_NONE,
-        &resourceDesc, initialState, nullptr, nullptr, IID_PPV_ARGS(&mBufferResource));
+    HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
+        &resourceDesc, initialState, nullptr, IID_PPV_ARGS(&mBufferResource));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Buffer's Committed Resource");
 
     if (mHeapType == D3D12_HEAP_TYPE_UPLOAD)
@@ -132,8 +132,8 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
         D3D12NI_ZERO_STRUCT(stagingHeapProps);
         stagingHeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
 
-        HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource2(&stagingHeapProps, D3D12_HEAP_FLAG_NONE,
-            &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, nullptr, IID_PPV_ARGS(&stagingResource));
+        HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&stagingHeapProps, D3D12_HEAP_FLAG_NONE,
+            &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&stagingResource));
         D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Staging Buffer's Committed Resource");
 
         void* bufPtr;

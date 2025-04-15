@@ -49,8 +49,8 @@ using Ptr = Microsoft::WRL::ComPtr<T>;
 
 // aliases for DXGI-specific objects used by the backend
 // this is to help with versioning the interfaces in a unified manner
-using DXGIFactoryPtr = Ptr<IDXGIFactory3>;
-using DXGIDebugPtr = Ptr<IDXGIDebug1>;
+using DXGIFactoryPtr = Ptr<IDXGIFactory2>;
+using DXGIDebugPtr = Ptr<IDXGIDebug>;
 using DXGIInfoQueuePtr = Ptr<IDXGIInfoQueue>;
 using DXGISwapChainPtr = Ptr<IDXGISwapChain3>;
 
@@ -58,16 +58,16 @@ using DXGISwapChainPtr = Ptr<IDXGISwapChain3>;
 using D3DBlobPtr = Ptr<ID3DBlob>;
 
 // aliases for D3D12-specific interfaces
-using D3D12DevicePtr = Ptr<ID3D12Device10>;
+using D3D12DevicePtr = Ptr<ID3D12Device4>;
 using D3D12CommandAllocatorPtr = Ptr<ID3D12CommandAllocator>;
 using D3D12CommandQueuePtr = Ptr<ID3D12CommandQueue>;
-using D3D12DebugPtr = Ptr<ID3D12Debug5>;
+using D3D12DebugPtr = Ptr<ID3D12Debug3>;
 using D3D12InfoQueuePtr = Ptr<ID3D12InfoQueue1>;
 using D3D12DescriptorHeapPtr = Ptr<ID3D12DescriptorHeap>;
-using D3D12FencePtr = Ptr<ID3D12Fence1>;
-using D3D12GraphicsCommandListPtr = Ptr<ID3D12GraphicsCommandList7>;
+using D3D12FencePtr = Ptr<ID3D12Fence>;
+using D3D12GraphicsCommandListPtr = Ptr<ID3D12GraphicsCommandList1>;
 using D3D12PipelineStatePtr = Ptr<ID3D12PipelineState>;
-using D3D12ResourcePtr = Ptr<ID3D12Resource2>;
+using D3D12ResourcePtr = Ptr<ID3D12Resource>;
 using D3D12RootSignaturePtr = Ptr<ID3D12RootSignature>;
 
 // smart-pointer container for internal objects

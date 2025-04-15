@@ -41,13 +41,13 @@ class NativeTexture
 
     NIPtr<NativeDevice> mNativeDevice;
     D3D12ResourcePtr mTextureResource;
-    D3D12_RESOURCE_DESC1 mResourceDesc;
+    D3D12_RESOURCE_DESC mResourceDesc;
     std::vector<D3D12_RESOURCE_STATES> mStates; // one state per subresource
     std::wstring mDebugName;
     UINT mMipLevels;
     TextureWrapMode mWrapMode;
 
-    bool InitInternal(const D3D12_RESOURCE_DESC1& desc);
+    bool InitInternal(const D3D12_RESOURCE_DESC& desc);
 
 public:
     NativeTexture(const NIPtr<NativeDevice>& nativeDevice);

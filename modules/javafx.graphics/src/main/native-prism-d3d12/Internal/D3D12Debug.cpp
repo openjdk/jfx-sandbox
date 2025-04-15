@@ -124,8 +124,6 @@ bool Debug::Init()
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to get Debug Layers interface");
 
     mD3D12Debug->EnableDebugLayer();
-    mD3D12Debug->SetEnableAutoName(true);
-
     mD3D12Debug->SetEnableGPUBasedValidation(Config::Instance().IsGpuDebugEnabled());
     // NOTE: here we can potentially disable state-tracking for GPU-based valiadtion.
     // This saves a lot of performance but shuts down resource state validation.

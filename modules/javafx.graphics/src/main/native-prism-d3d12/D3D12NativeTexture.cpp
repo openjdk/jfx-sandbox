@@ -37,7 +37,7 @@ uint64_t NativeTexture::textureCounter = 0;
 uint64_t NativeTexture::depthTextureCounter = 0;
 uint64_t NativeTexture::rttextureCounter = 0;
 
-bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC1& desc)
+bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
 {
     mResourceDesc = desc;
 
@@ -46,8 +46,8 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC1& desc)
     // Texture resources require DEFAULT heap type
     heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
 
-    HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource2(&heapProps, D3D12_HEAP_FLAG_NONE,
-        &mResourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, nullptr, IID_PPV_ARGS(&mTextureResource));
+    HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
+        &mResourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&mTextureResource));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Texture's Committed Resource");
 
     // Texture will be separately loaded with data via Java's Texture.update() calls
@@ -125,7 +125,7 @@ bool NativeTexture::Init(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESO
         flags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
     }
 
-    D3D12_RESOURCE_DESC1 desc;
+    D3D12_RESOURCE_DESC desc;
     D3D12NI_ZERO_STRUCT(desc);
     desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     desc.Width = width;
@@ -147,8 +147,8 @@ UINT64 NativeTexture::GetSize()
 {
     if (!mTextureResource) return -1;
 
-    D3D12_RESOURCE_DESC1 resDesc;
-    resDesc = mTextureResource->GetDesc1();
+    D3D12_RESOURCE_DESC resDesc;
+    resDesc = mTextureResource->GetDesc();
 
     return resDesc.Width * resDesc.Height * resDesc.DepthOrArraySize * GetDXGIFormatBPP(resDesc.Format);
 }
