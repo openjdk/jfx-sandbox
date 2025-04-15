@@ -716,6 +716,7 @@ void WindowContext::set_cursor(GdkCursor* cursor) {
 }
 
 void WindowContext::set_background(float r, float g, float b) {
+    LOG3("set_background %.2f, %.2f, %.2f\n", r, g, b);
     background_color.red = r;
     background_color.green = g;
     background_color.blue = b;

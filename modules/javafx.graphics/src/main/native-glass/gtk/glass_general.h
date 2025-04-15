@@ -264,6 +264,7 @@ private:
 #define LOG3(msg, param1, param2, param3)
 #define LOG4(msg, param1, param2, param3, param4)
 #define LOG5(msg, param1, param2, param3, param4, param5)
+#define LOG10(msg, param1, param2, param3, param4, param5, , param6, param7, param8, param9, param10)
 
 #define LOG_STRING_ARRAY(env, array)
 

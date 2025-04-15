@@ -51,7 +51,7 @@ public class FullScreenTests extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testFullscreenShouldKeepGeometry(StageStyle stageStyle) {
+    public void testFullScreenShouldKeepGeometry(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, null);
 
         Util.doTimeLine(500,
@@ -65,7 +65,7 @@ public class FullScreenTests extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testFullscreenBeforeShowShouldKeepGeometry(StageStyle stageStyle) {
+    public void testFullScreenBeforeShowShouldKeepGeometry(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, s -> s.setFullScreen(true));
 
         Util.doTimeLine(500,
@@ -85,7 +85,7 @@ public class FullScreenTests extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testUnFullscreenChangedPosition(StageStyle stageStyle) throws Exception {
+    public void testUnFullScreenChangedPosition(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle, CHANGE_GEOMETRY_TESTS_SETTINGS);
 
         Util.doTimeLine(500,
@@ -104,7 +104,7 @@ public class FullScreenTests extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testUnFullscreenChangedSize(StageStyle stageStyle) throws Exception {
+    public void testUnFullScreenChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle, CHANGE_GEOMETRY_TESTS_SETTINGS);
 
         Util.doTimeLine(500,
