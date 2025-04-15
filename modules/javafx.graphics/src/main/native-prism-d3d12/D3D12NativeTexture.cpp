@@ -25,7 +25,8 @@
 
 #include "D3D12NativeTexture.hpp"
 
-#include "D3D12NativeDevice.hpp"
+#include "../D3D12NativeDevice.hpp"
+#include "D3D12Debug.hpp"
 #include "D3D12Utils.hpp"
 
 #include <com_sun_prism_d3d12_ni_D3D12NativeTexture.h>
@@ -212,7 +213,6 @@ void NativeTexture::WriteSamplerToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& 
 void NativeTexture::EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState,
                                 UINT subresource)
 {
-
     D3D12_RESOURCE_STATES state = (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) ? mStates[0] : mStates[subresource];
     if (newState == state) return;
 

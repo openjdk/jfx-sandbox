@@ -25,9 +25,10 @@
 
 #include "D3D12RootSignatureManager.hpp"
 
-#include "D3D12NativeDevice.hpp"
+#include "D3D12Debug.hpp"
 
 #include "../D3D12Constants.hpp"
+#include "../D3D12NativeDevice.hpp"
 
 
 namespace D3D12 {

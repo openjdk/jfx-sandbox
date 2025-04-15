@@ -62,6 +62,8 @@ using D3D12DevicePtr = Ptr<ID3D12Device4>;
 using D3D12CommandAllocatorPtr = Ptr<ID3D12CommandAllocator>;
 using D3D12CommandQueuePtr = Ptr<ID3D12CommandQueue>;
 using D3D12DebugPtr = Ptr<ID3D12Debug3>;
+using D3D12DeviceRemovedExtendedData = Ptr<ID3D12DeviceRemovedExtendedData>;
+using D3D12DeviceRemovedExtendedDataSettings = Ptr<ID3D12DeviceRemovedExtendedDataSettings>;
 using D3D12InfoQueuePtr = Ptr<ID3D12InfoQueue1>;
 using D3D12DescriptorHeapPtr = Ptr<ID3D12DescriptorHeap>;
 using D3D12FencePtr = Ptr<ID3D12Fence>;
@@ -420,6 +422,8 @@ inline size_t GetPixelFormatBPP(PixelFormat f)
     if (FAILED(hr)) { \
         _com_error __e(hr); \
         D3D12NI_LOG_ERROR("%s: %x (%ws)", errMsg, hr, __e.ErrorMessage()); \
+        if (hr == DXGI_ERROR_DEVICE_REMOVED) \
+            ::D3D12::Internal::Debug::Instance().ExamineDeviceRemoved(); \
         return (ret); \
     } \
 } while (0)
@@ -429,6 +433,8 @@ inline size_t GetPixelFormatBPP(PixelFormat f)
     if (FAILED(hr)) { \
         _com_error __e(hr); \
         D3D12NI_LOG_ERROR("%s: %x (%ws)", errMsg, hr, __e.ErrorMessage()); \
+        if (hr == DXGI_ERROR_DEVICE_REMOVED) \
+            ::D3D12::Internal::Debug::Instance().ExamineDeviceRemoved(); \
         return; \
     } \
 } while (0)

@@ -51,21 +51,19 @@ const char* DXGIFormatToString(DXGI_FORMAT format);
 } // namespace Internal
 } // namespace D3D12
 
-// When not building in DebugNative all logs should be compiled out
-#ifdef DEBUG
-
+// When not building in DebugNative debug/trace logs should be compiled out
 #define D3D12NI_LOG(level, file, line, fmt, ...) do { \
     D3D12::Internal::Log(level, file, line, fmt, __VA_ARGS__); \
 } while (0)
 
-#else // DEBUG
-
-#define D3D12NI_LOG(level, ...) do { } while (0)
-
-#endif // DEBUG
-
 #define D3D12NI_LOG_ERROR(fmt, ...) D3D12NI_LOG(D3D12::Internal::LogLevel::Error, __FILE__, __LINE__, fmt, __VA_ARGS__)
 #define D3D12NI_LOG_INFO(fmt, ...) D3D12NI_LOG(D3D12::Internal::LogLevel::Info, __FILE__, __LINE__, fmt, __VA_ARGS__)
 #define D3D12NI_LOG_WARN(fmt, ...) D3D12NI_LOG(D3D12::Internal::LogLevel::Warning, __FILE__, __LINE__, fmt, __VA_ARGS__)
+
+#ifdef DEBUG
 #define D3D12NI_LOG_DEBUG(fmt, ...) D3D12NI_LOG(D3D12::Internal::LogLevel::Debug, __FILE__, __LINE__, fmt, __VA_ARGS__)
 #define D3D12NI_LOG_TRACE(fmt, ...) D3D12NI_LOG(D3D12::Internal::LogLevel::Trace, __FILE__, __LINE__, fmt, __VA_ARGS__)
+#else // DEBUG
+#define D3D12NI_LOG_DEBUG(fmt, ...) do { } while (0)
+#define D3D12NI_LOG_TRACE(fmt, ...) do { } while (0)
+#endif // DEBUG

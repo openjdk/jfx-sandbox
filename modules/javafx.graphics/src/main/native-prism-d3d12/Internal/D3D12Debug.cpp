@@ -79,10 +79,115 @@ void D3D12DebugMessageCallback(D3D12_MESSAGE_CATEGORY Category,
     }
 }
 
+const char* TranslateDREDAllocationType(D3D12_DRED_ALLOCATION_TYPE type)
+{
+    switch (type)
+    {
+    case D3D12_DRED_ALLOCATION_TYPE_COMMAND_QUEUE: return "COMMAND_QUEUE";
+    case D3D12_DRED_ALLOCATION_TYPE_COMMAND_ALLOCATOR: return "COMMAND_ALLOCATOR";
+    case D3D12_DRED_ALLOCATION_TYPE_PIPELINE_STATE: return "PIPELINE_STATE";
+    case D3D12_DRED_ALLOCATION_TYPE_COMMAND_LIST: return "COMMAND_LIST";
+    case D3D12_DRED_ALLOCATION_TYPE_FENCE: return "FENCE";
+    case D3D12_DRED_ALLOCATION_TYPE_DESCRIPTOR_HEAP: return "DESCRIPTOR_HEAP";
+    case D3D12_DRED_ALLOCATION_TYPE_HEAP: return "HEAP";
+    case D3D12_DRED_ALLOCATION_TYPE_QUERY_HEAP: return "QUERY_HEAP";
+    case D3D12_DRED_ALLOCATION_TYPE_COMMAND_SIGNATURE: return "COMMAND_SIGNATURE";
+    case D3D12_DRED_ALLOCATION_TYPE_PIPELINE_LIBRARY: return "PIPELINE_LIBRARY";
+    case D3D12_DRED_ALLOCATION_TYPE_VIDEO_DECODER: return "VIDEO_DECODER";
+    case D3D12_DRED_ALLOCATION_TYPE_VIDEO_PROCESSOR: return "VIDEO_PROCESSOR";
+    case D3D12_DRED_ALLOCATION_TYPE_RESOURCE: return "RESOURCE";
+    case D3D12_DRED_ALLOCATION_TYPE_PASS: return "PASS";
+    case D3D12_DRED_ALLOCATION_TYPE_CRYPTOSESSION: return "CRYPTOSESSION";
+    case D3D12_DRED_ALLOCATION_TYPE_CRYPTOSESSIONPOLICY: return "CRYPTOSESSIONPOLICY";
+    case D3D12_DRED_ALLOCATION_TYPE_PROTECTEDRESOURCESESSION: return "PROTECTEDRESOURCESESSION";
+    case D3D12_DRED_ALLOCATION_TYPE_VIDEO_DECODER_HEAP: return "VIDEO_DECODER_HEAP";
+    case D3D12_DRED_ALLOCATION_TYPE_COMMAND_POOL: return "COMMAND_POOL";
+    case D3D12_DRED_ALLOCATION_TYPE_COMMAND_RECORDER: return "COMMAND_RECORDER";
+    case D3D12_DRED_ALLOCATION_TYPE_STATE_OBJECT: return "STATE_OBJECT";
+    case D3D12_DRED_ALLOCATION_TYPE_METACOMMAND: return "METACOMMAND";
+    case D3D12_DRED_ALLOCATION_TYPE_SCHEDULINGGROUP: return "SCHEDULINGGROUP";
+    case D3D12_DRED_ALLOCATION_TYPE_VIDEO_MOTION_ESTIMATOR: return "VIDEO_MOTION_ESTIMATOR";
+    case D3D12_DRED_ALLOCATION_TYPE_VIDEO_MOTION_VECTOR_HEAP: return "VIDEO_MOTION_VECTOR_HEAP";
+    case D3D12_DRED_ALLOCATION_TYPE_VIDEO_EXTENSION_COMMAND: return "VIDEO_EXTENSION_COMMAND";
+    case D3D12_DRED_ALLOCATION_TYPE_VIDEO_ENCODER: return "VIDEO_ENCODER";
+    case D3D12_DRED_ALLOCATION_TYPE_VIDEO_ENCODER_HEAP: return "VIDEO_ENCODER_HEAP";
+    default: return "INVALID";
+    }
+}
+
+const char* TranslateDREDBreadcrumbOp(D3D12_AUTO_BREADCRUMB_OP op)
+{
+    switch (op)
+    {
+    case D3D12_AUTO_BREADCRUMB_OP_SETMARKER: return "SETMARKER";
+    case D3D12_AUTO_BREADCRUMB_OP_BEGINEVENT: return "BEGINEVENT";
+    case D3D12_AUTO_BREADCRUMB_OP_ENDEVENT: return "ENDEVENT";
+    case D3D12_AUTO_BREADCRUMB_OP_DRAWINSTANCED: return "DRAWINSTANCED";
+    case D3D12_AUTO_BREADCRUMB_OP_DRAWINDEXEDINSTANCED: return "DRAWINDEXEDINSTANCED";
+    case D3D12_AUTO_BREADCRUMB_OP_EXECUTEINDIRECT: return "EXECUTEINDIRECT";
+    case D3D12_AUTO_BREADCRUMB_OP_DISPATCH: return "DISPATCH";
+    case D3D12_AUTO_BREADCRUMB_OP_COPYBUFFERREGION: return "COPYBUFFERREGION";
+    case D3D12_AUTO_BREADCRUMB_OP_COPYTEXTUREREGION: return "COPYTEXTUREREGION";
+    case D3D12_AUTO_BREADCRUMB_OP_COPYRESOURCE: return "COPYRESOURCE";
+    case D3D12_AUTO_BREADCRUMB_OP_COPYTILES: return "COPYTILES";
+    case D3D12_AUTO_BREADCRUMB_OP_RESOLVESUBRESOURCE: return "RESOLVESUBRESOURCE";
+    case D3D12_AUTO_BREADCRUMB_OP_CLEARRENDERTARGETVIEW: return "CLEARRENDERTARGETVIEW";
+    case D3D12_AUTO_BREADCRUMB_OP_CLEARUNORDEREDACCESSVIEW: return "CLEARUNORDEREDACCESSVIEW";
+    case D3D12_AUTO_BREADCRUMB_OP_CLEARDEPTHSTENCILVIEW: return "CLEARDEPTHSTENCILVIEW";
+    case D3D12_AUTO_BREADCRUMB_OP_RESOURCEBARRIER: return "RESOURCEBARRIER";
+    case D3D12_AUTO_BREADCRUMB_OP_EXECUTEBUNDLE: return "EXECUTEBUNDLE";
+    case D3D12_AUTO_BREADCRUMB_OP_PRESENT: return "PRESENT";
+    case D3D12_AUTO_BREADCRUMB_OP_RESOLVEQUERYDATA: return "RESOLVEQUERYDATA";
+    case D3D12_AUTO_BREADCRUMB_OP_BEGINSUBMISSION: return "BEGINSUBMISSION";
+    case D3D12_AUTO_BREADCRUMB_OP_ENDSUBMISSION: return "ENDSUBMISSION";
+    case D3D12_AUTO_BREADCRUMB_OP_DECODEFRAME: return "DECODEFRAME";
+    case D3D12_AUTO_BREADCRUMB_OP_PROCESSFRAMES: return "PROCESSFRAMES";
+    case D3D12_AUTO_BREADCRUMB_OP_ATOMICCOPYBUFFERUINT: return "ATOMICCOPYBUFFERUINT";
+    case D3D12_AUTO_BREADCRUMB_OP_ATOMICCOPYBUFFERUINT64: return "ATOMICCOPYBUFFERUINT64";
+    case D3D12_AUTO_BREADCRUMB_OP_RESOLVESUBRESOURCEREGION: return "RESOLVESUBRESOURCEREGION";
+    case D3D12_AUTO_BREADCRUMB_OP_WRITEBUFFERIMMEDIATE: return "WRITEBUFFERIMMEDIATE";
+    case D3D12_AUTO_BREADCRUMB_OP_DECODEFRAME1: return "DECODEFRAME1";
+    case D3D12_AUTO_BREADCRUMB_OP_SETPROTECTEDRESOURCESESSION: return "SETPROTECTEDRESOURCESESSION";
+    case D3D12_AUTO_BREADCRUMB_OP_DECODEFRAME2: return "DECODEFRAME2";
+    case D3D12_AUTO_BREADCRUMB_OP_PROCESSFRAMES1: return "PROCESSFRAMES1";
+    case D3D12_AUTO_BREADCRUMB_OP_BUILDRAYTRACINGACCELERATIONSTRUCTURE: return "BUILDRAYTRACINGACCELERATIONSTRUCTURE";
+    case D3D12_AUTO_BREADCRUMB_OP_EMITRAYTRACINGACCELERATIONSTRUCTUREPOSTBUILDINFO: return "EMITRAYTRACINGACCELERATIONSTRUCTUREPOSTBUILDINFO";
+    case D3D12_AUTO_BREADCRUMB_OP_COPYRAYTRACINGACCELERATIONSTRUCTURE: return "COPYRAYTRACINGACCELERATIONSTRUCTURE";
+    case D3D12_AUTO_BREADCRUMB_OP_DISPATCHRAYS: return "DISPATCHRAYS";
+    case D3D12_AUTO_BREADCRUMB_OP_INITIALIZEMETACOMMAND: return "INITIALIZEMETACOMMAND";
+    case D3D12_AUTO_BREADCRUMB_OP_EXECUTEMETACOMMAND: return "EXECUTEMETACOMMAND";
+    case D3D12_AUTO_BREADCRUMB_OP_ESTIMATEMOTION: return "ESTIMATEMOTION";
+    case D3D12_AUTO_BREADCRUMB_OP_RESOLVEMOTIONVECTORHEAP: return "RESOLVEMOTIONVECTORHEAP";
+    case D3D12_AUTO_BREADCRUMB_OP_SETPIPELINESTATE1: return "SETPIPELINESTATE1";
+    case D3D12_AUTO_BREADCRUMB_OP_INITIALIZEEXTENSIONCOMMAND: return "INITIALIZEEXTENSIONCOMMAND";
+    case D3D12_AUTO_BREADCRUMB_OP_EXECUTEEXTENSIONCOMMAND: return "EXECUTEEXTENSIONCOMMAND";
+    case D3D12_AUTO_BREADCRUMB_OP_DISPATCHMESH: return "DISPATCHMESH";
+    case D3D12_AUTO_BREADCRUMB_OP_ENCODEFRAME: return "ENCODEFRAME";
+    case D3D12_AUTO_BREADCRUMB_OP_RESOLVEENCODEROUTPUTMETADATA: return "RESOLVEENCODEROUTPUTMETADATA";
+    default: return "Unknown";
+    }
+}
+
 } // namespace
 
 namespace D3D12 {
 namespace Internal {
+
+void Debug::DREDProcessBreadcrumbNode(const D3D12_AUTO_BREADCRUMB_NODE* node)
+{
+    D3D12NI_LOG_INFO("  Breadcrumbs on Command List %s (Queue %s):", node->pCommandListDebugNameA, node->pCommandQueueDebugNameA);
+    int commands = node->BreadcrumbCount;
+    int lastCompleted = *node->pLastBreadcrumbValue - 1;
+    for (int i = 0; i < commands; ++i)
+    {
+        D3D12NI_LOG_INFO("   -%c  %s", (lastCompleted == i) ? '>' : ' ', TranslateDREDBreadcrumbOp(node->pCommandHistory[i]));
+    }
+}
+
+void Debug::DREDProcessPageFaultNode(const D3D12_DRED_ALLOCATION_NODE* node)
+{
+    D3D12NI_LOG_INFO("    - %s (%s)", TranslateDREDAllocationType(node->AllocationType), (node->ObjectNameA != nullptr ? node->ObjectNameA : "UNNAMED"));
+}
 
 Debug::Debug()
     : mDXGIDebug()
@@ -110,6 +215,20 @@ Debug& Debug::Instance()
 
 bool Debug::Init()
 {
+    // first, conditionally enable DRED - this will be useful even with debug layers disabled
+    // we must change those settings _before_ D3D12 device is created
+    if (Config::Instance().IsDREDEnabled())
+    {
+        D3D12DeviceRemovedExtendedDataSettings dredSettings;
+        HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings));
+        D3D12NI_RET_IF_FAILED(hr, false, "DRED was requested but failed to acquire its interface. DRED might not be available on this system.");
+
+        dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        mIsDREDEnabled = true;
+        D3D12NI_LOG_INFO("Enabled DRED analysis");
+    }
+
     mIsEnabled = Config::Instance().IsDebugLayerEnabled();
     if (!mIsEnabled)
     {
@@ -149,13 +268,13 @@ bool Debug::Init()
 
 bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
 {
+    mNativeDevice = device;
+
     if (!mIsEnabled)
     {
         // quiet exit, since debugging is disabled
         return true;
     }
-
-    mNativeDevice = device;
 
     HRESULT hr = mNativeDevice->GetDevice()->QueryInterface(IID_PPV_ARGS(&mD3D12InfoQueue));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to get DXGI Info Queue interface");
@@ -208,6 +327,69 @@ bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
 bool Debug::IsEnabled()
 {
     return mIsEnabled;
+}
+
+void Debug::ExamineDeviceRemoved()
+{
+    // Device removed reason can always be fetched
+    HRESULT reason = mNativeDevice->GetDevice()->GetDeviceRemovedReason();
+    if (SUCCEEDED(reason))
+    {
+        // quietly exit, device is OK
+        return;
+    }
+
+    _com_error comReason(reason);
+    D3D12NI_LOG_ERROR("Device removed reason: %x (%ws)", reason, comReason.ErrorMessage());
+
+    // fetch as much data as possible in hopes of getting some debugging information
+    if (!mIsDREDEnabled)
+    {
+        D3D12NI_LOG_ERROR("DRED disabled - no more device removed information could be fetched.");
+        D3D12NI_LOG_ERROR("To get more information, re-launch with -Dprism.d3d12.dred=true");
+        return;
+    }
+
+    D3D12DeviceRemovedExtendedData dred;
+    HRESULT hr = mNativeDevice->GetDevice()->QueryInterface(IID_PPV_ARGS(&dred));
+    D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to fetch DRED interface");
+
+    D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT dredBreadcrumbs;
+    D3D12_DRED_PAGE_FAULT_OUTPUT dredPageFault;
+
+    HRESULT hrBreadcrumbs = dred->GetAutoBreadcrumbsOutput(&dredBreadcrumbs);
+    HRESULT hrPageFault = dred->GetPageFaultAllocationOutput(&dredPageFault);
+
+    if (SUCCEEDED(hrBreadcrumbs))
+    {
+        D3D12NI_LOG_INFO("DRED breadcrumbs:");
+        const D3D12_AUTO_BREADCRUMB_NODE* node = dredBreadcrumbs.pHeadAutoBreadcrumbNode;
+        while (node != nullptr)
+        {
+            DREDProcessBreadcrumbNode(node);
+            node = node->pNext;
+        }
+    }
+
+    if (SUCCEEDED(hrPageFault))
+    {
+        D3D12NI_LOG_INFO("DRED page fault information (VA %x):", dredPageFault.PageFaultVA);
+        D3D12NI_LOG_INFO("  Existing allocation nodes:");
+        const D3D12_DRED_ALLOCATION_NODE* node = dredPageFault.pHeadExistingAllocationNode;
+        while (node != nullptr)
+        {
+            DREDProcessPageFaultNode(node);
+            node = node->pNext;
+        }
+
+        D3D12NI_LOG_INFO("  Recently freed allocation nodes:");
+        node = dredPageFault.pHeadRecentFreedAllocationNode;
+        while (node != nullptr)
+        {
+            DREDProcessPageFaultNode(node);
+            node = node->pNext;
+        }
+    }
 }
 
 } // namespace Internal

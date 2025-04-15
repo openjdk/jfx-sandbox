@@ -94,7 +94,6 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
 
     // fetch debug configuration (these settings should only be acquired when
     // JFX is build in DebugNative configuration
-#if DEBUG
     mSettings.verbose = GetBool("verbose");
     mSettings.debug = GetBool("debug");
     mSettings.trace = GetBoolProperty("prism.d3d12.trace");
@@ -103,10 +102,10 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
     mSettings.breakOnError = GetBoolProperty("prism.d3d12.breakOnError");
     mSettings.colorLogs = GetBoolProperty("prism.d3d12.colorLogs");
     mSettings.fileLog = GetBoolProperty("prism.d3d12.fileLog");
+    mSettings.dred = GetBoolProperty("prism.d3d12.dred");
 
     bool apiOpts;
     if (TryGetBoolProperty("prism.d3d12.apiOpts", apiOpts)) mSettings.apiOpts = apiOpts;
-#endif
 
     mSettings.vsync = GetBool("isVsyncEnabled");
 

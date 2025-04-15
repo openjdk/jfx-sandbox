@@ -26,6 +26,7 @@
 #include "D3D12CommandListPool.hpp"
 
 #include "D3D12Config.hpp"
+#include "D3D12Debug.hpp"
 
 #include "../D3D12NativeDevice.hpp"
 

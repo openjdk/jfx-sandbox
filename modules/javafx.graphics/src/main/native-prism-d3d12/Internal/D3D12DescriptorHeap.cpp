@@ -27,6 +27,7 @@
 
 #include "../D3D12NativeDevice.hpp"
 
+#include "D3D12Debug.hpp"
 #include "D3D12Utils.hpp"
 
 

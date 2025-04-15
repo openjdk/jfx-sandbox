@@ -50,6 +50,7 @@ class Config
         bool vsync;
         bool fileLog;
         bool apiOpts;
+        bool dred;
     } mSettings;
 
     Config();
@@ -126,6 +127,11 @@ public:
     inline bool IsApiOptsEnabled()
     {
         return mSettings.apiOpts;
+    }
+
+    inline bool IsDREDEnabled()
+    {
+        return mSettings.dred;
     }
 };
 

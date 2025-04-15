@@ -34,6 +34,7 @@
 #include <stdarg.h>
 #include <Windows.h>
 
+
 namespace {
 
 HANDLE stdOutHandle = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -94,11 +95,13 @@ void Log(LogLevel level, const char* file, int line, const char* fmt, ...)
     {
         const char* rootDirName = "native-prism-d3d12";
         size_t rootDirIdx = fileStr.find(rootDirName);
-        fileTrimIdx = rootDirIdx + strlen(rootDirName) + 1;
+        if (rootDirIdx != std::string::npos)
+            fileTrimIdx = rootDirIdx + strlen(rootDirName) + 1;
+        else
+            fileTrimIdx = std::string::npos;
     }
 
-    std::string trimmedFileStr = fileStr.substr(fileTrimIdx);
-
+    std::string actualFileStr = (fileTrimIdx != std::string::npos) ? fileStr.substr(fileTrimIdx) : fileStr;
     if (Config::Instance().IsFileLogEnabled() && !logFile.is_open())
     {
         std::time_t now = std::time(0);
@@ -110,10 +113,11 @@ void Log(LogLevel level, const char* file, int line, const char* fmt, ...)
         logFile.open(filename);
     }
 
-    char logLine[1024];
+    char logLine[2048];
 
     {
-        std::lock_guard<std::mutex> printLock(writeMutex);
+        // TODO: D3D12: On Release builds this causes access violation
+        //const std::lock_guard<std::mutex> printLock(writeMutex);
 
         if (Config::Instance().IsColorLogsEnabled())
         {
@@ -121,7 +125,7 @@ void Log(LogLevel level, const char* file, int line, const char* fmt, ...)
             SetConsoleTextAttribute(stdOutHandle, consoleColor);
         }
 
-        snprintf(logLine, sizeof(logLine), "[D3D12-%s] <%s:%d> %s\n", levelStr, trimmedFileStr.c_str(), line, logMsg);
+        snprintf(logLine, sizeof(logLine), "[D3D12-%s] <%s:%d> %s\n", levelStr, actualFileStr.c_str(), line, logMsg);
         fprintf(stderr, logLine);
         if (logFile.is_open()) logFile << logLine;
 

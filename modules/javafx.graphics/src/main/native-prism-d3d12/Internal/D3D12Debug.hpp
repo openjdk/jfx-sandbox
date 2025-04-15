@@ -40,6 +40,7 @@ class Debug
     D3D12InfoQueuePtr mD3D12InfoQueue;
     DWORD mD3D12MessageCallbackCookie;
     bool mIsEnabled;
+    bool mIsDREDEnabled;
 
     Debug();
     ~Debug();
@@ -49,12 +50,16 @@ class Debug
     Debug& operator=(const Debug&) = delete;
     Debug& operator=(Debug&&) = delete;
 
+    void DREDProcessBreadcrumbNode(const D3D12_AUTO_BREADCRUMB_NODE* node);
+    void DREDProcessPageFaultNode(const D3D12_DRED_ALLOCATION_NODE* node);
+
 public:
     static Debug& Instance();
 
     bool Init();
     bool InitDeviceDebug(const NIPtr<NativeDevice>& debug);
     bool IsEnabled();
+    void ExamineDeviceRemoved();
 };
 
 } // namespace Internal

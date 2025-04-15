@@ -27,6 +27,7 @@
 
 #include "D3D12NativeDevice.hpp"
 
+#include "Internal/D3D12Debug.hpp"
 #include "Internal/D3D12Utils.hpp"
 #include "Internal/JNIBuffer.hpp"
 #include "Internal/JNIString.hpp"
