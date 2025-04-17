@@ -382,7 +382,7 @@ public class StageAttributesTest extends VisualTestBase {
                     topStage.setMaximized(true);
                 },
                 () -> {
-                    assertTrue(topStage.isFullScreen());
+                    assertTrue(topStage.isMaximized());
                     assertTrue(topStage.isIconified());
 
                     Color color = getColor(200, 200);

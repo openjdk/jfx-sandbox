@@ -33,14 +33,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
-class MaximizeUndecoratedTest extends StageTestBase {
+class MaximizeTests extends StageTestBase {
     private static final int WIDTH = 300;
     private static final int HEIGHT = 300;
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"UNDECORATED", "TRANSPARENT"})
+    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "TRANSPARENT"})
     void testMaximizeUndecorated(StageStyle stageStyle) {
         int pos = 100;
 
