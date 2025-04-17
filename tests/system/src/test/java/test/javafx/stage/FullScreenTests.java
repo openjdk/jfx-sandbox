@@ -35,7 +35,7 @@ import java.util.function.Consumer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
-public class FullScreenTests extends StageTestBase {
+class FullScreenTests extends StageTestBase {
     private static final int POS_X = 100;
     private static final int POS_Y = 150;
     private static final int WIDTH = 100;
@@ -51,7 +51,7 @@ public class FullScreenTests extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testFullScreenShouldKeepGeometry(StageStyle stageStyle) {
+    void testFullScreenShouldKeepGeometry(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, null);
 
         Util.doTimeLine(500,
@@ -65,7 +65,7 @@ public class FullScreenTests extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testFullScreenBeforeShowShouldKeepGeometry(StageStyle stageStyle) {
+    void testFullScreenBeforeShowShouldKeepGeometry(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, s -> s.setFullScreen(true));
 
         Util.doTimeLine(500,
@@ -85,7 +85,7 @@ public class FullScreenTests extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testUnFullScreenChangedPosition(StageStyle stageStyle) throws Exception {
+    void testUnFullScreenChangedPosition(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle, CHANGE_GEOMETRY_TESTS_SETTINGS);
 
         Util.doTimeLine(500,
@@ -104,7 +104,7 @@ public class FullScreenTests extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testUnFullScreenChangedSize(StageStyle stageStyle) throws Exception {
+    void testUnFullScreenChangedSize(StageStyle stageStyle) throws Exception {
         setupStageWithStyle(stageStyle, CHANGE_GEOMETRY_TESTS_SETTINGS);
 
         Util.doTimeLine(500,

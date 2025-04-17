@@ -41,7 +41,7 @@ import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-public abstract class StageTestBase {
+abstract class StageTestBase {
     private static final CountDownLatch startupLatch = new CountDownLatch(1);
     private Stage stage = null;
 

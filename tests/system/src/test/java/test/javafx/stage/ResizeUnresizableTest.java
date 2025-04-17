@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
-public class ResizeUnresizableTest extends StageTestBase {
+class ResizeUnresizableTest extends StageTestBase {
     private static final int WIDTH = 300;
     private static final int HEIGHT = 300;
 
@@ -41,7 +41,7 @@ public class ResizeUnresizableTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
-    public void testMaximizeUnresizable(StageStyle stageStyle) {
+    void testMaximizeUnresizable(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, s -> {
             s.initStyle(stageStyle);
             s.setWidth(WIDTH);
@@ -57,7 +57,7 @@ public class ResizeUnresizableTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
-    public void testFullscreenUnresizable(StageStyle stageStyle) {
+    void testFullscreenUnresizable(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, s -> {
             s.initStyle(stageStyle);
             s.setWidth(WIDTH);
@@ -74,7 +74,7 @@ public class ResizeUnresizableTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
-    public void testMaximizeMaxSize(StageStyle stageStyle) {
+    void testMaximizeMaxSize(StageStyle stageStyle) {
         int maxSize = 500;
 
         setupStageWithStyle(stageStyle, s -> {
@@ -100,7 +100,7 @@ public class ResizeUnresizableTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
-    public void testMaxSizeShouldBeProgramaticallyResized(StageStyle stageStyle) {
+    void testMaxSizeShouldBeProgramaticallyResized(StageStyle stageStyle) {
         int maxSize = 300;
         int newSize = 500;
 
@@ -129,7 +129,7 @@ public class ResizeUnresizableTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
-    public void testMinSizeShouldBeProgramaticallyResized(StageStyle stageStyle) {
+    void testMinSizeShouldBeProgramaticallyResized(StageStyle stageStyle) {
         int minSize = 700;
         int newSize = 500;
 

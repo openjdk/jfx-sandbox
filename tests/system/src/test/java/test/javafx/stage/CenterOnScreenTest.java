@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
-public class CenterOnScreenTest extends StageTestBase {
+class CenterOnScreenTest extends StageTestBase {
     private static final float CENTER_ON_SCREEN_X_FRACTION = 1.0f / 2;
     private static final float CENTER_ON_SCREEN_Y_FRACTION = 1.0f / 3;
 
@@ -61,7 +61,7 @@ public class CenterOnScreenTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testStateCenterOnScreenWhenShown(StageStyle stageStyle) {
+    void testStateCenterOnScreenWhenShown(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, stage -> {
             stage.setWidth(STAGE_WIDTH);
             stage.setHeight(STAGE_HEIGHT);
@@ -74,7 +74,7 @@ public class CenterOnScreenTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testStateCenterOnScreenWhenShownWithSceneSize(StageStyle stageStyle) {
+    void testStateCenterOnScreenWhenShownWithSceneSize(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, null);
         Util.sleep(500);
         assertStageCentered(stageStyle, true);
@@ -84,7 +84,7 @@ public class CenterOnScreenTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testStateCenterOnScreenAfterShown(StageStyle stageStyle) {
+    void testStateCenterOnScreenAfterShown(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, stage -> {
             stage.setWidth(STAGE_WIDTH);
             stage.setHeight(STAGE_HEIGHT);
@@ -102,7 +102,7 @@ public class CenterOnScreenTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testStateCenterOnScreenAfterShownWithSceneSize(StageStyle stageStyle) {
+    void testStateCenterOnScreenAfterShownWithSceneSize(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, stage -> {
             stage.setX(0);
             stage.setY(0);
@@ -118,7 +118,7 @@ public class CenterOnScreenTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testStateCenterOnScreenWhileFullscreen(StageStyle stageStyle) {
+    void testStateCenterOnScreenWhileFullscreen(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, stage -> {
             stage.setWidth(STAGE_WIDTH);
             stage.setHeight(STAGE_HEIGHT);
@@ -138,7 +138,7 @@ public class CenterOnScreenTest extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    public void testStateCenterOnScreenWhileMaximized(StageStyle stageStyle) {
+    void testStateCenterOnScreenWhileMaximized(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, stage -> {
             stage.setX(0);
             stage.setY(0);
