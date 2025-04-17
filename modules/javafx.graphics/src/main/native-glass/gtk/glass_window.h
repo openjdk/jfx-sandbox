@@ -148,7 +148,7 @@ private:
     bool can_be_deleted;
     bool was_mapped;
 
-    gint initial_state_mask;
+    gint requested_state_mask;
     GdkRGBA background_color;
 protected:
     /*
@@ -246,7 +246,7 @@ public:
 
     GtkWindow *get_gtk_window();
     void update_window_size_location();
-    void enforce_initial_state();
+    void enforce_requested_state();
 
     ~WindowContext();
 
@@ -254,7 +254,6 @@ protected:
     void applyShapeMask(void*, uint width, uint height);
 private:
     gulong XID();
-    bool is_in_geometry_freeze_state();
     void add_wmf(GdkWMFunction);
     void remove_wmf(GdkWMFunction);
     void notify_on_top(bool);
