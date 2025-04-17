@@ -1,0 +1,260 @@
+/*
+ * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+package test.robot.javafx.stage;
+
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.input.MouseButton;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import org.junit.jupiter.api.Test;
+import test.robot.testharness.VisualTestBase;
+import test.util.Util;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static test.util.Util.TIMEOUT;
+
+class StageModalityTests extends VisualTestBase {
+    private static final int WIDTH = 300;
+    private static final int HEIGHT = 300;
+    private Stage topStage;
+    private Stage bottomStage;
+    private static final Color TOP_COLOR = Color.RED;
+    private static final Color BOTTOM_COLOR = Color.LIME;
+    private static final Color COLOR1 = Color.RED;
+    private static final Color COLOR2 = Color.ORANGE;
+    private static final Color COLOR3 = Color.YELLOW;
+    private static final Color COLOR4 = Color.GREEN;
+    private static final Color COLOR5 = Color.BLUE;
+    private static final Color COLOR6 = Color.INDIGO;
+    private static final Color COLOR7 = Color.VIOLET;
+    private static final double TOLERANCE = 0.00;
+
+    private void setupBottomStage() throws InterruptedException {
+        final CountDownLatch shownLatch = new CountDownLatch(1);
+
+        runAndWait(() -> {
+            bottomStage = getStage(false);
+            bottomStage.initStyle(StageStyle.DECORATED);
+            Scene bottomScene = new Scene(new Pane(), WIDTH, HEIGHT);
+            bottomScene.setFill(BOTTOM_COLOR);
+            bottomStage.setScene(bottomScene);
+            bottomStage.setX(0);
+            bottomStage.setY(0);
+            bottomStage.setOnShown(e -> Platform.runLater(shownLatch::countDown));
+            bottomStage.show();
+        });
+        assertTrue(shownLatch.await(TIMEOUT, TimeUnit.MILLISECONDS),
+                "Timeout waiting for bottom stage to be shown");
+
+        sleep(500);
+    }
+
+    private void setupTopStage(Stage owner, Modality modality) {
+        runAndWait(() -> {
+            topStage = getStage(true);
+            topStage.initStyle(StageStyle.DECORATED);
+            Scene topScene = new Scene(new StackPane(), WIDTH, HEIGHT);
+            topScene.setFill(TOP_COLOR);
+            topStage.setScene(topScene);
+            if (owner != null) {
+                topStage.initOwner(owner);
+            }
+            if (modality != null) {
+                topStage.initModality(modality);
+            }
+            topStage.setWidth(WIDTH);
+            topStage.setHeight(HEIGHT);
+            topStage.setX(0);
+            topStage.setY(0);
+        });
+    }
+
+    @Test
+    void testOpeningModalChildStageWhileMaximized() throws InterruptedException {
+        setupBottomStage();
+        setupTopStage(bottomStage, Modality.WINDOW_MODAL);
+
+        Util.doTimeLine(500,
+                () -> bottomStage.setMaximized(true),
+                () -> topStage.show(),
+                () -> {
+                    assertTrue(bottomStage.isMaximized());
+
+                    Color color = getColor(400, 400);
+                    assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
+
+                    color = getColor(200, 200);
+                    assertColorEquals(TOP_COLOR, color, TOLERANCE);
+                });
+    }
+
+    @Test
+    void testOpeningModalChildStageWhileFullSceen() throws InterruptedException {
+        setupBottomStage();
+        setupTopStage(bottomStage, Modality.WINDOW_MODAL);
+
+        Util.doTimeLine(500,
+                () -> bottomStage.setFullScreen(true),
+                () -> topStage.show(),
+                () -> {
+                    assertTrue(bottomStage.isFullScreen());
+
+                    Color color = getColor(400, 400);
+                    assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
+
+                    color = getColor(200, 200);
+                    assertColorEquals(TOP_COLOR, color, TOLERANCE);
+                });
+    }
+
+    @Test
+    void testOpeningAppModalStageWhileMaximized() throws InterruptedException {
+        setupBottomStage();
+        setupTopStage(null, Modality.APPLICATION_MODAL);
+
+        Util.doTimeLine(500,
+                () -> bottomStage.setMaximized(true),
+                () -> topStage.show(),
+                () -> {
+                    assertTrue(bottomStage.isMaximized());
+
+                    Color color = getColor(400, 400);
+                    assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
+
+                    color = getColor(200, 200);
+                    assertColorEquals(TOP_COLOR, color, TOLERANCE);
+                });
+    }
+
+    @Test
+    void testOpeningAppModalStageWhileFullScreen() throws InterruptedException {
+        setupBottomStage();
+        setupTopStage(null, Modality.APPLICATION_MODAL);
+
+        Util.doTimeLine(500,
+                () -> bottomStage.setFullScreen(true),
+                () -> topStage.show(),
+                () -> {
+                    assertTrue(bottomStage.isFullScreen());
+
+                    Color color = getColor(400, 400);
+                    assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
+
+                    color = getColor(200, 200);
+                    assertColorEquals(TOP_COLOR, color, TOLERANCE);
+                });
+    }
+
+    private Stage createStage(Color color, Stage owner, int x, int y) {
+        Stage stage = getStage(true);
+        stage.initStyle(StageStyle.UNDECORATED);
+        Scene topScene = new Scene(new StackPane(), WIDTH, HEIGHT);
+        topScene.setFill(color);
+        stage.setScene(topScene);
+        stage.setWidth(WIDTH);
+        stage.setHeight(HEIGHT);
+        stage.setX(x);
+        stage.setY(y);
+        if (owner != null) {
+            stage.initOwner(owner);
+        }
+        stage.initModality(Modality.WINDOW_MODAL);
+        return stage;
+    }
+
+
+    private Stage stage0;
+    private Stage stage1;
+    private Stage stage2;
+    private Stage stage3;
+    private Stage stage4;
+    private Stage stage5;
+    private Stage stage6;
+
+    @Test
+    void testLayeredWindowModality() {
+        Util.runAndWait(() -> {
+                    stage0 = createStage(COLOR1, null, 100, 100);
+                    stage1 = createStage(COLOR2, stage0, 150, 150);
+                    stage2 = createStage(COLOR3, stage1, 200, 200);
+                    stage3 = createStage(COLOR4, stage2, 250, 250);
+                    stage4 = createStage(COLOR5, stage3, 300, 300);
+                    stage5 = createStage(COLOR6, stage4, 350, 350);
+                    stage6 = createStage(COLOR7, stage5, 400, 400);
+                });
+
+        Util.doTimeLine(300,
+                stage0::show,
+                stage1::show,
+                stage2::show,
+                stage3::show,
+                stage4::show,
+                stage5::show,
+                stage6::show,
+                () -> {
+                    Color color = getColor(125, 125);
+                    assertColorEquals(COLOR1, color, TOLERANCE);
+
+                    color = getColor(151, 151);
+                    assertColorEquals(COLOR2, color, TOLERANCE);
+
+                    color = getColor(201, 201);
+                    assertColorEquals(COLOR3, color, TOLERANCE);
+
+                    color = getColor(251, 251);
+                    assertColorEquals(COLOR4, color, TOLERANCE);
+
+                    color = getColor(301, 301);
+                    assertColorEquals(COLOR5, color, TOLERANCE);
+
+                    color = getColor(351, 351);
+                    assertColorEquals(COLOR6, color, TOLERANCE);
+
+                    color = getColor(401, 401);
+                    assertColorEquals(COLOR7, color, TOLERANCE);
+                },
+                () -> {
+                    getRobot().mouseMove(100, 100);
+                    getRobot().mouseClick(MouseButton.PRIMARY);
+                },
+                () -> assertTrue(stage6.isFocused()),
+                stage5::close,
+                () -> assertTrue(stage6.isFocused()),
+                stage6::close,
+                stage5::close,
+                () -> {
+                    Color color = getColor(350, 350);
+                    assertColorEquals(COLOR5, color, TOLERANCE);
+                });
+    }
+}

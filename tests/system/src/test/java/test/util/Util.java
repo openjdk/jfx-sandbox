@@ -25,32 +25,15 @@
 
 package test.util;
 
-import static org.junit.jupiter.api.Assertions.fail;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
-
+import com.sun.javafx.PlatformUtil;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Rectangle2D;
-import javafx.scene.input.MouseButton;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.Region;
 import javafx.scene.robot.Robot;
 import javafx.stage.Screen;
@@ -58,7 +41,19 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Duration;
 import org.junit.jupiter.api.Assertions;
-import com.sun.javafx.PlatformUtil;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Utility methods for life-cycle testing
@@ -473,18 +468,32 @@ public class Util {
      * @param runnables     the list of {@link Runnable} instances to execute sequentially
      */
     public static void doTimeLine(int msToIncrement, Runnable... runnables) {
-        CountDownLatch latch = new CountDownLatch(1);
-        int mills = msToIncrement;
+        long millis = msToIncrement;
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
         Timeline timeline = new Timeline();
         timeline.setCycleCount(1);
         for (Runnable runnable : runnables) {
-            timeline.getKeyFrames().add(new KeyFrame(Duration.millis(mills), e -> runnable.run()));
-            mills += msToIncrement;
+            timeline.getKeyFrames().add(new KeyFrame(Duration.millis(millis), e -> {
+                try {
+                    runnable.run();
+                } catch (Throwable ex) {
+                    future.completeExceptionally(ex);
+                }
+            }));
+            millis += msToIncrement;
         }
-        timeline.setOnFinished(e -> latch.countDown());
+        timeline.setOnFinished(e -> future.complete(null));
         timeline.play();
 
-        Util.waitForLatch(latch, 5, "Timeout waiting for latch");
+        final long waitms = millis + 5000;
+
+        try {
+            future.get(waitms, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException | InterruptedException | TimeoutException ex) {
+            throwError(ex);
+        }
     }
 
     /**
@@ -494,15 +503,34 @@ public class Util {
      *                  and the value is the {@link Runnable} to execute at that time
      */
     public static void doTimeLine(Map<Duration, Runnable> runnables) {
-        CountDownLatch latch = new CountDownLatch(1);
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
         Timeline timeline = new Timeline();
         timeline.setCycleCount(1);
-        runnables.forEach((duration, runnable) ->
-                timeline.getKeyFrames().add(new KeyFrame(duration, e -> runnable.run())));
-        timeline.setOnFinished(e -> latch.countDown());
+        Duration totalDuration = Duration.seconds(5);
+
+        for (Map.Entry<Duration, Runnable> entry : runnables.entrySet()) {
+            Duration duration = entry.getKey();
+            Runnable runnable = entry.getValue();
+            totalDuration = totalDuration.add(duration);
+            timeline.getKeyFrames().add(new KeyFrame(duration, e -> {
+                try {
+                    runnable.run();
+                } catch (Throwable ex) {
+                    future.completeExceptionally(ex);
+                }
+            }));
+        }
+
+        timeline.setOnFinished(e -> future.complete(null));
         timeline.play();
 
-        Util.waitForLatch(latch, 5, "Timeout waiting for latch");
+        long waitms = (long) totalDuration.toMillis();
+        try {
+            future.get(waitms, TimeUnit.MILLISECONDS);
+        } catch (ExecutionException | InterruptedException | TimeoutException ex) {
+            throwError(ex);
+        }
     }
 
     /**
