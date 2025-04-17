@@ -80,7 +80,7 @@ class StageWhiteBackgroundTest extends VisualTestBase {
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"DECORATED", "UNDECORATED",
             "UTILITY"})
-    public void testStageWithoutSceneColor(StageStyle stageState) throws InterruptedException {
+    void testStageWithoutSceneColor(StageStyle stageState) throws InterruptedException {
         setupStage(stageState, false);
 
         Util.sleep(500);
@@ -94,7 +94,7 @@ class StageWhiteBackgroundTest extends VisualTestBase {
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"DECORATED", "UNDECORATED",
             "UTILITY"})
-    public void testStageWithSceneColor(StageStyle stageState) throws InterruptedException {
+    void testStageWithSceneColor(StageStyle stageState) throws InterruptedException {
         setupStage(stageState, true);
 
         Util.sleep(500);
@@ -102,6 +102,19 @@ class StageWhiteBackgroundTest extends VisualTestBase {
         Util.runAndWait(() -> {
             Color color = getColor(200, 200);
             assertColorEquals(Color.WHITE, color, TOLERANCE);
+        });
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"TRANSPARENT"})
+    void testTransparentStageWithoutSceneColor(StageStyle stageState) throws InterruptedException {
+        setupStage(stageState, false);
+
+        Util.sleep(500);
+
+        Util.runAndWait(() -> {
+            Color color = getColor(200, 200);
+            assertColorDoesNotEqual(Color.WHITE, color, TOLERANCE);
         });
     }
 }

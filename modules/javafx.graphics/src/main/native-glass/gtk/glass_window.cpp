@@ -50,7 +50,7 @@
 
 static gboolean event_draw_background(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
     WindowContext *ctx = USER_PTR_TO_CTX(user_data);
-    LOG0("event_draw_background");
+    LOG0("event_draw_background\n");
     ctx->paint_background(cr);
 
     return FALSE;
@@ -637,6 +637,8 @@ void WindowContext::paint(void* data, jint width, jint height) {
 }
 
 void WindowContext::paint_background(cairo_t *cr) {
+    if (frame_type == TRANSPARENT) return;
+
     GtkAllocation allocation;
     gtk_widget_get_allocation(gtk_widget, &allocation);
     gdk_cairo_set_source_rgba(cr, &background_color);
