@@ -25,8 +25,11 @@
 package test.robot.javafx.stage;
 
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
 import javafx.scene.input.MouseButton;
+import javafx.scene.layout.Background;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -65,7 +68,7 @@ class StageModalityTests extends VisualTestBase {
         runAndWait(() -> {
             bottomStage = getStage(false);
             bottomStage.initStyle(StageStyle.DECORATED);
-            Scene bottomScene = new Scene(new Pane(), WIDTH, HEIGHT);
+            Scene bottomScene = new Scene(getFocusedLabel(BOTTOM_COLOR, bottomStage), WIDTH, HEIGHT);
             bottomScene.setFill(BOTTOM_COLOR);
             bottomStage.setScene(bottomScene);
             bottomStage.setX(0);
@@ -83,7 +86,7 @@ class StageModalityTests extends VisualTestBase {
         runAndWait(() -> {
             topStage = getStage(true);
             topStage.initStyle(StageStyle.DECORATED);
-            Scene topScene = new Scene(new StackPane(), WIDTH, HEIGHT);
+            Scene topScene = new Scene(getFocusedLabel(TOP_COLOR, topStage), WIDTH, HEIGHT);
             topScene.setFill(TOP_COLOR);
             topStage.setScene(topScene);
             if (owner != null) {
@@ -113,7 +116,7 @@ class StageModalityTests extends VisualTestBase {
                     Color color = getColor(400, 400);
                     assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
 
-                    color = getColor(200, 200);
+                    color = getColor(100, 100);
                     assertColorEquals(TOP_COLOR, color, TOLERANCE);
                 });
     }
@@ -132,7 +135,7 @@ class StageModalityTests extends VisualTestBase {
                     Color color = getColor(400, 400);
                     assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
 
-                    color = getColor(200, 200);
+                    color = getColor(100, 100);
                     assertColorEquals(TOP_COLOR, color, TOLERANCE);
                 });
     }
@@ -147,11 +150,10 @@ class StageModalityTests extends VisualTestBase {
                 () -> topStage.show(),
                 () -> {
                     assertTrue(bottomStage.isMaximized());
-
                     Color color = getColor(400, 400);
                     assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
 
-                    color = getColor(200, 200);
+                    color = getColor(100, 100);
                     assertColorEquals(TOP_COLOR, color, TOLERANCE);
                 });
     }
@@ -170,7 +172,7 @@ class StageModalityTests extends VisualTestBase {
                     Color color = getColor(400, 400);
                     assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
 
-                    color = getColor(200, 200);
+                    color = getColor(100, 100);
                     assertColorEquals(TOP_COLOR, color, TOLERANCE);
                 });
     }
@@ -178,7 +180,8 @@ class StageModalityTests extends VisualTestBase {
     private Stage createStage(Color color, Stage owner, int x, int y) {
         Stage stage = getStage(true);
         stage.initStyle(StageStyle.UNDECORATED);
-        Scene topScene = new Scene(new StackPane(), WIDTH, HEIGHT);
+        StackPane pane = getFocusedLabel(color, stage);
+        Scene topScene = new Scene(pane, WIDTH, HEIGHT);
         topScene.setFill(color);
         stage.setScene(topScene);
         stage.setWidth(WIDTH);
@@ -192,6 +195,22 @@ class StageModalityTests extends VisualTestBase {
         return stage;
     }
 
+    private static StackPane getFocusedLabel(Color color, Stage stage) {
+        Label label = new Label();
+        label.textProperty().bind(Bindings.when(stage.focusedProperty())
+                .then("Focused").otherwise("Unfocused"));
+        StackPane pane = new StackPane(label);
+        pane.setBackground(Background.EMPTY);
+
+        double luminance = 0.2126 * color.getRed()
+                + 0.7152 * color.getGreen()
+                + 0.0722 * color.getBlue();
+
+        Color textColor = luminance < 0.5 ? Color.WHITE : Color.BLACK;
+
+        label.setTextFill(textColor);
+        return pane;
+    }
 
     private Stage stage0;
     private Stage stage1;
@@ -213,7 +232,7 @@ class StageModalityTests extends VisualTestBase {
                     stage6 = createStage(COLOR7, stage5, 400, 400);
                 });
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 stage0::show,
                 stage1::show,
                 stage2::show,
@@ -222,39 +241,71 @@ class StageModalityTests extends VisualTestBase {
                 stage5::show,
                 stage6::show,
                 () -> {
-                    Color color = getColor(125, 125);
-                    assertColorEquals(COLOR1, color, TOLERANCE);
-
-                    color = getColor(151, 151);
-                    assertColorEquals(COLOR2, color, TOLERANCE);
-
-                    color = getColor(201, 201);
-                    assertColorEquals(COLOR3, color, TOLERANCE);
-
-                    color = getColor(251, 251);
-                    assertColorEquals(COLOR4, color, TOLERANCE);
-
-                    color = getColor(301, 301);
-                    assertColorEquals(COLOR5, color, TOLERANCE);
-
-                    color = getColor(351, 351);
-                    assertColorEquals(COLOR6, color, TOLERANCE);
-
-                    color = getColor(401, 401);
-                    assertColorEquals(COLOR7, color, TOLERANCE);
-                },
-                () -> {
-                    getRobot().mouseMove(100, 100);
-                    getRobot().mouseClick(MouseButton.PRIMARY);
+                    assertColor(COLOR1, stage0);
+                    assertColor(COLOR2, stage1);
+                    assertColor(COLOR3, stage2);
+                    assertColor(COLOR4, stage3);
+                    assertColor(COLOR5, stage4);
+                    assertColor(COLOR6, stage5);
+                    assertColor(COLOR7, stage6);
                 },
                 () -> assertTrue(stage6.isFocused()),
                 stage5::close,
                 () -> assertTrue(stage6.isFocused()),
                 stage6::close,
                 stage5::close,
-                () -> {
-                    Color color = getColor(350, 350);
-                    assertColorEquals(COLOR5, color, TOLERANCE);
+                () -> assertColor(COLOR5, stage4));
+    }
+
+    private void assertColor(Color expected, Stage stage) {
+        Color color = getColor((int) stage.getX() + 50, (int) stage.getY() + 50);
+        assertColorEquals(expected, color, TOLERANCE);
+    }
+
+    @Test
+    void testMultiLayeredWindowModality() {
+        Util.runAndWait(() -> {
+                    stage0 = createStage(COLOR1, null, 100, 100);
+                    stage1 = createStage(COLOR2, stage0, 150, 150);
+                    stage2 = createStage(COLOR3, stage1, 200, 200);
+
+                    stage3 = createStage(COLOR4, null, 600, 100);
+                    stage4 = createStage(COLOR5, stage3, 650, 150);
+                    stage5 = createStage(COLOR6, stage4, 700, 200);
+
+                    stage6 = createStage(COLOR7, null, 0, 0);
+                    stage6.centerOnScreen();
+                    stage6.initModality(Modality.APPLICATION_MODAL);
                 });
+
+        Util.doTimeLine(500,
+                stage0::show,
+                stage1::show,
+                stage2::show,
+                stage3::show,
+                stage4::show,
+                stage5::show,
+                stage6::show,
+                stage6::close,
+                () -> {
+                    assertColor(COLOR1, stage0);
+                    assertColor(COLOR2, stage1);
+                    assertColor(COLOR3, stage2);
+                    assertColor(COLOR4, stage3);
+                    assertColor(COLOR5, stage4);
+                    assertColor(COLOR6, stage5);
+                    assertColor(COLOR7, stage6);
+                },
+                () -> assertTrue(stage5.isFocused()),
+                stage5::close,
+                () -> assertTrue(stage4.isFocused()),
+                stage4::close,
+                () -> assertTrue(stage3.isFocused()),
+                stage3::close,
+                () -> assertTrue(stage2.isFocused()),
+                stage2::close,
+                () -> assertTrue(stage1.isFocused()),
+                stage1::close,
+                () -> assertTrue(stage0.isFocused()));
     }
 }
