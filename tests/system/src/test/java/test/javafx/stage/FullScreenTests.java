@@ -46,33 +46,12 @@ class FullScreenTests extends StageTestBase {
     private static final int SHOW_X = 500;
     private static final int SHOW_Y = 500;
 
-
-    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    void testFullScreenShouldKeepGeometry(StageStyle stageStyle) {
-        setupStageWithStyle(stageStyle, null);
-
-        Util.doTimeLine(500,
-                () -> getStage().setFullScreen(true),
-                this::assertSizePosition,
-                () -> getStage().setFullScreen(false),
-                this::assertSizePosition);
-    }
-
-    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    void testFullScreenBeforeShowShouldKeepGeometry(StageStyle stageStyle) {
-        setupStageWithStyle(stageStyle, s -> s.setFullScreen(true));
-
-        Util.doTimeLine(500,
-                this::assertSizePosition,
-                () -> getStage().setFullScreen(false),
-                this::assertSizePosition);
-    }
+    private static final Consumer<Stage> TEST_SETTINGS = s -> {
+        s.setWidth(WIDTH);
+        s.setHeight(HEIGHT);
+        s.setX(POS_X);
+        s.setY(POS_Y);
+    };
 
     private static final Consumer<Stage> CHANGE_GEOMETRY_TESTS_SETTINGS = s -> {
         s.setWidth(SHOW_WIDTH);
@@ -85,10 +64,37 @@ class FullScreenTests extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    void testUnFullScreenChangedPosition(StageStyle stageStyle) throws Exception {
+    void testFullScreenShouldKeepGeometryOnRestore(StageStyle stageStyle) {
+        setupStageWithStyle(stageStyle, TEST_SETTINGS);
+
+        Util.doTimeLine(300,
+                () -> getStage().setFullScreen(true),
+                () -> getStage().setFullScreen(false));
+
+        Util.sleep(300);
+        assertSizePosition();
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testFullScreenBeforeShowShouldKeepGeometryOnRestore(StageStyle stageStyle) {
+        setupStageWithStyle(stageStyle, TEST_SETTINGS.andThen(s -> s.setFullScreen(true)));
+
+        Util.runAndWait(() -> getStage().setFullScreen(false));
+        Util.sleep(300);
+        assertSizePosition();
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testUnFullScreenChangedPosition(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, CHANGE_GEOMETRY_TESTS_SETTINGS);
 
-        Util.doTimeLine(500,
+        Util.doTimeLine(300,
                 () -> getStage().setFullScreen(true),
                 () -> {
                     getStage().setX(POS_X);
@@ -104,10 +110,10 @@ class FullScreenTests extends StageTestBase {
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
             names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    void testUnFullScreenChangedSize(StageStyle stageStyle) throws Exception {
+    void testUnFullScreenChangedSize(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, CHANGE_GEOMETRY_TESTS_SETTINGS);
 
-        Util.doTimeLine(500,
+        Util.doTimeLine(300,
                 () -> getStage().setFullScreen(true),
                 () -> {
                     getStage().setWidth(WIDTH);

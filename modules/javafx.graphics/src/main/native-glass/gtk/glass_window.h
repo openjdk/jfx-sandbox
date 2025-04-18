@@ -148,7 +148,7 @@ private:
     bool can_be_deleted;
     bool was_mapped;
 
-    gint requested_state_mask;
+    gint initial_state_mask;
     GdkRGBA background_color;
 protected:
     /*

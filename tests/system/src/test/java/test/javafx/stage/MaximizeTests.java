@@ -24,37 +24,84 @@
  */
 package test.javafx.stage;
 
+import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import test.util.Util;
 
+import java.util.function.Consumer;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
 class MaximizeTests extends StageTestBase {
     private static final int WIDTH = 300;
     private static final int HEIGHT = 300;
+    private static final int POS_X = 100;
+    private static final int POS_Y = 150;
+
+    private static final Consumer<Stage> TEST_SETTINGS = s -> {
+        s.setWidth(WIDTH);
+        s.setHeight(HEIGHT);
+        s.setX(POS_X);
+        s.setY(POS_Y);
+    };
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "TRANSPARENT"})
     void testMaximizeUndecorated(StageStyle stageStyle) {
-        int pos = 100;
+        setupStageWithStyle(stageStyle, TEST_SETTINGS);
 
-        setupStageWithStyle(stageStyle, s -> {
-            s.setX(pos);
-            s.setY(pos);
-            s.setWidth(WIDTH);
-            s.setHeight(HEIGHT);
-        });
+        Util.doTimeLine(300,
+                () -> getStage().setMaximized(true),
+                () ->  {
+                    assertTrue(getStage().isMaximized());
+                    assertNotEquals(POS_X, getStage().getX());
+                    assertNotEquals(POS_Y, getStage().getY());
+                },
+                () -> getStage().setMaximized(false));
 
         Util.sleep(300);
-        Util.runAndWait(() -> getStage().setMaximized(true));
+
+        assertEquals(POS_X, getStage().getX(), "Stage maximized position changed");
+        assertEquals(POS_Y, getStage().getY(), "Stage maximized position changed");
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testMaximizeKeepGeometryOnRestore(StageStyle stageStyle) {
+        setupStageWithStyle(stageStyle, TEST_SETTINGS);
+
+        Util.doTimeLine(300,
+                () -> getStage().setMaximized(true),
+                () -> getStage().setMaximized(false));
+
+        Util.sleep(300);
+        assertSizePosition();
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+    void testMaximizeBeforeShowShouldKeepGeometryOnRestore(StageStyle stageStyle) {
+        setupStageWithStyle(stageStyle, TEST_SETTINGS.andThen(s -> s.setMaximized(true)));
+        Util.sleep(300);
+        Util.runAndWait(() -> getStage().setMaximized(false));
         Util.sleep(300);
 
-        assertTrue(getStage().isMaximized(), "Stage should be maximized");
-        assertEquals(pos, getStage().getX(), "Stage maximized position changed");
-        assertEquals(pos, getStage().getY(), "Stage maximized position changed");
+        assertSizePosition();
+    }
+
+    private void assertSizePosition() {
+        assertEquals(WIDTH, getStage().getWidth(), "Stage's width should have remained");
+        assertEquals(HEIGHT, getStage().getHeight(), "Stage's height should have remained");
+        assertEquals(POS_X, getStage().getX(), "Stage's X position should have remained");
+        assertEquals(POS_Y, getStage().getY(), "Stage's Y position should have remained");
     }
 }
