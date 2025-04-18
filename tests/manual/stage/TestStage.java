@@ -89,6 +89,11 @@ public class TestStage extends Application {
             testStage.sizeToScene();
         });
 
+        Button btnCenterOnScreen = new Button("Center on screen");
+        btnCenterOnScreen.setOnAction(e -> {
+            testStage.centerOnScreen();
+        });
+
         Button btnResize = new Button("Resize");
         btnResize.setOnAction(e -> {
             testStage.setWidth(200);
@@ -105,7 +110,7 @@ public class TestStage extends Application {
         cbIsFullScreen.setDisable(true);
         cbIsIconified.setDisable(true);
 
-        VBox root = new VBox(cbStageStyle, btnShow, btnClose, btnSizeToScene,
+        VBox root = new VBox(cbStageStyle, btnShow, btnClose, btnSizeToScene, btnCenterOnScreen,
                 btnResize, btnMove, btnIconify, btnMaxminize, btnFullScreen,
                 new Separator(Orientation.HORIZONTAL),
                 new Label("Stage Properties:"),

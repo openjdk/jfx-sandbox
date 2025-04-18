@@ -38,11 +38,6 @@
 #include "glass_view.h"
 #include "glass_general.h"
 
-enum WindowManager {
-    COMPIZ,
-    UNKNOWN
-};
-
 enum WindowFrameType {
     TITLED,
     UNTITLED,
@@ -65,8 +60,7 @@ enum BoundsType {
 struct WindowGeometry {
     WindowGeometry(): final_width(), final_height(),
     size_assigned(false), needs_to_restore_size(false),
-    x(), y(), x_set(false), y_set(false),
-    view_x(), view_y(),
+    x(), y(), view_x(), view_y(),
     gravity_x(), gravity_y(),
     extents(),frame_extents_received(false) {}
     // estimate of the final width the window will get after all pending
@@ -86,13 +80,6 @@ struct WindowGeometry {
 
     int x;
     int y;
-
-    // x_set, y_set and x_set_value, y_set_value are set on set_bounds
-    bool x_set;
-    bool y_set;
-
-    int x_set_value;
-    int y_set_value;
 
     int view_x;
     int view_y;
@@ -246,16 +233,20 @@ public:
 
     GtkWindow *get_gtk_window();
     void update_window_size_location();
-    void enforce_requested_state();
+    void update_initial_state();
 
     ~WindowContext();
 
 protected:
     void applyShapeMask(void*, uint width, uint height);
 private:
-    gulong XID();
+    void maximize(bool);
+    void iconify(bool);
+    void resize(int, int);
+    void move(int, int);
     void add_wmf(GdkWMFunction);
     void remove_wmf(GdkWMFunction);
+    bool is_geometry_freeze_state();
     void notify_on_top(bool);
     void notify_window_resize(int, int, int);
     void notify_window_move(int, int);
@@ -264,7 +255,7 @@ private:
     GdkAtom get_net_frame_extents_atom();
     void request_frame_extents();
     void update_frame_extents();
-    void set_cached_extents(GdkRectangle ex);
+    void set_cached_extents(GdkRectangle);
     GdkRectangle get_cached_extents();
     bool get_frame_extents_property(int *, int *, int *, int *);
     void update_window_constraints();

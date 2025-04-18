@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
-class MaximizeTests extends StageTestBase {
+class MaximizeTest extends StageTestBase {
     private static final int WIDTH = 300;
     private static final int HEIGHT = 300;
     private static final int POS_X = 100;
@@ -79,6 +79,7 @@ class MaximizeTests extends StageTestBase {
 
         Util.doTimeLine(300,
                 () -> getStage().setMaximized(true),
+                () -> assertTrue(getStage().isMaximized()),
                 () -> getStage().setMaximized(false));
 
         Util.sleep(300);
@@ -92,9 +93,12 @@ class MaximizeTests extends StageTestBase {
     void testMaximizeBeforeShowShouldKeepGeometryOnRestore(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, TEST_SETTINGS.andThen(s -> s.setMaximized(true)));
         Util.sleep(300);
-        Util.runAndWait(() -> getStage().setMaximized(false));
-        Util.sleep(300);
 
+        Util.runAndWait(() -> {
+            assertTrue(getStage().isMaximized());
+            getStage().setMaximized(false);
+        });
+        Util.sleep(300);
         assertSizePosition();
     }
 

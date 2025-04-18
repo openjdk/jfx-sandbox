@@ -63,9 +63,9 @@ static gboolean event_realize(GtkWidget *widget, gpointer user_data) {
     return FALSE;
 }
 
-static gboolean enforce_requested_state_later(gpointer user_data) {
+static gboolean update_initial_state_later(gpointer user_data) {
     WindowContext *ctx = USER_PTR_TO_CTX(user_data);
-    ctx->enforce_requested_state();
+    ctx->update_initial_state();
 
     return G_SOURCE_REMOVE;
 }
@@ -249,20 +249,22 @@ void WindowContext::process_map() {
     if (was_mapped || window_type == POPUP) return;
 
     was_mapped = true;
-    LOG1("%lu: mapped\n", XID());
+    LOG0("--------------------------------------------------------> mapped\n");
 
     // Work around JDK-8337400 (Initial window position is not centered on Xorg)
-    if (geometry.x_set || geometry.y_set) {
-        int x = (geometry.x_set) ? geometry.x_set_value : geometry.x;
-        int y = (geometry.y_set) ? geometry.y_set_value : geometry.y;
-
-        LOG2("move (initial position work-around) -> %d,%d\n", x, y);
-        gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
+    if (geometry.x > 0 || geometry.y > 0) {
+        move(geometry.x, geometry.y);
     }
+
+//    if (geometry.size_assigned) {
+//        int cw = geometry_get_content_width(&geometry);
+//        int ch = geometry_get_content_height(&geometry);
+//        resize(cw, ch);
+//    }
 
     // Must be later on Xorg for the initial state before show to work
     if (initial_state_mask != 0) {
-        gdk_threads_add_idle((GSourceFunc) enforce_requested_state_later, this);
+        gdk_threads_add_idle((GSourceFunc) update_initial_state_later, this);
     }
 }
 
@@ -310,7 +312,7 @@ bool WindowContext::is_dead() {
 }
 
 void WindowContext::process_destroy() {
-    LOG1("%lu: process_destroy\n", XID());
+    LOG0("process_destroy\n");
 
     if (owner) {
         owner->remove_child(this);
@@ -355,9 +357,9 @@ void WindowContext::process_destroy() {
 }
 
 void WindowContext::process_delete() {
-    LOG1("%lu: process_delete\n", XID());
+    LOG0("process_delete\n");
     if (jwindow && isEnabled()) {
-        LOG1("%lu: jWindowNotifyClose\n", XID());
+        LOG0("jWindowNotifyClose\n");
         mainEnv->CallVoidMethod(jwindow, jWindowNotifyClose);
         CHECK_JNI_EXCEPTION(mainEnv)
     }
@@ -783,24 +785,47 @@ void WindowContext::update_window_size_location() {
     update_window_constraints();
 
     LOG2("update size/location -> size %d, %d\n", cw, ch);
-    gtk_window_resize(GTK_WINDOW(gtk_widget), cw, ch);
+    resize(cw, ch);
 }
 
-void WindowContext::enforce_requested_state() {
+void WindowContext::update_initial_state() {
+    LOG0("update_initial_state\n");
+
+    GdkWindowState state = gdk_window_get_state(gdk_window);
+
     if (initial_state_mask & GDK_WINDOW_STATE_MAXIMIZED) {
+        add_wmf(GDK_FUNC_MAXIMIZE);
+        LOG0("update_initial_state -> maximized\n");
         gtk_window_maximize(GTK_WINDOW(gtk_widget));
+    } else if (state & GDK_WINDOW_STATE_MAXIMIZED) {
+        LOG0("update_initial_state -> unmaximze\n");
+        gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
     }
 
     if (initial_state_mask & GDK_WINDOW_STATE_FULLSCREEN) {
+        LOG0("update_initial_state -> fullscreen\n");
         gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
+    } else if (state & GDK_WINDOW_STATE_FULLSCREEN) {
+        LOG0("update_initial_state -> unfullscreen\n");
+        gtk_window_unfullscreen(GTK_WINDOW(gtk_widget));
     }
 
     if (initial_state_mask & GDK_WINDOW_STATE_ICONIFIED) {
+        LOG0("update_initial_state -> iconify\n");
+        add_wmf(GDK_FUNC_MINIMIZE);
         gtk_window_iconify(GTK_WINDOW(gtk_widget));
+    } else if (state & GDK_WINDOW_STATE_ICONIFIED) {
+        LOG0("update_initial_state -> deiconify\n");
+        gtk_window_iconify(GTK_WINDOW(gtk_widget));
+        gdk_window_focus(gdk_window, GDK_CURRENT_TIME);
     }
+
+    initial_state_mask = 0;
 }
 
 void WindowContext::update_frame_extents() {
+    if (frame_type != TITLED) return;
+
     int top, left, bottom, right;
 
     if (get_frame_extents_property(&top, &left, &bottom, &right)) {
@@ -810,13 +835,12 @@ void WindowContext::update_frame_extents() {
                         || geometry.extents.width != (left + right)
                         || geometry.extents.height != (top + bottom);
 
-            if (!changed) {
-                return;
-            }
+            if (!changed) return;
 
             GdkRectangle rect = { left, top, (left + right), (top + bottom) };
-
+            set_cached_extents(rect);
             int newW, newH;
+
             gdk_window_get_geometry(gdk_window, NULL, NULL, &newW, &newH);
 
             // Here the user might change the desktop theme and in consequence
@@ -840,8 +864,6 @@ void WindowContext::update_frame_extents() {
             geometry.frame_extents_received = true;
 
             LOG2("extents received -> new view size: %d, %d\n", newW, newH);
-            gtk_window_resize(GTK_WINDOW(gtk_widget), newW, newH);
-
             int x = geometry.x;
             int y = geometry.y;
 
@@ -849,28 +871,31 @@ void WindowContext::update_frame_extents() {
             // accounting decorations
             if (geometry.gravity_x != 0) {
                 x -= geometry.gravity_x * (float) (geometry.extents.width);
-
-                if (geometry.x_set) {
-                    geometry.x_set_value -= geometry.gravity_x * (float) (geometry.extents.width);
-                }
             }
 
             if (geometry.gravity_y != 0) {
                 y -= geometry.gravity_y  * (float) (geometry.extents.height);
-
-                if (geometry.y_set) {
-                    geometry.y_set_value -= geometry.gravity_y  * (float) (geometry.extents.height);
-                }
             }
 
-            if ((gdk_window_get_state(gdk_window) & GDK_WINDOW_STATE_FULLSCREEN) == 0) {
-                gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
-            } else {
-                geometry.x = x;
-                geometry.y = y;
+            geometry.final_width.type = BOUNDSTYPE_CONTENT;
+            geometry.final_width.value = newW;
+            geometry.final_height.type = BOUNDSTYPE_CONTENT;
+            geometry.final_height.value = newH;
+
+            geometry.x = x;
+            geometry.y = y;
+
+            if (was_mapped && !is_geometry_freeze_state()) {
+                resize(newW, newH);
+                move(x, y);
             }
         }
     }
+}
+
+bool WindowContext::is_geometry_freeze_state() {
+    return gtk_widget_get_realized(gtk_widget)
+            && (gdk_window_get_state(gdk_window) & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED));
 }
 
 bool WindowContext::get_frame_extents_property(int *top, int *left,
@@ -897,6 +922,14 @@ bool WindowContext::get_frame_extents_property(int *top, int *left,
     }
 
     return false;
+}
+
+void WindowContext::set_cached_extents(GdkRectangle ex) {
+    if (window_type == UTILITY) {
+        utility_extents = ex;
+    } else {
+        normal_extents = ex;
+    }
 }
 
 GdkRectangle WindowContext::get_cached_extents() {
@@ -967,8 +1000,6 @@ void WindowContext::process_state(GdkEventWindowState *event) {
             CHECK_JNI_EXCEPTION(mainEnv)
         }
     }
-
-    gdk_threads_add_idle((GSourceFunc) enforce_requested_state_later, this);
 
     // This only accounts MAXIMIZED and FULLSCREEN
     bool restored = (event->changed_mask & (GDK_WINDOW_STATE_MAXIMIZED
@@ -1074,15 +1105,20 @@ void WindowContext::process_configure(GdkEventConfigure *event) {
 
     notify_window_move(root_x, root_y);
 
-    geometry.final_width.value = (geometry.final_width.type == BOUNDSTYPE_CONTENT)
-            ? event->width : ww;
+    if (was_mapped) {
+        geometry.final_width.value = (geometry.final_width.type == BOUNDSTYPE_CONTENT)
+                ? event->width : ww;
 
-    geometry.final_height.value = (geometry.final_height.type == BOUNDSTYPE_CONTENT)
-            ? event->height : wh;
+        geometry.final_height.value = (geometry.final_height.type == BOUNDSTYPE_CONTENT)
+                ? event->height : wh;
 
-    // x and y represent the position of the top-left corner of the window relative to the desktop area
-    geometry.x = root_x;
-    geometry.y = root_y;
+        // x and y represent the position of the top-left corner of the window relative to the desktop area
+        geometry.x = root_x;
+        geometry.y = root_y;
+
+        LOG4("Configured geometry: %d,%d - %d,%d\n", root_x, root_y,
+                geometry.final_width.value, geometry.final_height.value);
+    }
 
     glong to_screen = getScreenPtrForLocation(event->x, event->y);
     if (to_screen != -1 && to_screen != screen) {
@@ -1205,37 +1241,27 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
 
     if (xSet) {
         geometry.x = x;
-        geometry.x_set = true;
-        geometry.x_set_value = x;
     }
 
     if (ySet) {
         geometry.y = y;
-        geometry.y_set = true;
-        geometry.y_set_value = y;
     }
 
-    if (GDK_IS_WINDOW(gdk_window)) {
-        GdkWindowState state = gdk_window_get_state(gdk_window);
+    if (geometry.needs_to_restore_size) {
+        return;
+    }
 
+    if (is_geometry_freeze_state()) {
         // If it was requested to be or currently is fullscreen/maximized, just save the requested
         // dimensions / location and set them later when restored
-        if (state & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED)) {
-            LOG0("set_bounds -> needs_to_restore_size = true\n");
-            geometry.needs_to_restore_size = true;
-            return;
-        }
+        LOG0("set_bounds -> needs_to_restore_size = true\n");
+        geometry.needs_to_restore_size = true;
+        return;
     }
 
     if (newW > 0 || newH > 0) {
-        // call update_window_constraints() to let gtk_window_resize succeed, because it's bound to geometry constraints
-        update_window_constraints();
-
-        if (GDK_IS_WINDOW(gdk_window)) {
-            gtk_window_resize(GTK_WINDOW(gtk_widget), newW, newH);
-        } else {
-            gtk_window_set_default_size(GTK_WINDOW(gtk_widget), newW, newH);
-
+        resize(newW, newH);
+        if (!gtk_widget_get_realized(gtk_widget)) {
             // If the GdkWindow is not yet created, report back to Java, because the configure event
             // won't happen
             int w = geometry_get_window_width(&geometry);
@@ -1249,7 +1275,7 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
     }
 
     if (xSet || ySet) {
-        gtk_window_move(GTK_WINDOW(gtk_widget), geometry.x, geometry.y);
+        move(geometry.x, geometry.y);
     }
 }
 
@@ -1261,41 +1287,65 @@ void WindowContext::applyShapeMask(void* data, uint width, uint height) {
     glass_window_apply_shape_mask(gtk_widget_get_window(gtk_widget), data, width, height);
 }
 
-void WindowContext::set_minimized(bool minimize) {
-    LOG1("set_minimized = %d\n", minimize);
-    if (minimize) {
-        initial_state_mask |= GDK_WINDOW_STATE_ICONIFIED;
+void WindowContext::iconify(bool state) {
+    if (state) {
         add_wmf(GDK_FUNC_MINIMIZE);
         gtk_window_iconify(GTK_WINDOW(gtk_widget));
     } else {
-        initial_state_mask &= ~GDK_WINDOW_STATE_ICONIFIED;
-        gtk_window_deiconify(GTK_WINDOW(gtk_widget));
+        gtk_window_iconify(GTK_WINDOW(gtk_widget));
         gdk_window_focus(gdk_window, GDK_CURRENT_TIME);
     }
 }
 
-void WindowContext::set_maximized(bool maximize) {
-    LOG1("set_maximized = %d\n", maximize);
-    if (maximize) {
-        initial_state_mask |= GDK_WINDOW_STATE_MAXIMIZED;
+void WindowContext::maximize(bool state) {
+    if (state) {
         add_wmf(GDK_FUNC_MAXIMIZE);
         gtk_window_maximize(GTK_WINDOW(gtk_widget));
     } else {
-        initial_state_mask &= ~GDK_WINDOW_STATE_MAXIMIZED;
         gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
+    }
+}
+
+void WindowContext::set_minimized(bool state) {
+    LOG1("set_minimized = %d\n", state);
+
+    if (was_mapped) {
+        iconify(state);
+    } else {
+        initial_state_mask = state
+            ? (initial_state_mask | GDK_WINDOW_STATE_ICONIFIED)
+            : (initial_state_mask & ~GDK_WINDOW_STATE_ICONIFIED);
+    }
+}
+
+void WindowContext::set_maximized(bool state) {
+    LOG1("set_maximized = %d\n", state);
+
+    if (was_mapped) {
+        maximize(state);
+    } else {
+        initial_state_mask = state
+            ? (initial_state_mask | GDK_WINDOW_STATE_MAXIMIZED)
+            : (initial_state_mask & ~GDK_WINDOW_STATE_MAXIMIZED);
     }
 }
 
 void WindowContext::enter_fullscreen() {
     LOG0("enter_fullscreen\n");
-    initial_state_mask |= GDK_WINDOW_STATE_FULLSCREEN;
-    gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
+    if (was_mapped) {
+        gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
+    } else {
+        initial_state_mask |= GDK_WINDOW_STATE_FULLSCREEN;
+    }
 }
 
 void WindowContext::exit_fullscreen() {
     LOG0("exit_fullscreen\n");
-    initial_state_mask &= ~GDK_WINDOW_STATE_FULLSCREEN;
-    gtk_window_unfullscreen(GTK_WINDOW(gtk_widget));
+    if (was_mapped) {
+        gtk_window_unfullscreen(GTK_WINDOW(gtk_widget));
+    } else {
+        initial_state_mask &= ~GDK_WINDOW_STATE_FULLSCREEN;
+    }
 }
 
 void WindowContext::request_focus() {
@@ -1392,6 +1442,24 @@ bool WindowContext::effective_on_top() {
     return on_top;
 }
 
+void WindowContext::resize(int width, int height) {
+    // call update_window_constraints() to let gtk_window_resize succeed, because it's bound to geometry constraints
+    update_window_constraints();
+
+    if (gtk_widget_get_realized(gtk_widget)) {
+        LOG2("resize (not realized): %d, %d\n", width, height);
+        gtk_window_resize(GTK_WINDOW(gtk_widget), width, height);
+    } else {
+        LOG2("resize (realized): %d, %d\n", width, height);
+        gtk_window_set_default_size(GTK_WINDOW(gtk_widget), width, height);
+    }
+}
+
+void WindowContext::move(int x, int y) {
+    LOG2("move %d, %d\n", x, y);
+    gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
+}
+
 void WindowContext::add_wmf(GdkWMFunction wmf) {
     if ((initial_wmf & wmf) == 0) {
         current_wmf = (GdkWMFunction)((int)current_wmf | (int)wmf);
@@ -1455,12 +1523,8 @@ void WindowContext::update_view_size() {
     }
 }
 
-gulong WindowContext::XID() {
-    return GDK_WINDOW_XID(gdk_window);
-}
-
 WindowContext::~WindowContext() {
-    LOG1("%lu: ~WindowContext\n", XID());
+    LOG0("~WindowContext\n");
     disableIME();
     gtk_widget_destroy(gtk_widget);
 }

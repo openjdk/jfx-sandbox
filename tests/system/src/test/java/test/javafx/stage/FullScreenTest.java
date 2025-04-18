@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,9 +33,10 @@ import test.util.Util;
 import java.util.function.Consumer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static test.util.Util.PARAMETERIZED_TEST_DISPLAY;
 
-class FullScreenTests extends StageTestBase {
+class FullScreenTest extends StageTestBase {
     private static final int POS_X = 100;
     private static final int POS_Y = 150;
     private static final int WIDTH = 100;
@@ -67,11 +68,12 @@ class FullScreenTests extends StageTestBase {
     void testFullScreenShouldKeepGeometryOnRestore(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, TEST_SETTINGS);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().setFullScreen(true),
+                () -> assertTrue(getStage().isFullScreen()),
                 () -> getStage().setFullScreen(false));
 
-        Util.sleep(300);
+        Util.sleep(500);
         assertSizePosition();
     }
 
@@ -82,8 +84,13 @@ class FullScreenTests extends StageTestBase {
     void testFullScreenBeforeShowShouldKeepGeometryOnRestore(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, TEST_SETTINGS.andThen(s -> s.setFullScreen(true)));
 
-        Util.runAndWait(() -> getStage().setFullScreen(false));
-        Util.sleep(300);
+        Util.sleep(500);
+        Util.runAndWait(() -> {
+            assertTrue(getStage().isFullScreen());
+            getStage().setFullScreen(false);
+        });
+
+        Util.sleep(500);
         assertSizePosition();
     }
 
@@ -94,8 +101,9 @@ class FullScreenTests extends StageTestBase {
     void testUnFullScreenChangedPosition(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, CHANGE_GEOMETRY_TESTS_SETTINGS);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().setFullScreen(true),
+                () -> assertTrue(getStage().isFullScreen()),
                 () -> {
                     getStage().setX(POS_X);
                     getStage().setY(POS_Y);
@@ -113,8 +121,9 @@ class FullScreenTests extends StageTestBase {
     void testUnFullScreenChangedSize(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, CHANGE_GEOMETRY_TESTS_SETTINGS);
 
-        Util.doTimeLine(300,
+        Util.doTimeLine(500,
                 () -> getStage().setFullScreen(true),
+                () -> assertTrue(getStage().isFullScreen()),
                 () -> {
                     getStage().setWidth(WIDTH);
                     getStage().setHeight(HEIGHT);
