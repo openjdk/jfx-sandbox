@@ -256,11 +256,11 @@ void WindowContext::process_map() {
         move(geometry.x, geometry.y);
     }
 
-//    if (geometry.size_assigned) {
-//        int cw = geometry_get_content_width(&geometry);
-//        int ch = geometry_get_content_height(&geometry);
-//        resize(cw, ch);
-//    }
+    if (geometry.size_assigned) {
+        int cw = geometry_get_content_width(&geometry);
+        int ch = geometry_get_content_height(&geometry);
+        resize(cw, ch);
+    }
 
     // Must be later on Xorg for the initial state before show to work
     if (initial_state_mask != 0) {
@@ -837,6 +837,8 @@ void WindowContext::update_frame_extents() {
 
             if (!changed) return;
 
+            LOG0(" -------------------------------------------Frame extents\n");
+
             GdkRectangle rect = { left, top, (left + right), (top + bottom) };
             set_cached_extents(rect);
             int newW, newH;
@@ -869,11 +871,11 @@ void WindowContext::update_frame_extents() {
 
             // Gravity x, y are used in centerOnScreen(). Here it's used to adjust the position
             // accounting decorations
-            if (geometry.gravity_x != 0) {
+            if (geometry.gravity_x != 0 && x > 0) {
                 x -= geometry.gravity_x * (float) (geometry.extents.width);
             }
 
-            if (geometry.gravity_y != 0) {
+            if (geometry.gravity_y != 0 && y > 0) {
                 y -= geometry.gravity_y  * (float) (geometry.extents.height);
             }
 
@@ -881,9 +883,12 @@ void WindowContext::update_frame_extents() {
             geometry.final_width.value = newW;
             geometry.final_height.type = BOUNDSTYPE_CONTENT;
             geometry.final_height.value = newH;
-
             geometry.x = x;
             geometry.y = y;
+
+            LOG4("Geometry after frame extents: %d, %d - %d, %d\n", geometry.x,
+                        geometry.y, geometry.final_width.value, geometry.final_height.value);
+
 
             if (was_mapped && !is_geometry_freeze_state()) {
                 resize(newW, newH);
@@ -1046,6 +1051,7 @@ void WindowContext::notify_window_resize(int state, int width, int height) {
 
 void WindowContext::notify_window_move(int x, int y) {
     if (jwindow) {
+        LOG2("jWindowNotifyMove: %d, %d\n", x, y);
         mainEnv->CallVoidMethod(jwindow, jWindowNotifyMove, x, y);
         CHECK_JNI_EXCEPTION(mainEnv)
     }
