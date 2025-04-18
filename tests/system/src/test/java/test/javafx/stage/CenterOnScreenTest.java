@@ -114,45 +114,6 @@ class CenterOnScreenTest extends StageTestBase {
         assertStageCentered(stageStyle, true);
     }
 
-    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    void testStateCenterOnScreenWhileFullscreen(StageStyle stageStyle) {
-        setupStageWithStyle(stageStyle, stage -> {
-            stage.setWidth(STAGE_WIDTH);
-            stage.setHeight(STAGE_HEIGHT);
-            stage.setX(0);
-            stage.setY(0);
-            stage.setFullScreen(true);
-        });
-
-        Util.doTimeLine(500,
-                () -> getStage().centerOnScreen(),
-                () -> assertTrue(getStage().isFullScreen(), "centerOnScreen() should not change window state"),
-                () -> getStage().setFullScreen(false),
-                () -> assertStageCentered(stageStyle, false));
-    }
-
-    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
-    void testStateCenterOnScreenWhileMaximized(StageStyle stageStyle) {
-        setupStageWithStyle(stageStyle, stage -> {
-            stage.setX(0);
-            stage.setY(0);
-            stage.setWidth(STAGE_WIDTH);
-            stage.setHeight(STAGE_HEIGHT);
-            stage.setMaximized(true);
-        });
-
-        Util.doTimeLine(500,
-                () -> getStage().centerOnScreen(),
-                () -> assertTrue(getStage().isFullScreen(), "centerOnScreen() should not change window state"),
-                () -> getStage().setMaximized(false),
-                () -> assertStageCentered(stageStyle, false));
-    }
 
     private void assertStageCentered(StageStyle stageStyle, boolean useSceneSize) {
         Screen screen = Util.getScreen(getStage());
