@@ -52,31 +52,21 @@ enum WindowType {
 
 static const guint MOUSE_BUTTONS_MASK = (guint) (GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK);
 
-enum BoundsType {
-    BOUNDSTYPE_CONTENT,
-    BOUNDSTYPE_WINDOW
-};
-
 struct WindowGeometry {
-    WindowGeometry(): final_width(), final_height(),
+    WindowGeometry():
     size_assigned(false), needs_to_restore_size(false),
-    x(), y(), view_x(), view_y(),
+    width(), height(), x(), y(), view_x(), view_y(),
     gravity_x(), gravity_y(),
     extents(),frame_extents_received(false) {}
-    // estimate of the final width the window will get after all pending
-    // configure requests are processed by the window manager
-    struct {
-        int value;
-        BoundsType type;
-    } final_width;
-
-    struct {
-        int value;
-        BoundsType type;
-    } final_height;
 
     bool size_assigned;
     bool needs_to_restore_size;
+
+    // width, height, x, w are updated in set_bounds only and may not reflect
+    // current geometry.
+    // width / height are content size
+    int width;
+    int height;
 
     int x;
     int y;
@@ -240,8 +230,11 @@ public:
 protected:
     void applyShapeMask(void*, uint width, uint height);
 private:
+    void fix_constraint(int *, int);
     void maximize(bool);
     void iconify(bool);
+    int get_view_width();
+    int get_view_height();
     void resize(int, int);
     void move(int, int);
     void add_wmf(GdkWMFunction);
@@ -258,6 +251,7 @@ private:
     void set_cached_extents(GdkRectangle);
     GdkRectangle get_cached_extents();
     bool get_frame_extents_property(int *, int *, int *, int *);
+    void remove_window_constraints();
     void update_window_constraints();
     void update_ontop_tree(bool);
     bool on_top_inherited();

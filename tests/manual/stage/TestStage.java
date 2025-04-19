@@ -38,23 +38,29 @@ import javafx.scene.layout.VBox;
 import javafx.stage.StageStyle;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 public class TestStage extends Application {
     private Stage testStage = new Stage();
     private Label lblWidth = new Label();
-    private Label lblSceneY = new Label();
     private Label lblHeight = new Label();
+    private Label lblMinWidth = new Label();
+    private Label lblMinHeight = new Label();
+    private Label lblMaxWidth = new Label();
+    private Label lblMaxHeight = new Label();
     private Label lblX = new Label();
     private Label lblY = new Label();
     private Label lblSceneWidth = new Label();
     private Label lblSceneHeight = new Label();
     private Label lblSceneX = new Label();
+    private Label lblSceneY = new Label();
     private ComboBox<StageStyle> cbStageStyle = new ComboBox<>(FXCollections.observableArrayList(StageStyle.values()));
     private CheckBox cbIsFullScreen = new CheckBox("Is FullScreen");
     private CheckBox cbIsMaximized = new CheckBox("Is Maximized");
     private CheckBox cbIsIconified = new CheckBox("Is Iconified");
+    private CheckBox cbIsResizable = new CheckBox("Is Resizable");
 
     @Override
     public void start(Stage stage) {
@@ -72,6 +78,9 @@ public class TestStage extends Application {
 
         Button btnIconify = new Button("Toggle Iconified");
         btnIconify.setOnAction(e -> testStage.setIconified(!testStage.isIconified()));
+
+        Button btnResizable = new Button("Toggle Resizable");
+        btnResizable.setOnAction(e -> testStage.setResizable(!testStage.isResizable()));
 
         Button btnShow = new Button("Show");
         btnShow.setOnAction(e -> {
@@ -100,6 +109,12 @@ public class TestStage extends Application {
             testStage.setHeight(200);
         });
 
+        Button btnMaxSize = new Button("Set Max Size");
+        btnMaxSize.setOnAction(e -> {
+            testStage.setMaxWidth(100);
+            testStage.setMaxHeight(100);
+        });
+
         Button btnMove = new Button("Move");
         btnMove.setOnAction(e -> {
             testStage.setX(100);
@@ -109,13 +124,21 @@ public class TestStage extends Application {
         cbIsMaximized.setDisable(true);
         cbIsFullScreen.setDisable(true);
         cbIsIconified.setDisable(true);
+        cbIsResizable.setDisable(true);
 
-        VBox root = new VBox(cbStageStyle, btnShow, btnClose, btnSizeToScene, btnCenterOnScreen,
-                btnResize, btnMove, btnIconify, btnMaxminize, btnFullScreen,
+        FlowPane commandPane = new FlowPane(cbStageStyle, btnShow, btnClose, btnSizeToScene, btnCenterOnScreen,
+                btnResize, btnMaxSize, btnMove, btnIconify, btnMaxminize, btnFullScreen, btnResizable);
+        commandPane.setHgap(5);
+        commandPane.setVgap(5);
+
+
+        VBox root = new VBox(commandPane,
                 new Separator(Orientation.HORIZONTAL),
                 new Label("Stage Properties:"),
                 cbIsIconified, cbIsMaximized,
-                cbIsFullScreen, lblWidth, lblHeight, lblX, lblY,
+                cbIsFullScreen, cbIsResizable,
+                lblMinWidth, lblMinHeight, lblMaxWidth, lblMaxHeight,
+                lblWidth, lblHeight, lblX, lblY,
                 new Separator(Orientation.HORIZONTAL),
                 new Label("Scene Properties:"),
                 lblSceneWidth, lblSceneHeight, lblSceneX, lblSceneY);
@@ -124,11 +147,10 @@ public class TestStage extends Application {
 
         createTestStage();
 
-        Scene scene = new Scene(root, 300, 300);
+        Scene scene = new Scene(root, 500, 600);
         stage.setAlwaysOnTop(true);
         stage.setTitle("Command Stage");
         stage.setScene(scene);
-        stage.setHeight(650);
         stage.show();
     }
 
@@ -148,8 +170,13 @@ public class TestStage extends Application {
         cbIsMaximized.selectedProperty().bind(testStage.maximizedProperty());
         cbIsFullScreen.selectedProperty().bind(testStage.fullScreenProperty());
         cbIsIconified.selectedProperty().bind(testStage.iconifiedProperty());
+        cbIsResizable.selectedProperty().bind(testStage.resizableProperty());
         lblWidth.textProperty().bind(Bindings.format("Width: %.2f", testStage.widthProperty()));
         lblHeight.textProperty().bind(Bindings.format("Height: %.2f", testStage.heightProperty()));
+        lblMinWidth.textProperty().bind(Bindings.format("Min Width: %.2f", testStage.minWidthProperty()));
+        lblMinHeight.textProperty().bind(Bindings.format("Min Height: %.2f", testStage.minHeightProperty()));
+        lblMaxWidth.textProperty().bind(Bindings.format("Max Width: %.2f", testStage.maxWidthProperty()));
+        lblMaxHeight.textProperty().bind(Bindings.format("Max Height: %.2f", testStage.maxHeightProperty()));
         lblX.textProperty().bind(Bindings.format("X: %.2f", testStage.xProperty()));
         lblY.textProperty().bind(Bindings.format("Y: %.2f", testStage.yProperty()));
         lblSceneWidth.textProperty().bind(Bindings.format("Width: %.2f", testScene.widthProperty()));

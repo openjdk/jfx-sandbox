@@ -124,4 +124,12 @@ abstract class StageTestBase {
     protected Stage getStage() {
         return stage;
     }
+
+    /**
+     * Gets the Scene of the test stage.
+     * @return The Scene of the test stage.
+     */
+    protected Scene getScene() {
+        return stage.getScene();
+    }
 }
