@@ -63,18 +63,17 @@ static gboolean event_realize(GtkWidget *widget, gpointer user_data) {
     return FALSE;
 }
 
-static gboolean update_initial_state_later(gpointer user_data) {
-    WindowContext *ctx = USER_PTR_TO_CTX(user_data);
-    ctx->update_initial_state();
+//static gboolean update_window_size_location_later(gpointer user_data) {
+//    WindowContext *ctx = USER_PTR_TO_CTX(user_data);
+//    ctx->update_window_size_location();
+//
+//    return G_SOURCE_REMOVE;
+//}
 
-    return G_SOURCE_REMOVE;
-}
-
-static gboolean update_window_size_location_later(gpointer user_data) {
-    WindowContext *ctx = USER_PTR_TO_CTX(user_data);
-    ctx->update_window_size_location();
-
-    return G_SOURCE_REMOVE;
+static void process_pending_events() {
+    while (gtk_events_pending()) {
+        gtk_main_iteration();
+    }
 }
 
 void destroy_and_delete_ctx(WindowContext* ctx) {
@@ -180,7 +179,9 @@ WindowContext::WindowContext(jobject _jwindow, WindowContext* _owner, long _scre
     if (frame_type != TITLED) {
         gtk_window_set_decorated(GTK_WINDOW(gtk_widget), FALSE);
     } else {
-        geometry.extents = get_cached_extents();
+    //FIXME: using cached extents might be worse, because it invalidates all tests, since
+    // it's a different workflow
+//        geometry.extents = get_cached_extents();
     }
 }
 
@@ -224,11 +225,18 @@ void WindowContext::process_map() {
 
     if (geometry.size_assigned) {
         resize(geometry.width, geometry.height);
+    } else {
+        LOG0("Size was not assingned\n");
+        int w = 320 - geometry.extents.width;
+        int h = 200 - geometry.extents.height;
+
+        resize(w, h);
     }
 
-    // Must be later on Xorg for the initial state before show to work
+    // Work-around for Xorg initial state before show to work
     if (initial_state_mask != 0) {
-        gdk_threads_add_idle((GSourceFunc) update_initial_state_later, this);
+        process_pending_events();
+        update_initial_state();
     }
 }
 
@@ -791,11 +799,14 @@ void WindowContext::update_frame_extents() {
                         || geometry.extents.height != (top + bottom);
 
             if (!changed) return;
-
             LOG0(" -------------------------------------------Frame extents\n");
 
             GdkRectangle rect = { left, top, (left + right), (top + bottom) };
             set_cached_extents(rect);
+
+            if (!geometry.size_assigned) {
+                return;
+            }
 
             int newW = gdk_window_get_width(gdk_window);
             int newH = gdk_window_get_height(gdk_window);
@@ -813,28 +824,31 @@ void WindowContext::update_frame_extents() {
                 + ((geometry.frame_extents_received) ? geometry.extents.height : 0)
                 - rect.height;
 
-            geometry.extents = rect;
-            geometry.frame_extents_received = true;
-
             LOG2("extents received -> new view size: %d, %d\n", newW, newH);
             int x = geometry.x;
             int y = geometry.y;
 
             // Gravity x, y are used in centerOnScreen(). Here it's used to adjust the position
             // accounting decorations
-            if (geometry.gravity_x != 0 && x > 0) {
+            if (geometry.gravity_x > 0 && x > 0) {
                 x -= geometry.gravity_x * (float) (geometry.extents.width);
             }
 
-            if (geometry.gravity_y != 0 && y > 0) {
+            if (geometry.gravity_y > 0 && y > 0) {
                 y -= geometry.gravity_y  * (float) (geometry.extents.height);
             }
 
+            // Process all pending envents
+//            while (gtk_events_pending()) {
+//                gtk_main_iteration();
+//            }
+
+            geometry.extents = rect;
+            geometry.frame_extents_received = true;
             geometry.width = newW;
             geometry.height = newH;
             geometry.x = x;
             geometry.y = y;
-            geometry.size_assigned = true;
 
             fix_constraint(&resizable.minw, geometry.extents.width);
             fix_constraint(&resizable.maxw, geometry.extents.width);
@@ -845,7 +859,8 @@ void WindowContext::update_frame_extents() {
                         geometry.y, geometry.width, geometry.height);
 
             update_window_constraints();
-            if (was_mapped && !is_geometry_freeze_state()) {
+
+            if (!is_geometry_freeze_state()) {
                 resize(newW, newH);
                 move(x, y);
             }
@@ -974,8 +989,9 @@ void WindowContext::process_state(GdkEventWindowState *event) {
     // In case the size or location changed while maximized of fullscreened
     if (restored && geometry.needs_to_restore_size) {
         //Call if later because restore properties will still arrive
-        g_print("update_window_size_location_later\n");
-        gdk_threads_add_idle((GSourceFunc) update_window_size_location_later, this);
+        LOG0("restored, call update_window_size_location\n");
+        process_pending_events();
+        update_window_size_location();
     }
 }
 
@@ -1060,8 +1076,8 @@ void WindowContext::process_configure(GdkEventConfigure *event) {
     // The returned values might be inaccurate if _NET_FRAME_EXTENTS has not been received yet.
     // They will be corrected later if the property is updated. However, since there is no guarantee
     // that _NET_FRAME_EXTENTS will ever be available, we set the best guess for now.
-    int ww = event->width + geometry.extents.width;
-    int wh = event->height + geometry.extents.height;
+    int ww = gdk_window_get_width(gdk_window) + geometry.extents.width;
+    int wh = gdk_window_get_height(gdk_window) + geometry.extents.height;
 
     notify_window_resize((state & GDK_WINDOW_STATE_MAXIMIZED)
                             ? com_sun_glass_events_WindowEvent_MAXIMIZE
@@ -1141,12 +1157,9 @@ void WindowContext::set_resizable(bool res) {
 }
 
 void WindowContext::set_visible(bool visible) {
+    LOG1("set_visible: %d\n", visible);
     if (visible) {
         gtk_widget_show(gtk_widget);
-
-        if (!geometry.size_assigned) {
-            set_bounds(0, 0, false, false, 320, 200, -1, -1, 0, 0);
-        }
 
         // JDK-8220272 - fire event first because GDK_FOCUS_CHANGE is not always in order
         if (jwindow && isEnabled()) {
@@ -1211,7 +1224,9 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
 
     LOG2("geometry.width = %d, geometry.height = %d\n", geometry.width, geometry.height);
 
-    geometry.size_assigned = true;
+    if (!geometry.size_assigned && (w > 0 || cw > 0 || h > 0 || ch > 0)) {
+        geometry.size_assigned = true;
+    }
 
     if (geometry.needs_to_restore_size) return;
 
@@ -1223,7 +1238,7 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
         return;
     }
 
-    if (newW > 0 || newH > 0) resize(newW, newH);
+    resize(newW, newH);
     if (xSet || ySet) move(x, y);
 
 }
@@ -1283,6 +1298,12 @@ void WindowContext::set_maximized(bool state) {
 void WindowContext::enter_fullscreen() {
     LOG0("enter_fullscreen\n");
     if (was_mapped) {
+        // save state before fullscreen to work-around an issue were
+        // it would restore to max-size
+        geometry.width = gdk_window_get_width(gdk_window);
+        geometry.height = gdk_window_get_height(gdk_window);
+        geometry.needs_to_restore_size = true;
+
         remove_window_constraints();
         gtk_main_iteration();
         gtk_window_fullscreen(GTK_WINDOW(gtk_widget));

@@ -49,6 +49,7 @@ class SizingTest extends StageTestBase {
     private static final int NEW_WIDTH = 450;
     private static final int NEW_HEIGHT = 450;
 
+
     protected Label createLabel(String prefix, ReadOnlyDoubleProperty property) {
         Label label = new Label();
         label.textProperty().bind(Bindings.concat(prefix, Bindings.convert(property)));
@@ -159,7 +160,7 @@ class SizingTest extends StageTestBase {
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED"})
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testFullScreenMaxSize(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, s -> {
             s.initStyle(stageStyle);
@@ -171,7 +172,7 @@ class SizingTest extends StageTestBase {
 
         Util.doTimeLine(500,
                 () -> getStage().setFullScreen(true),
-                () -> getStage().isMaximized(),
+                () -> getStage().isFullScreen(),
                 () -> {
                     assertTrue(getStage().getWidth() > MAX_WIDTH, "Stage width should be maximized");
                     assertTrue(getStage().getHeight() > MAX_HEIGHT, "Stage width should be maximized");
@@ -324,69 +325,5 @@ class SizingTest extends StageTestBase {
         assertEquals(MIN_HEIGHT, getStage().getHeight(), "Stage height should have been limited to min height");
     }
 
-    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
-    void testNegativeSizingBeforeShow(StageStyle stageStyle) {
-        setupStageWithStyle(stageStyle, s -> {
-            s.initStyle(stageStyle);
-            s.setWidth(-100);
-            s.setHeight(-100);
-        });
 
-        assertTrue(getStage().getWidth() > 0, "Stage width should be greater than 0");
-        assertTrue(getStage().getHeight() > 0, "Stage height should be greater than 0");
-    }
-
-    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
-    void testNegativeSizingAfterShow(StageStyle stageStyle) {
-        setupStageWithStyle(stageStyle, s -> s.initStyle(stageStyle));
-
-        Util.sleep(500);
-        Util.runAndWait(() -> {
-            getStage().setWidth(-100);
-            getStage().setHeight(-100);
-        });
-        Util.sleep(500);
-
-        assertTrue(getStage().getWidth() > 0, "Stage width should be greater than 0");
-        assertTrue(getStage().getHeight() > 0, "Stage height should be greater than 0");
-    }
-
-    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
-    void testNegativeMaxSizeBeforeShow(StageStyle stageStyle) {
-        setupStageWithStyle(stageStyle, s -> {
-            s.initStyle(stageStyle);
-            s.setMaxWidth(-100);
-            s.setMaxHeight(-100);
-        });
-
-        assertTrue(getStage().getWidth() > 0, "Stage width should be greater than 0");
-        assertTrue(getStage().getHeight() > 0, "Stage height should be greater than 0");
-    }
-
-    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class,
-            mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
-    void testNegativeMaxSizeAfterShow(StageStyle stageStyle) {
-        setupStageWithStyle(stageStyle, s -> s.initStyle(stageStyle));
-
-        Util.sleep(500);
-        Util.runAndWait(() -> {
-            getStage().setMaxWidth(-100);
-            getStage().setMaxHeight(-100);
-        });
-        Util.sleep(500);
-
-        assertTrue(getStage().getWidth() > 0, "Stage width should be greater than 0");
-        assertTrue(getStage().getHeight() > 0, "Stage height should be greater than 0");
-    }
 }

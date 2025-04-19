@@ -57,13 +57,13 @@ struct WindowGeometry {
     size_assigned(false), needs_to_restore_size(false),
     width(), height(), x(), y(), view_x(), view_y(),
     gravity_x(), gravity_y(),
-    extents(),frame_extents_received(false) {}
+    extents(), frame_extents_received(false) {}
 
     bool size_assigned;
     bool needs_to_restore_size;
 
-    // width, height, x, w are updated in set_bounds only and may not reflect
-    // current geometry.
+    // width, height, x, w are not update by user interactions and
+    // may not reflect current geometry.
     // width / height are content size
     int width;
     int height;
@@ -78,6 +78,7 @@ struct WindowGeometry {
     float gravity_y;
 
     GdkRectangle extents;
+
     bool frame_extents_received;
 };
 
