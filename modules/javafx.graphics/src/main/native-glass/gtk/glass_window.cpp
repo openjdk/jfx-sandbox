@@ -44,6 +44,7 @@
 
 #include <string.h>
 #include <algorithm>
+#include <optional>
 
 #define MOUSE_BACK_BTN 8
 #define MOUSE_FORWARD_BTN 9
@@ -63,16 +64,9 @@ static gboolean event_realize(GtkWidget *widget, gpointer user_data) {
     return FALSE;
 }
 
-//static gboolean update_window_size_location_later(gpointer user_data) {
-//    WindowContext *ctx = USER_PTR_TO_CTX(user_data);
-//    ctx->update_window_size_location();
-//
-//    return G_SOURCE_REMOVE;
-//}
-
 static void process_pending_events() {
     while (gtk_events_pending()) {
-        gtk_main_iteration();
+        gtk_main_iteration_do(FALSE);
     }
 }
 
@@ -119,8 +113,8 @@ WindowContext * WindowContext::sm_mouse_drag_window = NULL;
 // Work-around because frame extents are only obtained after window is shown.
 // This is used to know the total window size (content + decoration)
 // The first window will have a duplicated resize event, subsequent windows will use the cached value.
-GdkRectangle WindowContext::normal_extents = {0, 0, 0, 0};
-GdkRectangle WindowContext::utility_extents = {0, 0, 0, 0};
+std::optional<GdkRectangle> WindowContext::normal_extents;
+std::optional<GdkRectangle> WindowContext::utility_extents;
 
 WindowContext::WindowContext(jobject _jwindow, WindowContext* _owner, long _screen,
         WindowFrameType _frame_type, WindowType type, GdkWMFunction wmf) :
@@ -176,13 +170,8 @@ WindowContext::WindowContext(jobject _jwindow, WindowContext* _owner, long _scre
     glass_configure_window_transparency(gtk_widget, frame_type == TRANSPARENT);
     gtk_window_set_title(GTK_WINDOW(gtk_widget), "");
 
-    if (frame_type != TITLED) {
-        gtk_window_set_decorated(GTK_WINDOW(gtk_widget), FALSE);
-    } else {
-    //FIXME: using cached extents might be worse, because it invalidates all tests, since
-    // it's a different workflow
-//        geometry.extents = get_cached_extents();
-    }
+    gtk_window_set_decorated(GTK_WINDOW(gtk_widget), frame_type != TITLED);
+    use_set_cached_extents();
 }
 
 GdkWindow* WindowContext::get_gdk_window() {
@@ -838,11 +827,6 @@ void WindowContext::update_frame_extents() {
                 y -= geometry.gravity_y  * (float) (geometry.extents.height);
             }
 
-            // Process all pending envents
-//            while (gtk_events_pending()) {
-//                gtk_main_iteration();
-//            }
-
             geometry.extents = rect;
             geometry.frame_extents_received = true;
             geometry.width = newW;
@@ -907,8 +891,19 @@ void WindowContext::set_cached_extents(GdkRectangle ex) {
     }
 }
 
-GdkRectangle WindowContext::get_cached_extents() {
-    return window_type == UTILITY ? utility_extents : normal_extents;
+void WindowContext::use_set_cached_extents() {
+    if (frame_type != TITLED) return;
+
+    if (window_type == NORMAL && normal_extents.has_value()) {
+        geometry.extents = normal_extents.value();
+        geometry.frame_extents_received = true;
+        return;
+    }
+
+    if (window_type == UTILITY && utility_extents.has_value()) {
+        geometry.extents = utility_extents.value();
+        geometry.frame_extents_received = true;
+    }
 }
 
 void WindowContext::process_property_notify(GdkEventProperty *event) {
@@ -928,6 +923,9 @@ void WindowContext::process_state(GdkEventWindowState *event) {
 
     if (event->changed_mask & GDK_WINDOW_STATE_ABOVE) {
         notify_on_top(event->new_window_state & GDK_WINDOW_STATE_ABOVE);
+
+        // Only state mask
+        if (event->new_window_state == GDK_WINDOW_STATE_ABOVE) return;
     }
 
     // Those represent the real current size in the state
@@ -956,15 +954,13 @@ void WindowContext::process_state(GdkEventWindowState *event) {
         remove_wmf(GDK_FUNC_MINIMIZE);
     }
 
+    // If only iconified, no further processing
+    if (event->new_window_state == GDK_WINDOW_STATE_ICONIFIED) return;
+
     if (event->changed_mask & GDK_WINDOW_STATE_MAXIMIZED
         && (event->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) == 0) {
         remove_wmf(GDK_FUNC_MINIMIZE);
     }
-
-    notify_view_resize(cw, ch);
-    // Since FullScreen (or custom modes of maximized) can undecorate the
-    // window, request view position change
-    notify_view_move();
 
     if (jview && event->changed_mask & GDK_WINDOW_STATE_FULLSCREEN) {
         if (event->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) {
@@ -977,6 +973,11 @@ void WindowContext::process_state(GdkEventWindowState *event) {
             CHECK_JNI_EXCEPTION(mainEnv)
         }
     }
+
+    notify_view_resize(cw, ch);
+    // Since FullScreen (or custom modes of maximized) can undecorate the
+    // window, request view position change
+    notify_view_move();
 
     update_window_constraints();
 
@@ -1144,7 +1145,7 @@ void WindowContext::update_window_constraints() {
         hints.max_height = h;
     }
 
-    LOG4("------------------ geometry hints: min w,h: %d, %d - max w,h: %d, %d\n", hints.min_width,
+    LOG4("geometry hints: min w,h: %d, %d - max w,h: %d, %d\n", hints.min_width,
             hints.min_height, hints.max_width, hints.max_height);
 
     gtk_window_set_geometry_hints(GTK_WINDOW(gtk_widget), NULL, &hints,
@@ -1266,7 +1267,7 @@ void WindowContext::maximize(bool state) {
         add_wmf(GDK_FUNC_MAXIMIZE);
         LOG0("gtk_window_maximize\n");
         remove_window_constraints();
-        gtk_main_iteration();
+        gtk_main_iteration_do(FALSE);
         gtk_window_maximize(GTK_WINDOW(gtk_widget));
     } else {
         gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
@@ -1305,7 +1306,7 @@ void WindowContext::enter_fullscreen() {
         geometry.needs_to_restore_size = true;
 
         remove_window_constraints();
-        gtk_main_iteration();
+        gtk_main_iteration_do(FALSE);
         gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
     } else {
         initial_state_mask |= GDK_WINDOW_STATE_FULLSCREEN;

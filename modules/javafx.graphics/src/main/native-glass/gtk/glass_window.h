@@ -33,6 +33,7 @@
 #include <jni.h>
 #include <set>
 #include <vector>
+#include <optional>
 
 #include "DeletedMemDebug.h"
 #include "glass_view.h"
@@ -86,8 +87,8 @@ class WindowContext;
 
 class WindowContext: public DeletedMemDebug<0xCC> {
 private:
-    static GdkRectangle normal_extents;
-    static GdkRectangle utility_extents;
+    static std::optional<GdkRectangle> normal_extents;
+    static std::optional<GdkRectangle> utility_extents;
 
     jlong screen;
     WindowFrameType frame_type;
@@ -250,7 +251,7 @@ private:
     void request_frame_extents();
     void update_frame_extents();
     void set_cached_extents(GdkRectangle);
-    GdkRectangle get_cached_extents();
+    void use_set_cached_extents();
     bool get_frame_extents_property(int *, int *, int *, int *);
     void remove_window_constraints();
     void update_window_constraints();
