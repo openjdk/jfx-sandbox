@@ -238,6 +238,7 @@ private:
     int get_view_width();
     int get_view_height();
     void resize(int, int);
+    void move(int, int, bool, bool);
     void move(int, int);
     void add_wmf(GdkWMFunction);
     void remove_wmf(GdkWMFunction);

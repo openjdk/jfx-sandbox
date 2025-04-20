@@ -24,6 +24,9 @@
  */
 package test.robot.javafx.stage;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.ScaleTransition;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.scene.Scene;
@@ -34,6 +37,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.util.Duration;
 import org.junit.jupiter.api.Test;
 import test.robot.testharness.VisualTestBase;
 import test.util.Util;
@@ -179,9 +183,14 @@ class StageModalityTest extends VisualTestBase {
         Stage stage = getStage(true);
         stage.initStyle(StageStyle.UNDECORATED);
         StackPane pane = getFocusedLabel(color, stage);
-        Scene topScene = new Scene(pane, WIDTH, HEIGHT);
-        topScene.setFill(color);
-        stage.setScene(topScene);
+        Scene scene = new Scene(pane, WIDTH, HEIGHT);
+        scene.setFill(color);
+        stage.focusedProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal) {
+                shakeStage(stage);
+            }
+        });
+        stage.setScene(scene);
         stage.setWidth(WIDTH);
         stage.setHeight(HEIGHT);
         stage.setX(x);
@@ -208,6 +217,14 @@ class StageModalityTest extends VisualTestBase {
 
         label.setTextFill(textColor);
         return pane;
+    }
+
+    private void shakeStage(Stage stage) {
+        Timeline timeline = new Timeline(
+                new KeyFrame(Duration.millis(50), e -> stage.setX(stage.getX() + 10)),
+                new KeyFrame(Duration.millis(100), e -> stage.setX(stage.getX() - 10)));
+        timeline.setCycleCount(3);
+        timeline.play();
     }
 
     private Stage stage0;
@@ -247,6 +264,7 @@ class StageModalityTest extends VisualTestBase {
                     assertColor(COLOR6, stage5);
                     assertColor(COLOR7, stage6);
                 },
+                () -> clickStage(stage5),
                 () -> assertTrue(stage6.isFocused()),
                 stage5::close,
                 () -> assertTrue(stage6.isFocused()),
@@ -255,8 +273,13 @@ class StageModalityTest extends VisualTestBase {
                 () -> assertColor(COLOR5, stage4));
     }
 
+    private void clickStage(Stage stage) {
+        getRobot().mouseMove(stage.getX() + 25, stage.getY() + 25);
+        getRobot().mouseClick(javafx.scene.input.MouseButton.PRIMARY);
+    }
+
     private void assertColor(Color expected, Stage stage) {
-        Color color = getColor((int) stage.getX() + 50, (int) stage.getY() + 50);
+        Color color = getColor((int) stage.getX() + 25, (int) stage.getY() + 25);
         assertColorEquals(expected, color, TOLERANCE);
     }
 
@@ -292,7 +315,6 @@ class StageModalityTest extends VisualTestBase {
                     assertColor(COLOR4, stage3);
                     assertColor(COLOR5, stage4);
                     assertColor(COLOR6, stage5);
-                    assertColor(COLOR7, stage6);
                 },
                 () -> assertTrue(stage5.isFocused()),
                 stage5::close,

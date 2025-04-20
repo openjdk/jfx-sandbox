@@ -1240,8 +1240,7 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
     }
 
     resize(newW, newH);
-    if (xSet || ySet) move(x, y);
-
+    move(x, y, xSet, ySet);
 }
 
 void WindowContext::applyShapeMask(void* data, uint width, uint height) {
@@ -1506,9 +1505,31 @@ void WindowContext::resize(int width, int height) {
 }
 
 void WindowContext::move(int x, int y) {
-    LOG2("move %d, %d\n", x, y);
-    gtk_window_move(GTK_WINDOW(gtk_widget), x, y);
+    move(x, y, true, true);
 }
+
+void WindowContext::move(int x, int y, bool xSet, bool ySet) {
+    int to_x = x;
+    int to_y = y;
+
+    if (!xSet || !ySet) {
+        int cur_x, cur_y;
+
+        if (gtk_widget_get_realized(gtk_widget)) {
+            gdk_window_get_position(gdk_window, &cur_x, &cur_y);
+        } else {
+            cur_x = geometry.x;
+            cur_y = geometry.y;
+        }
+
+        if (!xSet) to_x = cur_x;
+        if (!ySet) to_y = cur_y;
+    }
+
+    LOG2("move %d, %d\n", x, y);
+    gtk_window_move(GTK_WINDOW(gtk_widget), to_x, to_y);
+}
+
 
 void WindowContext::add_wmf(GdkWMFunction wmf) {
     if ((initial_wmf & wmf) == 0) {
