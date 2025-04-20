@@ -170,7 +170,7 @@ WindowContext::WindowContext(jobject _jwindow, WindowContext* _owner, long _scre
     glass_configure_window_transparency(gtk_widget, frame_type == TRANSPARENT);
     gtk_window_set_title(GTK_WINDOW(gtk_widget), "");
 
-    gtk_window_set_decorated(GTK_WINDOW(gtk_widget), frame_type != TITLED);
+    gtk_window_set_decorated(GTK_WINDOW(gtk_widget), frame_type == TITLED);
     use_set_cached_extents();
 }
 
