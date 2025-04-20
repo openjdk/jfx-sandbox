@@ -1323,9 +1323,10 @@ void WindowContext::exit_fullscreen() {
 }
 
 void WindowContext::request_focus() {
-    if (is_visible()) {
-        gtk_window_present(GTK_WINDOW(gtk_widget));
-    }
+    if (!is_visible()) return;
+
+    gtk_window_present(GTK_WINDOW(gtk_widget));
+    if (frame_type != TITLED) to_front();
 }
 
 void WindowContext::set_focusable(bool focusable) {
