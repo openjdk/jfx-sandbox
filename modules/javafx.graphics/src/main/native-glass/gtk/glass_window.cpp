@@ -63,6 +63,13 @@ static gboolean event_realize(GtkWidget *widget, gpointer user_data) {
     return FALSE;
 }
 
+gboolean enter_fullscreen_later(gpointer data) {
+    GtkWindow *window = GTK_WINDOW(data);
+    gtk_window_fullscreen(window);
+
+    return G_SOURCE_REMOVE;
+}
+
 static void process_pending_events() {
     while (gtk_events_pending()) {
         gtk_main_iteration_do(FALSE);
@@ -741,28 +748,25 @@ void WindowContext::update_window_size_location() {
     geometry.needs_to_restore_size = false;
 
     move(geometry.x, geometry.y);
-    LOG2("update size/location -> size %d, %d\n", geometry.width, geometry.height);
-    update_window_constraints();
+    LOG2("update_window_size_location: %d, %d\n", geometry.width, geometry.height);
     resize(geometry.width, geometry.height);
 }
 
 void WindowContext::update_initial_state() {
-    LOG0("update_initial_state\n");
-
     GdkWindowState state = gdk_window_get_state(gdk_window);
 
     if (initial_state_mask & GDK_WINDOW_STATE_MAXIMIZED) {
-        LOG0("update_initial_state -> maximized\n");
+        LOG0("update_initial_state: maximized\n");
         maximize(true);
     }
 
     if (initial_state_mask & GDK_WINDOW_STATE_FULLSCREEN) {
-        LOG0("update_initial_state -> fullscreen\n");
+        LOG0("update_initial_state: fullscreen\n");
         enter_fullscreen();
     }
 
     if (initial_state_mask & GDK_WINDOW_STATE_ICONIFIED) {
-        LOG0("update_initial_state -> iconify\n");
+        LOG0("update_initial_state: iconify\n");
         iconify(true);
     }
 
@@ -789,7 +793,7 @@ void WindowContext::update_frame_extents() {
                         || geometry.extents.height != (top + bottom);
 
             if (!changed) return;
-            LOG0(" -------------------------------------------Frame extents\n");
+            LOG0(" ------------------------------------------- frame extents\n");
 
             GdkRectangle rect = { left, top, (left + right), (top + bottom) };
             set_cached_extents(rect);
@@ -843,7 +847,7 @@ void WindowContext::update_frame_extents() {
             LOG4("Geometry after frame extents: %d, %d - %d, %d\n", geometry.x,
                         geometry.y, geometry.width, geometry.height);
 
-            update_window_constraints();
+            update_window_constraints(newW, newH);
 
             if (!is_geometry_freeze_state()) {
                 resize(newW, newH);
@@ -1072,8 +1076,6 @@ void WindowContext::process_configure(GdkEventConfigure *event) {
     int cw = event->width;
     int ch = event->height;
 
-    LOG2("=====================> content width %d, %d\n", cw, ch);
-
     notify_view_resize(cw, ch);
     notify_view_move();
 
@@ -1115,8 +1117,8 @@ void WindowContext::process_configure(GdkEventConfigure *event) {
 void WindowContext::remove_window_constraints() {
     LOG0("remove_window_constraints\n");
     GdkGeometry reset;
-    reset.min_width = 0;
-    reset.min_height = 0;
+    reset.min_width = 1;
+    reset.min_height = 1;
     reset.max_width = G_MAXINT;
     reset.max_height = G_MAXINT;
 
@@ -1125,44 +1127,39 @@ void WindowContext::remove_window_constraints() {
 }
 
 void WindowContext::update_window_constraints() {
+    update_window_constraints(get_view_width(), get_view_height());
+}
+
+void WindowContext::update_window_constraints(int width, int height) {
     // Not ready to re-apply the constraints
     if ((gtk_widget_get_realized(gtk_widget) && !is_window_floating(gdk_window_get_state(gdk_window)))
         || !is_window_floating((GdkWindowState) initial_state_mask)) {
-        LOG0("--------------------------------")
+        LOG0("not floating: update_window_constraints ignored\n");
         return;
     }
 
     GdkGeometry hints;
 
     if (resizable.value && !is_disabled) {
-        int min_w = (resizable.minw == -1) ? 1
-                      : resizable.minw;
-        int min_h =  (resizable.minh == -1) ? 1
-                      : resizable.minh;;
+        int min_w = (resizable.minw == -1) ? 1 : resizable.minw;
+        int min_h =  (resizable.minh == -1) ? 1 : resizable.minh;
 
         hints.min_width = (min_w < 1) ? 1 : min_w;
         hints.min_height = (min_h < 1) ? 1 : min_h;
-
-        hints.max_width = (resizable.maxw == -1) ? G_MAXINT
-                            : resizable.maxw;
-
-        hints.max_height = (resizable.maxh == -1) ? G_MAXINT
-                           : resizable.maxh;
+        hints.max_width = (resizable.maxw == -1) ? G_MAXINT : resizable.maxw;
+        hints.max_height = (resizable.maxh == -1) ? G_MAXINT : resizable.maxh;
     } else {
-        int w = get_view_width();
-        int h = get_view_height();
-
-        hints.min_width = w;
-        hints.min_height = h;
-        hints.max_width = w;
-        hints.max_height = h;
+        hints.min_width = width;
+        hints.min_height = height;
+        hints.max_width = width;
+        hints.max_height = height;
     }
 
     LOG4("geometry hints: min w,h: %d, %d - max w,h: %d, %d\n", hints.min_width,
             hints.min_height, hints.max_width, hints.max_height);
 
     gtk_window_set_geometry_hints(GTK_WINDOW(gtk_widget), NULL, &hints,
-                                  (GdkWindowHints)(GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE));
+                                  (GdkWindowHints) (GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE));
 }
 
 void WindowContext::set_resizable(bool res) {
@@ -1236,7 +1233,7 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
     if (newW > 0) geometry.width = newW;
     if (newH > 0) geometry.height = newH;
 
-    LOG2("geometry.width = %d, geometry.height = %d\n", geometry.width, geometry.height);
+    LOG2("set_bounds: geometry.width = %d, geometry.height = %d\n", geometry.width, geometry.height);
 
     if (!geometry.size_assigned && (w > 0 || cw > 0 || h > 0 || ch > 0)) {
         geometry.size_assigned = true;
@@ -1247,9 +1244,13 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
     if (is_geometry_freeze_state()) {
         // If it was requested to be or currently is fullscreen/maximized, just save the requested
         // dimensions / location and set them later when restored
-        LOG0("set_bounds -> needs_to_restore_size = true\n");
+        LOG0("set_bounds: needs_to_restore_size = true\n");
         geometry.needs_to_restore_size = true;
         return;
+    }
+
+    if (!resizable.value) {
+        update_window_constraints(newW, newH);
     }
 
     resize(newW, newH);
@@ -1279,7 +1280,7 @@ void WindowContext::maximize(bool state) {
         add_wmf(GDK_FUNC_MAXIMIZE);
         LOG0("gtk_window_maximize\n");
         remove_window_constraints();
-        gtk_main_iteration_do(FALSE);
+        process_pending_events();
         gtk_window_maximize(GTK_WINDOW(gtk_widget));
     } else {
         gtk_window_unmaximize(GTK_WINDOW(gtk_widget));
@@ -1317,9 +1318,12 @@ void WindowContext::enter_fullscreen() {
         geometry.height = gdk_window_get_height(gdk_window);
         geometry.needs_to_restore_size = true;
 
-        remove_window_constraints();
-        gtk_main_iteration_do(FALSE);
-        gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
+        if (!resizable.value) {
+            remove_window_constraints();
+            gdk_threads_add_idle((GSourceFunc) enter_fullscreen_later, GTK_WINDOW(gtk_widget));
+        } else {
+            gtk_window_fullscreen(GTK_WINDOW(gtk_widget));
+        }
     } else {
         initial_state_mask |= GDK_WINDOW_STATE_FULLSCREEN;
     }

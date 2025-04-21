@@ -81,7 +81,7 @@ class SizingTest extends StageTestBase {
             s.setResizable(false);
         });
         Util.runAndWait(() -> getStage().setMaximized(true));
-        Util.sleep(1000);
+        Util.sleep(500);
 
         assertTrue(getStage().isMaximized(), "Unresizable stage should be maximized");
         assertTrue(getStage().getWidth() > WIDTH, "Stage width should be maximized");
@@ -91,7 +91,7 @@ class SizingTest extends StageTestBase {
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
     void testFullscreenUnresizable(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, s -> {
             s.initStyle(stageStyle);

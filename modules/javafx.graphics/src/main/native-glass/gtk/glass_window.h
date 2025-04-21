@@ -256,6 +256,7 @@ private:
     bool get_frame_extents_property(int *, int *, int *, int *);
     void remove_window_constraints();
     void update_window_constraints();
+    void update_window_constraints(int, int);
     void update_ontop_tree(bool);
     bool on_top_inherited();
     bool effective_on_top();
