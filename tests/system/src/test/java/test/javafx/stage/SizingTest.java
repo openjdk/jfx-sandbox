@@ -160,7 +160,7 @@ class SizingTest extends StageTestBase {
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED"})
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testFullScreenMaxSize(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, s -> {
             s.initStyle(stageStyle);
