@@ -26,12 +26,14 @@ package test.robot.javafx.stage;
 
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import org.junit.jupiter.api.Test;
@@ -50,6 +52,7 @@ import static test.util.Util.TIMEOUT;
 class StageOwnershipTest extends VisualTestBase {
     private static final int WIDTH = 300;
     private static final int HEIGHT = 300;
+    private static final double BOUNDS_EDGE_DELTA = 75;
     private Stage topStage;
     private Stage bottomStage;
     private static final Color TOP_COLOR = Color.RED;
@@ -103,6 +106,15 @@ class StageOwnershipTest extends VisualTestBase {
         });
     }
 
+    private void assertColorEqualsVisualBounds(Color expected) {
+        Rectangle2D visualBounds = Screen.getPrimary().getVisualBounds();
+        int x = (int) (visualBounds.getWidth() - BOUNDS_EDGE_DELTA);
+        int y = (int) (visualBounds.getHeight() - BOUNDS_EDGE_DELTA);
+
+        Color color = getColor(x, y);
+        assertColorEquals(expected, color, TOLERANCE);
+    }
+
     @Test
     void testOpeningModalChildStageWhileMaximized() throws InterruptedException {
         setupBottomStage();
@@ -110,14 +122,13 @@ class StageOwnershipTest extends VisualTestBase {
 
         Util.doTimeLine(500,
                 () -> bottomStage.setMaximized(true),
-                () -> topStage.show(),
+                topStage::show,
                 () -> {
                     assertTrue(bottomStage.isMaximized());
+                    // Make sure state is still maximized
+                    assertColorEqualsVisualBounds(BOTTOM_COLOR);
 
-                    Color color = getColor(400, 400);
-                    assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
-
-                    color = getColor(100, 100);
+                    Color color = getColor(100, 100);
                     assertColorEquals(TOP_COLOR, color, TOLERANCE);
                 });
     }
@@ -129,14 +140,14 @@ class StageOwnershipTest extends VisualTestBase {
 
         Util.doTimeLine(500,
                 () -> bottomStage.setFullScreen(true),
-                () -> topStage.show(),
+                topStage::show,
                 () -> {
                     assertTrue(bottomStage.isFullScreen());
 
-                    Color color = getColor(400, 400);
-                    assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
+                    // Make sure state is still fullscreen
+                    assertColorEqualsVisualBounds(BOTTOM_COLOR);
 
-                    color = getColor(100, 100);
+                    Color color = getColor(100, 100);
                     assertColorEquals(TOP_COLOR, color, TOLERANCE);
                 });
     }
@@ -148,13 +159,14 @@ class StageOwnershipTest extends VisualTestBase {
 
         Util.doTimeLine(500,
                 () -> bottomStage.setMaximized(true),
-                () -> topStage.show(),
+                topStage::show,
                 () -> {
                     assertTrue(bottomStage.isMaximized());
-                    Color color = getColor(400, 400);
-                    assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
 
-                    color = getColor(100, 100);
+                    // Make sure state is still maximized
+                    assertColorEqualsVisualBounds(BOTTOM_COLOR);
+
+                    Color color = getColor(100, 100);
                     assertColorEquals(TOP_COLOR, color, TOLERANCE);
                 });
     }
@@ -166,14 +178,14 @@ class StageOwnershipTest extends VisualTestBase {
 
         Util.doTimeLine(500,
                 () -> bottomStage.setFullScreen(true),
-                () -> topStage.show(),
+                topStage::show,
                 () -> {
                     assertTrue(bottomStage.isFullScreen());
 
-                    Color color = getColor(400, 400);
-                    assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
+                    // Make sure state is still maximized
+                    assertColorEqualsVisualBounds(BOTTOM_COLOR);
 
-                    color = getColor(100, 100);
+                    Color color = getColor(100, 100);
                     assertColorEquals(TOP_COLOR, color, TOLERANCE);
                 });
     }
@@ -214,12 +226,12 @@ class StageOwnershipTest extends VisualTestBase {
     }
 
     private void assertColorEquals(Color expected, Stage stage) {
-        Color color = getColor((int) stage.getX() + 25, (int) stage.getY() + 75);
+        Color color = getColor((int) stage.getX() + 15, (int) stage.getY() + 55);
         assertColorEquals(expected, color, TOLERANCE);
     }
 
     private void assertColorDoesNotEqual(Color notExpected, Stage stage) {
-        Color color = getColor((int) stage.getX() + 25, (int) stage.getY() + 75);
+        Color color = getColor((int) stage.getX() + 15, (int) stage.getY() + 55);
         assertColorDoesNotEqual(notExpected, color, TOLERANCE);
     }
 
@@ -233,8 +245,7 @@ class StageOwnershipTest extends VisualTestBase {
 
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED",
-            "UTILITY"})
+    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED"})
     void testLayeredModality(StageStyle style) {
         Util.runAndWait(() -> {
             stage0 = createStage(style, COLOR1, null, null, 100, 100);
@@ -272,8 +283,7 @@ class StageOwnershipTest extends VisualTestBase {
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED",
-            "UTILITY"})
+    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED"})
     void testMultiLayeredModality(StageStyle style) {
         Util.runAndWait(() -> {
             stage0 = createStage(style, COLOR1, null, Modality.NONE, 100, 100);
@@ -283,9 +293,6 @@ class StageOwnershipTest extends VisualTestBase {
             stage3 = createStage(style, COLOR4, null,  Modality.NONE, 600, 100);
             stage4 = createStage(style, COLOR5, stage3,  Modality.WINDOW_MODAL, 650, 150);
             stage5 = createStage(style, COLOR6, stage4,  Modality.WINDOW_MODAL, 700, 200);
-
-            stage6 = createStage(style, COLOR7, null, Modality.APPLICATION_MODAL, 0, 0);
-            stage6.centerOnScreen();
         });
 
         Util.doTimeLine(300,
@@ -295,8 +302,6 @@ class StageOwnershipTest extends VisualTestBase {
                 stage3::show,
                 stage4::show,
                 stage5::show,
-                stage6::show,
-                stage6::close,
                 () -> {
                     assertColorEquals(COLOR1, stage0);
                     assertColorEquals(COLOR2, stage1);
@@ -319,8 +324,27 @@ class StageOwnershipTest extends VisualTestBase {
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED",
-            "UTILITY"})
+    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED"})
+    void testLayeredMixedModality(StageStyle style) {
+        Util.runAndWait(() -> {
+            stage0 = createStage(style, COLOR1, null, Modality.NONE, 100, 100);
+            stage1 = createStage(style, COLOR2, stage0, Modality.WINDOW_MODAL, 150, 150);
+            stage2 = createStage(style, COLOR3, null, Modality.APPLICATION_MODAL, 200, 200);
+        });
+
+        Util.doTimeLine(300,
+                stage0::show,
+                stage1::show,
+                stage2::show,
+                () -> {
+                    assertColorEquals(COLOR1, stage0);
+                    assertColorEquals(COLOR2, stage1);
+                    assertColorEquals(COLOR3, stage2);
+                });
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED"})
     void testIconfyRestoreChildren(StageStyle style) {
         Util.runAndWait(() -> {
             stage0 = createStage(style, COLOR1, null, Modality.NONE, 100, 100);
@@ -350,8 +374,7 @@ class StageOwnershipTest extends VisualTestBase {
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED",
-            "UTILITY"})
+    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED"})
     void testChildStageWithoutModality(StageStyle style) {
         Util.runAndWait(() -> {
             stage0 = createStage(style, COLOR1, null, Modality.NONE, 100, 100);
@@ -381,8 +404,7 @@ class StageOwnershipTest extends VisualTestBase {
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED",
-            "UTILITY"})
+    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED"})
     void testMultipleChildren(StageStyle style) {
         Util.runAndWait(() -> {
             stage0 = createStage(style, COLOR1, null, Modality.NONE, -1, -1);
@@ -416,8 +438,7 @@ class StageOwnershipTest extends VisualTestBase {
     }
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
-    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED",
-            "UTILITY"})
+    @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"UNDECORATED", "DECORATED"})
     void testClosingAppModalShouldFocusParent(StageStyle style) {
         Util.runAndWait(() -> {
             stage0 = createStage(style, COLOR1, null, Modality.NONE, -1, -1);

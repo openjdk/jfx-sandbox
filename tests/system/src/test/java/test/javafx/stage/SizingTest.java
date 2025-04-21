@@ -29,6 +29,7 @@ import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.scene.Parent;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Background;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.StageStyle;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -57,7 +58,7 @@ class SizingTest extends StageTestBase {
     }
 
     @Override
-    protected Parent createRoot() {
+    protected Region createRoot() {
         VBox vBox = new VBox(createLabel("Width: ", getStage().widthProperty()),
                              createLabel("Height: ", getStage().heightProperty()),
                              createLabel("Max Width: ", getStage().maxWidthProperty()),

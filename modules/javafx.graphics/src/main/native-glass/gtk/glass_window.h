@@ -128,7 +128,7 @@ private:
     bool was_mapped;
 
     gint initial_state_mask;
-    GdkRGBA background_color;
+protected:
 protected:
     /*
      * sm_grab_window points to WindowContext holding a mouse grab.
@@ -162,7 +162,6 @@ public:
     void disableIME();
 
     void paint(void*, jint, jint);
-    void paint_background(cairo_t *);
     GdkWindow *get_gdk_window();
     jobject get_jwindow();
     jobject get_jview();
@@ -181,7 +180,7 @@ public:
 
     void process_map();
     void process_focus(GdkEventFocus*);
-    bool notify_repaint(GdkRectangle*);
+    void notify_repaint(GdkRectangle*);
     void process_mouse_button(GdkEventButton*);
     void process_mouse_motion(GdkEventMotion*);
     void process_mouse_scroll(GdkEventScroll*);

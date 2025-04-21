@@ -26,6 +26,7 @@ package test.javafx.stage;
 
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Parent;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Screen;
 import javafx.stage.StageStyle;
@@ -51,7 +52,7 @@ class CenterOnScreenTest extends StageTestBase {
     private static final double DECORATED_DELTA = 50.0;
 
     @Override
-    protected Parent createRoot() {
+    protected Region createRoot() {
         StackPane stackPane = new StackPane();
         stackPane.setPrefSize(SCENE_WIDTH, SCENE_HEIGHT);
         return stackPane;

@@ -25,8 +25,13 @@
 package test.javafx.stage;
 
 import javafx.application.Platform;
+import javafx.geometry.Insets;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -52,8 +57,14 @@ abstract class StageTestBase {
      */
     protected Scene createScene(StageStyle stageStyle) {
         if (stageStyle == StageStyle.TRANSPARENT) {
-            Parent root = createRoot();
-            root.setStyle("-fx-background-color: rgba(255, 105, 180, 0.5);");
+            Region root = createRoot();
+            BackgroundFill fill = new BackgroundFill(
+                    Color.HOTPINK.deriveColor(0, 1, 1, 0.5),
+                    CornerRadii.EMPTY,
+                    Insets.EMPTY
+            );
+            root.setBackground(new Background(fill));
+
             Scene scene = new Scene(root);
             scene.setFill(Color.TRANSPARENT);
 
@@ -66,7 +77,7 @@ abstract class StageTestBase {
     /**
      * Gets the Scene root
      */
-    protected Parent createRoot() {
+    protected Region createRoot() {
         return new StackPane();
     }
 
