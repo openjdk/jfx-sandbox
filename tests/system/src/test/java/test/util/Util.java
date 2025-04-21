@@ -25,24 +25,14 @@
 
 package test.util;
 
-import com.sun.javafx.PlatformUtil;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.geometry.Rectangle2D;
-import javafx.scene.Node;
-import javafx.scene.Scene;
-import javafx.scene.input.MouseButton;
-import javafx.scene.layout.Region;
-import javafx.scene.robot.Robot;
-import javafx.stage.Screen;
-import javafx.stage.Stage;
-import javafx.stage.Window;
-import javafx.util.Duration;
-import org.junit.jupiter.api.Assertions;
-
+import static org.junit.jupiter.api.Assertions.fail;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -53,7 +43,22 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.fail;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.geometry.Rectangle2D;
+import javafx.scene.input.MouseButton;
+import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.layout.Region;
+import javafx.scene.robot.Robot;
+import javafx.stage.Screen;
+import javafx.stage.Stage;
+import javafx.stage.Window;
+import javafx.util.Duration;
+import org.junit.jupiter.api.Assertions;
+import com.sun.javafx.PlatformUtil;
 
 /**
  * Utility methods for life-cycle testing

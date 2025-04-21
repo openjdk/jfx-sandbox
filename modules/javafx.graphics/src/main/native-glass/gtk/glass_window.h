@@ -28,7 +28,6 @@
 #define USER_PTR_TO_CTX(value) ((WindowContext *) value)
 
 #include <gtk/gtk.h>
-#include <X11/Xlib.h>
 
 #include <jni.h>
 #include <set>

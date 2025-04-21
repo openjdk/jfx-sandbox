@@ -24,8 +24,8 @@
  */
 package com.sun.glass.ui.gtk;
 
-import com.sun.glass.events.WindowEvent;
 import com.sun.glass.ui.Cursor;
+import com.sun.glass.events.WindowEvent;
 import com.sun.glass.ui.Pixels;
 import com.sun.glass.ui.Screen;
 import com.sun.glass.ui.View;
