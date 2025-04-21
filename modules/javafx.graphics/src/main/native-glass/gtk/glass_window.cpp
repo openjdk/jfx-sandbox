@@ -737,10 +737,12 @@ void WindowContext::update_window_size_location() {
         return;
     }
 
+    process_pending_events();
     geometry.needs_to_restore_size = false;
 
     move(geometry.x, geometry.y);
     LOG2("update size/location -> size %d, %d\n", geometry.width, geometry.height);
+    update_window_constraints();
     resize(geometry.width, geometry.height);
 }
 
@@ -978,8 +980,6 @@ void WindowContext::process_state(GdkEventWindowState *event) {
     // window, request view position change
     notify_view_move();
 
-    update_window_constraints();
-
     // This only accounts MAXIMIZED and FULLSCREEN
     bool restored = (event->changed_mask & (GDK_WINDOW_STATE_MAXIMIZED
                                             | GDK_WINDOW_STATE_FULLSCREEN))
@@ -990,7 +990,6 @@ void WindowContext::process_state(GdkEventWindowState *event) {
     if (restored && geometry.needs_to_restore_size) {
         //Call if later because restore properties will still arrive
         LOG0("restored, call update_window_size_location\n");
-        process_pending_events();
         update_window_size_location();
     }
 }
@@ -1070,14 +1069,28 @@ void WindowContext::process_configure(GdkEventConfigure *event) {
     geometry.view_y = origin_y - root_y;
     LOG2("view x, y: %d, %d\n", geometry.view_x, geometry.view_y);
 
-    notify_view_resize(event->width, event->height);
+    int cw = event->width;
+    int ch = event->height;
+
+    LOG2("=====================> content width %d, %d\n", cw, ch);
+
+    notify_view_resize(cw, ch);
     notify_view_move();
 
     // The returned values might be inaccurate if _NET_FRAME_EXTENTS has not been received yet.
     // They will be corrected later if the property is updated. However, since there is no guarantee
     // that _NET_FRAME_EXTENTS will ever be available, we set the best guess for now.
-    int ww = gdk_window_get_width(gdk_window) + geometry.extents.width;
-    int wh = gdk_window_get_height(gdk_window) + geometry.extents.height;
+    int ww = cw;
+    int wh = ch;
+
+    // Fullscreen probably has no decorations
+    if (geometry.view_x > 0) {
+        ww += geometry.extents.width;
+    }
+
+    if (geometry.view_y > 0) {
+        wh += geometry.extents.height;
+    }
 
     notify_window_resize((state & GDK_WINDOW_STATE_MAXIMIZED)
                             ? com_sun_glass_events_WindowEvent_MAXIMIZE
@@ -1115,6 +1128,7 @@ void WindowContext::update_window_constraints() {
     // Not ready to re-apply the constraints
     if ((gtk_widget_get_realized(gtk_widget) && !is_window_floating(gdk_window_get_state(gdk_window)))
         || !is_window_floating((GdkWindowState) initial_state_mask)) {
+        LOG0("--------------------------------")
         return;
     }
 
