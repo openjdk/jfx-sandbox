@@ -55,13 +55,12 @@ static const guint MOUSE_BUTTONS_MASK = (guint) (GDK_BUTTON1_MASK | GDK_BUTTON2_
 
 struct WindowGeometry {
     WindowGeometry():
-    size_assigned(false), needs_to_restore_size(false),
-    width(), height(), x(), y(), view_x(), view_y(),
+    needs_to_restore_geometry(false),
+    width(-1), height(-1), x(), y(), view_x(), view_y(),
     gravity_x(), gravity_y(),
     extents(), frame_extents_received(false) {}
 
-    bool size_assigned;
-    bool needs_to_restore_size;
+    bool needs_to_restore_geometry;
 
     // width, height, x, w are not update by user interactions and
     // may not reflect current geometry.
@@ -176,7 +175,6 @@ public:
     void ungrab_focus();
     void ungrab_mouse_drag_focus();
     void set_cursor(GdkCursor*);
-    void set_background(float, float, float);
 
     void process_map();
     void process_focus(GdkEventFocus*);
@@ -207,7 +205,6 @@ public:
     void request_focus();
     void set_focusable(bool);
     void set_title(const char*);
-    void set_alpha(double);
     void set_enabled(bool);
     void set_minimum_size(int, int);
     void set_maximum_size(int, int);
@@ -241,6 +238,7 @@ private:
     void move(int, int);
     void add_wmf(GdkWMFunction);
     void remove_wmf(GdkWMFunction);
+    void save_geometry();
     bool is_geometry_freeze_state();
     void notify_on_top(bool);
     void notify_window_resize(int, int, int);
@@ -251,7 +249,7 @@ private:
     void request_frame_extents();
     void update_frame_extents();
     void set_cached_extents(GdkRectangle);
-    void use_set_cached_extents();
+    void load_cached_extents();
     bool get_frame_extents_property(int *, int *, int *, int *);
     void remove_window_constraints();
     void update_window_constraints();

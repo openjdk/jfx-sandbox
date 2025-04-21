@@ -314,37 +314,6 @@ JNIEXPORT void JNICALL Java_com_sun_glass_ui_gtk_GtkWindow__1setLevel
 
 /*
  * Class:     com_sun_glass_ui_gtk_GtkWindow
- * Method:    _setAlpha
- * Signature: (JF)V
- */
-JNIEXPORT void JNICALL Java_com_sun_glass_ui_gtk_GtkWindow__1setAlpha
-  (JNIEnv * env, jobject obj, jlong ptr, jfloat alpha)
-{
-    (void)env;
-    (void)obj;
-
-    WindowContext* ctx = JLONG_TO_WINDOW_CTX(ptr);
-    ctx->set_alpha(alpha);
-}
-
-/*
- * Class:     com_sun_glass_ui_gtk_GtkWindow
- * Method:    _setBackground
- * Signature: (JFFF)Z
- */
-JNIEXPORT jboolean JNICALL Java_com_sun_glass_ui_gtk_GtkWindow__1setBackground
-  (JNIEnv * env, jobject obj, jlong ptr, jfloat r, jfloat g, jfloat b)
-{
-    (void)env;
-    (void)obj;
-
-    WindowContext* ctx = JLONG_TO_WINDOW_CTX(ptr);
-    ctx->set_background(r, g, b);
-    return JNI_TRUE;
-}
-
-/*
- * Class:     com_sun_glass_ui_gtk_GtkWindow
  * Method:    _setEnabled
  * Signature: (JZ)V
  */

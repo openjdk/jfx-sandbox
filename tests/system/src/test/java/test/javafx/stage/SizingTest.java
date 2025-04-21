@@ -26,7 +26,6 @@ package test.javafx.stage;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyDoubleProperty;
-import javafx.scene.Parent;
 import javafx.scene.control.Label;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.Region;
@@ -324,5 +323,50 @@ class SizingTest extends StageTestBase {
 
         assertEquals(NEW_WIDTH, getStage().getWidth(),  "Only min height should be limited");
         assertEquals(MIN_HEIGHT, getStage().getHeight(), "Stage height should have been limited to min height");
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
+    void testNoSize(StageStyle stageStyle) {
+        setupStageWithStyle(stageStyle, s -> s.initStyle(stageStyle));
+
+        Util.sleep(500);
+
+        assertTrue(getStage().getWidth() > 1, "Stage width should be greater than 1");
+        assertTrue(getStage().getHeight() > 1, "Stage height should be greater than 1");
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
+    void testNoHeight(StageStyle stageStyle) {
+        setupStageWithStyle(stageStyle, s -> {
+            s.initStyle(stageStyle);
+            s.setWidth(WIDTH);
+        });
+
+        Util.sleep(500);
+
+        assertEquals(WIDTH, getStage().getWidth(), "Stage do not match the set width");
+        assertTrue(getStage().getHeight() > 1, "Stage height should be greater than 1");
+    }
+
+    @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
+    @EnumSource(value = StageStyle.class,
+            mode = EnumSource.Mode.INCLUDE,
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
+    void testNoWidth(StageStyle stageStyle) {
+        setupStageWithStyle(stageStyle, s -> {
+            s.initStyle(stageStyle);
+            s.setHeight(HEIGHT);
+        });
+
+        Util.sleep(500);
+
+        assertTrue(getStage().getWidth() > 1, "Stage width should be greater than 1");
+        assertEquals(HEIGHT, getStage().getHeight(), "Stage do not match the set height");
     }
 }
