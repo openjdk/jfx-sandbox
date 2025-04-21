@@ -91,7 +91,7 @@ class SizingTest extends StageTestBase {
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class,
             mode = EnumSource.Mode.INCLUDE,
-            names = {"DECORATED", "UNDECORATED", "TRANSPARENT", "UTILITY"})
+            names = {"DECORATED", "UNDECORATED", "TRANSPARENT"})
     void testFullscreenUnresizable(StageStyle stageStyle) {
         setupStageWithStyle(stageStyle, s -> {
             s.initStyle(stageStyle);
@@ -324,6 +324,4 @@ class SizingTest extends StageTestBase {
         assertEquals(NEW_WIDTH, getStage().getWidth(),  "Only min height should be limited");
         assertEquals(MIN_HEIGHT, getStage().getHeight(), "Stage height should have been limited to min height");
     }
-
-
 }

@@ -1318,7 +1318,7 @@ void WindowContext::enter_fullscreen() {
         geometry.height = gdk_window_get_height(gdk_window);
         geometry.needs_to_restore_size = true;
 
-        if (!resizable.value) {
+        if (!resizable.value || resizable.maxw != -1 || resizable.maxh != - 1) {
             remove_window_constraints();
             gdk_threads_add_idle((GSourceFunc) enter_fullscreen_later, GTK_WINDOW(gtk_widget));
         } else {
