@@ -50,6 +50,9 @@
 #define MOUSE_FORWARD_BTN 9
 
 #define NONNEGATIVE_OR(val, fallback) (((val) < 0) ? (fallback) : (val))
+#define FIX_CONSTRAINT(value, adjustment) \
+    if ((value) != -1) \
+        (value) = NONNEGATIVE_OR((value) - (adjustment), 1)
 
 #define DEFAULT_WIDTH 320
 #define DEFAULT_HEIGHT 200
@@ -721,7 +724,6 @@ void WindowContext::update_window_size_location() {
 
     process_pending_events();
     geometry.needs_to_restore_geometry = false;
-
     move(geometry.x, geometry.y);
     LOG2("update_window_size_location: %d, %d\n", geometry.width, geometry.height);
     resize(geometry.width, geometry.height);
@@ -748,11 +750,6 @@ void WindowContext::update_initial_state() {
     initial_state_mask = 0;
 }
 
-void WindowContext::fix_constraint(int *value, int adjustment) {
-    if (*value != -1) {
-        *value = NONNEGATIVE_OR(*value - adjustment, 1);
-    }
-}
 
 void WindowContext::update_frame_extents() {
     if (frame_type != TITLED) return;
@@ -818,10 +815,10 @@ void WindowContext::update_frame_extents() {
             geometry.x = x;
             geometry.y = y;
 
-            fix_constraint(&resizable.minw, geometry.extents.width);
-            fix_constraint(&resizable.maxw, geometry.extents.width);
-            fix_constraint(&resizable.minh, geometry.extents.height);
-            fix_constraint(&resizable.maxh, geometry.extents.height);
+            FIX_CONSTRAINT(resizable.minw, geometry.extents.width);
+            FIX_CONSTRAINT(resizable.maxw, geometry.extents.width);
+            FIX_CONSTRAINT(resizable.minh, geometry.extents.height);
+            FIX_CONSTRAINT(resizable.maxh, geometry.extents.height);
 
             LOG4("Geometry after frame extents: %d, %d - %d, %d\n", geometry.x,
                         geometry.y, geometry.width, geometry.height);
@@ -842,7 +839,7 @@ void WindowContext::update_frame_extents() {
 void WindowContext::save_geometry() {
     geometry.width = gdk_window_get_width(gdk_window);
     geometry.height = gdk_window_get_height(gdk_window);
-    gdk_window_get_position(gdk_window, &geometry.x, &geometry.y);
+    gdk_window_get_root_origin(gdk_window, &geometry.x, &geometry.y);
 }
 
 bool WindowContext::get_frame_extents_property(int *top, int *left,
@@ -1226,6 +1223,7 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
         }
 
         if (geometry.needs_to_restore_geometry || (state & GDK_WINDOW_STATE_MAXIMIZED)) {
+            LOG0("need to restore geometry of maximized\n");
             // If fullscreen or maximized, report current geometry to java, because
             // it won't be applied
             if (newW > 0 || newH > 0) {
@@ -1256,10 +1254,7 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
         update_window_constraints(newW, newH);
     }
 
-    if (newW > 0 && newH > 0) {
-        resize(newW, newH);
-    }
-
+    resize(newW, newH);
     move(x, y, xSet, ySet);
 }
 
@@ -1458,8 +1453,8 @@ int WindowContext::get_view_height() {
 // Values are view size
 void WindowContext::resize(int width, int height) {
     LOG2("resize: %d, %d\n", width, height);
-    int newW = width;
-    int newH = height;
+    int newW = (width <= 0) ? get_view_width() : width;
+    int newH = (height <= 0) ? get_view_height() : height;
 
     bool constrained = false;
     bool notify = false;
@@ -1516,6 +1511,7 @@ void WindowContext::move(int x, int y) {
 }
 
 void WindowContext::move(int x, int y, bool xSet, bool ySet) {
+    LOG2("move %d, %d\n", x, y);
     int to_x = x;
     int to_y = y;
 
@@ -1533,7 +1529,6 @@ void WindowContext::move(int x, int y, bool xSet, bool ySet) {
         if (!ySet) to_y = cur_y;
     }
 
-    LOG2("move %d, %d\n", x, y);
     gtk_window_move(GTK_WINDOW(gtk_widget), to_x, to_y);
 }
 

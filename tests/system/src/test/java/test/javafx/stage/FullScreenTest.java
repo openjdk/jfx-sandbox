@@ -110,6 +110,8 @@ class FullScreenTest extends StageTestBase {
                 },
                 () -> getStage().setFullScreen(false));
 
+        Util.sleep(500);
+
         assertEquals(POS_X, getStage().getX(), "Window failed to restore position set while fullscreened");
         assertEquals(POS_Y, getStage().getY(),  "Window failed to restore position set while fullscreened");
     }
@@ -129,6 +131,8 @@ class FullScreenTest extends StageTestBase {
                     getStage().setHeight(HEIGHT);
                 },
                 () -> getStage().setFullScreen(false));
+
+        Util.sleep(500);
 
         assertEquals(WIDTH, getStage().getWidth(), "Window failed to restore size set while fullscreened");
         assertEquals(HEIGHT, getStage().getHeight(),  "Window failed to restore size set while fullscreened");

@@ -59,7 +59,7 @@ class StageMixedSizeTest extends VisualTestBase {
 
     @ParameterizedTest(name = PARAMETERIZED_TEST_DISPLAY)
     @EnumSource(value = StageStyle.class, mode = EnumSource.Mode.INCLUDE, names = {"DECORATED", "UNDECORATED"})
-    void testSetHeightOnlyAfterShownOnContentSizeWindow(StageStyle stageStyle) throws Exception {
+    void testSetHeightOnlyAfterShownOnContentSizeWindow(StageStyle stageStyle) {
         final int finalHeight = 200;
         final int initialContentSize = 300;
 

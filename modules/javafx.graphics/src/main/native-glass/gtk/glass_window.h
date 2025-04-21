@@ -227,7 +227,6 @@ public:
 protected:
     void applyShapeMask(void*, uint width, uint height);
 private:
-    void fix_constraint(int *, int);
     void maximize(bool);
     void iconify(bool);
     int get_view_width();
