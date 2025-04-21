@@ -1316,7 +1316,6 @@ void WindowContext::request_focus() {
     if (!is_visible()) return;
 
     gtk_window_present(GTK_WINDOW(gtk_widget));
-    if (frame_type != TITLED) to_front();
 }
 
 void WindowContext::set_focusable(bool focusable) {
@@ -1328,7 +1327,6 @@ void WindowContext::set_title(const char* title) {
 }
 
 void WindowContext::set_alpha(double alpha) {
-    LOG1("set_alpha %f\n", alpha);
     gtk_window_set_opacity(GTK_WINDOW(gtk_widget), (gdouble)alpha);
 }
 
