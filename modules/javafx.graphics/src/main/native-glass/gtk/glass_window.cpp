@@ -943,6 +943,7 @@ void WindowContext::process_state(GdkEventWindowState *event) {
         && (event->new_window_state & GDK_WINDOW_STATE_ICONIFIED) == 0) {
         remove_wmf(GDK_FUNC_MINIMIZE);
 
+        //FIXME: remove when 8351867 is fixed
         GdkRectangle rect = { 0, 0, cw, ch };
         notify_repaint(&rect);
     }
