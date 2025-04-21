@@ -51,7 +51,6 @@
 
 static gboolean event_draw_background(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
     WindowContext *ctx = USER_PTR_TO_CTX(user_data);
-    LOG0("event_draw_background\n");
     ctx->paint_background(cr);
 
     return FALSE;
@@ -1450,33 +1449,26 @@ void WindowContext::resize(int width, int height) {
     // By default, windows that are undecorated and transparent will not respect
     // minimum or maximum size constraints
     if (resizable.minw > 0 && newW < resizable.minw) {
-        LOG1("constrained min width to %d\n", resizable.minw);
         newW = resizable.minw;
         constrained = true;
     }
 
     if (resizable.minh > 0 && newH < resizable.minh) {
-        LOG1("constrained min height to %d\n", resizable.minh);
         newH = resizable.minh;
         constrained = true;
     }
 
     if (resizable.maxw > 0 && newW > resizable.maxw) {
-        LOG1("constrained max width to %d\n", resizable.maxw);
         newW = resizable.maxw;
         constrained = true;
     }
 
     if (resizable.maxh > 0 && newH > resizable.maxh) {
-        LOG1("constrained max height to %d\n", resizable.maxh);
         newH = resizable.maxh;
         constrained = true;
     }
 
-    LOG2("newW / newH: %d, %d\n", newW, newH);
-
     if (gtk_widget_get_realized(gtk_widget)) {
-        LOG2("resize (realized): %d, %d\n", newW, newH);
         gtk_window_resize(GTK_WINDOW(gtk_widget), newW, newH);
 
         // If not changed, configure event will not happen, so we need to notify here
@@ -1484,7 +1476,6 @@ void WindowContext::resize(int width, int height) {
             notify = true;
         }
     } else {
-        LOG2("resize (not realized): %d, %d\n", newW, newH);
         gtk_window_set_default_size(GTK_WINDOW(gtk_widget), newW, newH);
         // If the GdkWindow is not yet created, report back to Java, because the configure event
         // won't happen
@@ -1495,7 +1486,7 @@ void WindowContext::resize(int width, int height) {
         int w = newW + geometry.extents.width;
         int h = newH + geometry.extents.height;
 
-        LOG2("resize() -> notify: %d, %d\n", w, h);
+        LOG2("resize -> notify: %d, %d\n", w, h);
 
         notify_window_resize(com_sun_glass_events_WindowEvent_RESIZE, w, h);
         notify_view_resize(newW, newH);

@@ -61,11 +61,13 @@ class StageWhiteBackgroundTest extends VisualTestBase {
             if (withScene) {
                 StackPane pane = new StackPane();
                 pane.setBackground(Background.fill(Color.TRANSPARENT));
-                Scene scene = new Scene(pane, WIDTH, HEIGHT);
+                Scene scene = new Scene(pane);
                 stage.setScene(scene);
             }
             stage.setX(0);
             stage.setY(0);
+            stage.setWidth(WIDTH);
+            stage.setHeight(HEIGHT);
             stage.setOnShown(e -> Platform.runLater(stageShownLatch::countDown));
             stage.show();
         });
