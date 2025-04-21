@@ -238,7 +238,6 @@ private:
     void add_wmf(GdkWMFunction);
     void remove_wmf(GdkWMFunction);
     void save_geometry();
-    bool is_geometry_freeze_state();
     void notify_on_top(bool);
     void notify_window_resize(int, int, int);
     void notify_window_move(int, int);

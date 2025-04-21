@@ -828,9 +828,12 @@ void WindowContext::update_frame_extents() {
 
             update_window_constraints(newW, newH);
 
-            if (!is_geometry_freeze_state()) {
+            if ((gdk_window_get_state(gdk_window)
+                    & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED)) == 0) {
                 resize(newW, newH);
                 move(x, y);
+            } else {
+                geometry.needs_to_restore_geometry = true;
             }
         }
     }
@@ -840,11 +843,6 @@ void WindowContext::save_geometry() {
     geometry.width = gdk_window_get_width(gdk_window);
     geometry.height = gdk_window_get_height(gdk_window);
     gdk_window_get_position(gdk_window, &geometry.x, &geometry.y);
-}
-
-bool WindowContext::is_geometry_freeze_state() {
-    return gtk_widget_get_realized(gtk_widget)
-            && (gdk_window_get_state(gdk_window) & (GDK_WINDOW_STATE_FULLSCREEN | GDK_WINDOW_STATE_MAXIMIZED));
 }
 
 bool WindowContext::get_frame_extents_property(int *top, int *left,
@@ -1216,14 +1214,42 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
 
     LOG2("set_bounds: geometry.width = %d, geometry.height = %d\n", geometry.width, geometry.height);
 
-    if (geometry.needs_to_restore_geometry) return;
+    if (gtk_widget_get_realized(gtk_widget)) {
+        GdkWindowState state = gdk_window_get_state(gdk_window);
 
-    if (is_geometry_freeze_state()) {
-        // If it was requested to be or currently is fullscreen/maximized, just save the requested
-        // dimensions / location and set them later when restored
-        LOG0("set_bounds: needs_to_restore_geometry = true\n");
-        geometry.needs_to_restore_geometry = true;
-        return;
+        if (!geometry.needs_to_restore_geometry &&
+                (state & GDK_WINDOW_STATE_FULLSCREEN)) {
+            // If it was requested to be or currently is fullscreen, just save the requested
+            // geometry and set them later when restored
+            LOG0("set_bounds: needs_to_restore_geometry = true\n");
+            geometry.needs_to_restore_geometry = true;
+        }
+
+        if (geometry.needs_to_restore_geometry || (state & GDK_WINDOW_STATE_MAXIMIZED)) {
+            // If fullscreen or maximized, report current geometry to java, because
+            // it won't be applied
+            if (newW > 0 || newH > 0) {
+                int cw = get_view_width();
+                int ch = get_view_height();
+
+                int ww = cw + geometry.extents.width;
+                int wh = ch + geometry.extents.height;
+
+                notify_window_resize((state & GDK_WINDOW_STATE_MAXIMIZED)
+                                            ? com_sun_glass_events_WindowEvent_MAXIMIZE
+                                            : com_sun_glass_events_WindowEvent_RESIZE,
+                                            ww, wh);
+                notify_view_resize(cw, ch);
+            }
+
+            if (xSet || xSet) {
+                int x, y;
+                gdk_window_get_root_origin(gdk_window, &x, &y);
+                notify_window_move(x, y);
+            }
+
+            return;
+        }
     }
 
     if (!resizable.value) {
@@ -1233,6 +1259,7 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
     if (newW > 0 && newH > 0) {
         resize(newW, newH);
     }
+
     move(x, y, xSet, ySet);
 }
 
@@ -1258,8 +1285,6 @@ void WindowContext::maximize(bool state) {
     if (state) {
         add_wmf(GDK_FUNC_MAXIMIZE);
         LOG0("gtk_window_maximize\n");
-        save_geometry();
-        geometry.needs_to_restore_geometry = true;
 
         if (!resizable.value || resizable.maxw != -1 || resizable.maxh != - 1) {
             remove_window_constraints();
