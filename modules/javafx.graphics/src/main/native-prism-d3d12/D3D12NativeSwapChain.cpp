@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,13 +36,26 @@ namespace D3D12 {
 
 bool NativeSwapChain::GetSwapChainBuffers(UINT count)
 {
+    for (Internal::DescriptorData& rtv: mRTVs)
+    {
+        mNativeDevice->GetRTVDescriptorHeap()->Free(rtv);
+    }
+
     mBufferCount = count;
 
     if (mBufferCount != mBuffers.size())
     {
         mBuffers.resize(mBufferCount);
         mStates.resize(mBufferCount);
+        mRTVs.resize(mBufferCount);
     }
+
+    D3D12_RENDER_TARGET_VIEW_DESC rtvDesc;
+    D3D12NI_ZERO_STRUCT(rtvDesc);
+    rtvDesc.Format = mFormat;
+    rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+    rtvDesc.Texture2D.MipSlice = 0;
+    rtvDesc.Texture2D.PlaneSlice = 0;
 
     std::wstring namePrefix(L"SwapChain Buffer #");
     for (UINT i = 0; i < mBufferCount; ++i)
@@ -53,6 +66,15 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
         std::wstring name = namePrefix + std::to_wstring(i);
         hr = mBuffers[i]->SetName(name.c_str());
         D3D12NI_RET_IF_FAILED(hr, false, "Failed to name SwapChain buffer");
+
+        mRTVs[i] = mNativeDevice->GetRTVDescriptorHeap()->Allocate(1);
+        if (!mRTVs[i])
+        {
+            D3D12NI_LOG_ERROR("Failed to allocate RTV for SwapChain buffer #%u", i);
+            return false;
+        }
+
+        mNativeDevice->GetDevice()->CreateRenderTargetView(mBuffers[i].Get(), &rtvDesc, mRTVs[i].CPU(0));
     }
 
     return true;
@@ -63,6 +85,7 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
     , mSwapChain()
     , mBuffers()
     , mStates()
+    , mRTVs()
     , mCurrentBufferIdx(0)
     , mDirtyRegion()
     , mFormat(DXGI_FORMAT_UNKNOWN)
@@ -72,6 +95,7 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
     , mPresentFlags(0)
     , mWidth(0)
     , mHeight(0)
+    , mNullResource()
 {
 }
 
@@ -88,6 +112,7 @@ NativeSwapChain::~NativeSwapChain()
     for (size_t i = 0; i < mBuffers.size(); ++i)
     {
         mBuffers[i].Reset();
+        mNativeDevice->GetRTVDescriptorHeap()->Free(mRTVs[i]);
     }
 
     mBuffers.clear();
@@ -135,12 +160,13 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
     hr = tmpSwapchain.As(&mSwapChain);
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to up-version SwapChain");
 
+    mFormat = desc.Format;
+
     if (!GetSwapChainBuffers(desc.BufferCount))
     {
         return false;
     }
 
-    mFormat = desc.Format;
     mSwapInterval = mVSyncEnabled ? 1 : 0;
     // TODO: D3D12: allowing tearing is required for supporting VRR displays - investigate if we should
     //              do this differently.
@@ -176,6 +202,9 @@ bool NativeSwapChain::Prepare(LONG left, LONG top, LONG right, LONG bottom)
     mDirtyRegion.top = top;
     mDirtyRegion.right = right;
     mDirtyRegion.bottom = bottom;
+
+    EnsureState(mNativeDevice->GetCurrentCommandList(), D3D12_RESOURCE_STATE_PRESENT);
+
     return true;
 }
 
@@ -192,7 +221,6 @@ bool NativeSwapChain::Present()
     }
 
     HRESULT hr = mSwapChain->Present1(mSwapInterval, mPresentFlags, &params);
-    //D3D12NI_RET_IF_FAILED(hr, false, "Failed to Present on Swap Chain");
     if (FAILED(hr))
     {
         _com_error __e(hr);
@@ -321,7 +349,7 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeSwapChain_nGetWidt
 {
     if (!ptr) return false;
 
-    return D3D12::GetNIObject<D3D12::NativeSwapChain>(ptr)->GetWidth();
+    return static_cast<jint>(D3D12::GetNIObject<D3D12::NativeSwapChain>(ptr)->GetWidth());
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeSwapChain_nGetHeight
@@ -329,7 +357,7 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeSwapChain_nGetHeig
 {
     if (!ptr) return false;
 
-    return D3D12::GetNIObject<D3D12::NativeSwapChain>(ptr)->GetHeight();
+    return static_cast<jint>(D3D12::GetNIObject<D3D12::NativeSwapChain>(ptr)->GetHeight());
 }
 
 #ifdef __cplusplus

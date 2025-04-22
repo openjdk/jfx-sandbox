@@ -28,10 +28,10 @@
 #include "../D3D12Common.hpp"
 
 #include "../D3D12Constants.hpp"
-#include "../D3D12NativeRenderTarget.hpp"
 #include "../D3D12NativeShader.hpp"
 
 #include "D3D12Config.hpp"
+#include "D3D12IRenderTarget.hpp"
 #include "D3D12PSOManager.hpp"
 #include "D3D12ResourceManager.hpp"
 #include "D3D12RingDescriptorHeap.hpp"
@@ -282,7 +282,7 @@ class PrimitiveTopologyRenderingParameter: public RenderingParameter<D3D12_PRIMI
     }
 };
 
-class RenderTargetRenderingParameter: public RenderingParameter<NIPtr<NativeRenderTarget>>
+class RenderTargetRenderingParameter: public RenderingParameter<NIPtr<IRenderTarget>>
 {
     void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
     {
@@ -291,9 +291,9 @@ class RenderTargetRenderingParameter: public RenderingParameter<NIPtr<NativeRend
         mParameter->EnsureState(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
         mParameter->EnsureDepthState(commandList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-        const Internal::DescriptorData& rtData = mParameter->GetDescriptorData();
+        const Internal::DescriptorData& rtData = mParameter->GetRTVDescriptorData();
         commandList->OMSetRenderTargets(
-            rtData.count, &rtData.cpu, true, mParameter->IsDepthTestEnabled() ? &mParameter->GetDSVDescriptor().cpu : nullptr
+            rtData.count, &rtData.cpu, true, mParameter->IsDepthTestEnabled() ? &mParameter->GetDSVDescriptorData().cpu : nullptr
         );
     }
 };

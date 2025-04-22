@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,7 +94,7 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
 
     mRenderTarget.Apply(mNativeDevice->GetCurrentCommandList(), mState);
 
-    DescriptorData rtData = mRenderTarget.Get()->GetDescriptorData();
+    DescriptorData rtData = mRenderTarget.Get()->GetRTVDescriptorData();
 
     float rgba[4] = { r, g, b, a };
     mNativeDevice->GetCurrentCommandList()->ClearRenderTargetView(rtData.CPU(0), rgba, 1, &GetScissor().Get());
@@ -105,7 +105,7 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
     if (clearDepth && mRenderTarget.Get()->HasDepthTexture())
     {
         mRenderTarget.Get()->EnsureDepthState(mNativeDevice->GetCurrentCommandList(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-        mNativeDevice->GetCurrentCommandList()->ClearDepthStencilView(mRenderTarget.Get()->GetDSVDescriptor().cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+        mNativeDevice->GetCurrentCommandList()->ClearDepthStencilView(mRenderTarget.Get()->GetDSVDescriptorData().cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     }
 }
 
@@ -127,7 +127,7 @@ void RenderingContext::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView)
     mVertexBuffer.Set(vbView);
 }
 
-void RenderingContext::SetRenderTarget(const NIPtr<NativeRenderTarget>& renderTarget)
+void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
 {
     mRenderTarget.Set(renderTarget);
 
@@ -239,11 +239,8 @@ void RenderingContext::StashParamters()
     mRuntimeParametersStash.pipelineState.Set(mPipelineState.Get());
     mRuntimeParametersStash.primitiveTopology.Set(mPrimitiveTopology.Get());
     mRuntimeParametersStash.renderTarget.Set(mRenderTarget.Get());
-
-    for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
-    {
-        mRuntimeParametersStash.textures[i] = mState.resourceManager.GetTexture(i);
-    }
+    mRuntimeParametersStash.rootSignature.Set(mRootSignature.Get());
+    mState.resourceManager.StashParameters();
 }
 
 void RenderingContext::RestoreStashedParameters()
@@ -251,11 +248,10 @@ void RenderingContext::RestoreStashedParameters()
     SetRenderTarget(mRuntimeParametersStash.renderTarget.Get());
     mPipelineState.Set(mRuntimeParametersStash.pipelineState.Get());
     mPrimitiveTopology.Set(mRuntimeParametersStash.primitiveTopology.Get());
+    mRootSignature.Set(mRuntimeParametersStash.rootSignature.Get());
 
-    for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
-    {
-        SetTexture(i, mRuntimeParametersStash.textures[i]);
-    }
+    mState.resourceManager.RestoreStashedParameters();
+    ClearResourcesApplied();
 }
 
 bool RenderingContext::Apply()

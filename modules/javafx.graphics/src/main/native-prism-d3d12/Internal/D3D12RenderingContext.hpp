@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,9 @@
 
 #include "../D3D12Common.hpp"
 
-#include "../D3D12NativeRenderTarget.hpp"
 #include "../D3D12NativeTexture.hpp"
 
+#include "D3D12IRenderTarget.hpp"
 #include "D3D12Matrix.hpp"
 #include "D3D12RenderingParameter.hpp"
 #include "D3D12PSOManager.hpp"
@@ -68,9 +68,8 @@ class RenderingContext
     {
         PipelineStateRenderingParameter pipelineState;
         PrimitiveTopologyRenderingParameter primitiveTopology;
-        NativeTextureBank textures;
         RenderTargetRenderingParameter renderTarget;
-        ViewportRenderingParameter viewport;
+        RootSignatureRenderingParameter rootSignature;
     } mRuntimeParametersStash;
 
     // Graphics Pipeline
@@ -111,7 +110,7 @@ public:
     void ClearTextureUnit(uint32_t unit);
     void SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView);
     void SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView);
-    void SetRenderTarget(const NIPtr<NativeRenderTarget>& renderTarget);
+    void SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget);
     void SetScissor(bool enabled, const D3D12_RECT& scissor);
     void SetTexture(uint32_t unit, const NIPtr<NativeTexture>& texture);
 

@@ -164,5 +164,27 @@ void ResourceManager::SetTexture(uint32_t slot, const NIPtr<NativeTexture>& tex)
     mTextures[slot] = tex;
 }
 
+void ResourceManager::StashParameters()
+{
+    mRuntimeParametersStash.vertexShader = mVertexShader;
+    mRuntimeParametersStash.pixelShader = mPixelShader;
+
+    for (size_t i = 0; i < mTextures.size(); ++i)
+    {
+        mRuntimeParametersStash.textures[i] = mTextures[i];
+    }
+}
+
+void ResourceManager::RestoreStashedParameters()
+{
+    mVertexShader = mRuntimeParametersStash.vertexShader;
+    mPixelShader = mRuntimeParametersStash.pixelShader;
+
+    for (size_t i = 0; i < mTextures.size(); ++i)
+    {
+        mTextures[i] = mRuntimeParametersStash.textures[i];
+    }
+}
+
 } // namespace Internal
 } // namespace D3D12

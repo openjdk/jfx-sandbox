@@ -54,8 +54,6 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
     private native int nGetMaximumMSAASampleSize(long ptr, int format);
     private native int nGetMaximumTextureSize(long ptr);
     private native void nClear(long ptr, float r, float g, float b, float a, boolean clearDepth);
-    private native void nCopyToSwapChain(long ptr, long dstSwapChain, long srcTexture);
-    private native void nResolveToSwapChain(long ptr, long dstSwapChain, long srcTexture);
     private native void nRenderMeshView(long ptr, long meshViewPtr);
     private native void nRenderQuads(long ptr, float[] vertices, byte[] colors, int elementCount);
     private native void nSetCompositeMode(long ptr, int compositeMode);
@@ -76,8 +74,10 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
         double m10, double m11, double m12, double m13,
         double m20, double m21, double m22, double m23,
         double m30, double m31, double m32, double m33);
-    private native boolean nBlitTexture(long ptr, long srcTex, int srcX0, int srcY0, int srcX1, int srcY1,
-                                                  long dstTex, int dstX0, int dstY0, int dstX1, int dstY1);
+    private native boolean nBlit(long ptr, long srcRT, int srcX0, int srcY0, int srcX1, int srcY1,
+                                           long dstRT, int dstX0, int dstY0, int dstX1, int dstY1);
+    private native boolean nBlitToSwapChain(long ptr, long srcRT, int srcX0, int srcY0, int srcX1, int srcY1,
+                                                      long dstSwapChain, int dstX0, int dstY0, int dstX1, int dstY1);
     private native boolean nReadTextureB(long ptr, long srcTexturePtr,
                                          ByteBuffer buf, byte[] array,
                                          int x, int y, int w, int h);
@@ -138,14 +138,6 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
 
     public void clear(float r, float g, float b, float a, boolean clearDepth) {
         nClear(ptr, r, g, b, a, clearDepth);
-    }
-
-    public void copyToSwapChain(D3D12NativeSwapChain dst, D3D12NativeTexture src) {
-        nCopyToSwapChain(ptr, dst.getPtr(), src.getPtr());
-    }
-
-    public void resolveToSwapChain(D3D12NativeSwapChain dst, D3D12NativeTexture src) {
-        nResolveToSwapChain(ptr, dst.getPtr(), src.getPtr());
     }
 
     public int getMaximumMSAASampleSize(PixelFormat format) {
@@ -221,10 +213,16 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
                     0.0,         0.0,         0.0,         1.0);
     }
 
-    public boolean blitTexture(D3D12NativeRenderTarget srcRT, int srcX0, int srcY0, int srcX1, int srcY1,
-                               D3D12NativeRenderTarget dstRT, int dstX0, int dstY0, int dstX1, int dstY1) {
-        return nBlitTexture(ptr, srcRT.getPtr(), srcX0, srcY0, srcX1, srcY1,
-                                 dstRT.getPtr(), dstX0, dstY0, dstX1, dstY1);
+    public boolean blit(D3D12NativeRenderTarget srcRT, int srcX0, int srcY0, int srcX1, int srcY1,
+                        D3D12NativeRenderTarget dstRT, int dstX0, int dstY0, int dstX1, int dstY1) {
+        return nBlit(ptr, srcRT.getPtr(), srcX0, srcY0, srcX1, srcY1,
+                          dstRT.getPtr(), dstX0, dstY0, dstX1, dstY1);
+    }
+
+    public boolean blit(D3D12NativeRenderTarget srcRT, int srcX0, int srcY0, int srcX1, int srcY1,
+                        D3D12NativeSwapChain dstSwapChain, int dstX0, int dstY0, int dstX1, int dstY1) {
+        return nBlitToSwapChain(ptr, srcRT.getPtr(), srcX0, srcY0, srcX1, srcY1,
+                                     dstSwapChain.getPtr(), dstX0, dstY0, dstX1, dstY1);
     }
 
     public boolean readTexture(D3D12NativeTexture tex, Buffer buffer, int x, int y, int width, int height) {

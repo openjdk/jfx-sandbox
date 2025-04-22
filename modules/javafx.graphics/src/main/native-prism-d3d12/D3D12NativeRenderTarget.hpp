@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,19 +31,20 @@
 #include "D3D12NativeTexture.hpp"
 
 #include "Internal/D3D12DescriptorData.hpp"
+#include "Internal/D3D12IRenderTarget.hpp"
 
 
 namespace D3D12 {
 
-class NativeRenderTarget
+class NativeRenderTarget: public Internal::IRenderTarget
 {
     NIPtr<NativeDevice> mNativeDevice;
     NIPtr<NativeTexture> mTexture;
     NIPtr<NativeTexture> mDepthTexture;
     Internal::DescriptorData mDescriptors;
     Internal::DescriptorData mDSVDescriptor;
-    UINT64 mWidth;
-    UINT64 mHeight;
+    uint64_t mWidth;
+    uint64_t mHeight;
     bool mDepthTestEnabled;
 
 public:
@@ -53,44 +54,17 @@ public:
     bool Init(const NIPtr<NativeTexture>& texture);
     bool EnsureHasDepthBuffer();
     bool Refresh();
-    void EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState);
-    void EnsureDepthState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState);
     void SetDepthTestEnabled(bool enabled);
-
-    inline UINT64 GetWidth() const
-    {
-        return mWidth;
-    }
-
-    inline UINT64 GetHeight() const
-    {
-        return mHeight;
-    }
-
-    inline bool IsDepthTestEnabled() const
-    {
-        return mDepthTestEnabled;
-    }
-
-    inline const bool HasDepthTexture() const
-    {
-        return (mDepthTexture != nullptr);
-    }
-
-    inline Internal::DescriptorData GetDescriptorData() const
-    {
-        return mDescriptors;
-    }
-
-    inline Internal::DescriptorData GetDSVDescriptor() const
-    {
-        return mDSVDescriptor;
-    }
 
     inline const NIPtr<NativeTexture>& GetTexture() const
     {
         return mTexture;
     }
+
+
+    // IRenderTarget overrides
+    virtual void EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState) override;
+    virtual void EnsureDepthState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState) override;
 
     inline const D3D12ResourcePtr& GetResource() const
     {
@@ -102,7 +76,42 @@ public:
         return mDepthTexture->GetResource();
     }
 
-    inline UINT GetMSAASamples() const
+    inline DXGI_FORMAT GetFormat() const override
+    {
+        return mTexture->GetFormat();
+    }
+
+    inline uint64_t GetWidth() const override
+    {
+        return mWidth;
+    }
+
+    inline uint64_t GetHeight() const override
+    {
+        return mHeight;
+    }
+
+    inline bool IsDepthTestEnabled() const override
+    {
+        return mDepthTestEnabled;
+    }
+
+    inline bool HasDepthTexture() const override
+    {
+        return (mDepthTexture != nullptr);
+    }
+
+    inline const Internal::DescriptorData& GetRTVDescriptorData() const override
+    {
+        return mDescriptors;
+    }
+
+    inline const Internal::DescriptorData& GetDSVDescriptorData() const override
+    {
+        return mDSVDescriptor;
+    }
+
+    inline uint32_t GetMSAASamples() const override
     {
         return mTexture->GetMSAASamples();
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,8 @@ namespace Internal {
 
 struct DescriptorData
 {
+    static DescriptorData NULL_DESCRIPTOR;
+
     D3D12_CPU_DESCRIPTOR_HANDLE cpu; // CPU pointer to start of available descriptors
     D3D12_GPU_DESCRIPTOR_HANDLE gpu; // GPU pointer to start of available descriptors
     UINT count; // how many descriptors we can take

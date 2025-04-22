@@ -42,6 +42,13 @@ namespace Internal {
 
 class ResourceManager
 {
+    struct RuntimeParametersStash
+    {
+        NIPtr<Shader> vertexShader;
+        NIPtr<Shader> pixelShader;
+        NativeTextureBank textures;
+    } mRuntimeParametersStash;
+
     NIPtr<NativeDevice> mNativeDevice;
     NIPtr<Shader> mVertexShader;
     NIPtr<Shader> mPixelShader;
@@ -69,6 +76,9 @@ public:
     void SetPixelShader(const NIPtr<Shader>& shader);
     void SetComputeShader(const NIPtr<Shader>& shader);
     void SetTexture(uint32_t slot, const NIPtr<NativeTexture>& tex);
+
+    void StashParameters();
+    void RestoreStashedParameters();
 
     inline const NIPtr<NativeTexture>& GetTexture(uint32_t slot) const
     {

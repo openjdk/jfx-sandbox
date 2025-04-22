@@ -67,7 +67,7 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
         }
 
         mOffscreenRTT = (D3D12RTTexture)context.getResourceFactory().createRTTexture(
-            mSwapChain.getWidth(), mSwapChain.getHeight(), WrapMode.CLAMP_NOT_NEEDED, mMSAA
+            mState.getRenderWidth(), mState.getRenderHeight(), WrapMode.CLAMP_NOT_NEEDED, mMSAA
         );
         if (!mOffscreenRTT.isValid()) {
             throw new NullPointerException("D3D12 swapchain is NULL");
@@ -111,32 +111,32 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
 
     @Override
     public int getPhysicalWidth() {
-        return mState.getOutputWidth();
+        return mSwapChain.getWidth();
     }
 
     @Override
     public int getPhysicalHeight() {
-        return mState.getOutputHeight();
+        return mSwapChain.getHeight();
     }
 
     @Override
     public int getContentX() {
-        return (int) (mState.getWindowX() * mState.getOutputScaleX());
+        return 0;
     }
 
     @Override
     public int getContentY() {
-        return (int) (mState.getWindowY() * mState.getOutputScaleY());
+        return 0;
     }
 
     @Override
     public int getContentWidth() {
-        return mState.getOutputWidth();
+        return getPhysicalWidth();
     }
 
     @Override
     public int getContentHeight() {
-        return mState.getOutputHeight();
+        return getPhysicalHeight();
     }
 
     @Override
@@ -169,12 +169,15 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
     public boolean prepare(Rectangle dirtyregion) {
         mContext.flushVertexBuffer();
 
-        if (mOffscreenRTT.isMSAA()) {
-            mContext.getDevice().resolveToSwapChain(mSwapChain, mOffscreenRTT.getNativeTexture());
-        } else {
-            mContext.getDevice().copyToSwapChain(mSwapChain, mOffscreenRTT.getNativeTexture());
-        }
+        int sw = mOffscreenRTT.getContentWidth();
+        int sh = mOffscreenRTT.getContentHeight();
+        int dw = this.getContentWidth();
+        int dh = this.getContentHeight();
 
+        // moves offscreen RTT data to appropriate swapchain buffer and scales down if needed
+        // native-side will pick the fastest route (whether to just copy/resolve or draw)
+        mContext.getDevice().blit(mOffscreenRTT.getNativeRenderTarget(), 0, 0, sw, sh,
+                                  mSwapChain, 0, 0, dw, dh);
         mOffscreenRTT.unlock();
 
         if (dirtyregion == null) {

@@ -123,8 +123,6 @@ public:
 
     void Clear(float r, float g, float b, float a, bool clearDepth);
     void ClearTextureUnit(uint32_t unit);
-    void CopyToSwapChain(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src);
-    void ResolveToSwapChain(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src);
     void RenderQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors,
                      UINT elementCount);
     void RenderMeshView(const NIPtr<NativeMeshView>& meshView);
@@ -138,8 +136,8 @@ public:
     void SetCameraPos(const Coords_XYZW_FLOAT& pos);
     void SetWorldTransform(const Internal::Matrix<float>& matrix);
     void SetViewProjTransform(const Internal::Matrix<float>& matrix);
-    bool BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box_UINT32& src,
-                     const NIPtr<NativeRenderTarget>& dstRT, const Coords_Box_UINT32& dst);
+    bool Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box_UINT32& src,
+              const NIPtr<Internal::IRenderTarget>& dstRT, const Coords_Box_UINT32& dst);
     bool ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer, size_t pixelCount,
                      UINT srcx, UINT srcy, UINT srcw, UINT srch);
     bool GenerateMipmaps(const NIPtr<NativeTexture>& texture);

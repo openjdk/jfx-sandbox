@@ -466,26 +466,6 @@ void NativeDevice::ClearTextureUnit(uint32_t unit)
     mRenderingContext->ClearTextureUnit(unit);
 }
 
-void NativeDevice::CopyToSwapChain(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src)
-{
-    src->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_COPY_SOURCE);
-    dst->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_COPY_DEST);
-
-    GetCurrentCommandList()->CopyResource(dst->GetCurrentBuffer().Get(), src->GetResource().Get());
-
-    dst->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_PRESENT);
-}
-
-void NativeDevice::ResolveToSwapChain(const NIPtr<NativeSwapChain>& dst, const NIPtr<NativeTexture>& src)
-{
-    src->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
-    dst->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_DEST);
-
-    GetCurrentCommandList()->ResolveSubresource(dst->GetCurrentBuffer().Get(), 0, src->GetResource().Get(), 0, src->GetFormat());
-
-    dst->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_PRESENT);
-}
-
 void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors,
                                UINT elementCount)
 {
@@ -675,8 +655,12 @@ void NativeDevice::SetViewProjTransform(const Internal::Matrix<float>& matrix)
     mTransforms.viewProjTransform = matrix;
 }
 
-bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box_UINT32& src,
-                               const NIPtr<NativeRenderTarget>& dstRT, const Coords_Box_UINT32& dst)
+// NOTE: Because Blit() might want to fetch some internal underlying objects that SwapChain
+// does not expose (ex. a NativeTexture via NativeRenderTarget::GetTexture()) we force source
+// to be a NativeRenderTarget. I'm pretty sure we won't need it to be the generic IRenderTarget
+// anyway...
+bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box_UINT32& src,
+                        const NIPtr<Internal::IRenderTarget>& dstRT, const Coords_Box_UINT32& dst)
 {
     if (dstRT->GetMSAASamples() > 1)
     {
@@ -735,7 +719,7 @@ bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coo
             GetCurrentCommandList()->ResolveSubresourceRegion(
                 dstRT->GetResource().Get(), 0, dst.x0, dst.y0,
                 srcRT->GetResource().Get(), 0, &srcRect,
-                dstRT->GetTexture()->GetFormat(), D3D12_RESOLVE_MODE_AVERAGE
+                dstRT->GetFormat(), D3D12_RESOLVE_MODE_AVERAGE
             );
         }
     }
@@ -761,7 +745,7 @@ bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coo
         {
             // create intermediate tex, use ResolveSubresource() to populate it
             intermediateTexture = std::make_shared<NativeTexture>(shared_from_this());
-            if (!intermediateTexture->Init(srcWidth, srcHeight, srcRT->GetTexture()->GetFormat(),
+            if (!intermediateTexture->Init(srcWidth, srcHeight, srcRT->GetFormat(),
                 D3D12_RESOURCE_FLAG_NONE, TextureUsage::DEFAULT, TextureWrapMode::CLAMP_NOT_NEEDED, 1, false))
             {
                 D3D12NI_LOG_ERROR("BlitTexture: Failed to create intermediate texture for source RT resolve");
@@ -773,7 +757,7 @@ bool NativeDevice::BlitTexture(const NIPtr<NativeRenderTarget>& srcRT, const Coo
 
             GetCurrentCommandList()->ResolveSubresource(
                 intermediateTexture->GetResource().Get(), 0,
-                srcRT->GetResource().Get(), 0, srcRT->GetTexture()->GetFormat()
+                srcRT->GetResource().Get(), 0, srcRT->GetFormat()
             );
 
             sourceTexture = intermediateTexture;
@@ -1312,38 +1296,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nClear
     D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->Clear(r, g, b, a, static_cast<bool>(clearDepth));
 }
 
-JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCopyToSwapChain
-    (JNIEnv* env, jobject obj, jlong ptr, jlong swapchainDstPtr, jlong textureSrcPtr)
-{
-    if (!ptr) return;
-    if (!swapchainDstPtr) return;
-    if (!textureSrcPtr) return;
-
-    const D3D12::NIPtr<D3D12::NativeSwapChain>& swapchainDst = D3D12::GetNIObject<D3D12::NativeSwapChain>(swapchainDstPtr);
-    const D3D12::NIPtr<D3D12::NativeTexture>& textureSrc = D3D12::GetNIObject<D3D12::NativeTexture>(textureSrcPtr);
-
-    if (!swapchainDst) return;
-    if (!textureSrc) return;
-
-    D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->CopyToSwapChain(swapchainDst, textureSrc);
-}
-
-JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nResolveToSwapChain
-    (JNIEnv* env, jobject obj, jlong ptr, jlong swapchainDstPtr, jlong textureSrcPtr)
-{
-    if (!ptr) return;
-    if (!swapchainDstPtr) return;
-    if (!textureSrcPtr) return;
-
-    const D3D12::NIPtr<D3D12::NativeSwapChain>& swapchainDst = D3D12::GetNIObject<D3D12::NativeSwapChain>(swapchainDstPtr);
-    const D3D12::NIPtr<D3D12::NativeTexture>& textureSrc = D3D12::GetNIObject<D3D12::NativeTexture>(textureSrcPtr);
-
-    if (!swapchainDst) return;
-    if (!textureSrc) return;
-
-    D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->ResolveToSwapChain(swapchainDst, textureSrc);
-}
-
 JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nRenderQuads
     (JNIEnv* env, jobject obj, jlong ptr, jfloatArray vertices, jbyteArray colors, jint elementCount)
 {
@@ -1544,7 +1496,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetWorldTr
     ));
 }
 
-JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nBlitTexture
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nBlit
     (JNIEnv* env, jobject obj, jlong ptr, jlong srcRTPtr, jint srcX0, jint srcY0, jint srcX1, jint srcY1,
                                           jlong dstRTPtr, jint dstX0, jint dstY0, jint dstX1, jint dstY1)
 {
@@ -1567,7 +1519,33 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nBlitTe
     D3D12::Coords_Box_UINT32 dstBox{static_cast<uint32_t>(dstX0), static_cast<uint32_t>(dstY0),
                                     static_cast<uint32_t>(dstX1), static_cast<uint32_t>(dstY1)};
 
-    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->BlitTexture(srcRT, srcBox, dstRT, dstBox);
+    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->Blit(srcRT, srcBox, dstRT, dstBox);
+}
+
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nBlitToSwapChain
+    (JNIEnv* env, jobject obj, jlong ptr, jlong srcRTPtr, jint srcX0, jint srcY0, jint srcX1, jint srcY1,
+                                          jlong dstSwapChainPtr, jint dstX0, jint dstY0, jint dstX1, jint dstY1)
+{
+    if (!ptr) return false;
+    if (!srcRTPtr) return false;
+    if (!dstSwapChainPtr) return false;
+    if (srcX0 < 0 || srcY0 < 0 || srcX1 < 0 || srcY1 < 0) return false;
+    if (srcX0 > srcX1 || srcY0 > srcY1) return false;
+    if (dstX0 < 0 || dstY0 < 0 || dstX1 < 0 || dstY1 < 0) return false;
+    if (dstX0 > dstX1 || dstY0 > dstY1) return false;
+
+    const D3D12::NIPtr<D3D12::NativeRenderTarget>& srcRT = D3D12::GetNIObject<D3D12::NativeRenderTarget>(srcRTPtr);
+    if (!srcRT) return false;
+
+    const D3D12::NIPtr<D3D12::NativeSwapChain>& dstSwapChain = D3D12::GetNIObject<D3D12::NativeSwapChain>(dstSwapChainPtr);
+    if (!dstSwapChain) return false;
+
+    D3D12::Coords_Box_UINT32 srcBox{static_cast<uint32_t>(srcX0), static_cast<uint32_t>(srcY0),
+                                    static_cast<uint32_t>(srcX1), static_cast<uint32_t>(srcY1)};
+    D3D12::Coords_Box_UINT32 dstBox{static_cast<uint32_t>(dstX0), static_cast<uint32_t>(dstY0),
+                                    static_cast<uint32_t>(dstX1), static_cast<uint32_t>(dstY1)};
+
+    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->Blit(srcRT, srcBox, dstSwapChain, dstBox);
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nReadTextureB
