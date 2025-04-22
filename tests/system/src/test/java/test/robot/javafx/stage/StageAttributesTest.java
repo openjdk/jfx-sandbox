@@ -309,7 +309,7 @@ public class StageAttributesTest extends VisualTestBase {
     void testStageStatePrecedenceOrderIconifiedMaximizedBeforeShow(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, false, stageStyle);
 
-        Util.doTimeLine(500,
+        Util.doTimeLine(1000,
                 () -> {
                     Color color = getColor(200, 200);
                     assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
@@ -341,7 +341,7 @@ public class StageAttributesTest extends VisualTestBase {
     void testStageStatePrecedenceOrderIconifiedFullScreenBeforeShow(StageStyle stageStyle) throws InterruptedException {
         setupStages(false, false, stageStyle);
 
-        Util.doTimeLine(500,
+        Util.doTimeLine(1000,
                 () -> {
                     Color color = getColor(200, 200);
                     assertColorEquals(BOTTOM_COLOR, color, TOLERANCE);
@@ -373,7 +373,7 @@ public class StageAttributesTest extends VisualTestBase {
     void testStageStatePrecedenceOrderIconifiedMaximizedAfterShow(StageStyle stageStyle) throws InterruptedException {
         setupStages(true, true, stageStyle);
 
-        Util.doTimeLine(500,
+        Util.doTimeLine(1000,
                 () -> {
                     Color color = getColor(200, 200);
                     assertColorEquals(TOP_COLOR, color, TOLERANCE);
@@ -404,7 +404,7 @@ public class StageAttributesTest extends VisualTestBase {
     void testStageStatePrecedenceOrderIconifiedFullScreenAfterShow(StageStyle stageStyle) throws InterruptedException {
         setupStages(true, true, stageStyle);
 
-        Util.doTimeLine(500,
+        Util.doTimeLine(1000,
                 () -> {
                     Color color = getColor(200, 200);
                     assertColorEquals(TOP_COLOR, color, TOLERANCE);
