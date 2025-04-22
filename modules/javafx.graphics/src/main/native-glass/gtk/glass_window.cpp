@@ -33,14 +33,10 @@
 #include <com_sun_glass_events_ViewEvent.h>
 #include <com_sun_glass_events_MouseEvent.h>
 #include <com_sun_glass_events_KeyEvent.h>
-
 #include <com_sun_glass_ui_Window_Level.h>
 
 #include <cairo.h>
-#include <cairo-xlib.h>
-#include <gdk/gdkx.h>
 #include <gdk/gdk.h>
-#include <gtk/gtkx.h>
 
 #include <string.h>
 #include <algorithm>
@@ -1214,10 +1210,9 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
     if (gtk_widget_get_realized(gtk_widget)) {
         GdkWindowState state = gdk_window_get_state(gdk_window);
 
+        // If if is fullscreen, it will be applied later on restore
         if (!geometry.needs_to_restore_geometry &&
                 (state & GDK_WINDOW_STATE_FULLSCREEN)) {
-            // If it was requested to be or currently is fullscreen, just save the requested
-            // geometry and set them later when restored
             LOG0("set_bounds: needs_to_restore_geometry = true\n");
             geometry.needs_to_restore_geometry = true;
         }
@@ -1250,7 +1245,8 @@ void WindowContext::set_bounds(int x, int y, bool xSet, bool ySet, int w, int h,
         }
     }
 
-    if (!resizable.value) {
+    // Re-apply the constraints removed for fullscreen / maximize
+    if (!resizable.value || resizable.maxw != -1 || resizable.maxh != - 1) {
         update_window_constraints(newW, newH);
     }
 
@@ -1271,7 +1267,7 @@ void WindowContext::iconify(bool state) {
         add_wmf(GDK_FUNC_MINIMIZE);
         gtk_window_iconify(GTK_WINDOW(gtk_widget));
     } else {
-        gtk_window_iconify(GTK_WINDOW(gtk_widget));
+        gtk_window_deiconify(GTK_WINDOW(gtk_widget));
         gdk_window_focus(gdk_window, GDK_CURRENT_TIME);
     }
 }
@@ -1519,7 +1515,7 @@ void WindowContext::move(int x, int y, bool xSet, bool ySet) {
         int cur_x, cur_y;
 
         if (gtk_widget_get_realized(gtk_widget)) {
-            gdk_window_get_position(gdk_window, &cur_x, &cur_y);
+            gdk_window_get_root_origin(gdk_window, &cur_x, &cur_y);
         } else {
             cur_x = geometry.x;
             cur_y = geometry.y;
