@@ -116,7 +116,8 @@ bool NativeTexture::Init(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESO
         return false;
     }
 
-    mWrapMode = wrapMode;
+    mSamplerDesc.wrapMode = wrapMode;
+    mSamplerDesc.isLinear = false;
     mMipLevels = 1;
     if (useMipmap) {
         mMipLevels = Internal::Utils::CalcMipmapLevels(width, height);
@@ -165,6 +166,12 @@ bool NativeTexture::Resize(UINT width, UINT height)
     return InitInternal(mResourceDesc);
 }
 
+void NativeTexture::SetSamplerParameters(TextureWrapMode wrapMode, bool isLinear)
+{
+    mSamplerDesc.wrapMode = wrapMode;
+    mSamplerDesc.isLinear = isLinear;
+}
+
 void NativeTexture::WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipLevels, UINT mostDetailedMip)
 {
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
@@ -196,7 +203,7 @@ void NativeTexture::WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& desc
 void NativeTexture::WriteSamplerToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& samplerDescriptorCpu)
 {
     mNativeDevice->GetDevice()->CopyDescriptorsSimple(
-        1, samplerDescriptorCpu, mNativeDevice->GetSamplerStorage()->GetSampler(mWrapMode).CPU(0),
+        1, samplerDescriptorCpu, mNativeDevice->GetSamplerStorage()->GetSampler(mSamplerDesc).CPU(0),
         D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
     );
 }
@@ -278,6 +285,17 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeTexture_nResiz
     if (height <= 0 || height > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION) return false;
 
     return static_cast<jboolean>(D3D12::GetNIObject<D3D12::NativeTexture>(ptr)->Resize(static_cast<UINT>(width), static_cast<UINT>(height)));
+}
+
+JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeTexture_nSetSamplerParameters
+    (JNIEnv* env, jobject obj, jlong ptr, jint wrapMode, jboolean isLinear)
+{
+    if (!ptr) return;
+    if (wrapMode < 0 || wrapMode >= static_cast<jint>(D3D12::TextureWrapMode::MAX_ENUM)) return;
+
+    D3D12::GetNIObject<D3D12::NativeTexture>(ptr)->SetSamplerParameters(
+        static_cast<D3D12::TextureWrapMode>(wrapMode), static_cast<bool>(isLinear)
+    );
 }
 
 #ifdef __cplusplus

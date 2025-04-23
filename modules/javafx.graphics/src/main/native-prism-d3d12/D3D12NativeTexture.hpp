@@ -28,6 +28,8 @@
 #include "D3D12Common.hpp"
 #include "D3D12Constants.hpp"
 
+#include "Internal/D3D12SamplerDesc.hpp"
+
 #include <array>
 
 
@@ -45,7 +47,7 @@ class NativeTexture
     std::vector<D3D12_RESOURCE_STATES> mStates; // one state per subresource
     std::wstring mDebugName;
     UINT mMipLevels;
-    TextureWrapMode mWrapMode;
+    Internal::SamplerDesc mSamplerDesc;
 
     bool InitInternal(const D3D12_RESOURCE_DESC& desc);
 
@@ -57,6 +59,7 @@ public:
               TextureUsage usage, TextureWrapMode wrapMode, int samples, bool useMipmap);
     UINT64 GetSize();
     bool Resize(UINT width, UINT height);
+    void SetSamplerParameters(TextureWrapMode wrapMode, bool isLinear);
 
     void EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState, UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
     void WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipLevels = 0, UINT mostDetailedMip = 0);

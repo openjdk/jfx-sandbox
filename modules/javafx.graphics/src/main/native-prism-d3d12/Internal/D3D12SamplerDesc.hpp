@@ -27,33 +27,49 @@
 
 #include "../D3D12Common.hpp"
 
-#include "D3D12DescriptorHeap.hpp"
-#include "D3D12SamplerDesc.hpp"
-
-#include <unordered_map>
+#include <functional>
+#include <string>
 
 
 namespace D3D12 {
 namespace Internal {
 
-class SamplerStorage
+struct SamplerDesc
 {
-    NIPtr<NativeDevice> mNativeDevice;
-    DescriptorHeap mSamplerHeap;
-    std::unordered_map<SamplerDesc, DescriptorData> mSamplerContainer;
-    DescriptorData mNullSampler;
+    TextureWrapMode wrapMode;
+    bool isLinear;
 
-    D3D12_SAMPLER_DESC BuildD3D12SamplerDesc(const SamplerDesc& sd) const;
-    D3D12_TEXTURE_ADDRESS_MODE TranslateWrapMode(TextureWrapMode wrapMode) const;
-    D3D12_FILTER TranslateIsLinear(bool isLinear) const;
+    std::string ToString() const
+    {
+        std::string wrapModeStr;
+        switch (wrapMode)
+        {
+        case TextureWrapMode::CLAMP_NOT_NEEDED: wrapModeStr = "CLAMP_NOT_NEEDED"; break;
+        case TextureWrapMode::CLAMP_TO_ZERO: wrapModeStr = "CLAMP_TO_ZERO"; break;
+        case TextureWrapMode::CLAMP_TO_EDGE: wrapModeStr = "CLAMP_TO_EDGE"; break;
+        case TextureWrapMode::REPEAT: wrapModeStr = "REPEAT"; break;
+        default: wrapModeStr = "UNKNOWN"; break;
+        }
 
-public:
-    SamplerStorage(const NIPtr<NativeDevice>& nativeDevice);
-    ~SamplerStorage() = default;
+        return "wrapMode = " + wrapModeStr + "; isLinear = " + std::to_string(isLinear);
+    }
 
-    bool Init();
-    const DescriptorData& GetSampler(const SamplerDesc& sd) const;
+    bool operator==(const SamplerDesc& other) const
+    {
+        return wrapMode == other.wrapMode &&
+               isLinear == other.isLinear;
+    }
 };
 
 } // namespace Internal
 } // namespace D3D12
+
+template<>
+struct std::hash<D3D12::Internal::SamplerDesc>
+{
+    std::size_t operator()(const D3D12::Internal::SamplerDesc& k) const
+    {
+        return std::hash<unsigned int>()(static_cast<unsigned int>(k.wrapMode)) ^
+               std::hash<bool>()(k.isLinear);
+    }
+};

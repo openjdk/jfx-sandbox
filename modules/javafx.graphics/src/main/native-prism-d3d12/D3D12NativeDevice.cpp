@@ -1437,7 +1437,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetTexture
     (JNIEnv* env, jobject obj, jlong ptr, jint unit, jlong texturePtr)
 {
     if (!ptr) return;
-    if (unit < 0) return;
+    if (unit < 0 || unit >= D3D12::Constants::MAX_TEXTURE_UNITS) return;
 
     if (texturePtr)
     {

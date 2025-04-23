@@ -30,17 +30,35 @@
 #include "../D3D12Constants.hpp"
 
 
+namespace {
+
+std::vector<D3D12::Internal::SamplerDesc> SAMPLER_VARIANTS = {
+    { D3D12::TextureWrapMode::CLAMP_NOT_NEEDED, false },
+    { D3D12::TextureWrapMode::CLAMP_TO_ZERO, false },
+    { D3D12::TextureWrapMode::CLAMP_TO_EDGE, false },
+    { D3D12::TextureWrapMode::REPEAT, false },
+    { D3D12::TextureWrapMode::CLAMP_NOT_NEEDED, true },
+    { D3D12::TextureWrapMode::CLAMP_TO_ZERO, true },
+    { D3D12::TextureWrapMode::CLAMP_TO_EDGE, true },
+    { D3D12::TextureWrapMode::REPEAT, true },
+};
+
+} // namespace
+
+
 namespace D3D12 {
 namespace Internal {
 
-D3D12_SAMPLER_DESC SamplerStorage::CreateDefaultSamplerDesc() const
+D3D12_SAMPLER_DESC SamplerStorage::BuildD3D12SamplerDesc(const SamplerDesc& sd) const
 {
+    D3D12_TEXTURE_ADDRESS_MODE addressMode = TranslateWrapMode(sd.wrapMode);
+
     D3D12_SAMPLER_DESC desc;
     D3D12NI_ZERO_STRUCT(desc);
-    desc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-    desc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-    desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-    desc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    desc.AddressU = addressMode;
+    desc.AddressV = addressMode;
+    desc.AddressW = addressMode;
+    desc.Filter = TranslateIsLinear(sd.isLinear);
     desc.BorderColor[0] = 0.0f;
     desc.BorderColor[1] = 0.0f;
     desc.BorderColor[2] = 0.0f;
@@ -52,6 +70,28 @@ D3D12_SAMPLER_DESC SamplerStorage::CreateDefaultSamplerDesc() const
     desc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
 
     return desc;
+}
+
+D3D12_TEXTURE_ADDRESS_MODE SamplerStorage::TranslateWrapMode(TextureWrapMode wrapMode) const
+{
+    switch (wrapMode)
+    {
+    case TextureWrapMode::CLAMP_NOT_NEEDED:
+    case TextureWrapMode::CLAMP_TO_ZERO:
+        return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    case TextureWrapMode::CLAMP_TO_EDGE:
+        return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    case TextureWrapMode::REPEAT:
+        return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+    default:
+        return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+    }
+}
+
+D3D12_FILTER SamplerStorage::TranslateIsLinear(bool isLinear) const
+{
+    if (isLinear) return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    else return D3D12_FILTER_MIN_MAG_MIP_POINT;
 }
 
 SamplerStorage::SamplerStorage(const NIPtr<NativeDevice>& nativeDevice)
@@ -68,66 +108,34 @@ bool SamplerStorage::Init()
         return false;
     }
 
-
-    D3D12_SAMPLER_DESC clampZeroDesc = CreateDefaultSamplerDesc();
-
-    mClampZeroSampler = mSamplerHeap.Allocate(1);
-    if (!mClampZeroSampler)
+    for (const SamplerDesc& sd: SAMPLER_VARIANTS)
     {
-        D3D12NI_LOG_ERROR("Failed to allocate Clamp Zero Sampler");
-        return false;
+        D3D12_SAMPLER_DESC desc = BuildD3D12SamplerDesc(sd);
+
+        DescriptorData descriptor = mSamplerHeap.Allocate(1);
+        if (!descriptor)
+        {
+            D3D12NI_LOG_ERROR("Failed to allocate Sampler for variant: %s", sd.ToString().c_str());
+            return false;
+        }
+
+        mNativeDevice->GetDevice()->CreateSampler(&desc, descriptor.CPU(0));
+
+        mSamplerContainer.emplace(sd, descriptor);
     }
-
-    mNativeDevice->GetDevice()->CreateSampler(&clampZeroDesc, mClampZeroSampler.CPU(0));
-
-
-    D3D12_SAMPLER_DESC clampEdgeDesc = CreateDefaultSamplerDesc();
-    clampEdgeDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-    clampEdgeDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-    clampEdgeDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-
-    mClampEdgeSampler = mSamplerHeap.Allocate(1);
-    if (!mClampEdgeSampler)
-    {
-        D3D12NI_LOG_ERROR("Failed to allocate Clamp Edge Sampler");
-        return false;
-    }
-
-    mNativeDevice->GetDevice()->CreateSampler(&clampEdgeDesc, mClampEdgeSampler.CPU(0));
-
-
-    D3D12_SAMPLER_DESC repeatDesc = CreateDefaultSamplerDesc();
-    repeatDesc.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    repeatDesc.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-    repeatDesc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-
-    mRepeatSampler = mSamplerHeap.Allocate(1);
-    if (!mRepeatSampler)
-    {
-        D3D12NI_LOG_ERROR("Failed to allocate Repeat Sampler");
-        return false;
-    }
-
-    mNativeDevice->GetDevice()->CreateSampler(&repeatDesc, mRepeatSampler.CPU(0));
-
 
     return true;
 }
 
-const DescriptorData& SamplerStorage::GetSampler(TextureWrapMode wrapMode) const
+const DescriptorData& SamplerStorage::GetSampler(const SamplerDesc& sd) const
 {
-    switch (wrapMode)
-    {
-    case TextureWrapMode::CLAMP_NOT_NEEDED:
-    case TextureWrapMode::CLAMP_TO_ZERO:
-        return mClampZeroSampler;
-    case TextureWrapMode::CLAMP_TO_EDGE:
-        return mClampEdgeSampler;
-    case TextureWrapMode::REPEAT:
-        return mRepeatSampler;
-    default:
+    const auto& it = mSamplerContainer.find(sd);
+    if (it == mSamplerContainer.end()) {
+        D3D12NI_LOG_WARN("Requested unknown sampler desc: %s", sd.ToString().c_str());
         return mNullSampler;
     }
+
+    return it->second;
 }
 
 } // namespace Internal

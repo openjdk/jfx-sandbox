@@ -129,6 +129,7 @@ class D3D12Context extends BaseShaderContext {
     protected void updateTexture(int texUnit, Texture tex) {
         D3D12Texture texture = (D3D12Texture)tex;
         if (texture != null) {
+            texture.getNativeTexture().setSamplerParameters(tex.getWrapMode(), tex.getLinearFiltering());
             mDevice.setTexture(texUnit, texture.getNativeTexture());
         } else {
             mDevice.setTexture(texUnit, null);

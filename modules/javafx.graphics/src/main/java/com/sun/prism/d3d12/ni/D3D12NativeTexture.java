@@ -25,6 +25,8 @@
 
 package com.sun.prism.d3d12.ni;
 
+import com.sun.prism.Texture.WrapMode;
+
 public class D3D12NativeTexture extends D3D12NativeObject {
 
     D3D12NativeTexture(long ptr) {
@@ -36,6 +38,7 @@ public class D3D12NativeTexture extends D3D12NativeObject {
     private native int nGetWidth(long ptr);
     private native int nGetHeight(long ptr);
     private native boolean nResize(long ptr, int width, int height);
+    private native void nSetSamplerParameters(long ptr, int wrapMode, boolean isLinear);
 
     public long getSize() {
         return nGetSize(ptr);
@@ -51,5 +54,9 @@ public class D3D12NativeTexture extends D3D12NativeObject {
 
     public boolean resize(int width, int height) {
         return nResize(ptr, width, height);
+    }
+
+    public void setSamplerParameters(WrapMode wrapMode, boolean isLinear) {
+        nSetSamplerParameters(ptr, wrapMode.ordinal(), isLinear);
     }
 }

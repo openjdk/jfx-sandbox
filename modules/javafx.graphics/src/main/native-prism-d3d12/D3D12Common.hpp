@@ -356,6 +356,7 @@ enum class TextureWrapMode: unsigned int
     CLAMP_TO_ZERO,
     CLAMP_TO_EDGE,
     REPEAT,
+    MAX_ENUM
 };
 
 // decides how Shader resource should be bound
