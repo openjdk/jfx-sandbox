@@ -79,7 +79,7 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
     }
     // specular
     float4 tSpec = float4(0, 0, 0, 0);
-    float specPower = 0;
+    float specPower = 32.0f;
     if (psUniforms.specType > 0) {
         specPower = psUniforms.specColor.a;
         if (psUniforms.specType != SPEC_CLR) { // Texture or Mix
