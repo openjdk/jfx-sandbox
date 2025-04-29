@@ -29,6 +29,24 @@
 
 @implementation MetalTexture
 
+NSString *nameForPixelFormat(NSUInteger format) {
+    switch (format) {
+        case PFORMAT_INT_ARGB_PRE:  return @"PFORMAT_INT_ARGB_PRE : MTLPixelFormatBGRA8Unorm";
+        case PFORMAT_BYTE_RGBA_PRE: return @"PFORMAT_BYTE_RGBA_PRE : MTLPixelFormatBGRA8Unorm";
+        case PFORMAT_BYTE_BGRA_PRE: return @"PFORMAT_BYTE_BGRA_PRE : MTLPixelFormatBGRA8Unorm";
+        case PFORMAT_BYTE_RGB:      return @"PFORMAT_BYTE_RGB : MTLPixelFormatBGRA8Unorm";
+        case PFORMAT_BYTE_GRAY:     return @"PFORMAT_BYTE_GRAY : MTLPixelFormatBGRA8Unorm";
+
+        case PFORMAT_BYTE_ALPHA:    return @"PFORMAT_BYTE_ALPHA : MTLPixelFormatA8Unorm";
+
+        case PFORMAT_FLOAT_XYZW:    return @"PFORMAT_FLOAT_XYZW : MTLPixelFormatRGBA32Float";
+
+        case PFORMAT_MULTI_YV_12:   return @"PFORMAT_MULTI_YV_12 : NOT SUPPORTED";
+        case PFORMAT_BYTE_APPL_422: return @"PFORMAT_BYTE_APPL_422 : NOT SUPPORTED";
+        default: return @"Unknown MTLPixelFormat";
+    }
+}
+
 // This method creates a native MTLTexture
 - (MetalTexture*) createTexture:(MetalContext*)ctx
                         ofWidth:(NSUInteger)w
@@ -37,21 +55,34 @@
                       useMipMap:(BOOL)useMipMap
 {
     TEX_LOG(@"\n");
-    TEX_LOG(@">>>> MetalTexture.createTexture()  w = %lu, h= %lu", w, h);
+    TEX_LOG(@">>>> MetalTexture.createTexture()  w = %lu, h= %lu, format= %@", w, h, nameForPixelFormat(format));
 
     self = [super init];
     if (self) {
         width   = w;
         height  = h;
         context = ctx;
-        MTLPixelFormat pixelFormat = MTLPixelFormatBGRA8Unorm;
-        if (format == 4) { // TODO: MTL: have proper format to pixelFormat mapping
-            pixelFormat = MTLPixelFormatA8Unorm;
-            TEX_LOG(@"Creating texture with native format MTLPixelFormatA8Unorm");
-        }
-        if (format == 7) {
-            pixelFormat = MTLPixelFormatRGBA32Float;
-            TEX_LOG(@"Creating texture with native format MTLPixelFormatRGBA32Float");
+        pixelFormat = MTLPixelFormatBGRA8Unorm;
+
+        switch (format) {
+            case PFORMAT_BYTE_BGRA_PRE:
+            case PFORMAT_INT_ARGB_PRE:
+            case PFORMAT_BYTE_RGB:         // Note: this is actually 3-byte RGB
+            case PFORMAT_BYTE_GRAY:
+                pixelFormat = MTLPixelFormatBGRA8Unorm;
+                TEX_LOG(@"Creating texture with native format MTLPixelFormatBGRA8Unorm");
+                break;
+            case PFORMAT_BYTE_ALPHA:
+                pixelFormat = MTLPixelFormatA8Unorm;
+                TEX_LOG(@"Creating texture with native format MTLPixelFormatA8Unorm");
+                break;
+            case PFORMAT_FLOAT_XYZW:
+                pixelFormat = MTLPixelFormatRGBA32Float;
+                TEX_LOG(@"Creating texture with native format MTLPixelFormatRGBA32Float");
+                break;
+            default:
+                TEX_LOG(@"MetalTexture.createTexture: unknown format hint: %lu", format);
+                break;
         }
 
         mipmapped = useMipMap;
@@ -119,6 +150,11 @@
     return texture;
 }
 
+- (MTLPixelFormat) getPixelFormat
+{
+    return pixelFormat;
+}
+
 - (BOOL) isMipmapped
 {
     return mipmapped;
@@ -137,13 +173,56 @@
 
 @end // MetalTexture
 
-static int copyPixelDataToRingBuffer(MetalContext* context, void* pixels, unsigned int length)
+static NSMutableDictionary *getBufferAndOffset(MetalContext* context, unsigned int length)
 {
+    NSMutableDictionary<NSNumber *, id<MTLBuffer>> *bufferOffsetDict = [NSMutableDictionary dictionary];
+    id<MTLBuffer> pixelMTLBuf = nil;
     int offset = [[context getDataRingBuffer] reserveBytes:length];
-    if (offset >= 0) {
-        memcpy([[context getDataRingBuffer] getBuffer].contents + offset, pixels, length);
+    if (offset < 0) {
+        pixelMTLBuf = [context getTransientBufferWithLength:length];
+        offset = 0;
+    } else {
+        pixelMTLBuf = [[context getDataRingBuffer] getBuffer];
     }
-    return offset;
+
+    [bufferOffsetDict setObject:pixelMTLBuf forKey:@(offset)];
+    return bufferOffsetDict;
+}
+
+static unsigned int getPixelSize(enum MTLPixelFormat pixelFormat) {
+    switch (pixelFormat) {
+        case MTLPixelFormatA8Unorm:
+            return 1;
+        case MTLPixelFormatBGRA8Unorm:
+            return 4;
+        case MTLPixelFormatRGBA32Float:
+            return 16;
+        default:
+            return 0;
+    }
+}
+
+static NSMutableDictionary *copyPixelDataToRingBuffer(MetalContext* context, void* pixels, int srcx, int srcy,
+    int w, int h, int scanStride, MTLPixelFormat pixelFormat)
+{
+    unsigned int pixelSize = getPixelSize(pixelFormat);
+    unsigned int length = pixelSize * w * h;
+    TEX_LOG(@"copyPixelDataToRingBuffer : pixelSize=%u", pixelSize);
+    TEX_LOG(@"copyPixelDataToRingBuffer : length=%u", length);
+
+    NSMutableDictionary<NSNumber *, id<MTLBuffer>> *bufferOffsetDict = getBufferAndOffset(context, length);
+    NSNumber *offset = [[bufferOffsetDict allKeys] firstObject];
+    id<MTLBuffer> dstBuf = [[bufferOffsetDict allValues] firstObject];
+
+    void *dstBufOffset = dstBuf.contents + [offset intValue];
+    unsigned int rowLength = pixelSize * w;
+    void *pixelsSrcOffset = pixels + srcy * scanStride + srcx * pixelSize;
+
+    for (int i = 0; i < h; i++) {
+        memcpy(dstBufOffset + (rowLength * i), pixelsSrcOffset + (scanStride * i), rowLength);
+    }
+
+    return bufferOffsetDict;
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
@@ -152,7 +231,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
     jint w, jint h, jint scanStride)
 {
     TEX_LOG(@"\n");
-    TEX_LOG(@"-> Native: MTLTexture_nUpdate srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 
@@ -161,21 +239,20 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
         (jint)((*env)->GetDirectBufferCapacity(env, buf));
     length *= sizeof(jbyte);
 
+    TEX_LOG(@"-> Native: MTLTexture_nUpdate srcx: %d, srcy: %d, dstx: %d, dsty: %d, width: %d, height: %d, scanStride : %d length : %d",
+                         srcx, srcy, dstx, dsty, w, h, scanStride, length);
+
     jbyte* pixels = (jbyte*)((pixData != NULL) ?
         (*env)->GetPrimitiveArrayCritical(env, pixData, NULL) :
         (*env)->GetDirectBufferAddress(env, buf));
 
     id<MTLTexture> tex = [mtlTex getTexture];
+    MTLPixelFormat pixelFormat = [mtlTex getPixelFormat];
 
-    id<MTLBuffer> pixelMTLBuf = nil;
-    int offset = copyPixelDataToRingBuffer(context, pixels, length);
-    if (offset < 0) {
-        TEX_LOG(@"MetalTexture_nUpdate -- creating non Ring Buffer");
-        pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length];
-        offset = 0;
-    } else {
-        pixelMTLBuf = [[context getDataRingBuffer] getBuffer];
-    }
+    NSMutableDictionary* bufferOffsetDict = copyPixelDataToRingBuffer(context, pixels, srcx, srcy,
+                                                                    w, h, scanStride, pixelFormat);
+    int offset = [[[bufferOffsetDict allKeys] firstObject] intValue];
+    id<MTLBuffer> pixelMTLBuf = [[bufferOffsetDict allValues] firstObject];
 
     if (pixData != NULL) {
         (*env)->ReleasePrimitiveArrayCritical(env, pixData, pixels, 0);
@@ -187,8 +264,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
         [blitEncoder copyFromBuffer:pixelMTLBuf
-                       sourceOffset:(NSUInteger)offset + (srcy * scanStride + srcx * sizeof(jbyte))
-                  sourceBytesPerRow:(NSUInteger)scanStride
+                       sourceOffset:(NSUInteger)offset
+                  sourceBytesPerRow:(NSUInteger)w * getPixelSize(pixelFormat)
                 sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
                          sourceSize:MTLSizeMake(w, h, 1)
                           toTexture:tex
@@ -217,7 +294,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
     jint w, jint h, jint scanStride)
 {
     TEX_LOG(@"\n");
-    TEX_LOG(@"-> Native: MTLTexture_nUpdateFloat srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 
@@ -226,21 +302,20 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
         (jint)((*env)->GetDirectBufferCapacity(env, buf));
     length *= sizeof(jfloat);
 
+    TEX_LOG(@"-> Native: MTLTexture_nUpdateFloat srcx: %d, srcy: %d, dstx: %d, dsty: %d, width: %d, height: %d, scanStride : %d length : %d",
+                         srcx, srcy, dstx, dsty, w, h, scanStride, length);
+
     jfloat *pixels = (jfloat*)((pixData != NULL) ?
         (*env)->GetPrimitiveArrayCritical(env, pixData, NULL) :
         (*env)->GetDirectBufferAddress(env, buf));
 
     id<MTLTexture> texture = [mtlTex getTexture];
+    MTLPixelFormat pixelFormat = [mtlTex getPixelFormat];
 
-    id<MTLBuffer> pixelMTLBuf = nil;
-    int offset = copyPixelDataToRingBuffer(context, pixels, length);
-    if (offset < 0) {
-        TEX_LOG(@"MetalTexture_nUpdateFloat -- creating non Ring Buffer");
-        pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length];
-        offset = 0;
-    } else {
-        pixelMTLBuf = [[context getDataRingBuffer] getBuffer];
-    }
+    NSMutableDictionary* bufferOffsetDict = copyPixelDataToRingBuffer(context, pixels, srcx, srcy,
+                                                                    w, h, scanStride, pixelFormat);
+    int offset = [[[bufferOffsetDict allKeys] firstObject] intValue];
+    id<MTLBuffer> pixelMTLBuf = [[bufferOffsetDict allValues] firstObject];
 
     if (pixData != NULL) {
         (*env)->ReleasePrimitiveArrayCritical(env, pixData, pixels, 0);
@@ -253,8 +328,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
         [blitEncoder copyFromBuffer:pixelMTLBuf
-                       sourceOffset:(NSUInteger)offset + (srcy * scanStride + srcx * sizeof(jfloat))
-                  sourceBytesPerRow:(NSUInteger)scanStride
+                       sourceOffset:(NSUInteger)offset
+                  sourceBytesPerRow:(NSUInteger)w * getPixelSize(pixelFormat)
                 sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
                          sourceSize:MTLSizeMake(w, h, 1)
                           toTexture:texture
@@ -282,31 +357,27 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
     jint w, jint h, jint scanStride)
 {
     TEX_LOG(@"\n");
-    TEX_LOG(@"-> Native: MTLTexture_nUpdateInt srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
-
-    id<MTLTexture> texture = [mtlTex getTexture];
 
     jint length = pixData ?
         (*env)->GetArrayLength(env, pixData) :
         (jint)((*env)->GetDirectBufferCapacity(env, buf));
     length *= sizeof(jint);
+    TEX_LOG(@"-> Native: MTLTexture_nUpdateInt srcx: %d, srcy: %d, dstx: %d, dsty: %d, width: %d, height: %d, scanStride : %d length : %d",
+                         srcx, srcy, dstx, dsty, w, h, scanStride, length);
 
     jint *pixels = (jint*)((pixData != NULL) ?
         (*env)->GetPrimitiveArrayCritical(env, pixData, NULL) :
         (*env)->GetDirectBufferAddress(env, buf));
 
+    id<MTLTexture> texture = [mtlTex getTexture];
+    MTLPixelFormat pixelFormat = [mtlTex getPixelFormat];
 
-    id<MTLBuffer> pixelMTLBuf = nil;
-    int offset = copyPixelDataToRingBuffer(context, pixels, length);
-    if (offset < 0) {
-        TEX_LOG(@"MetalTexture_nUpdateInt -- creating non Ring Buffer");
-        pixelMTLBuf = [context getTransientBufferWithBytes:pixels length:length];
-        offset = 0;
-    } else {
-        pixelMTLBuf = [[context getDataRingBuffer] getBuffer];
-    }
+    NSMutableDictionary* bufferOffsetDict = copyPixelDataToRingBuffer(context, pixels, srcx, srcy,
+                                                                    w, h, scanStride, pixelFormat);
+    int offset = [[[bufferOffsetDict allKeys] firstObject] intValue];
+    id<MTLBuffer> pixelMTLBuf = [[bufferOffsetDict allValues] firstObject];
 
     if (pixData != NULL) {
         (*env)->ReleasePrimitiveArrayCritical(env, pixData, pixels, 0);
@@ -319,8 +390,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
         id<MTLBlitCommandEncoder> blitEncoder = [commandBuffer blitCommandEncoder];
 
         [blitEncoder copyFromBuffer:pixelMTLBuf
-                       sourceOffset:(NSUInteger)offset + (srcy * scanStride + srcx * sizeof(jint))
-                  sourceBytesPerRow:(NSUInteger)scanStride
+                       sourceOffset:(NSUInteger)offset
+                  sourceBytesPerRow:(NSUInteger)w * getPixelSize(pixelFormat)
                 sourceBytesPerImage:(NSUInteger)0 // 0 for 2D image
                          sourceSize:MTLSizeMake(w, h, 1)
                           toTexture:texture

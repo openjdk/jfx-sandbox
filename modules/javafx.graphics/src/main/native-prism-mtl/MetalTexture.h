@@ -37,6 +37,18 @@
 #define TEX_LOG(...)
 #endif
 
+enum PFormat {
+    PFORMAT_INT_ARGB_PRE  = 0,
+    PFORMAT_BYTE_RGBA_PRE = 1,
+    PFORMAT_BYTE_BGRA_PRE = 8,
+    PFORMAT_BYTE_RGB      = 2,
+    PFORMAT_BYTE_GRAY     = 3,
+    PFORMAT_BYTE_ALPHA    = 4,
+    PFORMAT_MULTI_YV_12   = 5,
+    PFORMAT_BYTE_APPL_422 = 6,
+    PFORMAT_FLOAT_XYZW    = 7,
+};
+
 @interface MetalTexture : NSObject
 {
     MetalContext *context;
@@ -47,9 +59,11 @@
     NSUInteger height;
 
     BOOL mipmapped;
+    MTLPixelFormat pixelFormat;
 }
 - (BOOL) isMipmapped;
 
+- (MTLPixelFormat) getPixelFormat;
 - (id<MTLBuffer>)  getPixelBuffer;
 - (id<MTLTexture>) getTexture;
 - (MetalTexture*) createTexture:(MetalContext*)ctx
