@@ -28,11 +28,14 @@
 using namespace metal;
 
 typedef struct VS_INPUT {
-    packed_float2 position;
-    packed_float4 color;
+    packed_float3 position;
     packed_float2 texCoord0;
     packed_float2 texCoord1;
 } VS_INPUT;
+
+typedef struct VS_COLOR {
+    uchar4 color;
+} VS_COLOR;
 
 typedef struct VS_OUTPUT
 {
@@ -42,16 +45,19 @@ typedef struct VS_OUTPUT
     vector_float2 texCoord1;
 } VS_OUTPUT;
 
-
 [[vertex]] VS_OUTPUT passThrough(const uint v_id [[ vertex_id ]],
                       constant VS_INPUT * v_in [[ buffer(0) ]],
-                      constant float4x4 & mvp_matrix [[ buffer(1) ]])
+                      constant float4x4 & mvp_matrix [[ buffer(1) ]],
+                      constant VS_COLOR * c_in [[ buffer(2) ]])
 {
     VS_OUTPUT out;
-    out.position  = vector_float4(v_in[v_id].position.xy, 0.0, 1.0) * mvp_matrix;
-    out.fragColor = v_in[v_id].color;
-    out.texCoord0 = v_in[v_id].texCoord0;
-    out.texCoord1 = v_in[v_id].texCoord1;
+    out.position    = vector_float4(v_in[v_id].position.xy, 0.0, 1.0) * mvp_matrix;
+    out.fragColor.r = c_in[v_id].color.r / 255.0f;
+    out.fragColor.g = c_in[v_id].color.g / 255.0f;
+    out.fragColor.b = c_in[v_id].color.b / 255.0f;
+    out.fragColor.a = c_in[v_id].color.a / 255.0f;
+    out.texCoord0   = v_in[v_id].texCoord0;
+    out.texCoord1   = v_in[v_id].texCoord1;
     return out;
 }
 

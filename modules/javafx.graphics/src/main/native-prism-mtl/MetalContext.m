@@ -83,10 +83,6 @@
         rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStore;
         rttPassDesc.colorAttachments[0].loadAction  = MTLLoadActionLoad;
 
-        for (short i = 0; i < 256; i++) {
-            byteToFloatTable[i] = ((float)i) / 255.0f;
-        }
-
         pixelBuffer = [device newBufferWithLength:4 options:MTLResourceStorageModeShared];
 
         // clearing rtt related initialization
@@ -397,22 +393,26 @@
 
     CTX_LOG(@"numVertices = %lu", numVertices);
 
-    int vbLength = sizeof(VS_INPUT) * numVertices;
-    int numQuads = numVertices / 4;
+    int vbLength   = numVertices * sizeof(struct PrismSourceVertex);
+    int cbLength   = numVertices * 4;
+    int numQuads   = numVertices / 4;
     int numIndices = numQuads * 6;
 
     id<MTLBuffer> vertexBuffer = [dataRingBuffer getBuffer];
-    int offset = [dataRingBuffer reserveBytes:vbLength];
-
-    if (offset < 0) {
+    int vertexOffset = [dataRingBuffer reserveBytes:vbLength];
+    if (vertexOffset < 0) {
         vertexBuffer = [self getTransientBufferWithLength:vbLength];
-        offset = 0;
+        vertexOffset = 0;
     }
+    memcpy(vertexBuffer.contents + vertexOffset, pSrcXYZUVs, vbLength);
 
-    [self fillVB:pSrcXYZUVs
-          colors:pSrcColors
-     numVertices:numVertices
-              vb:(vertexBuffer.contents + offset)];
+    id<MTLBuffer> colorBuffer = [dataRingBuffer getBuffer];
+    int colorOffset = [dataRingBuffer reserveBytes:cbLength];
+    if (colorOffset < 0) {
+        colorBuffer = [self getTransientBufferWithLength:cbLength];
+        colorOffset = 0;
+    }
+    memcpy(colorBuffer.contents + colorOffset, pSrcColors, cbLength);
 
     id<MTLRenderCommandEncoder> renderEncoder = [self getCurrentRenderEncoder];
 
@@ -462,8 +462,12 @@
 
     for (int i = 0; numIndices > 0; i++) {
         [renderEncoder setVertexBuffer:vertexBuffer
-                                offset:(offset + (i * VERTICES_PER_IB * sizeof(VS_INPUT)))
+                                offset:(vertexOffset + (i * VERTICES_PER_IB * sizeof(struct PrismSourceVertex)))
                                atIndex:VertexInputIndexVertices];
+
+        [renderEncoder setVertexBuffer:colorBuffer
+                                offset:(colorOffset + (i * VERTICES_PER_IB * 4))
+                               atIndex:VertexInputColors];
 
         [renderEncoder drawIndexedPrimitives:MTLPrimitiveTypeTriangle
                                   indexCount:((numIndices > INDICES_PER_IB) ? INDICES_PER_IB : numIndices)
@@ -691,38 +695,6 @@
 {
     CTX_LOG(@"MetalContext.resetProjViewMatrix()");
     mvpMatrix = matrix_identity_float4x4;
-}
-
-- (void) fillVB:(struct PrismSourceVertex const *)pSrcXYZUVs
-         colors:(char const *)pSrcColors
-    numVertices:(int)numVertices
-             vb:(void*)vb
-{
-    CTX_LOG(@"fillVB : numVertices = %d", numVertices);
-
-    VS_INPUT* pVert = (VS_INPUT*)vb;
-    unsigned char const* colors = (unsigned char*)(pSrcColors);
-    struct PrismSourceVertex const * inVerts = pSrcXYZUVs;
-
-    for (int i = 0; i < numVertices; i++) {
-        pVert->position.x = inVerts->x;
-        pVert->position.y = inVerts->y;
-
-        pVert->color.r = byteToFloatTable[*(colors)];
-        pVert->color.g = byteToFloatTable[*(colors + 1)];
-        pVert->color.b = byteToFloatTable[*(colors + 2)];
-        pVert->color.a = byteToFloatTable[*(colors + 3)];
-
-        pVert->texCoord0.x = inVerts->tu1;
-        pVert->texCoord0.y = inVerts->tv1;
-
-        pVert->texCoord1.x = inVerts->tu2;
-        pVert->texCoord1.y = inVerts->tv2;
-
-        inVerts++;
-        colors += 4;
-        pVert++;
-    }
 }
 
 - (MetalPipelineManager*) getPipelineManager

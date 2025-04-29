@@ -54,26 +54,19 @@ struct PrismSourceVertex {
     float tu2, tv2;
 };
 
-typedef struct VS_INPUT {
-    packed_float2 position;
-    packed_float4 color;
-    packed_float2 texCoord0;
-    packed_float2 texCoord1;
-} VS_INPUT;
-
 typedef struct CLEAR_VS_INPUT {
     packed_float2 position;
 } CLEAR_VS_INPUT;
 
 typedef enum VertexInputIndex {
     VertexInputIndexVertices = 0,
-    VertexInputMatrixMVP = 1,
-    VertexInputClearColor = 2
+    VertexInputMatrixMVP     = 1,
+    VertexInputClearColor    = 2,
+    VertexInputColors        = 2
 } VertexInputIndex;
 
 @interface MetalContext : NSObject
 {
-    float byteToFloatTable[256];
     simd_float4x4 mvpMatrix;
     simd_float4x4 worldMatrix;
 
@@ -157,11 +150,6 @@ typedef enum VertexInputIndex {
 
 - (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height;
 - (void) resetClipRect;
-
-- (void) fillVB:(struct PrismSourceVertex const *)pSrcXYZUVs
-         colors:(char const *)pSrcColors
-    numVertices:(int)numVertices
-             vb:(void*)vb;
 
 - (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
                       ofColors:(char const *)pSrcColors
