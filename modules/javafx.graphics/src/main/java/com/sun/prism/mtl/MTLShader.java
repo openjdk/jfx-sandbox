@@ -27,11 +27,14 @@ package com.sun.prism.mtl;
 
 import com.sun.prism.ps.Shader;
 import com.sun.prism.Texture;
+
+import java.lang.ref.WeakReference;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ArrayList;
+
 
 public class MTLShader implements Shader  {
 
@@ -41,6 +44,7 @@ public class MTLShader implements Shader  {
     private long nMetalShaderRef;
     private final Map<Integer, String> samplers = new HashMap<>();
     private final Map<String, Integer> uniformNameIdMap;
+    private final Map<Integer, WeakReference<Object>> textureIdRefMap = new HashMap<>();
 
     private static Map<String, MTLShader> shaderMap = new HashMap<>();
     private static MTLShader currentEnabledShader;
@@ -156,6 +160,10 @@ public class MTLShader implements Shader  {
     public static void setTexture(int texUnit, Texture tex, boolean isLinear, int wrapMode) {
         //MTLLog.Debug(">>> MTLShader.setTexture() : fragmentFunctionName : " + currentEnabledShader.fragmentFunctionName);
         //MTLLog.Debug("    MTLShader.setTexture() texUnit = " + texUnit + ", isLinear = " + isLinear + ", wrapMode = " + wrapMode);
+        if (currentEnabledShader.textureIdRefMap.get(texUnit) != null &&
+            currentEnabledShader.textureIdRefMap.get(texUnit).get() == tex) return;
+
+        currentEnabledShader.textureIdRefMap.put(texUnit, new WeakReference(tex));
         MTLTexture mtlTex = (MTLTexture)tex;
         nSetTexture(currentEnabledShader.nMetalShaderRef, texUnit,
                 currentEnabledShader.uniformNameIdMap.get(currentEnabledShader.samplers.get(texUnit)),
@@ -242,6 +250,7 @@ public class MTLShader implements Shader  {
         if (isValid()) {
             context.disposeShader(nMetalShaderRef);
             nMetalShaderRef = 0;
+            textureIdRefMap.clear();
         }
     }
 }
