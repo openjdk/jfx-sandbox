@@ -210,28 +210,10 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     return uyvy422ToRGBAState;
 }
 
-
-- (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFunc:(id<MTLFunction>) func
-                                               compositeMode:(int) compositeMode
+- (id<MTLRenderPipelineState>) getPhongPipeStateWithNumLights:(int) numLights
+                                                compositeMode:(int) compositeMode;
 {
-    METAL_LOG(@"MetalPipelineManager.getPhongPipeStateWithFragFunc()");
-    // TODO: MTL: Cleanup this code in future if we think we don't need
-    // to add padding to float3 data and use VertexDescriptor
-    /*MTLVertexDescriptor* vertDesc = [[MTLVertexDescriptor alloc] init];
-    vertDesc.attributes[0].format = MTLVertexFormatFloat4;
-    vertDesc.attributes[0].offset = 0;
-    vertDesc.attributes[0].bufferIndex = 0;
-    vertDesc.attributes[1].format = MTLVertexFormatFloat4;
-    vertDesc.attributes[1].bufferIndex = 0;
-    vertDesc.attributes[1].offset = 16;
-    vertDesc.attributes[2].format = MTLVertexFormatFloat4;
-    vertDesc.attributes[2].bufferIndex = 0;
-    vertDesc.attributes[2].offset = 32;
-    vertDesc.layouts[0].stride = 48;
-    vertDesc.layouts[0].stepRate = 1;
-    vertDesc.layouts[0].stepFunction = MTLVertexStepFunctionPerVertex;
-    pipeDesc.vertexDescriptor = vertDesc;*/
-
+    METAL_LOG(@"MetalPipelineManager.getPhongPipeStateWithVertFragFunc() numLights: %d, compositeMode: %ld", numLights, compositeMode);
     NSError* error;
     NSMutableDictionary *psDict;
     if ([[context getRTT] isMSAAEnabled]) {
@@ -247,13 +229,20 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
             psDict = phongPipelineStateNonMSAANoDepthDict;
         }
     }
-    NSNumber *keyCompMode = [NSNumber numberWithInt:compositeMode];
+
+    NSNumber *keyCompMode = [NSNumber numberWithInt:(compositeMode << 8) | numLights];
     id<MTLRenderPipelineState> pipeState = psDict[keyCompMode];
     if (pipeState == nil) {
-        METAL_LOG(@"MetalPipelineManager phong pipeline state is nil");
+
+        NSString *vertFuncName = [[NSString alloc] initWithFormat:@"PhongVS%d", numLights];
+        NSString *fragFuncName = [[NSString alloc] initWithFormat:@"PhongPS%d", numLights];
+
+        METAL_LOG(@"MetalPipelineManager.getPhongPipeStateWithVertFragFunc() creating new PipeState numLights: %d, compositeMode: %d, keyCompMode: %ld",
+                numLights, compositeMode, [keyCompMode integerValue]);
+
         MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
-        pipeDesc.vertexFunction = [self getFunction:@"PhongVS"];
-        pipeDesc.fragmentFunction = func;
+        pipeDesc.vertexFunction = [self getFunction:vertFuncName];
+        pipeDesc.fragmentFunction = [self getFunction:fragFuncName];
         pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
         if ([context isDepthEnabled]) {
             pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
@@ -273,16 +262,11 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         [pipeDesc release];
         pipeDesc = nil;
         [psDict setObject:pipeState forKey:keyCompMode];
+        [vertFuncName release];
+        [fragFuncName release];
         NSAssert(pipeState, @"Failed to create phong pipeline state: %@", error);
     }
     return pipeState;
-}
-
-- (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFuncName:(NSString*) funcName
-                                                   compositeMode:(int) compositeMode;
-{
-    return [self getPhongPipeStateWithFragFunc:[self getFunction:funcName]
-                                 compositeMode:compositeMode];
 }
 
 - (id<MTLDepthStencilState>) getDepthStencilState

@@ -35,27 +35,25 @@ using namespace metal;
 #define SPEC_MIX 3
 
 float NTSC_Gray(float3 color) {
-    return dot(color, float3(0.299, 0.587, 0.114));
+    return dot(color, float3(0.299f, 0.587f, 0.114f));
 }
 
 float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float denom, float falloff) {
     float cosAngle = dot(normalize(-lightDir), l);
     float cutoff = cosAngle - cosOuter;
-    if (falloff != 0) {
+    if (falloff != 0.0f) {
         return pow(saturate(cutoff / denom), falloff);
     }
-    return cutoff >= 0 ? 1 : 0;
+    return cutoff >= 0.0f ? 1.0f : 0.0f;
 }
 
-fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
+fragment float4 PhongPS0(VS_PHONG_INOUT0 vert [[stage_in]],
                         constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
                         texture2d<float> mapDiffuse [[ texture(0) ]],
                         texture2d<float> mapSpecular [[ texture(1) ]],
                         texture2d<float> mapBump [[ texture(2) ]],
                         texture2d<float> mapSelfIllum [[ texture(3) ]])
 {
-    //return float4(1.0, 0.0, 0.0, 1.0);
-
     float2 texD = vert.texCoord;
 
     // TODO : MTL : This is default filter and addressmode
@@ -66,19 +64,58 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
                                 mip_filter::linear,
                                    address::repeat);
     float4 tDiff = mapDiffuse.sample(mipmapSampler, texD);
-    if (tDiff.a == 0.0) discard_fragment();
+    if (tDiff.a == 0.0f) discard_fragment();
     tDiff = tDiff * psUniforms.diffuseColor;
 
-    float3 normal = float3(0, 0, 1);
+    float3 normal = float3(0.0f, 0.0f, 1.0f);
     constexpr sampler nonMipmapSampler(filter::linear,
-                                      address::repeat);
-    //bump
+                                        address::repeat);
+    // bump
     if (psUniforms.isBumpMap) {
         float4 BumpSpec = mapBump.sample(nonMipmapSampler, texD);
-        normal = normalize(BumpSpec.xyz * 2 - 1);
+        normal = normalize(BumpSpec.xyz * 2.0f - 1.0f);
+    }
+
+    float3 rez = psUniforms.ambientLightColor.rgb * tDiff.rgb;
+
+    // self-illumination
+    if (psUniforms.isIlluminated) {
+        rez += mapSelfIllum.sample(mipmapSampler, texD).rgb;
+    }
+
+    return float4(saturate(rez), tDiff.a);
+}
+
+fragment float4 PhongPS1(VS_PHONG_INOUT1 vert [[stage_in]],
+                        constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
+                        texture2d<float> mapDiffuse [[ texture(0) ]],
+                        texture2d<float> mapSpecular [[ texture(1) ]],
+                        texture2d<float> mapBump [[ texture(2) ]],
+                        texture2d<float> mapSelfIllum [[ texture(3) ]])
+{
+    float2 texD = vert.texCoord;
+
+    // TODO : MTL : This is default filter and addressmode
+    // set in both OpenGL and D3D, currently i am setting it
+    // directly here, in future we can optimise it to be passed
+    // as sampler state.
+    constexpr sampler mipmapSampler(filter::linear,
+                                mip_filter::linear,
+                                   address::repeat);
+    float4 tDiff = mapDiffuse.sample(mipmapSampler, texD);
+    if (tDiff.a == 0.0f) discard_fragment();
+    tDiff = tDiff * psUniforms.diffuseColor;
+
+    float3 normal = float3(0.0f, 0.0f, 1.0f);
+    constexpr sampler nonMipmapSampler(filter::linear,
+                                      address::repeat);
+    // bump
+    if (psUniforms.isBumpMap) {
+        float4 BumpSpec = mapBump.sample(nonMipmapSampler, texD);
+        normal = normalize(BumpSpec.xyz * 2.0f - 1.0f);
     }
     // specular
-    float4 tSpec = float4(0, 0, 0, 0);
+    float4 tSpec = 0.0f;
     float specPower = 32.0f;
     if (psUniforms.specType > 0) {
         specPower = psUniforms.specColor.a;
@@ -96,18 +133,219 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
     // lighting
     float3 worldNormVecToEye = normalize(vert.worldVecToEye);
     float3 refl = reflect(worldNormVecToEye, normal);
-    float3 diffLightColor = 0;
-    float3 specLightColor = 0;
+    float3 diffLightColor = 0.0f;
+    float3 specLightColor = 0.0f;
 
-    for (int i = 0; i < vert.numLights; i++) {
-        // TODO: MTL: Implementation using array of scalars
-        // which is not working
-        /*float3 light = float3(vert.worldVecsToLights[(i * 3)],
-                              vert.worldVecsToLights[(i * 3) + 1],
-                              vert.worldVecsToLights[(i * 3) + 2]);
-        float3 lightDir = float3(vert.worldNormLightDirs[(i * 3)],
-                                 vert.worldNormLightDirs[(i * 3) + 1],
-                                 vert.worldNormLightDirs[(i * 3) + 2]);*/
+    float3 lightColor = float3(psUniforms.lightsColor[0],
+                               psUniforms.lightsColor[1],
+                               psUniforms.lightsColor[2]);
+    float4 lightAttenuation = float4(psUniforms.lightsAttenuation[0],
+                                     psUniforms.lightsAttenuation[1],
+                                     psUniforms.lightsAttenuation[2],
+                                     psUniforms.lightsAttenuation[3]);
+    float3 spotLightsFactor = float3(psUniforms.spotLightsFactors[0],
+                                     psUniforms.spotLightsFactors[1],
+                                     psUniforms.spotLightsFactors[2]);
+    // testing if w is 0 or 1 using < 0.5 since equality check for floating points might not work well
+    if (lightAttenuation.w < 0.5f) {
+        diffLightColor += saturate(dot(normal, -vert.worldNormLightDirs1)) * lightColor;
+        specLightColor += pow(saturate(dot(-refl, -vert.worldNormLightDirs1)), specPower) * lightColor;
+    } else {
+        float dist = length(vert.worldVecsToLights1);
+        if (dist <= psUniforms.lightsRange[0]) {
+            float3 l = normalize(vert.worldVecsToLights1);
+
+            float cosOuter = spotLightsFactor.x;
+            float denom = spotLightsFactor.y;
+            float falloff = spotLightsFactor.z;
+            float spotlightFactor = computeSpotlightFactor3(l, vert.worldNormLightDirs1, cosOuter, denom, falloff);
+
+            float ca = lightAttenuation.x;
+            float la = lightAttenuation.y;
+            float qa = lightAttenuation.z;
+            float invAttnFactor = ca + la * dist + qa * dist * dist;
+
+            float3 attenuatedColor = lightColor * spotlightFactor / invAttnFactor;
+            diffLightColor += saturate(dot(normal, l)) * attenuatedColor;
+            specLightColor += pow(saturate(dot(-refl, l)), specPower) * attenuatedColor;
+        }
+    }
+
+    float3 ambLightColor = psUniforms.ambientLightColor.rgb;
+
+    float3 rez = (ambLightColor + diffLightColor) * tDiff.rgb + specLightColor * tSpec.rgb;
+
+    // self-illumination
+    if (psUniforms.isIlluminated) {
+        rez += mapSelfIllum.sample(mipmapSampler, texD).rgb;
+    }
+
+    return float4(saturate(rez), tDiff.a);
+}
+
+fragment float4 PhongPS2(VS_PHONG_INOUT2 vert [[stage_in]],
+                        constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
+                        texture2d<float> mapDiffuse [[ texture(0) ]],
+                        texture2d<float> mapSpecular [[ texture(1) ]],
+                        texture2d<float> mapBump [[ texture(2) ]],
+                        texture2d<float> mapSelfIllum [[ texture(3) ]])
+{
+   float2 texD = vert.texCoord;
+
+    // TODO : MTL : This is default filter and addressmode
+    // set in both OpenGL and D3D, currently i am setting it
+    // directly here, in future we can optimise it to be passed
+    // as sampler state.
+    constexpr sampler mipmapSampler(filter::linear,
+                                mip_filter::linear,
+                                   address::repeat);
+    float4 tDiff = mapDiffuse.sample(mipmapSampler, texD);
+    if (tDiff.a == 0.0f) discard_fragment();
+    tDiff = tDiff * psUniforms.diffuseColor;
+
+    float3 normal = float3(0.0f, 0.0f, 1.0f);
+    constexpr sampler nonMipmapSampler(filter::linear,
+                                      address::repeat);
+    // bump
+    if (psUniforms.isBumpMap) {
+        float4 BumpSpec = mapBump.sample(nonMipmapSampler, texD);
+        normal = normalize(BumpSpec.xyz * 2.0f - 1.0f);
+    }
+    // specular
+    float4 tSpec = 0.0f;
+    float specPower = 32.0f;
+    if (psUniforms.specType > 0) {
+        specPower = psUniforms.specColor.a;
+        if (psUniforms.specType != SPEC_CLR) { // Texture or Mix
+            tSpec = mapSpecular.sample(nonMipmapSampler, texD);
+            specPower *= NTSC_Gray(tSpec.rgb);
+        } else { // Color
+            tSpec.rgb = psUniforms.specColor.rgb;
+        }
+        if (psUniforms.specType == SPEC_MIX) {
+            tSpec.rgb *= psUniforms.specColor.rgb;
+        }
+    }
+
+    // lighting
+    float3 worldNormVecToEye = normalize(vert.worldVecToEye);
+    float3 refl = reflect(worldNormVecToEye, normal);
+    float3 diffLightColor = 0.0f;
+    float3 specLightColor = 0.0f;
+
+    for (int i = 0; i < psUniforms.numLights; i++) {
+
+        float3 light;
+        float3 lightDir;
+        switch (i) {
+            case 0 :
+                light = vert.worldVecsToLights1;
+                lightDir = vert.worldNormLightDirs1;
+                break;
+            case 1 :
+                light = vert.worldVecsToLights2;
+                lightDir = vert.worldNormLightDirs2;
+                break;
+        }
+        float3 lightColor = float3(psUniforms.lightsColor[(i * 4)],
+                                   psUniforms.lightsColor[(i * 4) + 1],
+                                   psUniforms.lightsColor[(i * 4) + 2]);
+        float4 lightAttenuation = float4(psUniforms.lightsAttenuation[(i * 4)],
+                                         psUniforms.lightsAttenuation[(i * 4) + 1],
+                                         psUniforms.lightsAttenuation[(i * 4) + 2],
+                                         psUniforms.lightsAttenuation[(i * 4) + 3]);
+        float3 spotLightsFactor = float3(psUniforms.spotLightsFactors[(i * 4)],
+                                         psUniforms.spotLightsFactors[(i * 4) + 1],
+                                         psUniforms.spotLightsFactors[(i * 4) + 2]);
+        // testing if w is 0 or 1 using < 0.5 since equality check for floating points might not work well
+        if (lightAttenuation.w < 0.5f) {
+            diffLightColor += saturate(dot(normal, -lightDir)) * lightColor;
+            specLightColor += pow(saturate(dot(-refl, -lightDir)), specPower) * lightColor;
+        } else {
+            float dist = length(light);
+            if (dist <= psUniforms.lightsRange[(i * 4)]) {
+                float3 l = normalize(light);
+
+                float cosOuter = spotLightsFactor.x;
+                float denom = spotLightsFactor.y;
+                float falloff = spotLightsFactor.z;
+                float spotlightFactor = computeSpotlightFactor3(l, lightDir, cosOuter, denom, falloff);
+
+                float ca = lightAttenuation.x;
+                float la = lightAttenuation.y;
+                float qa = lightAttenuation.z;
+                float invAttnFactor = ca + la * dist + qa * dist * dist;
+
+                float3 attenuatedColor = lightColor * spotlightFactor / invAttnFactor;
+                diffLightColor += saturate(dot(normal, l)) * attenuatedColor;
+                specLightColor += pow(saturate(dot(-refl, l)), specPower) * attenuatedColor;
+            }
+        }
+    }
+
+    float3 ambLightColor = psUniforms.ambientLightColor.rgb;
+
+    float3 rez = (ambLightColor + diffLightColor) * tDiff.rgb + specLightColor * tSpec.rgb;
+
+    // self-illumination
+    if (psUniforms.isIlluminated) {
+        rez += mapSelfIllum.sample(mipmapSampler, texD).rgb;
+    }
+
+    return float4(saturate(rez), tDiff.a);
+}
+
+fragment float4 PhongPS3(VS_PHONG_INOUT3 vert [[stage_in]],
+                        constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
+                        texture2d<float> mapDiffuse [[ texture(0) ]],
+                        texture2d<float> mapSpecular [[ texture(1) ]],
+                        texture2d<float> mapBump [[ texture(2) ]],
+                        texture2d<float> mapSelfIllum [[ texture(3) ]])
+{
+    float2 texD = vert.texCoord;
+
+    // TODO : MTL : This is default filter and addressmode
+    // set in both OpenGL and D3D, currently i am setting it
+    // directly here, in future we can optimise it to be passed
+    // as sampler state.
+    constexpr sampler mipmapSampler(filter::linear,
+                                mip_filter::linear,
+                                   address::repeat);
+    float4 tDiff = mapDiffuse.sample(mipmapSampler, texD);
+    if (tDiff.a == 0.0f) discard_fragment();
+    tDiff = tDiff * psUniforms.diffuseColor;
+
+    float3 normal = float3(0.0f, 0.0f, 1.0f);
+    constexpr sampler nonMipmapSampler(filter::linear,
+                                      address::repeat);
+    // bump
+    if (psUniforms.isBumpMap) {
+        float4 BumpSpec = mapBump.sample(nonMipmapSampler, texD);
+        normal = normalize(BumpSpec.xyz * 2.0f - 1.0f);
+    }
+    // specular
+    float4 tSpec = 0.0f;
+    float specPower = 32.0f;
+    if (psUniforms.specType > 0) {
+        specPower = psUniforms.specColor.a;
+        if (psUniforms.specType != SPEC_CLR) { // Texture or Mix
+            tSpec = mapSpecular.sample(nonMipmapSampler, texD);
+            specPower *= NTSC_Gray(tSpec.rgb);
+        } else { // Color
+            tSpec.rgb = psUniforms.specColor.rgb;
+        }
+        if (psUniforms.specType == SPEC_MIX) {
+            tSpec.rgb *= psUniforms.specColor.rgb;
+        }
+    }
+
+    // lighting
+    float3 worldNormVecToEye = normalize(vert.worldVecToEye);
+    float3 refl = reflect(worldNormVecToEye, normal);
+    float3 diffLightColor = 0.0f;
+    float3 specLightColor = 0.0f;
+
+    for (int i = 0; i < psUniforms.numLights; i++) {
         float3 light;
         float3 lightDir;
         switch (i) {
@@ -124,42 +362,36 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
                 lightDir = vert.worldNormLightDirs3;
                 break;
         }
-        float4 lightColor = float4(psUniforms.lightsColor[(i * 4)],
+        float3 lightColor = float3(psUniforms.lightsColor[(i * 4)],
                                    psUniforms.lightsColor[(i * 4) + 1],
-                                   psUniforms.lightsColor[(i * 4) + 2],
-                                   1.0);
+                                   psUniforms.lightsColor[(i * 4) + 2]);
         float4 lightAttenuation = float4(psUniforms.lightsAttenuation[(i * 4)],
                                          psUniforms.lightsAttenuation[(i * 4) + 1],
                                          psUniforms.lightsAttenuation[(i * 4) + 2],
                                          psUniforms.lightsAttenuation[(i * 4) + 3]);
-        float4 lightRange = float4(psUniforms.lightsRange[(i * 4)],
-                                   0.0,
-                                   0.0,
-                                   0.0);
-        float4 spotLightsFactor = float4(psUniforms.spotLightsFactors[(i * 4)],
+        float3 spotLightsFactor = float3(psUniforms.spotLightsFactors[(i * 4)],
                                          psUniforms.spotLightsFactors[(i * 4) + 1],
-                                         psUniforms.spotLightsFactors[(i * 4) + 2],
-                                         psUniforms.spotLightsFactors[(i * 4) + 3]);
-        // testing if w is 0 or 1 using <0.5 since equality check for floating points might not work well
-        if ((lightAttenuation).w < 0.5) {
-            diffLightColor += saturate(dot(normal, -lightDir)) * (lightColor).rgb;
-            specLightColor += pow(saturate(dot(-refl, -lightDir)), specPower) * (lightColor).rgb;
+                                         psUniforms.spotLightsFactors[(i * 4) + 2]);
+        // testing if w is 0 or 1 using < 0.5 since equality check for floating points might not work well
+        if (lightAttenuation.w < 0.5f) {
+            diffLightColor += saturate(dot(normal, -lightDir)) * lightColor;
+            specLightColor += pow(saturate(dot(-refl, -lightDir)), specPower) * lightColor;
         } else {
             float dist = length(light);
-            if (dist <= (lightRange).x) {
+            if (dist <= psUniforms.lightsRange[(i * 4)]) {
                 float3 l = normalize(light);
 
-                float cosOuter = (spotLightsFactor).x;
-                float denom = (spotLightsFactor).y;
-                float falloff = (spotLightsFactor).z;
+                float cosOuter = spotLightsFactor.x;
+                float denom = spotLightsFactor.y;
+                float falloff = spotLightsFactor.z;
                 float spotlightFactor = computeSpotlightFactor3(l, lightDir, cosOuter, denom, falloff);
 
-                float ca = (lightAttenuation).x;
-                float la = (lightAttenuation).y;
-                float qa = (lightAttenuation).z;
+                float ca = lightAttenuation.x;
+                float la = lightAttenuation.y;
+                float qa = lightAttenuation.z;
                 float invAttnFactor = ca + la * dist + qa * dist * dist;
 
-                float3 attenuatedColor = (lightColor).rgb * spotlightFactor / invAttnFactor;
+                float3 attenuatedColor = lightColor * spotlightFactor / invAttnFactor;
                 diffLightColor += saturate(dot(normal, l)) * attenuatedColor;
                 specLightColor += pow(saturate(dot(-refl, l)), specPower) * attenuatedColor;
             }
@@ -168,8 +400,7 @@ fragment float4 PhongPS(VS_PHONG_INOUT vert [[stage_in]],
 
     float3 ambLightColor = psUniforms.ambientLightColor.rgb;
 
-    float3 rez = (ambLightColor + diffLightColor) *
-        (tDiff.rgb) + specLightColor * tSpec.rgb;
+    float3 rez = (ambLightColor + diffLightColor) * tDiff.rgb + specLightColor * tSpec.rgb;
 
     // self-illumination
     if (psUniforms.isIlluminated) {

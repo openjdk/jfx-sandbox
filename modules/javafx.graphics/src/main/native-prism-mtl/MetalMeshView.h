@@ -40,8 +40,8 @@ typedef struct VS_PHONG_UNIFORMS {
     simd_float4x4 mvp_matrix;
     simd_float4x4 world_matrix;
     packed_float4 cameraPos;
-    float lightsPosition[MAX_NUM_LIGHTS * 4];
-    float lightsNormDirection[MAX_NUM_LIGHTS * 4];
+    float lightsPosition[MAX_NUM_LIGHTS * 3];
+    float lightsNormDirection[MAX_NUM_LIGHTS * 3];
     float numLights;
 } VS_PHONG_UNIFORMS;
 
@@ -53,6 +53,7 @@ typedef struct PS_PHONG_UNIFORMS {
     float lightsAttenuation[MAX_NUM_LIGHTS * 4];
     float lightsRange[MAX_NUM_LIGHTS * 4];
     float spotLightsFactors[MAX_NUM_LIGHTS * 4];
+    int numLights;
     int specType;
     bool isBumpMap;
     bool isIlluminated;
@@ -69,6 +70,9 @@ typedef struct PS_PHONG_UNIFORMS {
     bool lightsDirty;
     int cullMode;
     bool wireframe;
+
+    VS_PHONG_UNIFORMS vsUniforms;
+    PS_PHONG_UNIFORMS psUniforms;
 }
 
 - (MetalMeshView*) createMeshView:(MetalContext*)ctx

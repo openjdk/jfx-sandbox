@@ -134,7 +134,7 @@ typedef enum VertexInputIndex {
 - (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder;
 - (void) endCurrentRenderEncoder;
 
-- (id<MTLRenderPipelineState>) getPhongPipelineState;
+- (id<MTLRenderPipelineState>) getPhongPipelineStateWithNumLights:(int) numLights;
 - (NSUInteger) getCurrentBufferIndex;
 
 - (void) updateDepthDetails:(bool)depthTest;

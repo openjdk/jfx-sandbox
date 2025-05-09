@@ -55,10 +55,8 @@
 - (id<MTLRenderPipelineState>) getClearRttPipeState;
 - (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>) fragFunc
                                           compositeMode:(int) compositeMode;
-- (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFunc:(id<MTLFunction>) fragFunc
-                                               compositeMode:(int) compositeMode;
-- (id<MTLRenderPipelineState>) getPhongPipeStateWithFragFuncName:(NSString*) funcName
-                                                   compositeMode:(int) compositeMode;
+- (id<MTLRenderPipelineState>) getPhongPipeStateWithNumLights:(int) numLights
+                                                compositeMode:(int) compositeMode;
 - (id<MTLComputePipelineState>) getComputePipelineStateWithFunc:(NSString*) funcName;
 - (id<MTLDepthStencilState>) getDepthStencilState;
 - (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*) pipeDesc

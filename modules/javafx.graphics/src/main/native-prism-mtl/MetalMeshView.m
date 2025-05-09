@@ -158,20 +158,17 @@
 {
     MESH_LOG(@"MetalMeshView_render()");
     [self computeNumLights];
-    VS_PHONG_UNIFORMS vsUniforms;
-    PS_PHONG_UNIFORMS psUniforms;
-    for (int i = 0, d = 0, p = 0, c = 0, a = 0, r = 0, s = 0; i < MAX_NUM_LIGHTS; i++) {
+
+    for (int i = 0, d = 0, p = 0, c = 0, a = 0, r = 0, s = 0; i < numLights; i++) {
         MetalLight* light = lights[i];
 
         vsUniforms.lightsPosition[p++] = light->position[0];
         vsUniforms.lightsPosition[p++] = light->position[1];
         vsUniforms.lightsPosition[p++] = light->position[2];
-        vsUniforms.lightsPosition[p++] = 0;
 
         vsUniforms.lightsNormDirection[d++] = light->direction[0];
         vsUniforms.lightsNormDirection[d++] = light->direction[1];
         vsUniforms.lightsNormDirection[d++] = light->direction[2];
-        vsUniforms.lightsNormDirection[d++] = 0;
 
         psUniforms.lightsColor[c++] = light->color[0];
         psUniforms.lightsColor[c++] = light->color[1];
@@ -205,7 +202,7 @@
     }
 
     id<MTLRenderCommandEncoder> phongEncoder = [context getCurrentRenderEncoder];
-    [phongEncoder setRenderPipelineState:[context getPhongPipelineState]];
+    [phongEncoder setRenderPipelineState:[context getPhongPipelineStateWithNumLights:numLights]];
     id<MTLDepthStencilState> depthStencilState =
         [[context getPipelineManager] getDepthStencilState];
     [phongEncoder setDepthStencilState:depthStencilState];
@@ -237,6 +234,7 @@
     psUniforms.ambientLightColor = ambientLightColor;
     psUniforms.specColor = [material getSpecularColor];
 
+    psUniforms.numLights = numLights;
     psUniforms.specType = [material getSpecType];
     psUniforms.isBumpMap = [material isBumpMap] ? true : false;
     psUniforms.isIlluminated = [material isSelfIllumMap] ? true : false;

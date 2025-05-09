@@ -378,9 +378,9 @@
     return currentBufferIndex;
 }
 
-- (id<MTLRenderPipelineState>) getPhongPipelineState
+- (id<MTLRenderPipelineState>) getPhongPipelineStateWithNumLights:(int) numLights
 {
-    return [[self getPipelineManager] getPhongPipeStateWithFragFuncName:@"PhongPS"
+    return [[self getPipelineManager] getPhongPipeStateWithNumLights:numLights
                 compositeMode:[self getCompositeMode]];
 }
 
