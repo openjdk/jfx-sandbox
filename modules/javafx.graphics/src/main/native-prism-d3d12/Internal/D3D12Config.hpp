@@ -51,6 +51,8 @@ class Config
         bool fileLog;
         bool apiOpts;
         bool dred;
+        bool midframeWait; // see RingContainer::FlushCommandList() for explanation
+                           // this field/property will be removed
     } mSettings;
 
     Config();
@@ -132,6 +134,11 @@ public:
     inline bool IsDREDEnabled()
     {
         return mSettings.dred;
+    }
+
+    inline bool IsMidframeWaitEnabled()
+    {
+        return mSettings.midframeWait;
     }
 };
 

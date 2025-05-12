@@ -43,7 +43,8 @@ void RingContainer::FlushCommandList()
     // consumed by the GPU, causing flickering and potential device removal. This wait
     // prevents it, but also makes CPU-GPU parallelism almost nonexistent which severly
     // impacts performance. See JDK-8356029
-    mNativeDevice->WaitMidFrame();
+    if (Config::Instance().IsMidframeWaitEnabled())
+        mNativeDevice->WaitMidFrame();
 }
 
 void RingContainer::CheckThreshold()
