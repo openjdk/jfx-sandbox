@@ -51,20 +51,20 @@ public class MTLShader implements Shader  {
 
     native private static long nCreateMetalShader(long context, String fragFuncName);
     native private static Map  nGetUniformNameIdMap(long nMetalShader);
-    native private static long nEnable(long nMetalShader);
-    native private static long nDisable(long nMetalShader);
+    native private static void nEnable(long nMetalShader);
+    native private static void nDisable(long nMetalShader);
 
-    native private static long nSetTexture(long nMetalShader, int texID, int uniformID,
+    native private static void nSetTexture(long nMetalShader, int texID, int uniformID,
                                            long texPtr, boolean isLinear, int wrapMode);
 
-    native private static long nSetInt(long nMetalShader, int uniformID, int i0);
+    native private static void nSetInt(long nMetalShader, int uniformID, int i0);
 
-    native private static long nSetFloat1(long nMetalShader, int uniformID, float f0);
-    native private static long nSetFloat2(long nMetalShader, int uniformID, float f0, float f1);
-    native private static long nSetFloat3(long nMetalShader, int uniformID, float f0, float f1, float f2);
-    native private static long nSetFloat4(long nMetalShader, int uniformID, float f0, float f1, float f2, float f3);
+    native private static void nSetFloat1(long nMetalShader, int uniformID, float f0);
+    native private static void nSetFloat2(long nMetalShader, int uniformID, float f0, float f1);
+    native private static void nSetFloat3(long nMetalShader, int uniformID, float f0, float f1, float f2);
+    native private static void nSetFloat4(long nMetalShader, int uniformID, float f0, float f1, float f2, float f3);
 
-    native private static long nSetConstants(long nMetalShader, int uniformID, float[] values, int size);
+    native private static void nSetConstants(long nMetalShader, int uniformID, float[] values, int size);
     native private static void nSetConstantsBuf(long nMetalShader, int uniformID, Object values, int valuesByteOffset, int size);
 
     private MTLShader(MTLContext context, String fragmentFunctionName) {

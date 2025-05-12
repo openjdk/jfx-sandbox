@@ -714,6 +714,7 @@
 
 - (NSInteger) setDeviceParametersFor2D
 {
+    // TODO: MTL: Seems to be empty method, good to remove
     CTX_LOG(@"MetalContext_setDeviceParametersFor2D()");
     return 1;
 }
@@ -721,6 +722,7 @@
 - (NSInteger) setDeviceParametersFor3D
 {
     CTX_LOG(@"MetalContext_setDeviceParametersFor3D()");
+    // TODO: MTL: Seems to be empty method, good to remove
     // TODO: MTL: Check whether we need to do shader initialization here
     /*if (!phongShader) {
         phongShader = ([[MetalPhongShader alloc] createPhongShader:self]);
@@ -1023,7 +1025,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nCommitCurrentCommandBu
     CTX_LOG(@"<<<< MTLContext_nCommitCurrentCommandBuffer");
 }
 
-JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
   (JNIEnv *env, jclass jClass, jlong context, jfloatArray vertices, jbyteArray colors, jint numVertices)
 {
     CTX_LOG(@"MTLContext_nDrawIndexedQuads");
@@ -1038,8 +1040,6 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
 
     if (pColors) (*env)->ReleasePrimitiveArrayCritical(env, colors, pColors, 0);
     if (pVertices) (*env)->ReleasePrimitiveArrayCritical(env, vertices, pVertices, 0);
-
-    return 1;
 }
 
 JNIEXPORT int JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
@@ -1084,17 +1084,17 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetClipRect
     [pCtx resetClipRect];
 }
 
-JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
   (JNIEnv *env, jclass jClass, jlong context)
 {
     CTX_LOG(@"MTLContext_nResetTransform");
+    // TODO: MTL: The method seems to be effectively empty, may be good to remove.
 
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     //[mtlContext resetProjViewMatrix];
-    return 1;
 }
 
-JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetProjViewMatrix
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetProjViewMatrix
   (JNIEnv *env, jclass jClass,
     jlong context, jboolean isOrtho,
     jdouble m00, jdouble m01, jdouble m02, jdouble m03,
@@ -1115,11 +1115,9 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetProjViewMatrix
         m10:m10 m11:m11 m12:m12 m13:m13
         m20:m20 m21:m21 m22:m22 m23:m23
         m30:m30 m31:m31 m32:m32 m33:m33];
-
-    return 1;
 }
 
-JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTransform
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTransform
   (JNIEnv *env, jclass jClass,
     jlong context,
     jdouble m00, jdouble m01, jdouble m02, jdouble m03,
@@ -1145,8 +1143,6 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTransform
         m10:m10 m11:m11 m12:m12 m13:m13
         m20:m20 m21:m21 m22:m22 m23:m23
         m30:m30 m31:m31 m32:m32 m33:m33];
-
-    return 1;
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWorldTransform

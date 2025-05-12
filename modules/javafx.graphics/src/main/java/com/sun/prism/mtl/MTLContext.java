@@ -357,16 +357,15 @@ public class MTLContext extends BaseShaderContext {
     native private static long nInitialize(ByteBuffer shaderLibPathStr);
     native private static void nCommitCurrentCommandBuffer(long context);
     native private static long nGetCommandQueue(long context);
-    native private static int  nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
+    native private static void nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
     native private static int  nUpdateRenderTarget(long context, long texPtr, boolean depthTest);
-    native private static int  nResetTransform(long context);
-    native private static int  nSetProjViewMatrix(long pContext, boolean isOrtho,
-        double m00, double m01, double m02, double m03,
-        double m10, double m11, double m12, double m13,
-        double m20, double m21, double m22, double m23,
-        double m30, double m31, double m32, double m33);
-
-    native private static int  nSetTransform(long pContext,
+    native private static void nResetTransform(long context);
+    native private static void nSetProjViewMatrix(long pContext, boolean isOrtho,
+                                                    double m00, double m01, double m02, double m03,
+                                                    double m10, double m11, double m12, double m13,
+                                                    double m20, double m21, double m22, double m23,
+                                                    double m30, double m31, double m32, double m33);
+    native private static void nSetTransform(long pContext,
                                                   double m00, double m01, double m02, double m03,
                                                   double m10, double m11, double m12, double m13,
                                                   double m20, double m21, double m22, double m23,
@@ -569,7 +568,7 @@ public class MTLContext extends BaseShaderContext {
         }
         printRawMatrix("Projection");
         // Set projection view matrix
-        int res = nSetProjViewMatrix(pContext, g.isDepthTest(),
+        nSetProjViewMatrix(pContext, g.isDepthTest(),
             rawMatrix[0], rawMatrix[1], rawMatrix[2], rawMatrix[3],
             rawMatrix[4], rawMatrix[5], rawMatrix[6], rawMatrix[7],
             rawMatrix[8], rawMatrix[9], rawMatrix[10], rawMatrix[11],
