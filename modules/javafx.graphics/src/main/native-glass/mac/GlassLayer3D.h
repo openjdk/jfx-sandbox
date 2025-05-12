@@ -32,11 +32,11 @@
     BOOL isHiDPIAware;
 }
 
-- (id)initWithSharedContext:(CGLContextObj)ctx
-           andClientContext:(CGLContextObj)clCtx
-                mtlQueuePtr:(long)mtlCommandQueuePtr
-             withHiDPIAware:(BOOL)HiDPIAware
-               withIsSwPipe:(BOOL)isSwPipe;
+- (id)initGlassLayer:(NSObject*)ctx
+    andClientContext:(NSObject*)clCtx
+         mtlQueuePtr:(long)mtlCommandQueuePtr
+      withHiDPIAware:(BOOL)HiDPIAware
+        withIsSwPipe:(BOOL)isSwPipe;
 
 - (GlassOffscreen*)getPainterOffscreen;
 - (void)bindForWidth:(unsigned int)width andHeight:(unsigned int)height;

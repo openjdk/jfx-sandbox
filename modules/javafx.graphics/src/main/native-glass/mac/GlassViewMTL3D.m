@@ -123,7 +123,7 @@
         isSwPipe = YES;
     }
 
-    self->layer = [[GlassLayer3D alloc] initWithSharedContext:nil
+    self->layer = [[GlassLayer3D alloc] initGlassLayer:nil
         andClientContext:nil mtlQueuePtr:mtlCommandQueuePtr
         withHiDPIAware:YES withIsSwPipe:isSwPipe];
 

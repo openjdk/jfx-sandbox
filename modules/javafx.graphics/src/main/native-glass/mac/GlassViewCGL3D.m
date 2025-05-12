@@ -204,8 +204,8 @@
         }
     }
 
-    self->layer = [[GlassLayer3D alloc] initWithSharedContext:sharedCGL
-        andClientContext:clientCGL mtlQueuePtr:0l
+    self->layer = [[GlassLayer3D alloc] initGlassLayer:(NSObject*)sharedCGL
+        andClientContext:(NSObject*)clientCGL mtlQueuePtr:0l
         withHiDPIAware:isHiDPIAware withIsSwPipe:isSwPipe];
     // https://developer.apple.com/library/mac/documentation/Cocoa/Reference/ApplicationKit/Classes/nsview_Class/Reference/NSView.html#//apple_ref/occ/instm/NSView/setWantsLayer:
     // the order of the following 2 calls is important: here we indicate we want a layer-hosting view

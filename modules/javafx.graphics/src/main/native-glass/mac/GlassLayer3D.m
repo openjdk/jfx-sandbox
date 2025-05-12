@@ -40,23 +40,29 @@
 
 static NSArray *allModes = nil;
 
-- (id)initWithSharedContext:(CGLContextObj)ctx
-           andClientContext:(CGLContextObj)clCtx
-           mtlQueuePtr:(long)mtlCommandQueuePtr
-             withHiDPIAware:(BOOL)HiDPIAware
-             withIsSwPipe:(BOOL)isSwPipe
+- (id)initGlassLayer:(NSObject*)ctx
+    andClientContext:(NSObject*)clCtx
+         mtlQueuePtr:(long)mtlCommandQueuePtr
+      withHiDPIAware:(BOOL)HiDPIAware
+        withIsSwPipe:(BOOL)isSwPipe
 {
-    LOG("GlassLayer3D initWithSharedContext]");
+    LOG("GlassLayer3D initGlassLayer]");
     self = [super init];
     if (self != nil)
     {
         if (mtlCommandQueuePtr != 0l) { // MTL
-            GlassLayerMTL3D* mtlLayer = [[GlassLayerMTL3D alloc] init:mtlCommandQueuePtr withIsSwPipe:isSwPipe];
+            GlassLayerMTL3D* mtlLayer = [[GlassLayerMTL3D alloc]
+                init:mtlCommandQueuePtr
+                withIsSwPipe:isSwPipe];
             self->painterOffScreen = [mtlLayer getPainterOffscreen];
             self->glassOffScreen = nil;
             [self addSublayer:mtlLayer];
         } else {
-            GlassLayerCGL3D* cglLayer = [[GlassLayerCGL3D alloc] initWithSharedContext:ctx andClientContext:clCtx withHiDPIAware:HiDPIAware withIsSwPipe:isSwPipe];
+            GlassLayerCGL3D* cglLayer = [[GlassLayerCGL3D alloc]
+                initWithSharedContext:(CGLContextObj)ctx
+                     andClientContext:(CGLContextObj)clCtx
+                       withHiDPIAware:HiDPIAware
+                         withIsSwPipe:isSwPipe];
             self->painterOffScreen = [cglLayer getPainterOffscreen];
             self->glassOffScreen = [cglLayer getGlassOffscreen];
             [self addSublayer:cglLayer];
