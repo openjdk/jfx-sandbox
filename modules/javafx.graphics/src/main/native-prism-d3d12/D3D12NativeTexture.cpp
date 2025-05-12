@@ -202,9 +202,10 @@ void NativeTexture::WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& desc
 
 void NativeTexture::WriteSamplerToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& samplerDescriptorCpu)
 {
+    const Internal::DescriptorData& sampler = mNativeDevice->GetSamplerStorage()->GetSampler(mSamplerDesc);
+
     mNativeDevice->GetDevice()->CopyDescriptorsSimple(
-        1, samplerDescriptorCpu, mNativeDevice->GetSamplerStorage()->GetSampler(mSamplerDesc).CPU(0),
-        D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
+        1, samplerDescriptorCpu, sampler.CPU(0), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
     );
 }
 

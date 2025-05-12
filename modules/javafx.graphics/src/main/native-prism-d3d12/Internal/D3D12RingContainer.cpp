@@ -37,6 +37,13 @@ void RingContainer::FlushCommandList()
 {
     mNativeDevice->FlushCommandList();
     mNativeDevice->SignalMidFrame();
+
+    // TODO: D3D12: Below wait was added to stabilize the backend at cost of performance
+    // There is a bug somewhere which causes mid-frame data to be overwritten before being
+    // consumed by the GPU, causing flickering and potential device removal. This wait
+    // prevents it, but also makes CPU-GPU parallelism almost nonexistent which severly
+    // impacts performance. See JDK-8356029
+    mNativeDevice->WaitMidFrame();
 }
 
 void RingContainer::CheckThreshold()
