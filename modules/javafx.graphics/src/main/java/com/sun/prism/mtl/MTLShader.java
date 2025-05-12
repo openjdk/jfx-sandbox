@@ -65,6 +65,7 @@ public class MTLShader implements Shader  {
     native private static long nSetFloat4(long nMetalShader, int uniformID, float f0, float f1, float f2, float f3);
 
     native private static long nSetConstants(long nMetalShader, int uniformID, float[] values, int size);
+    native private static void nSetConstantsBuf(long nMetalShader, int uniformID, Object values, int valuesByteOffset, int size);
 
     private MTLShader(MTLContext context, String fragmentFunctionName) {
         MTLLog.Debug(">>> MTLShader(): fragFuncName = " + fragmentFunctionName);
@@ -237,11 +238,16 @@ public class MTLShader implements Shader  {
     public void setConstants(String name, FloatBuffer buf, int off, int count) {
         //MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
         //MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", buf = " + buf + ", off = " + off + ", count = " + count);
-        count = 4 * count;
-        float[] values = new float[count];
-        //MTLLog.Debug("MTLShader.setConstant() name = " + name + ", buf = " + values + ", off = " + off + ", count = " + count);
-        buf.get(off, values, 0, count);
-        nSetConstants(nMetalShaderRef, uniformNameIdMap.get(name), values, count);
+        boolean direct = buf.isDirect();
+        if (direct) {
+            nSetConstantsBuf(nMetalShaderRef, uniformNameIdMap.get(name),
+                                buf, buf.position() * 4, count * 4);
+        } else {
+            count = 4 * count;
+            float[] values = new float[count];
+            buf.get(off, values, 0, count);
+            nSetConstants(nMetalShaderRef, uniformNameIdMap.get(name), values, count);
+        }
     }
 
     @Override

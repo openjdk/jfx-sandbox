@@ -415,9 +415,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 #endif
     float *aFloatPtr = [argumentEncoder constantDataAtIndex:uniformID];
     SHADER_LOG(@"    aFloatPtr: %x", (unsigned int)aFloatPtr);
-    for (int i = 0; i < size; i++) {
-        *aFloatPtr++ = values[i];
-    }
+    memcpy(aFloatPtr, values, size * 4);
     SHADER_LOG(@"<<<< MetalShader.setConstants()");
 }
 
@@ -567,6 +565,14 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nSetFloat4
     MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
     [mtlShader setFloat4:uniformID f0:f0 f1:f1 f2:f2 f3:f3];
     return 1;
+}
+
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nSetConstantsBuf
+(JNIEnv *env, jclass class, jlong shader, jint uniformID,
+        jobject values, jint valuesByteOffset, jint size) {
+    MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
+    float *valuesPtr = (float *) (((char *) (*env)->GetDirectBufferAddress(env, values)) + valuesByteOffset);
+    [mtlShader setConstants:uniformID values:valuesPtr size:size];
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nSetConstants
