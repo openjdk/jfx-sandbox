@@ -67,7 +67,7 @@ D3D12_SAMPLER_DESC SamplerStorage::BuildD3D12SamplerDesc(const SamplerDesc& sd) 
     desc.MaxLOD = D3D12_FLOAT32_MAX;
     desc.MipLODBias = 0;
     desc.MaxAnisotropy = 1;
-    desc.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    desc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 
     return desc;
 }
