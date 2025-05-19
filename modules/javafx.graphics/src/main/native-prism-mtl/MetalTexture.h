@@ -31,12 +31,6 @@
 #import <Foundation/Foundation.h>
 #import "MetalContext.h"
 
-#ifdef TEX_VERBOSE
-#define TEX_LOG NSLog
-#else
-#define TEX_LOG(...)
-#endif
-
 enum PFormat {
     PFORMAT_INT_ARGB_PRE  = 0,
     PFORMAT_BYTE_RGBA_PRE = 1,

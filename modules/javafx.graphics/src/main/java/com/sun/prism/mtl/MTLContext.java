@@ -328,20 +328,6 @@ public class MTLContext extends BaseShaderContext {
         MTLLog.Debug("coordArray : length = " + coordArray.length);
         MTLLog.Debug("colorArray : length = " + colorArray.length);
 
-        /*for (int i = 0; i < numVertices * 7; i += 7) {
-            MTLLog.Debug(
-                    "xyz: x: " + coordArray[i] + ", y: " + coordArray[i + 1] + ", z: " + coordArray[i + 2]
-                    + ",  uv1: u: " + coordArray[i + 3] + ", v: " + coordArray[i + 4]
-                    + ",  uv2: u: " + coordArray[i + 5] + ", v: " + coordArray[i + 6]);
-        }
-        for (int i = 0; i < numVertices * 4; i += 4) {
-            int r = colorArray[i] & 0xFF;
-            int g = colorArray[i + 1] & 0xFF;
-            int b = colorArray[i + 2] & 0xFF;
-            int a = colorArray[i + 3] & 0xFF;
-            MTLLog.Debug(r + ", " + g + ", " + b + ", " + a);
-        }*/
-
         nDrawIndexedQuads(getContextHandle(), coordArray, colorArray, numVertices);
     }
 
@@ -451,25 +437,6 @@ public class MTLContext extends BaseShaderContext {
     boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
                                 short[] indexBuffer, int indexBufferLength) {
         MTLLog.Debug("3D : MTLContext:buildNativeGeometryShort()");
-        // TODO: MTL: Remove printing of below logs in future
-        /*MTLLog.Debug("VertexBuffer");
-        int i = 0;
-        int index = 0;
-        while (i < vertexBuffer.length) {
-            MTLLog.Debug("Index " + index + " : " + vertexBuffer[i]
-                + " " + vertexBuffer[i + 1] + " " + vertexBuffer[i + 2]);
-            i = i + 9;
-            index++;
-        }
-        i = 0;
-        index = 0;
-        MTLLog.Debug("IndexBuffer");
-        while (i < indexBuffer.length) {
-            MTLLog.Debug("Triangle " + index + " : " + indexBuffer[i]
-                + " " + indexBuffer[i + 1] + " " + indexBuffer[i + 2]);
-            i = i + 3;
-            index++;
-        }*/
         return nBuildNativeGeometryShort(pContext, nativeHandle, vertexBuffer,
             vertexBufferLength, indexBuffer, indexBufferLength);
     }

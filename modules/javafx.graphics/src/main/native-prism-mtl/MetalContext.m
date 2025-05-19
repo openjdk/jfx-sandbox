@@ -41,17 +41,10 @@
 #import "MetalMeshView.h"
 #import "MetalPhongMaterial.h"
 
-#ifdef CTX_VERBOSE
-#define CTX_LOG NSLog
-#else
-#define CTX_LOG(...)
-#endif
-
 @implementation MetalContext
 
 - (id) createContext:(dispatch_data_t)shaderLibData
 {
-    CTX_LOG(@"-> MetalContext.createContext()");
     self = [super init];
     if (self) {
         currentRingBufferIndex = 0;
@@ -137,7 +130,6 @@
 - (int) setRTT:(MetalRTTexture*)rttPtr
 {
     if (rtt != rttPtr) {
-        CTX_LOG(@"-> Native: MetalContext.setRTT() endCurrentRenderEncoder");
         [self endCurrentRenderEncoder];
     }
     // TODO: MTL:
@@ -147,8 +139,6 @@
     rtt = rttPtr;
     id<MTLTexture> mtlTex = [rtt getTexture];
     [self validatePixelBuffer:(mtlTex.width * mtlTex.height * 4)];
-    CTX_LOG(@"-> Native: MetalContext.setRTT() %lu , %lu",
-                    [rtt getTexture].width, [rtt getTexture].height);
     if ([rttPtr isMSAAEnabled]) {
         rttPassDesc.colorAttachments[0].storeAction = MTLStoreActionStoreAndMultisampleResolve;
         rttPassDesc.colorAttachments[0].texture = [rtt getMSAATexture];
@@ -164,7 +154,6 @@
 
 - (MetalRTTexture*) getRTT
 {
-    CTX_LOG(@"-> Native: MetalContext.getRTT()");
     return rtt;
 }
 
@@ -247,7 +236,6 @@
 
 - (id<MTLDevice>) getDevice
 {
-    // CTX_LOG(@"MetalContext.getDevice()");
     return device;
 }
 
@@ -329,7 +317,6 @@
 
 - (id<MTLCommandBuffer>) getCurrentCommandBuffer
 {
-    CTX_LOG(@"MetalContext.getCurrentCommandBuffer() --- current value = %p", currentCommandBuffer);
     if (currentCommandBuffer == nil
                 || currentCommandBuffer.status != MTLCommandBufferStatusNotEnqueued) {
 
@@ -348,7 +335,6 @@
 - (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder
 {
     if (currentRenderEncoder == nil) {
-        CTX_LOG(@"MetalContext.getCurrentRenderEncoder() is nil");
         id<MTLCommandBuffer> cb = [self getCurrentCommandBuffer];
 
         @autoreleasepool {
@@ -365,7 +351,6 @@
 - (void) endCurrentRenderEncoder
 {
     if (currentRenderEncoder != nil) {
-        CTX_LOG(@"MetalContext.endCurrentRenderEncoder()");
         meshIndexCount = 0;
         [currentRenderEncoder endEncoding];
         [currentRenderEncoder release];
@@ -388,11 +373,6 @@
                       ofColors:(char const *)pSrcColors
                    vertexCount:(NSUInteger)numVertices
 {
-
-    CTX_LOG(@"MetalContext.drawIndexedQuads()");
-
-    CTX_LOG(@"numVertices = %lu", numVertices);
-
     int vbLength   = numVertices * sizeof(struct PrismSourceVertex);
     int cbLength   = numVertices * 4;
     int numQuads   = numVertices / 4;
@@ -445,14 +425,12 @@
         if ([texturesDict count] > 0) {
             for (NSString *key in texturesDict) {
                 id<MTLTexture> tex = texturesDict[key];
-                CTX_LOG(@"    Value: %@ for key: %@", tex, key);
                 [renderEncoder useResource:tex usage:MTLResourceUsageRead];
             }
 
             NSMutableDictionary* samplersDict = [shader getSamplersDict];
             for (NSNumber *key in samplersDict) {
                 id<MTLSamplerState> sampler = samplersDict[key];
-                CTX_LOG(@"    Value: %@ for key: %@", sampler, key);
                 [renderEncoder setFragmentSamplerState:sampler atIndex:[key integerValue]];
             }
         }
@@ -489,7 +467,6 @@
         m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
         m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33
 {
-    CTX_LOG(@"MetalContext.setProjViewMatrix() : depthTest %d", depthTest);
     mvpMatrix = simd_matrix(
         (simd_float4){ m00, m01, m02, m03 },
         (simd_float4){ m10, m11, m12, m13 },
@@ -498,10 +475,8 @@
     );
     if (depthTest &&
         ([rtt getDepthTexture] != nil)) {
-        CTX_LOG(@"MetalContext.setProjViewMatrix() enable depth testing");
         depthEnabled = true;
     } else {
-        CTX_LOG(@"MetalContext.setProjViewMatrix() disable depth testing");
         depthEnabled = false;
     }
     [self updateDepthDetails:depthTest];
@@ -513,7 +488,6 @@
         m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
         m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33
 {
-    CTX_LOG(@"MetalContext.setProjViewMatrix()");
     mvpMatrix = simd_matrix(
         (simd_float4){ m00, m01, m02, m03 },
         (simd_float4){ m10, m11, m12, m13 },
@@ -528,7 +502,6 @@
         m20:(float)m20 m21:(float)m21 m22:(float)m22 m23:(float)m23
         m30:(float)m30 m31:(float)m31 m32:(float)m32 m33:(float)m33
 {
-    CTX_LOG(@"MetalContext.setWorldTransformMatrix()");
     worldMatrix = simd_matrix(
         (simd_float4){ m00, m01, m02, m03 },
         (simd_float4){ m10, m11, m12, m13 },
@@ -539,7 +512,6 @@
 
 - (void) setWorldTransformIdentityMatrix
 {
-    CTX_LOG(@"MetalContext.setWorldTransformIdentityMatrix()");
     worldMatrix = matrix_identity_float4x4;
 }
 
@@ -549,23 +521,17 @@
             alpha:(float)alpha
        clearDepth:(bool)clearDepth
 {
-    CTX_LOG(@">>>> MetalContext.clearRTT() %f, %f, %f, %f", red, green, blue, alpha);
-    CTX_LOG(@">>>> MetalContext.clearRTT() %d", clearDepth);
-
     clearDepthTexture = false;
     if (clearDepth &&
         [rtt getDepthTexture] != nil) {
-        CTX_LOG(@"     MetalContext.clearRTT() clearing depth attachment");
         clearDepthTexture = true;
         rttPassDesc.depthAttachment.clearDepth = 1.0;
         rttPassDesc.depthAttachment.loadAction = MTLLoadActionClear;
         if ([[self getRTT] isMSAAEnabled]) {
-            CTX_LOG(@"MetalContext.clearRTT() MSAA");
             rttPassDesc.depthAttachment.storeAction = MTLStoreActionStoreAndMultisampleResolve;
             rttPassDesc.depthAttachment.texture = [rtt getDepthMSAATexture];
             rttPassDesc.depthAttachment.resolveTexture = [rtt getDepthTexture];
         } else {
-            CTX_LOG(@"MetalContext.clearRTT() non-MSAA");
             rttPassDesc.depthAttachment.storeAction = MTLStoreActionStore;
             rttPassDesc.depthAttachment.texture = [[self getRTT] getDepthTexture];
             rttPassDesc.depthAttachment.resolveTexture = nil;
@@ -593,14 +559,10 @@
     [renderEncoder setScissorRect:[self getScissorRect]];
 
     if (isScissorEnabled) {
-        CTX_LOG(@"     MetalContext.clearRTT()     clearing scissor rect");
-
         [renderEncoder setVertexBytes:clearScissorRectVertices
                                length:sizeof(clearScissorRectVertices)
                               atIndex:VertexInputIndexVertices];
     } else {
-        CTX_LOG(@"     MetalContext.clearRTT()     clearing whole rtt");
-
         [renderEncoder setVertexBuffer:clearEntireRttVerticesBuf
                                 offset:0
                                atIndex:VertexInputIndexVertices];
@@ -619,19 +581,14 @@
     if (clearDepth && !depthEnabled) {
         [self endCurrentRenderEncoder];
     }
-
-    CTX_LOG(@"<<<< MetalContext.clearRTT()");
 }
 
 - (void) renderMeshView:(MetalMeshView*)meshView
 {
     MetalMesh* mesh = [meshView getMesh];
     NSUInteger indexCount = [mesh getNumIndices];
-    CTX_LOG(@"MetalContext.renderMeshView() indexCount : %lu", indexCount);
     meshIndexCount += indexCount;
-    CTX_LOG(@"MetalContext.renderMeshView() meshIndexCount : %lu", meshIndexCount);
     if (meshIndexCount >= MESH_INDEX_LIMIT) {
-        CTX_LOG(@"MetalContext.renderMeshView() meshIndexCount is hitting limit");
         [self endCurrentRenderEncoder];
     }
     [meshView render];
@@ -639,16 +596,12 @@
 
 - (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height
 {
-    CTX_LOG(@">>>> MetalContext.setClipRect()");
-    CTX_LOG(@"     MetalContext.setClipRect() x = %d, y = %d, width = %d, height = %d", x, y, width, height);
     id<MTLTexture> currRtt = [rtt getTexture];
     int x1 = x + width;
     int y1 = y + height;
     if (x <= 0 && y <= 0 && x1 >= currRtt.width && y1 >= currRtt.height) {
-        CTX_LOG(@"     MetalContext.setClipRect() 1 resetting clip, %lu, %lu", currRtt.width, currRtt.height);
         [self resetClipRect];
     } else {
-        CTX_LOG(@"     MetalContext.setClipRect() 2");
         if (x < 0)                    x = 0;
         if (y < 0)                    y = 0;
         if (x1 > currRtt.width)  width  = currRtt.width - x;
@@ -678,12 +631,10 @@
         clearScissorRectVertices[3].position.x = x2;
         clearScissorRectVertices[3].position.y = y2;
     }
-    CTX_LOG(@"<<<< MetalContext.setClipRect()");
 }
 
 - (void) resetClipRect
 {
-    CTX_LOG(@">>>> MetalContext.resetClipRect()");
     isScissorEnabled = false;
     scissorRect.x = 0;
     scissorRect.y = 0;
@@ -693,7 +644,6 @@
 
 - (void) resetProjViewMatrix
 {
-    CTX_LOG(@"MetalContext.resetProjViewMatrix()");
     mvpMatrix = matrix_identity_float4x4;
 }
 
@@ -715,13 +665,11 @@
 - (NSInteger) setDeviceParametersFor2D
 {
     // TODO: MTL: Seems to be empty method, good to remove
-    CTX_LOG(@"MetalContext_setDeviceParametersFor2D()");
     return 1;
 }
 
 - (NSInteger) setDeviceParametersFor3D
 {
-    CTX_LOG(@"MetalContext_setDeviceParametersFor3D()");
     // TODO: MTL: Seems to be empty method, good to remove
     // TODO: MTL: Check whether we need to do shader initialization here
     /*if (!phongShader) {
@@ -732,29 +680,23 @@
 
 - (void) updateDepthDetails:(bool)depthTest
 {
-    CTX_LOG(@"MetalContext_updateDepthDetails");
     if (depthTest) {
-        CTX_LOG(@"MetalContext_updateDepthDetails depthTest is true");
         if ([[self getRTT] isMSAAEnabled]) {
-            CTX_LOG(@"MetalContext_updateDepthDetails MSAA");
             rttPassDesc.depthAttachment.storeAction = MTLStoreActionStoreAndMultisampleResolve;
             rttPassDesc.depthAttachment.texture = [rtt getDepthMSAATexture];
             rttPassDesc.depthAttachment.resolveTexture = [rtt getDepthTexture];
         } else {
-            CTX_LOG(@"MetalContext_updateDepthDetails non-MSAA");
             rttPassDesc.depthAttachment.storeAction = MTLStoreActionStore;
             rttPassDesc.depthAttachment.texture = [[self getRTT] getDepthTexture];
             rttPassDesc.depthAttachment.resolveTexture = nil;
         }
     } else {
-        CTX_LOG(@"MetalContext_updateDepthDetails depthTest is false");
         rttPassDesc.depthAttachment = nil;
     }
 }
 
 - (void) verifyDepthTexture
 {
-    CTX_LOG(@"MetalContext_verifyDepthTexture");
     id<MTLTexture> depthTexture = [rtt getDepthTexture];
     if (depthTexture == nil) {
         [rtt createDepthTexture];
@@ -767,7 +709,6 @@
 
 - (void) setCompositeMode:(int) mode
 {
-    CTX_LOG(@"-> Native: MetalContext.setCompositeMode(): mode = %d", mode);
     compositeMode = mode;
 }
 
@@ -858,8 +799,6 @@
 
 - (void)dealloc
 {
-    CTX_LOG(@">>>> MTLContext.dealloc -- releasing native MetalContext");
-
     if (currentCommandBuffer == nil) {
         [self getCurrentCommandBuffer];
     }
@@ -955,7 +894,6 @@
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nInitialize
   (JNIEnv *env, jclass jClass, jobject shaderLibBuffer)
 {
-    CTX_LOG(@">>>> MTLContext_nInitialize");
     jlong jContextPtr = 0L;
 
     // Create data object from direct byte buffer
@@ -971,7 +909,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nInitialize
         return 0L;
     }
 
-    CTX_LOG(@"shaderLibBuffer :: addr: 0x%p, numBytes: %ld", dataPtr, numBytes);
 
     // We use a no-op destructor because the direct ByteBuffer is managed on the
     // Java side. We must not free it here.
@@ -985,51 +922,40 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nInitialize
     }
 
     jContextPtr = ptr_to_jlong([[MetalContext alloc] createContext:shaderLibData]);
-    CTX_LOG(@"<<<< MTLContext_nInitialize");
     return jContextPtr;
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDisposeShader
   (JNIEnv *env, jclass jClass, jlong shaderRef)
 {
-    CTX_LOG(@">>>> MTLContext_nDisposeShader");
-
     MetalShader *shaderPtr = (MetalShader *)jlong_to_ptr(shaderRef);
     if (shaderPtr != nil) {
         [shaderPtr release];
         shaderPtr = nil;
     }
-    CTX_LOG(@"<<<< MTLContext_nDisposeShader");
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRelease
   (JNIEnv *env, jclass jClass, jlong context)
 {
-    CTX_LOG(@">>>> MTLContext_nRelease");
-
     MetalContext *contextPtr = (MetalContext *)jlong_to_ptr(context);
 
     if (contextPtr != NULL) {
         [contextPtr dealloc];
     }
     contextPtr = NULL;
-    CTX_LOG(@"<<<< MTLContext_nRelease");
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nCommitCurrentCommandBuffer
   (JNIEnv *env, jclass jClass, jlong context)
 {
-    CTX_LOG(@">>>> MTLContext_nCommitCurrentCommandBuffer");
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     [mtlContext commitCurrentCommandBuffer];
-    CTX_LOG(@"<<<< MTLContext_nCommitCurrentCommandBuffer");
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
   (JNIEnv *env, jclass jClass, jlong context, jfloatArray vertices, jbyteArray colors, jint numVertices)
 {
-    CTX_LOG(@"MTLContext_nDrawIndexedQuads");
-
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
 
     struct PrismSourceVertex *pVertices =
@@ -1045,7 +971,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
 JNIEXPORT int JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
   (JNIEnv *env, jclass jClass, jlong context, jlong texPtr, jboolean depthTest)
 {
-    CTX_LOG(@"MTLContext_nUpdateRenderTarget");
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     MetalRTTexture *rtt = (MetalRTTexture *)jlong_to_ptr(texPtr);
     int ret = [mtlContext setRTT:rtt];
@@ -1067,7 +992,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetClipRect
   (JNIEnv *env, jclass jClass, jlong ctx,
    jint x, jint y, jint width, jint height)
 {
-    CTX_LOG(@"MTLContext_nSetClipRect");
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
     [pCtx setClipRect:x y:y width:width height:height];
 }
@@ -1079,7 +1003,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetClipRect
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetClipRect
   (JNIEnv *env, jclass jClass, jlong ctx)
 {
-    CTX_LOG(@"MTLContext_nResetClipRect");
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
     [pCtx resetClipRect];
 }
@@ -1087,9 +1010,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetClipRect
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
   (JNIEnv *env, jclass jClass, jlong context)
 {
-    CTX_LOG(@"MTLContext_nResetTransform");
     // TODO: MTL: The method seems to be effectively empty, may be good to remove.
-
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     //[mtlContext resetProjViewMatrix];
 }
@@ -1102,14 +1023,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetProjViewMatrix
     jdouble m20, jdouble m21, jdouble m22, jdouble m23,
     jdouble m30, jdouble m31, jdouble m32, jdouble m33)
 {
-    CTX_LOG(@"MTLContext_nSetProjViewMatrix");
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
-
-    CTX_LOG(@"%f %f %f %f", m00, m01, m02, m03);
-    CTX_LOG(@"%f %f %f %f", m10, m11, m12, m13);
-    CTX_LOG(@"%f %f %f %f", m20, m21, m22, m23);
-    CTX_LOG(@"%f %f %f %f", m30, m31, m32, m33);
-
     [mtlContext setProjViewMatrix:isOrtho
         m00:m00 m01:m01 m02:m02 m03:m03
         m10:m10 m11:m11 m12:m12 m13:m13
@@ -1125,13 +1039,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTransform
     jdouble m20, jdouble m21, jdouble m22, jdouble m23,
     jdouble m30, jdouble m31, jdouble m32, jdouble m33)
 {
-    CTX_LOG(@"MTLContext_nSetTransform");
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
-
-    CTX_LOG(@"%f %f %f %f", m00, m01, m02, m03);
-    CTX_LOG(@"%f %f %f %f", m10, m11, m12, m13);
-    CTX_LOG(@"%f %f %f %f", m20, m21, m22, m23);
-    CTX_LOG(@"%f %f %f %f", m30, m31, m32, m33);
 
     // TODO: MTL: Added separate nSetTransform because previously
     // we used to use nSetProjViewMatrix only and enabled depth test
@@ -1153,32 +1061,19 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWorldTransform
     jdouble m20, jdouble m21, jdouble m22, jdouble m23,
     jdouble m30, jdouble m31, jdouble m32, jdouble m33)
 {
-    CTX_LOG(@"MTLContext_nSetWorldTransform");
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
-
-    CTX_LOG(@"%f %f %f %f", m00, m01, m02, m03);
-    CTX_LOG(@"%f %f %f %f", m10, m11, m12, m13);
-    CTX_LOG(@"%f %f %f %f", m20, m21, m22, m23);
-    CTX_LOG(@"%f %f %f %f", m30, m31, m32, m33);
-
     [mtlContext setWorldTransformMatrix:m00 m01:m01 m02:m02 m03:m03
         m10:m10 m11:m11 m12:m12 m13:m13
         m20:m20 m21:m21 m22:m22 m23:m23
         m30:m30 m31:m31 m32:m32 m33:m33];
-
-    return;
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWorldTransformToIdentity
   (JNIEnv *env, jclass jClass,
     jlong context)
 {
-    CTX_LOG(@"MTLContext_nSetWorldTransformToIdentity");
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
-
     [mtlContext setWorldTransformIdentityMatrix];
-
-    return;
 }
 
 /*
@@ -1189,8 +1084,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWorldTransformToIde
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMesh
   (JNIEnv *env, jclass jClass, jlong ctx)
 {
-    CTX_LOG(@"MTLContext_nCreateMTLMesh");
-    //return 1;
     MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
 
     MetalMesh* mesh = ([[MetalMesh alloc] createMesh:pCtx]);
@@ -1205,7 +1098,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMesh
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMesh
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh)
 {
-    CTX_LOG(@"MTLContext_nReleaseMTLMesh");
     MetalMesh *mesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
     if (mesh != nil) {
         [mesh release];
@@ -1221,8 +1113,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMesh
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometryShort
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh, jfloatArray vb, jint vbSize, jshortArray ib, jint ibSize)
 {
-    CTX_LOG(@"MTLContext_nBuildNativeGeometryShort");
-    CTX_LOG(@"vbSize %d ibSize %d", vbSize, ibSize);
     MetalMesh *mesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
 
     if (vbSize < 0 || ibSize < 0) {
@@ -1233,7 +1123,6 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
     unsigned int uibSize = (unsigned int) ibSize;
     unsigned int vertexBufferSize = (*env)->GetArrayLength(env, vb);
     unsigned int indexBufferSize = (*env)->GetArrayLength(env, ib);
-    CTX_LOG(@"vertexBufferSize %d indexBufferSize %d", vertexBufferSize, indexBufferSize);
 
     if (uvbSize > vertexBufferSize || uibSize > indexBufferSize) {
         return JNI_FALSE;
@@ -1241,13 +1130,11 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
 
     float *vertexBuffer = (float *) ((*env)->GetPrimitiveArrayCritical(env, vb, 0));
     if (vertexBuffer == NULL) {
-        CTX_LOG(@"MTLContext_nBuildNativeGeometryShort vertexBuffer is NULL");
         return JNI_FALSE;
     }
 
     unsigned short *indexBuffer = (unsigned short *) ((*env)->GetPrimitiveArrayCritical(env, ib, 0));
     if (indexBuffer == NULL) {
-        CTX_LOG(@"MTLContext_nBuildNativeGeometryShort indexBuffer is NULL");
         (*env)->ReleasePrimitiveArrayCritical(env, vb, vertexBuffer, 0);
         return JNI_FALSE;
     }
@@ -1270,8 +1157,6 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometryInt
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh, jfloatArray vb, jint vbSize, jintArray ib, jint ibSize)
 {
-    CTX_LOG(@"MTLContext_nBuildNativeGeometryInt");
-    CTX_LOG(@"vbSize %d ibSize %d", vbSize, ibSize);
     MetalMesh *mesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
 
     if (vbSize < 0 || ibSize < 0) {
@@ -1282,7 +1167,6 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
     unsigned int uibSize = (unsigned int) ibSize;
     unsigned int vertexBufferSize = (*env)->GetArrayLength(env, vb);
     unsigned int indexBufferSize = (*env)->GetArrayLength(env, ib);
-    CTX_LOG(@"vertexBufferSize %d indexBufferSize %d", vertexBufferSize, indexBufferSize);
 
     if (uvbSize > vertexBufferSize || uibSize > indexBufferSize) {
         return JNI_FALSE;
@@ -1290,13 +1174,11 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
 
     float *vertexBuffer = (float *) ((*env)->GetPrimitiveArrayCritical(env, vb, 0));
     if (vertexBuffer == NULL) {
-        CTX_LOG(@"MTLContext_nBuildNativeGeometryInt vertexBuffer is NULL");
         return JNI_FALSE;
     }
 
     unsigned int *indexBuffer = (unsigned int *) ((*env)->GetPrimitiveArrayCritical(env, ib, 0));
     if (indexBuffer == NULL) {
-        CTX_LOG(@"MTLContext_nBuildNativeGeometryInt indexBuffer is NULL");
         (*env)->ReleasePrimitiveArrayCritical(env, vb, vertexBuffer, 0);
         return JNI_FALSE;
     }
@@ -1319,9 +1201,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLPhongMaterial
   (JNIEnv *env, jclass jClass, jlong ctx)
 {
-    CTX_LOG(@"MTLContext_nCreateMTLPhongMaterial");
     MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
-
     MetalPhongMaterial *phongMaterial = ([[MetalPhongMaterial alloc] createPhongMaterial:pCtx]);
     return ptr_to_jlong(phongMaterial);
 }
@@ -1334,7 +1214,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLPhongMateria
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLPhongMaterial
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial)
 {
-    CTX_LOG(@"MTLContext_nReleaseMTLPhongMaterial");
     MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
     if (phongMaterial != nil) {
         [phongMaterial release];
@@ -1351,7 +1230,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDiffuseColor
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
         jfloat r, jfloat g, jfloat b, jfloat a)
 {
-    CTX_LOG(@"MTLContext_nSetDiffuseColor");
     MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
     [phongMaterial setDiffuseColor:r g:g b:b a:a];
 }
@@ -1365,7 +1243,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetSpecularColor
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
         jboolean set, jfloat r, jfloat g, jfloat b, jfloat a)
 {
-    CTX_LOG(@"MTLContext_nSetSpecularColor");
     MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
     bool specularSet = set ? true : false;
     [phongMaterial setSpecularColor:specularSet r:r g:g b:b a:a];
@@ -1379,7 +1256,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMap
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
         jint mapType, jlong nativeTexture)
 {
-    CTX_LOG(@"MTLContext_nSetMap");
     MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
     MetalTexture *texMap = (MetalTexture *)  jlong_to_ptr(nativeTexture);
 
@@ -1394,7 +1270,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMap
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMeshView
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh)
 {
-    CTX_LOG(@"MTLContext_nCreateMTLMeshView");
     MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
 
     MetalMesh *pMesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
@@ -1412,7 +1287,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMeshView
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMeshView
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
 {
-    CTX_LOG(@"MTLContext_nReleaseMTLMeshView");
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     if (meshView != nil) {
         [meshView release];
@@ -1428,7 +1302,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMeshView
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCullingMode
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jint cullMode)
 {
-    CTX_LOG(@"MTLContext_nSetCullingMode");
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
 
     switch (cullMode) {
@@ -1453,7 +1326,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCullingMode
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMaterial
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jlong nativePhongMaterial)
 {
-    CTX_LOG(@"MTLContext_nSetMaterial");
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
 
     MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
@@ -1468,7 +1340,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMaterial
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWireframe
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jboolean wireframe)
 {
-    CTX_LOG(@"MTLContext_nSetWireframe");
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     bool isWireFrame = wireframe ? true : false;
     [meshView setWireframe:isWireFrame];
@@ -1483,7 +1354,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetAmbientLight
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView,
         jfloat r, jfloat g, jfloat b)
 {
-    CTX_LOG(@"MTLContext_nSetAmbientLight");
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     [meshView setAmbientLight:r g:g b:b];
 }
@@ -1499,7 +1369,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetLight
         jfloat ca, jfloat la, jfloat qa, jfloat isAttenuated, jfloat range,
         jfloat dirX, jfloat dirY, jfloat dirZ, jfloat innerAngle, jfloat outerAngle, jfloat falloff)
 {
-    CTX_LOG(@"MTLContext_nSetLight");
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     [meshView setLight:index
         x:x y:y z:z
@@ -1519,7 +1388,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetLight
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRenderMeshView
   (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
 {
-    CTX_LOG(@"MTLContext_nRenderMeshView");
     MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     [pCtx renderMeshView:meshView];
@@ -1549,7 +1417,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
             jint srcX0, jint srcY0, jint srcX1, jint srcY1,
             jint dstX0, jint dstY0, jint dstX1, jint dstY1)
 {
-    CTX_LOG(@"MTLContext_nBlit");
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
     MetalRTTexture *srcRTT = (MetalRTTexture *)jlong_to_ptr(nSrcRTT);
     MetalRTTexture *dstRTT = (MetalRTTexture *)jlong_to_ptr(nDstRTT);
@@ -1591,7 +1458,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCameraPosition
   (JNIEnv *env, jclass jClass, jlong ctx, jdouble x,
    jdouble y, jdouble z)
 {
-    CTX_LOG(@"MTLContext_nSetCameraPosition");
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
 
     return [pCtx setCameraPosition:x
@@ -1606,7 +1472,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCameraPosition
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor2D
   (JNIEnv *env, jclass jClass, jlong ctx)
 {
-    CTX_LOG(@"MTLContext_nSetDeviceParametersFor2D");
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
 
     return [pCtx setDeviceParametersFor2D];
@@ -1620,7 +1485,6 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor3D
   (JNIEnv *env, jclass jClass, jlong ctx)
 {
-    CTX_LOG(@"MTLContext_nSetDeviceParametersFor3D");
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
 
     return [pCtx setDeviceParametersFor3D];
@@ -1643,12 +1507,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCompositeMode(JNIEn
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nGetCommandQueue
   (JNIEnv *env, jclass jClass, jlong context)
 {
-    CTX_LOG(@">>>> MTLContext_nGetCommandQueue");
     MetalContext *contextPtr = (MetalContext *)jlong_to_ptr(context);
-
     jlong jPtr = ptr_to_jlong((void *)[contextPtr getCommandQueue]);
-
-    //NSLog(@"Prism - Metal context : commandQueue = %ld", jPtr);
-    CTX_LOG(@"<<<< MTLContext_nGetCommandQueue");
     return jPtr;
 }

@@ -49,7 +49,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLResourceFactory_nCreateTexture
     (JNIEnv *env, jclass class, jlong pContext, jint format, jint hint,
         jboolean isRTT, jint width, jint height, jint samples, jboolean useMipmap) {
 
-        METAL_LOG(@"-> MTLResourceFactory_nCreateTexture");
         MetalContext* context = (MetalContext*) jlong_to_ptr(pContext);
         jlong rtt = ptr_to_jlong([[MetalTexture alloc] createTexture:context ofWidth:width ofHeight:height pixelFormat:format useMipMap:useMipmap]);
         return rtt;
@@ -60,10 +59,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLResourceFactory_nReleaseTexture
 
         MetalContext* context = (MetalContext*) jlong_to_ptr(pContext);
         MetalTexture* pTex = (MetalTexture*) jlong_to_ptr(pTexture);
-
-        METAL_LOG(@"-> MTLResourceFactory_nReleaseTexture : Releasing MetalTexture = %lu and refCount = %d",
-            [pTexture getTexture], CFGetRetainCount(pTexture));
-
         [pTex release];
         pTex = nil;
 }

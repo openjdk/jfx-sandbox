@@ -54,9 +54,6 @@ NSString *nameForPixelFormat(NSUInteger format) {
                     pixelFormat:(NSUInteger)format
                       useMipMap:(BOOL)useMipMap
 {
-    TEX_LOG(@"\n");
-    TEX_LOG(@">>>> MetalTexture.createTexture()  w = %lu, h= %lu, format= %@", w, h, nameForPixelFormat(format));
-
     self = [super init];
     if (self) {
         width   = w;
@@ -70,18 +67,14 @@ NSString *nameForPixelFormat(NSUInteger format) {
             case PFORMAT_BYTE_RGB:         // Note: this is actually 3-byte RGB
             case PFORMAT_BYTE_GRAY:
                 pixelFormat = MTLPixelFormatBGRA8Unorm;
-                TEX_LOG(@"Creating texture with native format MTLPixelFormatBGRA8Unorm");
                 break;
             case PFORMAT_BYTE_ALPHA:
                 pixelFormat = MTLPixelFormatA8Unorm;
-                TEX_LOG(@"Creating texture with native format MTLPixelFormatA8Unorm");
                 break;
             case PFORMAT_FLOAT_XYZW:
                 pixelFormat = MTLPixelFormatRGBA32Float;
-                TEX_LOG(@"Creating texture with native format MTLPixelFormatRGBA32Float");
                 break;
             default:
-                TEX_LOG(@"MetalTexture.createTexture: unknown format hint: %lu", format);
                 break;
         }
 
@@ -95,7 +88,6 @@ NSString *nameForPixelFormat(NSUInteger format) {
             (width == 1 && height == 1)) {
             mipmapped = NO;
         }
-        TEX_LOG(@"useMipMap : %d", useMipMap);
         @autoreleasepool {
             MTLTextureDescriptor *texDescriptor =
                 [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:pixelFormat
@@ -109,15 +101,11 @@ NSString *nameForPixelFormat(NSUInteger format) {
             texture = [[context getDevice] newTextureWithDescriptor:texDescriptor];
         }
     }
-    TEX_LOG(@">>>> MetalTexture.createTexture()  width = %lu, height = %lu, format = %lu", width, height, format);
-    TEX_LOG(@">>>> MetalTexture.createTexture()  created MetalTexture = %p", texture);
     return self;
 }
 
 - (id<MTLBuffer>) getPixelBuffer
 {
-    TEX_LOG(@">>>> MetalTexture.getPixelBuffer()");
-
     [context endCurrentRenderEncoder];
 
     id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
@@ -163,7 +151,6 @@ NSString *nameForPixelFormat(NSUInteger format) {
 - (void) dealloc
 {
     if (texture != nil) {
-        TEX_LOG(@">>>> MetalTexture.dealloc -- releasing native MTLTexture");
         [texture release];
         texture = nil;
     }
@@ -207,9 +194,6 @@ static NSMutableDictionary *copyPixelDataToRingBuffer(MetalContext* context, voi
 {
     unsigned int pixelSize = getPixelSize(pixelFormat);
     unsigned int length = pixelSize * w * h;
-    TEX_LOG(@"copyPixelDataToRingBuffer : pixelSize=%u", pixelSize);
-    TEX_LOG(@"copyPixelDataToRingBuffer : length=%u", length);
-
     NSMutableDictionary<NSNumber *, id<MTLBuffer>> *bufferOffsetDict = getBufferAndOffset(context, length);
     NSNumber *offset = [[bufferOffsetDict allKeys] firstObject];
     id<MTLBuffer> dstBuf = [[bufferOffsetDict allValues] firstObject];
@@ -230,7 +214,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
     jbyteArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
     jint w, jint h, jint scanStride)
 {
-    TEX_LOG(@"\n");
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 
@@ -238,9 +221,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
         (*env)->GetArrayLength(env, pixData) :
         (jint)((*env)->GetDirectBufferCapacity(env, buf));
     length *= sizeof(jbyte);
-
-    TEX_LOG(@"-> Native: MTLTexture_nUpdate srcx: %d, srcy: %d, dstx: %d, dsty: %d, width: %d, height: %d, scanStride : %d length : %d",
-                         srcx, srcy, dstx, dsty, w, h, scanStride, length);
 
     jbyte* pixels = (jbyte*)((pixData != NULL) ?
         (*env)->GetPrimitiveArrayCritical(env, pixData, NULL) :
@@ -293,7 +273,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
     jfloatArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
     jint w, jint h, jint scanStride)
 {
-    TEX_LOG(@"\n");
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 
@@ -301,9 +280,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
         (*env)->GetArrayLength(env, pixData) :
         (jint)((*env)->GetDirectBufferCapacity(env, buf));
     length *= sizeof(jfloat);
-
-    TEX_LOG(@"-> Native: MTLTexture_nUpdateFloat srcx: %d, srcy: %d, dstx: %d, dsty: %d, width: %d, height: %d, scanStride : %d length : %d",
-                         srcx, srcy, dstx, dsty, w, h, scanStride, length);
 
     jfloat *pixels = (jfloat*)((pixData != NULL) ?
         (*env)->GetPrimitiveArrayCritical(env, pixData, NULL) :
@@ -356,7 +332,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
     jintArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
     jint w, jint h, jint scanStride)
 {
-    TEX_LOG(@"\n");
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 
@@ -364,8 +339,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
         (*env)->GetArrayLength(env, pixData) :
         (jint)((*env)->GetDirectBufferCapacity(env, buf));
     length *= sizeof(jint);
-    TEX_LOG(@"-> Native: MTLTexture_nUpdateInt srcx: %d, srcy: %d, dstx: %d, dsty: %d, width: %d, height: %d, scanStride : %d length : %d",
-                         srcx, srcy, dstx, dsty, w, h, scanStride, length);
 
     jint *pixels = (jint*)((pixData != NULL) ?
         (*env)->GetPrimitiveArrayCritical(env, pixData, NULL) :
@@ -416,8 +389,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateYUV422
    (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jbyteArray pixData,
     jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride) {
-    TEX_LOG(@"\n");
-    TEX_LOG(@"-> Native: MTLTexture_nUpdateYUV422 srcx: %d, srcy: %d, width: %d, height: %d --- scanStride = %d", srcx, srcy, w, h, scanStride);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 

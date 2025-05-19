@@ -38,7 +38,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLGraphics_nClear
     jfloat red, jfloat green, jfloat blue, jfloat alpha,
     jboolean clearDepth)
 {
-    METAL_LOG(@"-> Native: MTLGraphics_nClear");
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     [context clearRTT:red
                 green:green

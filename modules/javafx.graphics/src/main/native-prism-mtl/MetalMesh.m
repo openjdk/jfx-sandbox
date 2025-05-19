@@ -25,11 +25,6 @@
 
 #import "MetalMesh.h"
 
-#ifdef MESH_VERBOSE
-#define MESH_LOG NSLog
-#else
-#define MESH_LOG(...)
-#endif
 typedef struct
 {
     vector_float4 position;
@@ -41,7 +36,6 @@ typedef struct
 {
     self = [super init];
     if (self) {
-        MESH_LOG(@"MetalMesh->createMesh()");
         context = ctx;
         numVertices = 0;
         numIndices = 0;
@@ -55,11 +49,9 @@ typedef struct
               iBuffer:(unsigned short*)ib
                 iSize:(unsigned int)ibSize
 {
-    MESH_LOG(@"MetalMesh->buildBuffersShort");
     id<MTLDevice> device = [context getDevice];
     unsigned int size = vbSize * sizeof (float);
     unsigned int vbCount = vbSize / NUM_OF_FLOATS_PER_VERTEX;
-    MESH_LOG(@"vbCount %d", vbCount);
     // TODO: MTL: Cleanup this code in future if we think we don't need
     // to add padding to float3 data
     /*VS_PHONG_INPUT* pVert = vertices;
@@ -83,30 +75,24 @@ typedef struct
         [self releaseVertexBuffer];
         [self createVertexBuffer:size];
         numVertices = vbCount;
-        MESH_LOG(@"numVertices %lu", numVertices);
     }
 
     NSUInteger currentIndex = [context getCurrentBufferIndex];
     if (vertexBuffer[currentIndex] != nil) {
-        MESH_LOG(@"Updating VertexBuffer");
         memcpy(vertexBuffer[currentIndex].contents, vb, size);
     }
 
     size = ibSize * sizeof (unsigned short);
-    MESH_LOG(@"IndexBuffer size %d", size);
     if (numIndices != ibSize) {
         [self releaseIndexBuffer];
         [self createIndexBuffer:size];
         numIndices = ibSize;
-        MESH_LOG(@"numIndices %lu", numIndices);
     }
 
     if (indexBuffer[currentIndex] != nil) {
-        MESH_LOG(@"Updating IndexBuffer");
         memcpy(indexBuffer[currentIndex].contents, ib, size);
     }
     indexType = MTLIndexTypeUInt16;
-    MESH_LOG(@"MetalMesh->buildBuffersShort done");
     return true;
 }
 
@@ -115,47 +101,38 @@ typedef struct
               iBuffer:(unsigned int*)ib
                 iSize:(unsigned int)ibSize
 {
-    MESH_LOG(@"MetalMesh->buildBuffersInt");
     id<MTLDevice> device = [context getDevice];
     unsigned int size = vbSize * sizeof (float);
     unsigned int vbCount = vbSize / NUM_OF_FLOATS_PER_VERTEX;
-    MESH_LOG(@"vbCount %d", vbCount);
 
     if (numVertices != vbCount) {
         [self releaseVertexBuffer];
         [self createVertexBuffer:size];
         numVertices = vbCount;
-        MESH_LOG(@"numVertices %lu", numVertices);
     }
 
     NSUInteger currentIndex = [context getCurrentBufferIndex];
     if (vertexBuffer[currentIndex] != nil) {
-        MESH_LOG(@"Updating VertexBuffer");
         memcpy(vertexBuffer[currentIndex].contents, vb, size);
     }
 
     size = ibSize * sizeof (unsigned int);
-    MESH_LOG(@"IndexBuffer size %d", size);
     if (numIndices != ibSize) {
         [self releaseIndexBuffer];
         [self createIndexBuffer:size];
         numIndices = ibSize;
-        MESH_LOG(@"numIndices %lu", numIndices);
     }
 
     if (indexBuffer[currentIndex] != nil) {
-        MESH_LOG(@"Updating IndexBuffer");
         memcpy(indexBuffer[currentIndex].contents, ib, size);
     }
 
     indexType = MTLIndexTypeUInt32;
-    MESH_LOG(@"MetalMesh->buildBuffersInt done");
     return true;
 }
 
 - (void) release
 {
-    MESH_LOG(@"MetalMesh->release");
     [self releaseVertexBuffer];
     [self releaseIndexBuffer];
     context = nil;
@@ -163,7 +140,6 @@ typedef struct
 
 - (void) createVertexBuffer:(unsigned int)size;
 {
-    MESH_LOG(@"MetalMesh->createVertexBuffer");
     id<MTLDevice> device = [context getDevice];
     for (int i = 0; i < BUFFER_SIZE; i++) {
         vertexBuffer[i] = [[device newBufferWithLength:size
@@ -173,7 +149,6 @@ typedef struct
 
 - (void) releaseVertexBuffer
 {
-    MESH_LOG(@"MetalMesh->releaseVertexBuffer");
     for (int i = 0; i < BUFFER_SIZE; i++) {
         vertexBuffer[i] = nil;
     }
@@ -182,7 +157,6 @@ typedef struct
 
 - (void) createIndexBuffer:(unsigned int)size;
 {
-    MESH_LOG(@"MetalMesh->createIndexBuffer");
     id<MTLDevice> device = [context getDevice];
     for (int i = 0; i < BUFFER_SIZE; i++) {
         indexBuffer[i] = [[device newBufferWithLength:size
@@ -192,7 +166,6 @@ typedef struct
 
 - (void) releaseIndexBuffer
 {
-    MESH_LOG(@"MetalMesh->releaseIndexBuffer");
     for (int i = 0; i < BUFFER_SIZE; i++) {
         indexBuffer[i] = nil;
     }

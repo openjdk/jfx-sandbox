@@ -492,7 +492,6 @@ public class MSLBackend extends SLBackend {
     }
 
     public void setShaderNameAndHeaderPath(String name, String genMetalShaderPath) {
-        // System.err.println("setShaderHeaderPath: " + genMetalShaderPath);
         shaderFunctionName = name;
         shaderFunctionNameList.add(shaderFunctionName);
         if (headerFilesDir == null) {
@@ -526,10 +525,8 @@ public class MSLBackend extends SLBackend {
         hasTextureVar = false;
 
         if (isPrismShader) {
-            // System.err.println("Prism Shader: " + shaderFunctionName);
             objCHeaderFileName = PRISM_SHADER_HEADER_FILE_NAME;
         } else {
-            // System.err.println("Decora Shader: " + shaderFunctionName);
             objCHeaderFileName = DECORA_SHADER_HEADER_FILE_NAME;
         }
     }

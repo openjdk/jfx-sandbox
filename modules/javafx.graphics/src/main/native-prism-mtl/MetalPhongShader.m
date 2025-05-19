@@ -27,19 +27,12 @@
 #import "MetalRTTexture.h"
 #import "MetalPipelineManager.h"
 
-#ifdef MESH_VERBOSE
-#define MESH_LOG NSLog
-#else
-#define MESH_LOG(...)
-#endif
-
 @implementation MetalPhongShader
 
 - (MetalPhongShader*) createPhongShader:(MetalContext*)ctx
 {
     self = [super init];
     if (self) {
-        MESH_LOG(@"MetalPhongShader_createPhongShader()");
         context = ctx;
         // TODO: MTL: Check whether we can initialize
         // RenderPassDescriptor here

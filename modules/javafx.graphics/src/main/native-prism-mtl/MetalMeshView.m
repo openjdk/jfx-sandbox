@@ -26,12 +26,6 @@
 #import "MetalMeshView.h"
 #import "MetalPipelineManager.h"
 
-#ifdef MESH_VERBOSE
-#define MESH_LOG NSLog
-#else
-#define MESH_LOG(...)
-#endif
-
 @implementation MetalMeshView
 
 - (MetalMeshView*) createMeshView:(MetalContext*)ctx
@@ -39,7 +33,6 @@
 {
     self = [super init];
     if (self) {
-        MESH_LOG(@"MetalMeshView_createMeshView()");
         context = ctx;
         mesh = mtlMesh;
         material = NULL;
@@ -57,19 +50,16 @@
 
 - (void) setMaterial:(MetalPhongMaterial*)pMaterial
 {
-    MESH_LOG(@"MetalMeshView_setMaterial()");
     material = pMaterial;
 }
 
 - (void) setCullingMode:(int)cMode
 {
-    MESH_LOG(@"MetalMeshView_setCullingMode()");
     cullMode = cMode;
 }
 
 - (void) setWireframe:(bool)isWireFrame
 {
-    MESH_LOG(@"MetalMeshView_setWireframe()");
     wireframe = isWireFrame;
 }
 
@@ -77,7 +67,6 @@
                        g:(float)g
                        b:(float)b
 {
-    MESH_LOG(@"MetalMeshView_setAmbientLight()");
     ambientLightColor.x = r;
     ambientLightColor.y = g;
     ambientLightColor.z = b;
@@ -86,7 +75,6 @@
 
 - (void) computeNumLights
 {
-    MESH_LOG(@"MetalMeshView_scomputeNumLights()");
     if (!lightsDirty)
         return;
     lightsDirty = false;
@@ -108,7 +96,6 @@
         inA:(float)innerAngle outA:(float)outerAngle
         falloff:(float)falloff
 {
-    MESH_LOG(@"MetalMeshView_setLight()");
     // NOTE: We only support up to 3 point lights at the present
     if (index >= 0 && index <= MAX_NUM_LIGHTS - 1) {
         if (lights[index] == nil) {
@@ -156,7 +143,6 @@
 
 - (void) render
 {
-    MESH_LOG(@"MetalMeshView_render()");
     [self computeNumLights];
 
     for (int i = 0, d = 0, p = 0, c = 0, a = 0, r = 0, s = 0; i < numLights; i++) {
@@ -210,9 +196,7 @@
     // we are getting is in CounterClockWise order, so we need to set
     // MTLWindingCounterClockwise explicitly
     [phongEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
-    MESH_LOG(@"MetalMeshView_render() cullmode : %d", cullMode);
     [phongEncoder setCullMode:cullMode];
-    MESH_LOG(@"MetalMeshView_render() wireframe : %d", wireframe);
     if (wireframe) {
         [phongEncoder setTriangleFillMode:MTLTriangleFillModeLines];
     } else {

@@ -37,7 +37,6 @@
                   ofContentHeight:(NSUInteger)ch
                            isMsaa:(BOOL)isMsaa
 {
-    TEX_LOG(@"-> MetalRTTexture.createTexture() w = %lu, h= %lu", pw, ph);
     self = [super init];
     if (self) {
         physicalWidth  = pw;
@@ -66,7 +65,6 @@
             texture = [device newTextureWithDescriptor:texDescriptor];
 
             if (isMSAA) {
-                TEX_LOG(@">>>> MetalRTTexture.createTexture()2 msaa texture");
                 MTLTextureDescriptor *msaaTexDescriptor = [MTLTextureDescriptor new];
                 msaaTexDescriptor.storageMode = MTLStorageModePrivate;
                 msaaTexDescriptor.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
@@ -85,8 +83,6 @@
             depthMSAATexture = nil;
         }
     }
-    TEX_LOG(@">>>> MetalRTTexture.createTexture() width = %lu, height = %lu", width, height);
-    TEX_LOG(@">>>> MetalRTTexture.createTexture() created MetalRTTexture = %p", texture);
     return self;
 }
 
@@ -95,7 +91,6 @@
                  ofPhysicalHeight:(NSUInteger)ph
                            mtlTex:(long)pTex
 {
-    TEX_LOG(@"-> MetalRTTexture.createTexture()");
     self = [super init];
     if (self) {
         width = physicalWidth = pw;
@@ -109,7 +104,6 @@
 
 - (void) createDepthTexture
 {
-    TEX_LOG(@">>>> MetalRTTexture.createDepthTexture()");
     id<MTLDevice> device = [context getDevice];
     if (depthTexture.width != width ||
         depthTexture.height != height ||
@@ -126,7 +120,6 @@
             depthDesc.storageMode = MTLStorageModePrivate;
             depthTexture = [device newTextureWithDescriptor:depthDesc];
             if (isMSAA) {
-                TEX_LOG(@">>>> MetalRTTexture.createDepthMSAATexture()");
                 depthDesc.usage = MTLTextureUsageRenderTarget | MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
                 depthDesc.textureType = MTLTextureType2DMultisample;
                 // By default all SoC's on macOS support 4 sample count
@@ -154,17 +147,14 @@
 
 - (void) dealloc {
     if (depthTexture != nil) {
-        TEX_LOG(@">>>> MetalRTTexture.dealloc -- releasing depthTexture");
         [depthTexture release];
         depthTexture = nil;
     }
     if (depthMSAATexture != nil) {
-        TEX_LOG(@">>>> MetalRTTexture.dealloc -- releasing depthMSAATexture");
         [depthMSAATexture release];
         depthMSAATexture = nil;
     }
     if (msaaTexture != nil) {
-        TEX_LOG(@">>>> MetalRTTexture.dealloc -- releasing msaaTexture");
         [msaaTexture release];
         msaaTexture = nil;
     }
@@ -177,7 +167,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT
   (JNIEnv *env, jclass jClass, jlong ctx, jint pw, jint ph, jint cw,
     jint ch, jobject wrapMode, jboolean isMsaa)
 {
-    TEX_LOG(@"-> Native: MTLRTTexture_nCreateRT pw: %d, ph: %d, cw: %d, ch: %d", pw, ph, cw, ch);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalRTTexture* rtt = [[MetalRTTexture alloc] createTexture:context
                                                 ofPhysicalWidth:pw
@@ -191,7 +180,6 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT2
   (JNIEnv *env, jclass jClass, jlong ctx, jlong pTex, jint pw, jint ph)
 {
-    TEX_LOG(@"-> Native: MTLRTTexture_nCreateRT2 pw: %d, ph: %d", pw, ph);
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalRTTexture* rtt = [[MetalRTTexture alloc] createTexture:context
                                                 ofPhysicalWidth:pw
@@ -223,8 +211,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nInitRTT
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nReadPixelsFromRTT
     (JNIEnv *env, jclass class, jlong jTexPtr, jobject pixData)
 {
-    TEX_LOG(@"-> Native: MTLRTTexture_nReadPixelsFromRTT");
-
     MetalRTTexture* rtt = (MetalRTTexture*) jlong_to_ptr(jTexPtr);
     int *texContent = (int*)[[rtt getPixelBuffer] contents];
     NSUInteger cw = [rtt getContentWidth];
@@ -237,8 +223,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nReadPixelsFromRTT
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nReadPixels
   (JNIEnv *env, jclass class, jlong jTexPtr, jintArray pixData)
 {
-    TEX_LOG(@"-> Native: MTLRTTexture_nReadPixels");
-
     MetalRTTexture* rtt = (MetalRTTexture*) jlong_to_ptr(jTexPtr);
     int* texContent = (int*)[[rtt getPixelBuffer] contents];
     NSUInteger pw = [rtt getPhysicalWidth];

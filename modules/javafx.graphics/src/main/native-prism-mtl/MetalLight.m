@@ -25,12 +25,6 @@
 
 #import "MetalLight.h"
 
-#ifdef MESH_VERBOSE
-#define MESH_LOG NSLog
-#else
-#define MESH_LOG(...)
-#endif
-
 @implementation MetalLight
 
 - (MetalLight*) createLight:(float)x y:(float)y z:(float)z
@@ -43,7 +37,6 @@
 {
     self = [super init];
     if (self) {
-        MESH_LOG(@"MetalLight_createLight()");
         position[0] = x;
         position[1] = y;
         position[2] = z;

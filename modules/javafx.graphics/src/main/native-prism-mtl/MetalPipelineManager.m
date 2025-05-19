@@ -67,7 +67,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     if (shaderLib != nil) {
         vertexFunction = [self getFunction:@"passThrough"];
     } else {
-        METAL_LOG(@"-> MetalPipelineManager.init: Failed to create shader library");
+        NSLog(@"-> MetalPipelineManager.init: Failed to create shader library");
     }
 
     clearRttPipeStateNoDepthDict = [[NSMutableDictionary alloc] init];
@@ -115,14 +115,11 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 
 - (id<MTLFunction>) getFunction:(NSString*) funcName
 {
-    // METAL_LOG(@"------> getFunction: %@", funcName);
     return [shaderLib newFunctionWithName:funcName];
 }
 
 - (id<MTLRenderPipelineState>) getClearRttPipeState
 {
-    METAL_LOG(@">>>> MetalPipelineManager.getClearRttPipeState()");
-
     int sampleCount = 1;
     if ([[context getRTT] isMSAAEnabled]) {
         sampleCount = 4;
@@ -157,14 +154,12 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
             [clearRttPipeStateNoDepthDict setObject:clearRttPipeState forKey:keySampleCount];
         }
     }
-    METAL_LOG(@"<<<< MetalPipelineManager.getClearRttPipeState()\n");
     return clearRttPipeState;
 }
 
 - (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>) func
                                           compositeMode:(int) compositeMode
 {
-    METAL_LOG(@"MetalPipelineManager.getPipeStateWithFragFunc()");
     NSError* error;
     MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
     pipeDesc.vertexFunction = vertexFunction;
@@ -213,7 +208,6 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 - (id<MTLRenderPipelineState>) getPhongPipeStateWithNumLights:(int) numLights
                                                 compositeMode:(int) compositeMode;
 {
-    METAL_LOG(@"MetalPipelineManager.getPhongPipeStateWithVertFragFunc() numLights: %d, compositeMode: %ld", numLights, compositeMode);
     NSError* error;
     NSMutableDictionary *psDict;
     if ([[context getRTT] isMSAAEnabled]) {
@@ -236,9 +230,6 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 
         NSString *vertFuncName = [[NSString alloc] initWithFormat:@"PhongVS%d", numLights];
         NSString *fragFuncName = [[NSString alloc] initWithFormat:@"PhongPS%d", numLights];
-
-        METAL_LOG(@"MetalPipelineManager.getPhongPipeStateWithVertFragFunc() creating new PipeState numLights: %d, compositeMode: %d, keyCompMode: %ld",
-                numLights, compositeMode, [keyCompMode integerValue]);
 
         MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
         pipeDesc.vertexFunction = [self getFunction:vertFuncName];
@@ -328,8 +319,6 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 
 - (void) dealloc
 {
-    METAL_LOG(@"MetalPipelineManager.dealloc ----- releasing native resources");
-
 #ifdef JFX_MTL_DEBUG_CAPTURE
     if (@available(macOS 14, *)) {
         NSLog(@"stopping capture...");

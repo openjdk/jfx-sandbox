@@ -55,7 +55,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
         // can use a static method in Java class/ or a flag
 
         if (PrismSettings.noClampToZero && PrismSettings.verbose) {
-            MTLLog.Debug("prism.noclamptozero not supported by MTL");
+            System.out.println("prism.noclamptozero not supported by MTL");
         }
         MTLLog.Debug("<<< MTLResourceFactory()");
     }
