@@ -55,7 +55,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
         // can use a static method in Java class/ or a flag
 
         if (PrismSettings.noClampToZero && PrismSettings.verbose) {
-            System.out.println("prism.noclamptozero not supported by MTL");
+            System.err.println("prism.noclamptozero not supported by MTL");
         }
         MTLLog.Debug("<<< MTLResourceFactory()");
     }
@@ -122,7 +122,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
         }
         try {
             if (PrismSettings.verbose) {
-                System.out.println("MTLResourceFactory: Prism - createStockShader: " + shaderName);
+                System.err.println("MTLResourceFactory: Prism - createStockShader: " + shaderName);
             }
             Class klass = Class.forName("com.sun.prism.shader." + shaderName + "_Loader");
             Method m = klass.getMethod("loadShader", new Class[] {ShaderFactory.class, String.class, InputStream.class});

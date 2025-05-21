@@ -45,11 +45,11 @@ public class MTLPipeline extends GraphicsPipeline {
         String libName = "prism_mtl";
 
         if (PrismSettings.verbose) {
-            System.out.println("Loading native metal library, named: " + libName);
+            System.err.println("Loading native metal library, named: " + libName);
         }
         NativeLibLoader.loadLibrary(libName);
         if (PrismSettings.verbose) {
-            System.out.println("Succeeded: Loading native metal library.");
+            System.err.println("Succeeded: Loading native metal library.");
         }
         theInstance = new MTLPipeline();
     }

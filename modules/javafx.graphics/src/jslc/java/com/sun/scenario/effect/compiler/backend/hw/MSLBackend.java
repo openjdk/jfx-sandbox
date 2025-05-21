@@ -424,7 +424,7 @@ public class MSLBackend extends SLBackend {
             objCHeaderFile.write("#endif\n");
             objCHeaderFile.close();
         } catch (IOException e) {
-            System.out.println("An error occurred.");
+            System.err.println("An error occurred.");
             e.printStackTrace();
         }
     }
