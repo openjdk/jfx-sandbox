@@ -1511,3 +1511,22 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nGetCommandQueue
     jlong jPtr = ptr_to_jlong((void *)[contextPtr getCommandQueue]);
     return jPtr;
 }
+
+// MTLGraphics method
+/*
+ * Class:     com_sun_prism_mtl_MTLGraphics
+ * Method:    nClear
+ * Signature: (JFFFFZ)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLGraphics_nClear
+  (JNIEnv *env, jclass jClass, jlong ctx,
+    jfloat red, jfloat green, jfloat blue, jfloat alpha,
+    jboolean clearDepth)
+{
+    MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
+    [context clearRTT:red
+                green:green
+                 blue:blue
+                alpha:alpha
+           clearDepth:clearDepth];
+}
