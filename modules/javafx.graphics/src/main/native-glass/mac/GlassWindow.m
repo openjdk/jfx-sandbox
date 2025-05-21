@@ -36,7 +36,6 @@
 #import "GlassWindow+Overrides.h"
 #import "GlassView.h"
 #import "GlassScreen.h"
-#import "GlassTouches.h"
 #import "GlassApplication.h"
 #import "GlassHelper.h"
 
