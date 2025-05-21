@@ -51,9 +51,6 @@ public class MTLResourceFactory extends BaseShaderFactory {
         MTLLog.Debug(">>> MTLResourceFactory()");
         context = new MTLContext(screen, this);
         context.initState();
-        // TODO: MTL: Move mtl library creation from MetalContext Ctor such that it happens only once
-        // can use a static method in Java class/ or a flag
-
         if (PrismSettings.noClampToZero && PrismSettings.verbose) {
             System.err.println("prism.noclamptozero not supported by MTL");
         }
@@ -142,7 +139,6 @@ public class MTLResourceFactory extends BaseShaderFactory {
     @Override
     public Texture createTexture(PixelFormat formatHint, Texture.Usage usageHint,
                                  Texture.WrapMode wrapMode, int w, int h) {
-        // TODO: MTL: Complete implementation
         return createTexture(formatHint, usageHint, wrapMode, w,h, false);
     }
 

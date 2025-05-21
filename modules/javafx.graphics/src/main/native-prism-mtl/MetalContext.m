@@ -1553,7 +1553,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nGetCommandQueue
     return jPtr;
 }
 
-// MTLGraphics method
+// MTLGraphics methods
 /*
  * Class:     com_sun_prism_mtl_MTLGraphics
  * Method:    nClear
@@ -1569,4 +1569,39 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLGraphics_nClear
                  blue:blue
                 alpha:alpha
            clearDepth:clearDepth];
+}
+
+
+// MTLResourceFactory methods
+
+/*
+ * Class:     com_sun_prism_mtl_MTLResourceFactory
+ * Method:    nCreateTexture
+ * Signature: (JIIZIIIZ)J
+ */
+JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLResourceFactory_nCreateTexture
+    (JNIEnv *env, jclass class, jlong pContext, jint format, jint hint,
+    jboolean isRTT, jint width, jint height, jint samples, jboolean useMipmap)
+{
+    MetalContext* context = (MetalContext*)jlong_to_ptr(pContext);
+    jlong rtt = ptr_to_jlong([[MetalTexture alloc] createTexture:context
+                                                         ofWidth:width
+                                                        ofHeight:height
+                                                     pixelFormat:format
+                                                       useMipMap:useMipmap]);
+    return rtt;
+}
+
+/*
+ * Class:     com_sun_prism_mtl_MTLResourceFactory
+ * Method:    nReleaseTexture
+ * Signature: (JJ)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLResourceFactory_nReleaseTexture
+    (JNIEnv *env, jclass class, jlong pContext, jlong pTexture)
+{
+    MetalContext* context = (MetalContext*)jlong_to_ptr(pContext);
+    MetalTexture* pTex = (MetalTexture*)jlong_to_ptr(pTexture);
+    [pTex release];
+    pTex = nil;
 }
