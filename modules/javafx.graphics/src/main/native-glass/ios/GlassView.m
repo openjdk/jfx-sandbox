@@ -157,7 +157,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_glass_ui_ios_IosView__1getNativeView
  * Method:    _getNativeFrameBuffer
  * Signature: (J)I
  */
-JNIEXPORT jint JNICALL Java_com_sun_glass_ui_ios_IosView__1getNativeFrameBuffer
+JNIEXPORT jlong JNICALL Java_com_sun_glass_ui_ios_IosView__1getNativeFrameBuffer
 (JNIEnv *env, jobject jView, jlong ptr)
 {
 

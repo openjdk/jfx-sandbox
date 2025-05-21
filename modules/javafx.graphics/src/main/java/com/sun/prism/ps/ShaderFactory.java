@@ -38,5 +38,14 @@ public interface ShaderFactory extends ResourceFactory {
                                int maxTexCoordIndex,
                                boolean isPixcoordUsed,
                                boolean isPerVertexColorUsed);
+
+    // This method is added only for MTL pipeline.
+    public Shader createShader(String shaderName,
+                               Map<String, Integer> samplers,
+                               Map<String, Integer> params,
+                               int maxTexCoordIndex,
+                               boolean isPixcoordUsed,
+                               boolean isPerVertexColorUsed);
+
     public Shader createStockShader(String name);
 }

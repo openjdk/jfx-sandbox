@@ -41,6 +41,7 @@ import com.sun.glass.ui.Screen;
 import com.sun.glass.utils.NativeLibLoader;
 import com.sun.javafx.PlatformUtil;
 import com.sun.javafx.text.GlyphLayout;
+import com.sun.prism.GraphicsPipeline;
 
 public abstract class PrismFontFactory implements FontFactory {
 
@@ -128,6 +129,22 @@ public abstract class PrismFontFactory implements FontFactory {
         String defLCDProp = lcdTextOff ? "false" : "true";
         String lcdProp = System.getProperty("prism.lcdtext", defLCDProp);
         lcdEnabled = lcdProp.equals("true");
+
+        if (lcdEnabled && isMacOSX) {
+            if ("MTLPipeline".equals(GraphicsPipeline.getPipeline().
+                getClass().getSimpleName())) {
+                System.err.println(
+                    "WARNING: LCD text rendering is not supported in");
+                System.err.println(
+                    "Metal pipeline of macOS. To use LCD text rendering");
+                System.err.println(
+                    "on macOS, please use the prism-es2 pipeline instead");
+                System.err.println(
+                    "by setting the \"prism.order\" system property");
+                System.err.println(
+                    "to \"es2\" rather than \"mtl\".");
+            }
+        }
 
         s = System.getProperty("prism.cacheLayoutSize");
         if (s != null) {

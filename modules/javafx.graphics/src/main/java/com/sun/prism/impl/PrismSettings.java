@@ -39,6 +39,7 @@ public final class PrismSettings {
     public static final boolean verbose;
     public static final boolean debug;
     public static final boolean trace;
+    public static final boolean metalDebug;
     public static final boolean printAllocs;
     public static final boolean isVsyncEnabled;
     public static final boolean dirtyOptsEnabled;
@@ -186,6 +187,8 @@ public final class PrismSettings {
         /* Trace output*/
         trace = getBoolean(systemProperties, "prism.trace", false);
 
+        metalDebug = getBoolean(systemProperties, "prism.metalDebug", false);
+
         /* Print texture allocation data */
         printAllocs = getBoolean(systemProperties, "prism.printallocs", false);
 
@@ -205,7 +208,8 @@ public final class PrismSettings {
             if (PlatformUtil.isWindows()) {
                 tryOrderArr = new String[] { "d3d", "sw" };
             } else if (PlatformUtil.isMac()) {
-                tryOrderArr = new String[] { "es2", "sw" };
+                // TODO: MTL: es2 will remain first in order for first few releases.
+                tryOrderArr = new String[] { "es2", "mtl", "sw" };
             } else if (PlatformUtil.isIOS()) {
                 tryOrderArr = new String[] { "es2" };
             } else if (PlatformUtil.isAndroid()) {
@@ -340,6 +344,9 @@ public final class PrismSettings {
 
         // Force uploading painter (e.g., to avoid Linux live-resize jittering)
         forceUploadingPainter = getBoolean(systemProperties, "prism.forceUploadingPainter", false);
+        if (verbose) {
+            printBooleanOption(forceUploadingPainter, "Forcing UploadingPainter");
+        }
 
         // Force the use of fragment shader that does alpha testing (i.e. discard if alpha == 0.0)
         forceAlphaTestShader = getBoolean(systemProperties, "prism.forceAlphaTestShader", false);

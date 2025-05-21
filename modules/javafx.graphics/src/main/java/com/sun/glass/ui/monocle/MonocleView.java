@@ -177,7 +177,7 @@ final class MonocleView extends View {
     }
 
     @Override
-    protected int _getNativeFrameBuffer(long ptr) {
+    protected long _getNativeFrameBuffer(long ptr) {
         return 0;
     }
 

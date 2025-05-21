@@ -120,6 +120,15 @@ class DummyResourceFactory extends BaseShaderFactory {
     }
 
     @Override
+    public Shader createShader(String shaderName,
+                               Map<String, Integer> samplers,
+                               Map<String, Integer> params,
+                               int maxTexCoordIndex,
+                               boolean isPixcoordUsed,
+                               boolean isPerVertexColorUsed) {
+        return new DummyShader(context, params);
+    }
+
     public Shader createStockShader(String name) {
         return new DummyShader(context, name);
     }

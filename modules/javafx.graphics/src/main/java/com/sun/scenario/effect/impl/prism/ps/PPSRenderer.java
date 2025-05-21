@@ -473,6 +473,8 @@ public class PPSRenderer extends PrRenderer {
             shaderSource = createShaderSource(rootPkg + ".impl.hw.d3d.D3DShaderSource");
         } else if (pipe.supportsShader(ShaderType.GLSL, ShaderModel.SM3)) {
             shaderSource = createShaderSource(rootPkg + ".impl.es2.ES2ShaderSource");
+        }  else if (pipe.supportsShader(ShaderType.MSL, ShaderModel.SM3)) {
+            shaderSource = createShaderSource(rootPkg + ".impl.hw.mtl.MTLShaderSource");
         } else {
             throw new InternalError("Unknown GraphicsPipeline");
         }

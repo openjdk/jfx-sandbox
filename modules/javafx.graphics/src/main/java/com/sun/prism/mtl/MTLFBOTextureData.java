@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,27 +23,25 @@
  * questions.
  */
 
-#import <Foundation/Foundation.h>
+package com.sun.prism.mtl;
 
-#import <OpenGL/gl.h>
-#import <OpenGL/OpenGL.h>
+public class MTLFBOTextureData extends MTLTextureData {
+    MTLFBOTextureData(MTLContext context, long texPtr, long size) {
+        super(context, texPtr, size);
+        MTLLog.Debug("MTLFBOTextureData(): context = " + context + ", texPtr = " + texPtr);
+    }
 
-#import "GlassOffscreen.h"
-
-@interface GlassFrameBufferObject : NSObject <GlassOffscreenProtocol>
-{
-    GLuint _width;
-    GLuint _height;
-
-    GLuint _texture;
-    GLuint _fbo;
-    GLuint _fboToRestore;
-    BOOL   _isSwPipe;
+    @Override
+    public void dispose() {
+        if (pTexture != 0L) {
+            MTLLog.Debug("MTLFBOTextureData.dispose()");
+            if (mtlContext.isCurrentRTT(pTexture)) {
+                MTLLog.Debug("MTLFBOTextureData : calling flush before" +
+                    " releasing bound FBO");
+                mtlContext.flushVertexBuffer();
+            }
+            // release of native MetalTexture will be handled by Glass
+            pTexture = 0L;
+        }
+    }
 }
-
-- (void)blitFromFBO:(GlassFrameBufferObject*)other_fbo;
-- (GLuint)texture;
-- (GLuint)fbo;
-- (void)setIsSwPipe:(BOOL)isSwPipe;
-
-@end

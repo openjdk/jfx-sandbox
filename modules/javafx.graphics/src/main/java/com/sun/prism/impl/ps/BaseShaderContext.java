@@ -192,6 +192,8 @@ public abstract class BaseShaderContext extends BaseContext {
         private float lastConst5 = Float.NaN;
         private float lastConst6 = Float.NaN;
         private boolean lastState3D = false;
+
+        public Texture[] getLastTextures() { return lastTextures; }
     }
 
     @Override
@@ -719,7 +721,7 @@ public abstract class BaseShaderContext extends BaseContext {
         }
     }
 
-    private void setTexture(int texUnit, Texture tex) {
+    protected void setTexture(int texUnit, Texture tex) {
         if (checkDisposed()) return;
 
         if (tex != null) tex.assertLocked();
