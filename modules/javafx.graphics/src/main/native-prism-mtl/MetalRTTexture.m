@@ -163,8 +163,15 @@
 @end // MetalRTTexture
 
 
+// ** JNI METHODS **
+
+/*
+ * Class:     com_sun_prism_mtl_MTLRTTexture
+ * Method:    nCreateRT
+ * Signature: (JIIIILcom/sun/prism/Texture/WrapMode;Z)J
+ */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT
-  (JNIEnv *env, jclass jClass, jlong ctx, jint pw, jint ph, jint cw,
+    (JNIEnv *env, jclass jClass, jlong ctx, jint pw, jint ph, jint cw,
     jint ch, jobject wrapMode, jboolean isMsaa)
 {
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
@@ -177,8 +184,13 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT
     return ptr_to_jlong(rtt);
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLRTTexture
+ * Method:    nCreateRT2
+ * Signature: (JJII)J
+ */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT2
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong pTex, jint pw, jint ph)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong pTex, jint pw, jint ph)
 {
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalRTTexture* rtt = [[MetalRTTexture alloc] createTexture:context
@@ -188,6 +200,11 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT2
     return ptr_to_jlong(rtt);
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLRTTexture
+ * Method:    nInitRTT
+ * Signature: (J[I)V
+ */
 // This method inits underlying native MTLTexture with passed in pixData
 // This texure replaceRegion is executed on CPU
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nInitRTT
@@ -208,6 +225,11 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nInitRTT
     (*env)->ReleaseIntArrayElements(env, pixData, arr, 0);
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLRTTexture
+ * Method:    nReadPixelsFromRTT
+ * Signature: (JLjava/nio/IntBuffer;)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nReadPixelsFromRTT
     (JNIEnv *env, jclass class, jlong jTexPtr, jobject pixData)
 {
@@ -220,8 +242,13 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nReadPixelsFromRTT
     memcpy(pDst, texContent, cw * ch * 4);
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLRTTexture
+ * Method:    nReadPixels
+ * Signature: (J[I)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nReadPixels
-  (JNIEnv *env, jclass class, jlong jTexPtr, jintArray pixData)
+    (JNIEnv *env, jclass class, jlong jTexPtr, jintArray pixData)
 {
     MetalRTTexture* rtt = (MetalRTTexture*) jlong_to_ptr(jTexPtr);
     int* texContent = (int*)[[rtt getPixelBuffer] contents];

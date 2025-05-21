@@ -319,8 +319,15 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 @end // MetalShader
 
 
+// ** JNI METHODS **
+
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nCreateMetalShader
+ * Signature: (JLjava/lang/String;)J
+ */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nCreateMetalShader
-  (JNIEnv *env, jclass jClass, jlong ctx, jstring fragFuncName)
+    (JNIEnv *env, jclass jClass, jlong ctx, jstring fragFuncName)
 {
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     NSString *nameString = jStringToNSString(env, fragFuncName);
@@ -329,83 +336,138 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLShader_nCreateMetalShader
     return shader_ptr;
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nGetUniformNameIdMap
+ * Signature: (J)Ljava/util/HashMap;
+ */
 JNIEXPORT jobject JNICALL Java_com_sun_prism_mtl_MTLShader_nGetUniformNameIdMap
-  (JNIEnv *env, jclass jClass, jlong shader)
+    (JNIEnv *env, jclass jClass, jlong shader)
 {
     MetalShader *mtlShader = (MetalShader*)jlong_to_ptr(shader);
     return [mtlShader getUniformNameIdMap:env];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nEnable
+ * Signature: (J)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nEnable
-  (JNIEnv *env, jclass jClass, jlong shader)
+    (JNIEnv *env, jclass jClass, jlong shader)
 {
     MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
     [mtlShader enable];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nDisable
+ * Signature: (J)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nDisable
-  (JNIEnv *env, jclass jClass, jlong shader)
+    (JNIEnv *env, jclass jClass, jlong shader)
 {
     MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
     [mtlShader disable];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nSetTexture
+ * Signature: (JIIJZI)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nSetTexture
-  (JNIEnv *env, jclass jClass, jlong shader, jint texID, jint uniformID,
+    (JNIEnv *env, jclass jClass, jlong shader, jint texID, jint uniformID,
     jlong nTexturePtr, jboolean isLinear, jint wrapMode)
 {
     MetalShader* mtlShader = (MetalShader*)jlong_to_ptr(shader);
     MetalTexture* mtlTex   = (MetalTexture*)jlong_to_ptr(nTexturePtr);
     id<MTLTexture> tex     = [mtlTex getTexture];
-
     [mtlShader setTexture:texID uniformID:uniformID texture:tex isLinear:isLinear wrapMode:wrapMode];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nSetInt
+ * Signature: (JII)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nSetInt
-  (JNIEnv *env, jclass jClass, jlong shader, jint uniformID, jint i0)
+    (JNIEnv *env, jclass jClass, jlong shader, jint uniformID, jint i0)
 {
     MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
     [mtlShader setInt:uniformID i0:i0];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nSetFloat1
+ * Signature: (JIF)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nSetFloat1
-  (JNIEnv *env, jclass jClass, jlong shader, jint uniformID, jfloat f0)
+    (JNIEnv *env, jclass jClass, jlong shader, jint uniformID, jfloat f0)
 {
     MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
     [mtlShader setFloat1:uniformID f0:f0];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nSetFloat2
+ * Signature: (JIFF)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nSetFloat2
-  (JNIEnv *env, jclass jClass, jlong shader, jint uniformID, jfloat f0, jfloat f1)
+    (JNIEnv *env, jclass jClass, jlong shader, jint uniformID, jfloat f0, jfloat f1)
 {
     MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
     [mtlShader setFloat2:uniformID f0:f0 f1:f1];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nSetFloat3
+ * Signature: (JIFFF)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nSetFloat3
-  (JNIEnv *env, jclass jClass, jlong shader, jint uniformID,
+    (JNIEnv *env, jclass jClass, jlong shader, jint uniformID,
     jfloat f0, jfloat f1, jfloat f2)
 {
     MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
     [mtlShader setFloat3:uniformID f0:f0 f1:f1 f2:f2];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nSetFloat4
+ * Signature: (JIFFFF)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nSetFloat4
-  (JNIEnv *env, jclass jClass, jlong shader, jint uniformID,
+    (JNIEnv *env, jclass jClass, jlong shader, jint uniformID,
     jfloat f0, jfloat f1, jfloat f2, jfloat f3)
 {
     MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
     [mtlShader setFloat4:uniformID f0:f0 f1:f1 f2:f2 f3:f3];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nSetConstantsBuf
+ * Signature: (JILjava/nio/FloatBuffer;II)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nSetConstantsBuf
-(JNIEnv *env, jclass class, jlong shader, jint uniformID,
-        jobject values, jint valuesByteOffset, jint size) {
+    (JNIEnv *env, jclass class, jlong shader, jint uniformID,
+    jobject values, jint valuesByteOffset, jint size)
+{
     MetalShader *mtlShader = (MetalShader *)jlong_to_ptr(shader);
     float *valuesPtr = (float *) (((char *) (*env)->GetDirectBufferAddress(env, values)) + valuesByteOffset);
     [mtlShader setConstants:uniformID values:valuesPtr size:size];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLShader
+ * Method:    nSetConstants
+ * Signature: (JI[FI)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLShader_nSetConstants
   (JNIEnv *env, jclass jClass, jlong shader, jint uniformID,
     jfloatArray valuesArray, jint size)

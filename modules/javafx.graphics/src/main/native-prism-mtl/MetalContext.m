@@ -782,22 +782,7 @@
     }
 }
 
-// TODO: MTL: This was copied from GlassHelper, and could be moved to a utility class.
-+ (NSString*) nsStringWithJavaString:(jstring)javaString withEnv:(JNIEnv*)env
-{
-    NSString *string = @"";
-    if (javaString != NULL) {
-        const jchar* jstrChars = (*env)->GetStringChars(env, javaString, NULL);
-        jsize size = (*env)->GetStringLength(env, javaString);
-        if (size > 0) {
-            string = [[[NSString alloc] initWithCharacters:jstrChars length:(NSUInteger)size] autorelease];
-        }
-        (*env)->ReleaseStringChars(env, javaString, jstrChars);
-    }
-    return string;
-}
-
-- (void)dealloc
+- (void) dealloc
 {
     if (currentCommandBuffer == nil) {
         [self getCurrentCommandBuffer];
@@ -886,13 +871,15 @@
 @end // MetalContext
 
 
+// ** JNI METHODS **
+
 /*
  * Class:     com_sun_prism_mtl_MTLContext
  * Method:    nInitialize
  * Signature: (Ljava/nio/ByteBuffer;)J
  */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nInitialize
-  (JNIEnv *env, jclass jClass, jobject shaderLibBuffer)
+    (JNIEnv *env, jclass jClass, jobject shaderLibBuffer)
 {
     jlong jContextPtr = 0L;
 
@@ -925,8 +912,13 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nInitialize
     return jContextPtr;
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nDisposeShader
+ * Signature: (J)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDisposeShader
-  (JNIEnv *env, jclass jClass, jlong shaderRef)
+    (JNIEnv *env, jclass jClass, jlong shaderRef)
 {
     MetalShader *shaderPtr = (MetalShader *)jlong_to_ptr(shaderRef);
     if (shaderPtr != nil) {
@@ -935,8 +927,13 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDisposeShader
     }
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nRelease
+ * Signature: (J)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRelease
-  (JNIEnv *env, jclass jClass, jlong context)
+    (JNIEnv *env, jclass jClass, jlong context)
 {
     MetalContext *contextPtr = (MetalContext *)jlong_to_ptr(context);
 
@@ -946,15 +943,25 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRelease
     contextPtr = NULL;
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nCommitCurrentCommandBuffer
+ * Signature: (J)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nCommitCurrentCommandBuffer
-  (JNIEnv *env, jclass jClass, jlong context)
+    (JNIEnv *env, jclass jClass, jlong context)
 {
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     [mtlContext commitCurrentCommandBuffer];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nDrawIndexedQuads
+ * Signature: (J[F[BI)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
-  (JNIEnv *env, jclass jClass, jlong context, jfloatArray vertices, jbyteArray colors, jint numVertices)
+    (JNIEnv *env, jclass jClass, jlong context, jfloatArray vertices, jbyteArray colors, jint numVertices)
 {
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
 
@@ -968,8 +975,13 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
     if (pVertices) (*env)->ReleasePrimitiveArrayCritical(env, vertices, pVertices, 0);
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nUpdateRenderTarget
+ * Signature: (JJZ)V
+ */
 JNIEXPORT int JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
-  (JNIEnv *env, jclass jClass, jlong context, jlong texPtr, jboolean depthTest)
+    (JNIEnv *env, jclass jClass, jlong context, jlong texPtr, jboolean depthTest)
 {
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     MetalRTTexture *rtt = (MetalRTTexture *)jlong_to_ptr(texPtr);
@@ -987,10 +999,11 @@ JNIEXPORT int JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
 /*
  * Class:     com_sun_prism_mtl_MTLContext
  * Method:    nSetClipRect
+ * Signature: (JJIIII)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetClipRect
-  (JNIEnv *env, jclass jClass, jlong ctx,
-   jint x, jint y, jint width, jint height)
+    (JNIEnv *env, jclass jClass, jlong ctx,
+    jint x, jint y, jint width, jint height)
 {
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
     [pCtx setClipRect:x y:y width:width height:height];
@@ -999,24 +1012,35 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetClipRect
 /*
  * Class:     com_sun_prism_mtl_MTLContext
  * Method:    nResetClipRect
+ * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetClipRect
-  (JNIEnv *env, jclass jClass, jlong ctx)
+    (JNIEnv *env, jclass jClass, jlong ctx)
 {
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
     [pCtx resetClipRect];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nResetTransform
+ * Signature: (J)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
-  (JNIEnv *env, jclass jClass, jlong context)
+    (JNIEnv *env, jclass jClass, jlong context)
 {
     // TODO: MTL: The method seems to be effectively empty, may be good to remove.
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     //[mtlContext resetProjViewMatrix];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetProjViewMatrix
+ * Signature: (JZDDDDDDDDDDDDDDDD)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetProjViewMatrix
-  (JNIEnv *env, jclass jClass,
+    (JNIEnv *env, jclass jClass,
     jlong context, jboolean isOrtho,
     jdouble m00, jdouble m01, jdouble m02, jdouble m03,
     jdouble m10, jdouble m11, jdouble m12, jdouble m13,
@@ -1031,8 +1055,13 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetProjViewMatrix
         m30:m30 m31:m31 m32:m32 m33:m33];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetTransform
+ * Signature: (JDDDDDDDDDDDDDDDD)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTransform
-  (JNIEnv *env, jclass jClass,
+    (JNIEnv *env, jclass jClass,
     jlong context,
     jdouble m00, jdouble m01, jdouble m02, jdouble m03,
     jdouble m10, jdouble m11, jdouble m12, jdouble m13,
@@ -1053,8 +1082,13 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTransform
         m30:m30 m31:m31 m32:m32 m33:m33];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetWorldTransform
+ * Signature: (JDDDDDDDDDDDDDDDD)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWorldTransform
-  (JNIEnv *env, jclass jClass,
+    (JNIEnv *env, jclass jClass,
     jlong context,
     jdouble m00, jdouble m01, jdouble m02, jdouble m03,
     jdouble m10, jdouble m11, jdouble m12, jdouble m13,
@@ -1068,9 +1102,13 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWorldTransform
         m30:m30 m31:m31 m32:m32 m33:m33];
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetWorldTransformToIdentity
+ * Signature: (J)V
+ */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWorldTransformToIdentity
-  (JNIEnv *env, jclass jClass,
-    jlong context)
+    (JNIEnv *env, jclass jClass, jlong context)
 {
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     [mtlContext setWorldTransformIdentityMatrix];
@@ -1082,7 +1120,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWorldTransformToIde
  * Signature: (J)J
  */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMesh
-  (JNIEnv *env, jclass jClass, jlong ctx)
+    (JNIEnv *env, jclass jClass, jlong ctx)
 {
     MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
 
@@ -1096,7 +1134,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMesh
  * Signature: (JJ)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMesh
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh)
 {
     MetalMesh *mesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
     if (mesh != nil) {
@@ -1111,7 +1149,8 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMesh
  * Signature: (JJ[FI[SI)Z
  */
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometryShort
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh, jfloatArray vb, jint vbSize, jshortArray ib, jint ibSize)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh,
+    jfloatArray vb, jint vbSize, jshortArray ib, jint ibSize)
 {
     MetalMesh *mesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
 
@@ -1155,7 +1194,8 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
  * Signature: (JJ[FI[II)Z
  */
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometryInt
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh, jfloatArray vb, jint vbSize, jintArray ib, jint ibSize)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh,
+    jfloatArray vb, jint vbSize, jintArray ib, jint ibSize)
 {
     MetalMesh *mesh = (MetalMesh *) jlong_to_ptr(nativeMesh);
 
@@ -1199,7 +1239,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nBuildNativeGeometr
  * Signature: (J)J
  */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLPhongMaterial
-  (JNIEnv *env, jclass jClass, jlong ctx)
+    (JNIEnv *env, jclass jClass, jlong ctx)
 {
     MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
     MetalPhongMaterial *phongMaterial = ([[MetalPhongMaterial alloc] createPhongMaterial:pCtx]);
@@ -1212,7 +1252,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLPhongMateria
  * Signature: (JJ)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLPhongMaterial
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial)
 {
     MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
     if (phongMaterial != nil) {
@@ -1227,8 +1267,8 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLPhongMateria
  * Signature: (JJFFFF)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDiffuseColor
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
-        jfloat r, jfloat g, jfloat b, jfloat a)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
+    jfloat r, jfloat g, jfloat b, jfloat a)
 {
     MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
     [phongMaterial setDiffuseColor:r g:g b:b a:a];
@@ -1240,21 +1280,22 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDiffuseColor
  * Signature: (JJZFFFF)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetSpecularColor
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
-        jboolean set, jfloat r, jfloat g, jfloat b, jfloat a)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
+    jboolean set, jfloat r, jfloat g, jfloat b, jfloat a)
 {
     MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
     bool specularSet = set ? true : false;
     [phongMaterial setSpecularColor:specularSet r:r g:g b:b a:a];
 }
+
 /*
  * Class:     com_sun_prism_mtl_MTLContext
  * Method:    nSetMap
  * Signature: (JJIJ)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMap
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
-        jint mapType, jlong nativeTexture)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativePhongMaterial,
+    jint mapType, jlong nativeTexture)
 {
     MetalPhongMaterial *phongMaterial = (MetalPhongMaterial *) jlong_to_ptr(nativePhongMaterial);
     MetalTexture *texMap = (MetalTexture *)  jlong_to_ptr(nativeTexture);
@@ -1268,7 +1309,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMap
  * Signature: (JJ)J
  */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMeshView
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMesh)
 {
     MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
 
@@ -1285,7 +1326,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nCreateMTLMeshView
  * Signature: (JJ)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMeshView
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
 {
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     if (meshView != nil) {
@@ -1300,7 +1341,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nReleaseMTLMeshView
  * Signature: (JJI)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCullingMode
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jint cullMode)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jint cullMode)
 {
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
 
@@ -1324,7 +1365,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCullingMode
  * Signature: (JJJ)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMaterial
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jlong nativePhongMaterial)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jlong nativePhongMaterial)
 {
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
 
@@ -1338,7 +1379,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetMaterial
  * Signature: (JJZ)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWireframe
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jboolean wireframe)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jboolean wireframe)
 {
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     bool isWireFrame = wireframe ? true : false;
@@ -1351,8 +1392,8 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetWireframe
  * Signature: (JJFFF)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetAmbientLight
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView,
-        jfloat r, jfloat g, jfloat b)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView,
+    jfloat r, jfloat g, jfloat b)
 {
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     [meshView setAmbientLight:r g:g b:b];
@@ -1364,10 +1405,10 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetAmbientLight
  * Signature: (JJIFFFFFFFFFFFFFFFFFF)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetLight
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jint index,
-        jfloat x, jfloat y, jfloat z, jfloat r, jfloat g, jfloat b, jfloat w,
-        jfloat ca, jfloat la, jfloat qa, jfloat isAttenuated, jfloat range,
-        jfloat dirX, jfloat dirY, jfloat dirZ, jfloat innerAngle, jfloat outerAngle, jfloat falloff)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView, jint index,
+    jfloat x, jfloat y, jfloat z, jfloat r, jfloat g, jfloat b, jfloat w,
+    jfloat ca, jfloat la, jfloat qa, jfloat isAttenuated, jfloat range,
+    jfloat dirX, jfloat dirY, jfloat dirZ, jfloat innerAngle, jfloat outerAngle, jfloat falloff)
 {
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     [meshView setLight:index
@@ -1386,12 +1427,11 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetLight
  * Signature: (JJ)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRenderMeshView
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nativeMeshView)
 {
     MetalContext *pCtx = (MetalContext*) jlong_to_ptr(ctx);
     MetalMeshView *meshView = (MetalMeshView *) jlong_to_ptr(nativeMeshView);
     [pCtx renderMeshView:meshView];
-    return;
 }
 
 /*
@@ -1400,7 +1440,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRenderMeshView
  * Signature: (JJ[[)Z
  */
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nIsCurrentRTT
-  (JNIEnv *env, jclass jClass, jlong ctx, jlong texPtr)
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong texPtr)
 {
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
     MetalRTTexture *rttPtr = (MetalRTTexture *)jlong_to_ptr(texPtr);
@@ -1413,9 +1453,9 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_mtl_MTLContext_nIsCurrentRTT
  * Signature: (JJJIIIIIIII)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
-  (JNIEnv *env, jclass jclass, jlong ctx, jlong nSrcRTT, jlong nDstRTT,
-            jint srcX0, jint srcY0, jint srcX1, jint srcY1,
-            jint dstX0, jint dstY0, jint dstX1, jint dstY1)
+    (JNIEnv *env, jclass jclass, jlong ctx, jlong nSrcRTT, jlong nDstRTT,
+    jint srcX0, jint srcY0, jint srcX1, jint srcY1,
+    jint dstX0, jint dstY0, jint dstX1, jint dstY1)
 {
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
     MetalRTTexture *srcRTT = (MetalRTTexture *)jlong_to_ptr(nSrcRTT);
@@ -1446,66 +1486,67 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nBlit
                    destinationOrigin:MTLOriginMake(0, 0, 0)];
         [blitEncoder endEncoding];
     }
-    return;
 }
 
 /*
  * Class:     com_sun_prism_mtl_MTLContext
  * Method:    nSetCameraPosition
+ * Signature: (JDDD)V
  */
-
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCameraPosition
-  (JNIEnv *env, jclass jClass, jlong ctx, jdouble x,
-   jdouble y, jdouble z)
+    (JNIEnv *env, jclass jClass, jlong ctx,
+    jdouble x, jdouble y, jdouble z)
 {
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
-
-    return [pCtx setCameraPosition:x
-            y:y z:z];
+    [pCtx setCameraPosition:x y:y z:z];
 }
 
 /*
  * Class:     com_sun_prism_mtl_MTLContext
  * Method:    nSetDeviceParametersFor2D
+ * Signature: (J)I
  */
-
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor2D
-  (JNIEnv *env, jclass jClass, jlong ctx)
+    (JNIEnv *env, jclass jClass, jlong ctx)
 {
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
-
     return [pCtx setDeviceParametersFor2D];
 }
 
 /*
  * Class:     com_sun_prism_mtl_MTLContext
  * Method:    nSetDeviceParametersFor3D
+ * Signature: (J)I
  */
-
 JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor3D
-  (JNIEnv *env, jclass jClass, jlong ctx)
+    (JNIEnv *env, jclass jClass, jlong ctx)
 {
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
-
     return [pCtx setDeviceParametersFor3D];
 }
 
 /*
-* Class:     com_sun_prism_mtl_MTLContext
-* Method:    nSetCompositeMode
-*/
-JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCompositeMode(JNIEnv *env, jclass jClass, jlong context, jint mode)
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nSetCompositeMode
+ * Signature: (JI)V
+ */
+JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCompositeMode(
+    JNIEnv *env, jclass jClass, jlong context, jint mode)
 {
     MetalContext* pCtx = (MetalContext*)jlong_to_ptr(context);
     [pCtx setCompositeMode:mode];
-    return;
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLContext
+ * Method:    nGetCommandQueue
+ * Signature: (J)J
+ */
 // TODO: MTL: This enables sharing of MTLCommandQueue between PRISM and GLASS, if needed.
 // Note : Currently, PRISM and GLASS create their own dedicated MTLCommandQueue
 // This method is unused
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nGetCommandQueue
-  (JNIEnv *env, jclass jClass, jlong context)
+    (JNIEnv *env, jclass jClass, jlong context)
 {
     MetalContext *contextPtr = (MetalContext *)jlong_to_ptr(context);
     jlong jPtr = ptr_to_jlong((void *)[contextPtr getCommandQueue]);
@@ -1519,9 +1560,8 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nGetCommandQueue
  * Signature: (JFFFFZ)V
  */
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLGraphics_nClear
-  (JNIEnv *env, jclass jClass, jlong ctx,
-    jfloat red, jfloat green, jfloat blue, jfloat alpha,
-    jboolean clearDepth)
+    (JNIEnv *env, jclass jClass, jlong ctx,
+    jfloat red, jfloat green, jfloat blue, jfloat alpha, jboolean clearDepth)
 {
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     [context clearRTT:red

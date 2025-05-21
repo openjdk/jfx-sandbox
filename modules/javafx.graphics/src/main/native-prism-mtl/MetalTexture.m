@@ -29,6 +29,8 @@
 
 @implementation MetalTexture
 
+// TODO: MTL: This is a helper method to print debug messages.
+// Should be removed before integrating to mainline.
 NSString *nameForPixelFormat(NSUInteger format) {
     switch (format) {
         case PFORMAT_INT_ARGB_PRE:  return @"PFORMAT_INT_ARGB_PRE : MTLPixelFormatBGRA8Unorm";
@@ -154,11 +156,12 @@ NSString *nameForPixelFormat(NSUInteger format) {
         [texture release];
         texture = nil;
     }
-
     [super dealloc];
 }
 
 @end // MetalTexture
+
+// ** HELPER METHODS **
 
 static NSMutableDictionary *getBufferAndOffset(MetalContext* context, unsigned int length)
 {
@@ -176,7 +179,8 @@ static NSMutableDictionary *getBufferAndOffset(MetalContext* context, unsigned i
     return bufferOffsetDict;
 }
 
-static unsigned int getPixelSize(enum MTLPixelFormat pixelFormat) {
+static unsigned int getPixelSize(enum MTLPixelFormat pixelFormat)
+{
     switch (pixelFormat) {
         case MTLPixelFormatA8Unorm:
             return 1;
@@ -189,8 +193,8 @@ static unsigned int getPixelSize(enum MTLPixelFormat pixelFormat) {
     }
 }
 
-static NSMutableDictionary *copyPixelDataToRingBuffer(MetalContext* context, void* pixels, int srcx, int srcy,
-    int w, int h, int scanStride, MTLPixelFormat pixelFormat)
+static NSMutableDictionary *copyPixelDataToRingBuffer(MetalContext* context, void* pixels,
+    int srcx, int srcy, int w, int h, int scanStride, MTLPixelFormat pixelFormat)
 {
     unsigned int pixelSize = getPixelSize(pixelFormat);
     unsigned int length = pixelSize * w * h;
@@ -209,8 +213,16 @@ static NSMutableDictionary *copyPixelDataToRingBuffer(MetalContext* context, voi
     return bufferOffsetDict;
 }
 
+
+// ** JNI METHODS **
+
+/*
+ * Class:     com_sun_prism_mtl_MTLTexture
+ * Method:    nUpdate
+ * Signature: (JJLjava/nio/ByteBuffer;[BIIIIIII)J
+ */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
-   (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
     jbyteArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
     jint w, jint h, jint scanStride)
 {
@@ -268,8 +280,13 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdate
     return 0;
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLTexture
+ * Method:    nUpdateFloat
+ * Signature: (JJLjava/nio/FloatBuffer;[FIIIIIII)J
+ */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
-   (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
     jfloatArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
     jint w, jint h, jint scanStride)
 {
@@ -327,8 +344,13 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateFloat
     return 0;
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLTexture
+ * Method:    nUpdateInt
+ * Signature: (JJLjava/nio/IntBuffer;[IIIIIIII)J
+ */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
-   (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jobject buf,
     jintArray pixData, jint dstx, jint dsty, jint srcx, jint srcy,
     jint w, jint h, jint scanStride)
 {
@@ -386,9 +408,15 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateInt
     return 0;
 }
 
+/*
+ * Class:     com_sun_prism_mtl_MTLTexture
+ * Method:    nUpdateInt
+ * Signature: (JJ[BIIIIIII)J
+ */
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateYUV422
-   (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jbyteArray pixData,
-    jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride) {
+    (JNIEnv *env, jclass jClass, jlong ctx, jlong nTexturePtr, jbyteArray pixData,
+    jint dstx, jint dsty, jint srcx, jint srcy, jint w, jint h, jint scanStride)
+{
     MetalContext* context = (MetalContext*)jlong_to_ptr(ctx);
     MetalTexture* mtlTex  = (MetalTexture*)jlong_to_ptr(nTexturePtr);
 
@@ -397,47 +425,46 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLTexture_nUpdateYUV422
     jbyte* p = pixels;
 
     @autoreleasepool {
-
         id<MTLDevice> device = [context getDevice];
 
-        id<MTLBuffer> srcBuff = [[device newBufferWithLength: (w * h * 2) options: MTLResourceStorageModeManaged] autorelease];
+        id<MTLBuffer> srcBuff = [[device newBufferWithLength:(w * h * 2)
+                                                     options:MTLResourceStorageModeManaged] autorelease];
         for (int row = 0; row < h; row++) {
             // Copy each row in srcBuff
-            memcpy(srcBuff.contents + (row * w * 2),
-                   (char*) pixels, w*2);
-
+            memcpy(srcBuff.contents + (row * w * 2), (char*) pixels, w * 2);
             pixels += (w * 2);
-            pixels += scanStride - (w*2);
+            pixels += scanStride - (w * 2);
         }
 
         [srcBuff didModifyRange:NSMakeRange(0, srcBuff.length)];
 
         [context endCurrentRenderEncoder];
 
-        MTLSize _threadgroupSize = MTLSizeMake(2, 1, 1);
+        MTLSize threadgroupSize = MTLSizeMake(2, 1, 1);
 
-        MTLSize _threadgroupCount;
-        _threadgroupCount.width  = w / _threadgroupSize.width;
-        _threadgroupCount.height = h / _threadgroupSize.height;
-        _threadgroupCount.depth = 1;
+        MTLSize threadgroupCount;
+        threadgroupCount.width  = w / threadgroupSize.width;
+        threadgroupCount.height = h / threadgroupSize.height;
+        threadgroupCount.depth  = 1;
 
-        id<MTLComputePipelineState> _computePipelineState = [[context getPipelineManager] getComputePipelineStateWithFunc:@"uyvy422_to_rgba"];
+        id<MTLComputePipelineState> computePipelineState =
+            [[context getPipelineManager] getComputePipelineStateWithFunc:@"uyvy422_to_rgba"];
 
         id<MTLCommandBuffer> commandBuffer = [context getCurrentCommandBuffer];
 
         id<MTLComputeCommandEncoder> computeEncoder = [commandBuffer computeCommandEncoder];
 
-        [computeEncoder setComputePipelineState:_computePipelineState];
+        [computeEncoder setComputePipelineState:computePipelineState];
 
         [computeEncoder setBuffer:srcBuff
-                            offset:0
-                           atIndex:0];
+                           offset:0
+                          atIndex:0];
 
         [computeEncoder setTexture:tex
                            atIndex:0];
 
-        [computeEncoder dispatchThreadgroups:_threadgroupCount
-                       threadsPerThreadgroup:_threadgroupSize];
+        [computeEncoder dispatchThreadgroups:threadgroupCount
+                       threadsPerThreadgroup:threadgroupSize];
 
         [computeEncoder endEncoding];
 
