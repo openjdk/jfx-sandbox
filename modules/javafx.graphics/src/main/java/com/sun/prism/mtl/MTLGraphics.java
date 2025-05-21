@@ -68,5 +68,6 @@ public class MTLGraphics extends BaseShaderGraphics {
         context.commitCurrentCommandBuffer();
     }
 
+    // Native methods
     private static native void nClear(long pContext, float red, float green, float blue, float alpha, boolean clearDepth);
 }

@@ -433,15 +433,14 @@ public class MTLResourceFactory extends BaseShaderFactory {
         return MTLMesh.create(context);
     }
 
-    static native long nCreateTexture(long pContext,
-                                      int format, int hint,
-                                      boolean isRTT,
-                                      int width, int height, int samples,
-                                      boolean useMipmap);
-
-    static native void nReleaseTexture(long context, long pTexture);
-
     static void releaseTexture(MTLContext context, long resource) {
         nReleaseTexture(context.getContextHandle(), resource);
     }
+
+    // Native methods
+
+    static native long nCreateTexture(long pContext, int format, int hint, boolean isRTT,
+                                      int width, int height, int samples, boolean useMipmap);
+
+    static native void nReleaseTexture(long context, long pTexture);
 }

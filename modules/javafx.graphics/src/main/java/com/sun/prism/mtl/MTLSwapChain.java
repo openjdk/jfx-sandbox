@@ -35,8 +35,7 @@ import com.sun.prism.GraphicsResource;
 import com.sun.prism.impl.PrismSettings;
 
 
-public class MTLSwapChain
-        implements MTLRenderTarget, Presentable, GraphicsResource {
+public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResource {
 
     private PresentableState pState;
     private final MTLContext pContext;
@@ -54,8 +53,6 @@ public class MTLSwapChain
 
         w = state.getRenderWidth();
         h = state.getRenderHeight();
-
-        // System.err.println("MTLSwapChain - constructor()");
     }
 
     @Override
@@ -63,8 +60,7 @@ public class MTLSwapChain
 
         if (this.pState != state ||
             pixelScaleFactorX != state.getRenderScaleX() ||
-            pixelScaleFactorY != state.getRenderScaleY())
-        {
+            pixelScaleFactorY != state.getRenderScaleY()) {
             return true;
         }
         needsResize = (w != state.getRenderWidth() || h != state.getRenderHeight());

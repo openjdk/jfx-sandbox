@@ -43,7 +43,8 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
     MTLTexture(MTLContext context, MTLTextureResource<T> resource,
                PixelFormat format, WrapMode wrapMode,
                int physicalWidth, int physicalHeight,
-               int contentX, int contentY, int contentWidth, int contentHeight, boolean useMipmap) {
+               int contentX, int contentY, int contentWidth, int contentHeight,
+               boolean useMipmap) {
 
         super(resource, format, wrapMode,
               physicalWidth, physicalHeight,
@@ -79,7 +80,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
         return context;
     }
 
-    // TODO: We don't handle mipmap in shared texture yet.
+    // TODO: MTL: We don't handle mipmap in shared texture yet.
     private MTLTexture(MTLTexture sharedTex, WrapMode newMode) {
         super(sharedTex, newMode, false);
         this.context = sharedTex.context;
@@ -91,22 +92,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
         return new MTLTexture(this, newMode);
     }
 
-    native private static void nUpdate(long contextHandle, long pResource,
-                                       ByteBuffer buf, byte[] pixels,
-                                       int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
-    native private static void nUpdateFloat(long contextHandle, long pResource,
-                                            FloatBuffer buf, float[] pixels,
-                                            int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
-
-    native private static void nUpdateInt(long contextHandle, long pResource,
-                                          IntBuffer buf, int[] pixels,
-                                          int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
-
-    native private static void nUpdateYUV422(long contextHandle, long pResource,
-                                       byte[] pixels,
-                                       int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
-
-@Override
+    @Override
     public void update(Buffer buffer, PixelFormat format, int dstx, int dsty, int srcx, int srcy, int srcw, int srch, int srcscan, boolean skipFlush) {
 
         if (format.getDataType() == PixelFormat.DataType.INT) {
@@ -226,4 +212,23 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
 
         frame.releaseFrame();
     }
+
+
+    // Native methods
+
+    native private static void nUpdate(long contextHandle, long pResource,
+                                       ByteBuffer buf, byte[] pixels,
+                                       int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
+    native private static void nUpdateFloat(long contextHandle, long pResource,
+                                            FloatBuffer buf, float[] pixels,
+                                            int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
+
+    native private static void nUpdateInt(long contextHandle, long pResource,
+                                          IntBuffer buf, int[] pixels,
+                                          int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
+
+    native private static void nUpdateYUV422(long contextHandle, long pResource,
+                                       byte[] pixels,
+                                       int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
+
 }

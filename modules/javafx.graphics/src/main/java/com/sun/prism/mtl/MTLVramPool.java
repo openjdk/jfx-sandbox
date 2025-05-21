@@ -31,7 +31,7 @@ import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.impl.TextureResourcePool;
 
 class MTLVramPool extends BaseResourcePool<MTLTextureData>
-    implements TextureResourcePool<MTLTextureData> {
+               implements TextureResourcePool<MTLTextureData> {
 
     private static MTLVramPool theInstance = new MTLVramPool();
 
