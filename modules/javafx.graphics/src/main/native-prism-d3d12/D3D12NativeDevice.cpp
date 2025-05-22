@@ -198,7 +198,9 @@ NativeDevice::NativeDevice()
     , mFence()
     , mFenceValue(0)
     , mFrameCounter(0)
+    , mMidframeFlushNeeded(false)
     , mWaitableOps()
+    , mCheckpointQueue()
     , mRootSignatureManager()
     , mRenderingContext()
     , mResourceDisposer()
@@ -212,7 +214,6 @@ NativeDevice::NativeDevice()
     , m2DIndexBuffer()
     , mRingBuffer()
     , mConstantRingBuffer()
-    , mMidFrameWaitable()
 {
 }
 
@@ -221,9 +222,7 @@ NativeDevice::~NativeDevice()
     D3D12NI_LOG_DEBUG("Destroying device");
 
     // ensures the pipeline is purged
-    mMidFrameWaitable.reset();
-    SignalMidFrame();
-    WaitMidFrame();
+    mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
 
     if (mRingBuffer) mRingBuffer.reset();
     if (mConstantRingBuffer) mConstantRingBuffer.reset();
@@ -527,6 +526,13 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
 
     // draw the quads
     GetCurrentCommandList()->DrawIndexedInstanced((elementCount / 4) * 6, 1, 0, 0, 0);
+
+    if (mMidframeFlushNeeded)
+    {
+        FlushCommandList();
+        Signal(CheckpointType::MIDFRAME);
+        mMidframeFlushNeeded = false;
+    }
 }
 
 void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
@@ -590,6 +596,13 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
     mRenderingContext->EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     GetCurrentCommandList()->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+
+    if (mMidframeFlushNeeded)
+    {
+        FlushCommandList();
+        Signal(CheckpointType::MIDFRAME);
+        mMidframeFlushNeeded = false;
+    }
 }
 
 void NativeDevice::SetCompositeMode(CompositeMode mode)
@@ -860,12 +873,9 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
     GetCurrentCommandList()->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, &srcBox);
 
     // Flush the Command Queue to ensure data was read and wait for it
-    // mid-frame waitable is reset here to ensure our copy is included in the execution
     FlushCommandList();
-
-    mMidFrameWaitable.reset();
-    SignalMidFrame();
-    WaitMidFrame();
+    Signal(CheckpointType::TRANSFER);
+    mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::TRANSFER);
 
     void* readbackPtr = readbackBuffer.Map();
     if (readbackPtr == nullptr)
@@ -1073,11 +1083,6 @@ void NativeDevice::FlushCommandList()
 void NativeDevice::FinishFrame()
 {
     FlushCommandList();
-
-    // in a short bit we're going to wait for Present to complete
-    // so whichever last mid-frame wait we have stored will be done in SwapChain regardless
-    mMidFrameWaitable.reset();
-
     mFrameCounter++;
 }
 
@@ -1109,7 +1114,7 @@ void NativeDevice::UnregisterWaitableOperation(Internal::IWaitableOperation* wai
 
 // Signal() is separate and not called everytime Execute() is called
 // because we need to call it in SwapChain after we Present()
-NIPtr<Internal::Waitable> NativeDevice::Signal()
+uint64_t NativeDevice::Signal(CheckpointType type)
 {
     mFenceValue++;
     if (mFenceValue == 0) mFenceValue++;
@@ -1120,15 +1125,7 @@ NIPtr<Internal::Waitable> NativeDevice::Signal()
         op->OnQueueSignal(mFenceValue);
     }
 
-    NIPtr<Internal::Waitable> waitable = std::make_shared<Internal::Waitable>(mFenceValue);
-
-    HRESULT hr = mFence->SetEventOnCompletion(mFenceValue, waitable->GetHandle());
-    D3D12NI_RET_IF_FAILED(hr, nullptr, "Failed to set Fence event on completion");
-
-    hr = mCommandQueue->Signal(mFence.Get(), mFenceValue);
-    D3D12NI_RET_IF_FAILED(hr, nullptr, "Failed to signal event on completion");
-
-    waitable->SetFinishedCallback([this](uint64_t fenceValue) -> bool
+    Internal::Waitable waitable(mFenceValue, [this](uint64_t fenceValue) -> bool
     {
         for (Internal::IWaitableOperation* op: mWaitableOps)
         {
@@ -1138,29 +1135,19 @@ NIPtr<Internal::Waitable> NativeDevice::Signal()
         return true;
     });
 
-    return waitable;
+    HRESULT hr = mCommandQueue->Signal(mFence.Get(), mFenceValue);
+    D3D12NI_RET_IF_FAILED(hr, 0, "Failed to signal event on completion");
+
+    hr = mFence->SetEventOnCompletion(mFenceValue, waitable.GetHandle());
+    D3D12NI_RET_IF_FAILED(hr, 0, "Failed to set Fence event on completion");
+
+    mCheckpointQueue.AddCheckpoint(type, std::move(waitable));
+    return mFenceValue;
 }
 
 void NativeDevice::AdvanceCommandAllocator()
 {
     mCommandListPool->AdvanceCommandAllocator(mFenceValue);
-}
-
-void NativeDevice::SignalMidFrame()
-{
-    if (MidFrameSignaled())
-        return;
-
-    mMidFrameWaitable = Signal();
-}
-
-bool NativeDevice::WaitMidFrame()
-{
-    if (!mMidFrameWaitable) return true;
-
-    bool result = mMidFrameWaitable->Wait();
-    mMidFrameWaitable.reset();
-    return result;
 }
 
 } // namespace D3D12

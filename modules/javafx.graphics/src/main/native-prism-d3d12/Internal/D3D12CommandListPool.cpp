@@ -46,8 +46,7 @@ void CommandListPool::ResetCurrentCommandList()
 
 void CommandListPool::WaitForAvailableCommandList()
 {
-    mNativeDevice->SignalMidFrame(); // this will do nothing if something else already signaled the queue
-    mNativeDevice->WaitMidFrame();
+    mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ANY);
 }
 
 CommandListPool::CommandListPool(const NIPtr<NativeDevice>& nativeDevice)

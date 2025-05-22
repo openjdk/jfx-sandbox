@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,15 @@ Waitable::Waitable(uint64_t fenceValue, const WaitFinishedCallback& waitCallback
     mEventHandle = CreateEventEx(NULL, NULL, 0, SYNCHRONIZE | EVENT_MODIFY_STATE);
 }
 
+Waitable::Waitable(Waitable&& other)
+    : mEventHandle(std::move(other.mEventHandle))
+    , mFenceValue(std::move(other.mFenceValue))
+    , mWaitFinishedCallback(std::move(other.mWaitFinishedCallback))
+    , mWaitCompleted(std::move(other.mWaitCompleted))
+{
+    other.mEventHandle = 0;
+}
+
 Waitable::~Waitable()
 {
     if (mEventHandle)
@@ -62,10 +71,11 @@ bool Waitable::Wait()
         return true;
     }
 
-    DWORD ret = WaitForSingleObject(mEventHandle, 10000);
+    DWORD ret = WaitForSingleObject(mEventHandle, INFINITE);
 
     if (ret != WAIT_OBJECT_0)
     {
+        D3D12NI_LOG_ERROR("Failed to wait for Event Handle: %x; last error: %x", ret, GetLastError());
         return false;
     }
 
@@ -75,7 +85,6 @@ bool Waitable::Wait()
     {
         return mWaitFinishedCallback(mFenceValue);
     }
-
 
     return true;
 }

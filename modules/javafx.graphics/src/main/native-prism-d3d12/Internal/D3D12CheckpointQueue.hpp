@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,47 +25,52 @@
 
 #pragma once
 
-#include "D3D12Common.hpp"
+#include "../D3D12Common.hpp"
+#include "D3D12Waitable.hpp"
 
-#include <functional>
+#include <deque>
 
 
 namespace D3D12 {
 namespace Internal {
 
-class Waitable
+// CheckpointType defined in D3D12Common.hpp
+
+/**
+ * This class collects Pipeline "checkpoints" - points in time where certain
+ * amount of work has been done.
+ *
+ * All Signal operations and Waitables are registered here in a queue, in order
+ * to be waited on later (if needed).
+ */
+class CheckpointQueue
 {
-public:
-    using WaitFinishedCallback = std::function<bool(uint64_t)>;
-
 private:
-    // TODO: D3D12: potential optimization - fetch the Event handle from a pool
-    HANDLE mEventHandle;
-    uint64_t mFenceValue;
-    WaitFinishedCallback mWaitFinishedCallback;
-    bool mWaitCompleted;
+    struct Checkpoint
+    {
+        CheckpointType type;
+        Waitable waitable;
+
+        Checkpoint(CheckpointType type, Waitable&& waitable)
+            : type(type)
+            , waitable(std::move(waitable))
+        {}
+    };
+
+    std::deque<Checkpoint> mQueue;
+    uint32_t mTotalCheckpointCount = 0;
+    uint32_t mEndframeCount = 0;
+
+    bool IsOnlyOneType(CheckpointType type);
+    bool HasFlag(CheckpointType type, CheckpointType flag);
 
 public:
-    Waitable();
-    Waitable(uint64_t fenceValue);
-    Waitable(uint64_t fenceValue, const WaitFinishedCallback& waitCallback);
-    Waitable(Waitable&& other);
-    ~Waitable();
+    CheckpointQueue() = default;
+    ~CheckpointQueue() = default;
 
-    Waitable(const Waitable& other) = delete;
-    Waitable& operator=(const Waitable& other) = delete;
-
-    bool Wait();
-
-    inline void SetFinishedCallback(const WaitFinishedCallback& waitCallback)
-    {
-        mWaitFinishedCallback = waitCallback;
-    }
-
-    inline const HANDLE& GetHandle() const
-    {
-        return mEventHandle;
-    }
+    bool AddCheckpoint(CheckpointType type, Waitable&& waitable);
+    bool WaitForNextCheckpoint(CheckpointType type);
+    void PrintStats();
 };
 
 } // namespace Internal

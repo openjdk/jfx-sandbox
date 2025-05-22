@@ -49,6 +49,7 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
         mBuffers.resize(mBufferCount);
         mStates.resize(mBufferCount);
         mRTVs.resize(mBufferCount);
+        mWaitFenceValues.resize(mBufferCount);
     }
 
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc;
@@ -76,6 +77,8 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
         }
 
         mNativeDevice->GetDevice()->CreateRenderTargetView(mBuffers[i].Get(), &rtvDesc, mRTVs[i].CPU(0));
+
+        mWaitFenceValues[i] = 0;
     }
 
     return true;
@@ -87,6 +90,9 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
     , mBuffers()
     , mStates()
     , mRTVs()
+    , mWaitFenceValues()
+    , mSubmittedFrameCount(0)
+    , mBufferCount(0)
     , mCurrentBufferIdx(0)
     , mDirtyRegion()
     , mFormat(DXGI_FORMAT_UNKNOWN)
@@ -98,17 +104,18 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
     , mHeight(0)
     , mNullResource()
 {
+    mNativeDevice->RegisterWaitableOperation(this);
 }
 
 NativeSwapChain::~NativeSwapChain()
 {
-    NIPtr<Internal::Waitable> frameWaitable;
-    while (!mPastFrameWaitables.empty())
-    {
-        frameWaitable = std::move(mPastFrameWaitables.front());
-        mPastFrameWaitables.pop_front();
-        frameWaitable->Wait();
-    }
+    mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ALL);
+    // TODO: D3D12: this is placed here because of JDK-8342694
+    // Otherwise it is not printed - move this to NativeDevice destructor when resolved
+    mNativeDevice->GetCheckpointQueue().PrintStats();
+    D3D12NI_ASSERT(mSubmittedFrameCount == 0, "SwapChain destructor: Failed to wait for all frames! Frame count = %u", mSubmittedFrameCount);
+
+    mNativeDevice->UnregisterWaitableOperation(this);
 
     for (size_t i = 0; i < mBuffers.size(); ++i)
     {
@@ -224,18 +231,24 @@ bool NativeSwapChain::Present()
     HRESULT hr = mSwapChain->Present1(mSwapInterval, mPresentFlags, &params);
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to Present on Swap Chain");
 
-    NIPtr<Internal::Waitable> waitable = mNativeDevice->Signal();
-    // store current waitable onto our collection, we'll wait for them some other time
-    mPastFrameWaitables.push_back(std::move(waitable));
-
-    NIPtr<Internal::Waitable> oldWaitable;
-    // await older frames
-    if (mPastFrameWaitables.size() >= mBufferCount)
+    // NOTE: We fetch fenceValue here instead in OnQueueSignal() to cover multiple-Stage
+    // scenario. Each Stage has its own SwapChain and each SwapChain must know when it was
+    // actually signaling the Queue. We have no way of knowing that from OnQueueSignal().
+    // CloseWindowTest system test is a good confidence check for that case.
+    uint64_t fenceValue = mNativeDevice->Signal(CheckpointType::ENDFRAME);
+    if (fenceValue == 0)
     {
-        oldWaitable = std::move(mPastFrameWaitables.front());
-        mPastFrameWaitables.pop_front();
+        D3D12NI_LOG_ERROR("Failed to Signal after Present");
+        return false;
+    }
 
-        if (!oldWaitable->Wait())
+    mWaitFenceValues[mCurrentBufferIdx] = fenceValue;
+    mSubmittedFrameCount++;
+
+    // await older frames
+    while (mSubmittedFrameCount >= mBufferCount)
+    {
+        if (!mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ENDFRAME))
         {
             D3D12NI_LOG_ERROR("Failed to wait for old frame to complete");
             return false;
@@ -243,7 +256,6 @@ bool NativeSwapChain::Present()
     }
 
     mNativeDevice->AdvanceCommandAllocator();
-
     mCurrentBufferIdx = mSwapChain->GetCurrentBackBufferIndex();
 
     return true;
@@ -252,18 +264,7 @@ bool NativeSwapChain::Present()
 bool NativeSwapChain::Resize(UINT width, UINT height)
 {
     // before Resize we need to wait for all frames
-    NIPtr<Internal::Waitable> waitable;
-    while (!mPastFrameWaitables.empty())
-    {
-        waitable = std::move(mPastFrameWaitables.front());
-        mPastFrameWaitables.pop_front();
-
-        if (!waitable->Wait())
-        {
-            D3D12NI_LOG_ERROR("Failed to wait for frames to complete");
-            return false;
-        }
-    }
+    mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ALL);
 
     // since all frames were completed, reset all Buffer references before resizing
     for (size_t i = 0; i < mBuffers.size(); ++i)
@@ -287,6 +288,25 @@ bool NativeSwapChain::Resize(UINT width, UINT height)
 
     return true;
 }
+
+void NativeSwapChain::OnQueueSignal(uint64_t fenceValue)
+{
+    // noop
+}
+
+void NativeSwapChain::OnFenceSignaled(uint64_t fenceValue)
+{
+    for (size_t i = 0; i < mWaitFenceValues.size(); ++i)
+    {
+        if (mWaitFenceValues[i] == fenceValue)
+        {
+            mWaitFenceValues[i] = 0;
+            mSubmittedFrameCount--;
+            break;
+        }
+    }
+}
+
 
 } // namespace D3D12
 

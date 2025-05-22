@@ -65,7 +65,7 @@ class RingContainer: public IWaitableOperation
 
     void FlushCommandList();
     void CheckThreshold();
-    bool AwaitNextCheckpoint();
+    bool AwaitNextCheckpoint(size_t needed);
 
 protected:
     /*

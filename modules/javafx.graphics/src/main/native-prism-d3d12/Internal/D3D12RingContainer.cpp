@@ -33,46 +33,41 @@
 namespace D3D12 {
 namespace Internal {
 
-void RingContainer::FlushCommandList()
-{
-    mNativeDevice->FlushCommandList();
-    mNativeDevice->SignalMidFrame();
-
-    // TODO: D3D12: Below wait was added to stabilize the backend at cost of performance
-    // There is a bug somewhere which causes mid-frame data to be overwritten before being
-    // consumed by the GPU, causing flickering and potential device removal. This wait
-    // prevents it, but also makes CPU-GPU parallelism almost nonexistent which severly
-    // impacts performance. See JDK-8356029
-    if (Config::Instance().IsMidframeWaitEnabled())
-        mNativeDevice->WaitMidFrame();
-}
-
 void RingContainer::CheckThreshold()
 {
-    if (mUsed > mFlushThreshold && !mNativeDevice->MidFrameSignaled())
+    if (mUncommitted > mFlushThreshold)
     {
-        FlushCommandList();
+        mNativeDevice->NotifyMidframeFlushNeeded();
     }
 }
 
-bool RingContainer::AwaitNextCheckpoint()
+bool RingContainer::AwaitNextCheckpoint(size_t needed)
 {
-    if (!mNativeDevice->MidFrameSignaled())
+    while (mSize - mUsed < needed)
     {
-        // we landed here because Ring Container couldn't allocate any more data
-        // but the waitable is not set. This means either threshold is very
-        // high, or we attempt to reserve large amount of data. BUT, we also
-        // would not be here if the amount of space needed is too big. Try and
-        // flush the buffer now and wait until it's done.
-        FlushCommandList();
-    }
+        D3D12NI_ASSERT(!mCheckpoints.empty(), "Attempted to await for next checkpoint while none are set.");
+        if (mCheckpoints.empty())
+        {
+            // NOTE: we landed here because Ring Container couldn't allocate any more
+            // data but we never set any checkpoints. This means either threshold is very
+            // high, or we attempt to reserve large amount of data.
+            // This is a last resort which shouldn't be triggered or it can cause issues.
+            // If it is triggered, better to adjust Ring Container parameters (or fix something
+            // somewhere else) to prevent it from triggering.
+            D3D12NI_LOG_WARN("Triggered a mid-frame Command List flush right before waiting for next checkpoint."
+                "This might cause some glitches and generally should be prevented");
+            mNativeDevice->FlushCommandList();
+            mNativeDevice->Signal(CheckpointType::MIDFRAME);
+        }
 
-    // await for the waitable set by FlushCommandList()
-    bool waitSuccess = mNativeDevice->WaitMidFrame();
-    if (!waitSuccess)
-    {
-        D3D12NI_LOG_WARN("Failed to wait on mid-frame waitable");
-        return false;
+        // await for any waitable set by FlushCommandList()
+        // if it's not enough we will loop around
+        bool waitSuccess = mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ANY);
+        if (!waitSuccess)
+        {
+            D3D12NI_LOG_WARN("Failed to wait on mid-frame waitable");
+            return false;
+        }
     }
 
     return true;
@@ -136,10 +131,10 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
     if (sizeToEnd < size)
     {
         // special case, we'll have to loop-around
-        if (mUsed + sizeToEnd + size >= mSize)
+        if (mUsed + sizeToEnd + size > mSize)
         {
-            AwaitNextCheckpoint();
-            if (mUsed + sizeToEnd + size >= mSize)
+            AwaitNextCheckpoint(size);
+            if (mUsed + sizeToEnd + size > mSize)
             {
                 D3D12NI_LOG_ERROR("%s fully allocated, cannot allocate %ld bytes (h: %ld t: %ld used: %ld size %ld)",
                     mDebugName.c_str(), size, mHead, mTail, mUsed, mSize);
@@ -150,10 +145,10 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
     else
     {
         // most cases - padding to alignment + requested size
-        if (mUsed + (alignedTail - mTail) + size >= mSize)
+        if (mUsed + (alignedTail - mTail) + size > mSize)
         {
-            AwaitNextCheckpoint();
-            if (mUsed + size + alignedTail - mTail >= mSize)
+            AwaitNextCheckpoint(size);
+            if (mUsed + (alignedTail - mTail) + size > mSize)
             {
                 D3D12NI_LOG_ERROR("%s fully allocated, cannot allocate %ld bytes (h: %ld t: %ld used: %ld size %ld)",
                     mDebugName.c_str(), size, mHead, mTail, mUsed, mSize);

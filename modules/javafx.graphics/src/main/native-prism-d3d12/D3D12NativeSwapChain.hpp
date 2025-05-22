@@ -26,9 +26,9 @@
 #pragma once
 
 #include "D3D12Common.hpp"
-#include "D3D12Waitable.hpp"
 
 #include "Internal/D3D12IRenderTarget.hpp"
+#include "Internal/D3D12IWaitableOperation.hpp"
 
 #include <vector>
 #include <deque>
@@ -36,14 +36,15 @@
 
 namespace D3D12 {
 
-class NativeSwapChain: public Internal::IRenderTarget
+class NativeSwapChain: public Internal::IRenderTarget, Internal::IWaitableOperation
 {
     NIPtr<NativeDevice> mNativeDevice;
     DXGISwapChainPtr mSwapChain;
     std::vector<D3D12ResourcePtr> mBuffers;
     std::vector<D3D12_RESOURCE_STATES> mStates;
     std::vector<Internal::DescriptorData> mRTVs;
-    std::deque<NIPtr<Internal::Waitable>> mPastFrameWaitables;
+    std::vector<uint64_t> mWaitFenceValues;
+    UINT mSubmittedFrameCount;
     UINT mBufferCount;
     UINT mCurrentBufferIdx;
     RECT mDirtyRegion;
@@ -88,6 +89,12 @@ public:
     {
         return GetBuffer(mCurrentBufferIdx);
     }
+
+
+    // IWaitableOperation overrides
+
+    void OnQueueSignal(uint64_t fenceValue) override;
+    void OnFenceSignaled(uint64_t fenceValue) override;
 
 
     // IRenderTarget overrides

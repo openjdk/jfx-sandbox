@@ -36,6 +36,7 @@
 #include "D3D12NativeTexture.hpp"
 
 #include "Internal/D3D12Buffer.hpp"
+#include "Internal/D3D12CheckpointQueue.hpp"
 #include "Internal/D3D12CommandListPool.hpp"
 #include "Internal/D3D12DescriptorHeap.hpp"
 #include "Internal/D3D12IWaitableOperation.hpp"
@@ -67,8 +68,10 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     D3D12FencePtr mFence;
     unsigned int mFenceValue;
     unsigned int mFrameCounter; // for debugging ex. triggering a breakpoint after X frames
+    bool mMidframeFlushNeeded;
     std::vector<Internal::IWaitableOperation*> mWaitableOps;
 
+    Internal::CheckpointQueue mCheckpointQueue;
     NIPtr<Internal::RootSignatureManager> mRootSignatureManager;
     NIPtr<Internal::RenderingContext> mRenderingContext;
     NIPtr<Internal::ResourceDisposer> mResourceDisposer;
@@ -84,7 +87,6 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::Buffer> m2DIndexBuffer;
     NIPtr<Internal::RingBuffer> mRingBuffer; // used for larger data (ex. 2D Vertex Buffer, texture upload)
     NIPtr<Internal::RingBuffer> mConstantRingBuffer; // used purely for CBuffers for Shaders
-    NIPtr<Internal::Waitable> mMidFrameWaitable; // TODO: D3D12: This is constantly (de)allocated, avoid that.
 
     struct Transforms
     {
@@ -147,22 +149,19 @@ public:
     void FinishFrame();
     void FlushCommandList();
     void Execute(const std::vector<ID3D12CommandList*>& commandLists);
-    NIPtr<Internal::Waitable> Signal();
+    uint64_t Signal(CheckpointType type);
     void AdvanceCommandAllocator();
     void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
 
-    // for classes that need to flush data mid-frame ex. Ring Buffer
-    void SignalMidFrame();
-    bool WaitMidFrame();
-    inline bool MidFrameSignaled() const
-    {
-        return (bool)mMidFrameWaitable;
-    }
-
     const D3D12DevicePtr& GetDevice()
     {
         return mDevice;
+    }
+
+    Internal::CheckpointQueue& GetCheckpointQueue()
+    {
+        return mCheckpointQueue;
     }
 
     const D3D12CommandQueuePtr& GetCommandQueue()
@@ -208,6 +207,11 @@ public:
     const NIPtr<Internal::Shader>& GetInternalShader(const std::string& name) const
     {
         return mShaderLibrary->GetShaderData(name);
+    }
+
+    inline void NotifyMidframeFlushNeeded()
+    {
+        mMidframeFlushNeeded = true;
     }
 };
 

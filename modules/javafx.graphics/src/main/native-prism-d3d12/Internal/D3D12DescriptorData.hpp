@@ -95,13 +95,21 @@ struct DescriptorData
     // useful for ex. picking a single RTV from a SwapChain
     inline DescriptorData Single(UINT i) const
     {
+        return Range(i, 1);
+    }
+
+    inline DescriptorData Range(UINT from, UINT amount) const
+    {
+        D3D12NI_ASSERT(from < count, "Requested Descriptor range \"from\" is too big - from %u available %u", from, count);
+        D3D12NI_ASSERT(from + amount <= count, "Requested Descriptor range (from + amount) crosses boundaries - from %u amount %u available %u", from, amount, count);
+
         if (gpu.ptr > 0)
         {
-            return DescriptorData(CPU(i), GPU(i), 1, singleSize);
+            return DescriptorData(CPU(from), GPU(from), amount, singleSize);
         }
         else
         {
-            return DescriptorData(CPU(i), {0}, 1, singleSize);
+            return DescriptorData(CPU(from), {0}, amount, singleSize);
         }
     }
 

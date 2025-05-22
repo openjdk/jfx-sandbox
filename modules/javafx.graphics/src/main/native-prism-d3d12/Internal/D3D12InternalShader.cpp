@@ -76,11 +76,13 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
 
     // constant buffer preparation
     uint32_t constantBufferTotalSize = 0;
+    mTotalRVDescriptorCount = 0;
     for (const InternalShaderResource::ResourceBinding& constantBuffer: shaderResources.constantBuffers)
     {
         if (constantBuffer.type == ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS)
         {
             mCBufferDTables.emplace_back(constantBuffer.rootIndex, constantBuffer.count);
+            mTotalRVDescriptorCount += constantBuffer.count;
         }
 
         for (uint32_t i = 0; i < constantBuffer.count; ++i)
@@ -120,6 +122,8 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
         mTextureCount++;
     }
 
+    mTotalRVDescriptorCount += mTextureCount;
+
     // and similarly, for samplers
     mSamplerCount = 0;
     for (size_t i = 0; i < shaderResources.samplers.size(); ++i)
@@ -141,7 +145,7 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
 
     // debug info
 
-    D3D12NI_LOG_DEBUG("Internal Shader %s resource assignments:", mName.c_str());
+    D3D12NI_LOG_DEBUG("Internal Shader %s resource assignments (needs %d descriptors total):", mName.c_str(), mTotalRVDescriptorCount);
     for (const auto& r: mShaderResourceAssignments)
     {
         const ResourceAssignment& ra = r.second;
@@ -153,14 +157,27 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
 
 bool InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
 {
-    for (size_t i = 0; i < mCBufferDTables.size(); ++i)
+    // To prevent following situations in the middle of rendering:
+    //   - alloc some CBVs/SRVs
+    //   - Signal (no Draw had a chance to consume the Descriptors yet!)
+    //   - alloc more CBVs/SRVs
+    // we allocate once in full and then split allocated space
+    DescriptorData allDescriptors;
+    UINT usedDescriptors = 0;
+    if (mTotalRVDescriptorCount > 0)
     {
-        mCBufferDTables[i].dtable = helpers.rvAllocator(mCBufferDTables[i].count);
-        if (!mCBufferDTables[i].dtable)
+        allDescriptors = helpers.rvAllocator(mTotalRVDescriptorCount);
+        if (!allDescriptors)
         {
-            D3D12NI_LOG_ERROR("InternalShader %s: Failed to allocate CBV DTable #%d for %d descriptors", mName.c_str(), mCBufferDTables[i].rootIndex, mCBufferDTables[i].count);
+            D3D12NI_LOG_ERROR("InternalShader %s: Failed to allocate space for %d descriptors", mName.c_str(), mTotalRVDescriptorCount);
             return false;
         }
+    }
+
+    for (size_t i = 0; i < mCBufferDTables.size(); ++i)
+    {
+        mCBufferDTables[i].dtable = allDescriptors.Range(usedDescriptors, mCBufferDTables[i].count);
+        usedDescriptors += mCBufferDTables[i].count;
     }
 
     for (size_t i = 0; i < mCBufferDescriptorRegions.size(); ++i)
@@ -206,12 +223,7 @@ bool InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers
 
     if (mTextureCount > 0)
     {
-        mTextureDTable = helpers.rvAllocator(mTextureCount);
-        if (!mTextureDTable)
-        {
-            D3D12NI_LOG_ERROR("Internal shader %s: Failed to allocate DTable for %u textures", mName.c_str(), mTextureCount);
-            return false;
-        }
+        mTextureDTable = allDescriptors.Range(usedDescriptors, static_cast<UINT>(mTextureCount));
 
         mSamplerDTable = helpers.samplerAllocator(mSamplerCount);
         if (!mSamplerDTable)
@@ -272,6 +284,9 @@ void InternalShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& com
             D3D12NI_LOG_ERROR("Internal shader %s: Unrecognized resource assignment type for resource at RS index %u", mName.c_str(), ra.rootIndex);
         }
     }
+
+    // LKDEBUG - SOMETIMES THERE IS PROBLEM HERE BUT I DON'T KNOW WHAT YET
+    // [D3D12-ERROR] <Internal\D3D12Debug.cpp:66> D3D12 EXECUTION Error: GPU-BASED VALIDATION: Draw, Descriptor type doesn't match shader register type: Descriptor Heap Index To DescriptorTableStart: [506], Descriptor Heap Index FromTableStart: [0], Descriptor Type in Heap: D3D12_DESCRIPTOR_RANGE_TYPE_CBV, Register Type: D3D12_DESCRIPTOR_RANGE_TYPE_SRV, Index of Descriptor Range: 0, Shader Stage: PIXEL, Root Parameter Index: [4], Draw Index: [0], Shader Code: C:\Users\Lukasz\dev\code\jfx-sandbox\rt\modules\javafx.graphics\src\main\native-prism-d3d12\hlsl6\Mtl1PS.hlsl(89,20-20), Asm Instruction Range: [0xe-0xffffffff], Asm Operand Index: [0], Command List: 0x000001FC5A84DE90:'Direct Command List #7', Command List Type: D3D12_COMMAND_LIST_TYPE_DIRECT, SRV/UAV/CBV Descriptor Heap: 0x000001FC088B5210:'SRV Descriptor Heap', Sampler Descriptor Heap: 0x000001FC088B49A0:'Sampler Heap', Pipeline State: 0x000001FC55C6C520:'GPSO-Mtl1VS-Mtl1PS_s1n-SRC_OVER-4xMSAA-Depth',
 
     if (mTextureCount > 0 && mTextureDTable && mSamplerDTable)
     {

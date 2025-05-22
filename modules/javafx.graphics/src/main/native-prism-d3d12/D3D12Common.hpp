@@ -298,6 +298,17 @@ enum class ShaderPipelineMode: unsigned char
     MAX_ENUM
 };
 
+// Determines types of waits CheckpointQueue performs
+// See CheckpointQueue.hpp
+enum class CheckpointType: uint32_t
+{
+    ALL = 0, // when passed to CheckpointQueue::WaitForNextCheckpoint it will empty the queue
+    MIDFRAME = (1 << 0),
+    ENDFRAME = (1 << 1),
+    TRANSFER = (1 << 2),
+    ANY = 0xFFFFFFFF, // For situations where checkpoint type doesn't matter, ex. RingContainer
+};
+
 // mirrors CompositeMode.java
 enum class CompositeMode: unsigned char
 {
