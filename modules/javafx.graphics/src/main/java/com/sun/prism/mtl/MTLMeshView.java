@@ -31,7 +31,7 @@ import com.sun.prism.impl.BaseMeshView;
 import com.sun.prism.impl.Disposer;
 
 /**
- * TODO: MTL: 3D - Need documentation
+ * TODO: 3D - Need documentation
  */
 class MTLMeshView extends BaseMeshView {
 
@@ -83,7 +83,6 @@ class MTLMeshView extends BaseMeshView {
     public void setLight(int index, float x, float y, float z, float r, float g, float b, float w,
             float ca, float la, float qa, float isAttenuated, float maxRange, float dirX, float dirY, float dirZ,
             float innerAngle, float outerAngle, float falloff) {
-        // TODO: MTL: Check whether we need to support more than 3 lights
         if (index >= 0 && index <= 2) {
             context.setLight(nativeHandle, index, x, y, z, r, g, b, w, ca, la, qa, isAttenuated, maxRange,
                     dirX, dirY, dirZ, innerAngle, outerAngle, falloff);
@@ -104,7 +103,7 @@ class MTLMeshView extends BaseMeshView {
 
     @Override
     public void dispose() {
-        // TODO: MTL: 3D - Need a mechanism to "decRefCount" Mesh and Material
+        // TODO: 3D - Need a mechanism to "decRefCount" Mesh and Material
         material = null;
         disposerRecord.dispose();
         count--;

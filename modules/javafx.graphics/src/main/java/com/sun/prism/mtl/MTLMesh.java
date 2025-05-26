@@ -29,7 +29,7 @@ import com.sun.prism.impl.BaseMesh;
 import com.sun.prism.impl.Disposer;
 
 /**
- * TODO: MTL: 3D - Need documentation
+ * TODO: 3D - Need documentation
  */
 class MTLMesh extends BaseMesh {
     static int count = 0;

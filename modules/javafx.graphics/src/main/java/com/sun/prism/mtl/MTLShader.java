@@ -120,7 +120,7 @@ public class MTLShader implements Shader  {
     @Override
     public void disable() {
         MTLLog.Debug("MTLShader.disable()  fragFuncName = " + fragmentFunctionName);
-        // TODO: MTL: There are no disable calls coming from BaseShaderContext.
+        // There are no disable calls coming from BaseShaderContext.
         // So this is a no-op. We can call disable on lastShader in
         // BaseShaderContext.checkState() but that will be a common change for
         // all pipelines.

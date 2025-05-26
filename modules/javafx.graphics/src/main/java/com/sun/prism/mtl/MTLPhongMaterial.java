@@ -35,7 +35,7 @@ import com.sun.prism.impl.BasePhongMaterial;
 import com.sun.prism.impl.Disposer;
 
 /**
- * TODO: MTL: 3D - Need documentation
+ * TODO: 3D - Need documentation
  */
 class MTLPhongMaterial extends BasePhongMaterial implements PhongMaterial {
 

@@ -51,7 +51,7 @@ class MTLVramPool extends BaseResourcePool<MTLTextureData>
 
     @Override
     public long estimateRTTextureSize(int width, int height, boolean hasDepth) {
-        // TODO: MTL: need to deal with size of depth buffer, etc.
+        // REMIND: need to deal with size of depth buffer, etc.
         return ((long) width) * ((long) height) * 4L;
     }
 

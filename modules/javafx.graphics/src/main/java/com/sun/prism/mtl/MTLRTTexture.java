@@ -89,7 +89,6 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData>
                                int contentWidth, int contentHeight,
                                WrapMode wrapMode, boolean msaa,
                                long size) {
-        // TODO: MTL: Implement support for MSAA texture
         MTLLog.Debug("MTLRTTexture.create()  physicalWidth = " + physicalWidth +
                 ", physicalHeight = " + physicalHeight + ", contentWidth = " + contentWidth +
                 ", contentHeight = " + contentHeight + ", wrapMode = " + wrapMode + ", msaa = " + msaa);
@@ -139,7 +138,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData>
 
     @Override
     public boolean readPixels(Buffer pix) {
-        // TODO: MTL: The call from Canvas rendering expects IntBuffer, which is implemented here.
+        // The call from Canvas rendering expects IntBuffer, which is implemented here.
         // In future, if needed, need to implement pix as ByteBuffer
         if (pix instanceof IntBuffer) {
             //MTLLog.Debug("MTLRTTexture(): readPixels -- IntBuffer.");
@@ -195,31 +194,26 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData>
 
     @Override
     public boolean readPixels(Buffer pixels, int x, int y, int width, int height) {
-        // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
     }
 
     @Override
     public void setContentWidth(int contentWidth) {
-        // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
     }
 
     @Override
     public void setContentHeight(int contentHeight) {
-        // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
     }
 
     @Override
     public boolean getUseMipmap() {
-        // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
     }
 
     @Override
     public Texture getSharedTexture(WrapMode altMode) {
-        // TODO: MTL: Complete implementation or remove to use super method
         throw new UnsupportedOperationException("Not implemented");
     }
 

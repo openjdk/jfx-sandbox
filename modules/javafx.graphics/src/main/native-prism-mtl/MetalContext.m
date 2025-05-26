@@ -132,10 +132,9 @@
     if (rtt != rttPtr) {
         [self endCurrentRenderEncoder];
     }
-    // TODO: MTL:
     // The method can possibly be optmized(with no significant gain in FPS)
     // to avoid updating RenderPassDescriptor if the render target
-    // is not being changed.
+    // is not being changed, implement or change in future if necessary.
     rtt = rttPtr;
     id<MTLTexture> mtlTex = [rtt getTexture];
     [self validatePixelBuffer:(mtlTex.width * mtlTex.height * 4)];
@@ -671,7 +670,6 @@
 - (NSInteger) setDeviceParametersFor3D
 {
     // TODO: MTL: Seems to be empty method, good to remove
-    // TODO: MTL: Check whether we need to do shader initialization here
     /*if (!phongShader) {
         phongShader = ([[MetalPhongShader alloc] createPhongShader:self]);
     }*/
@@ -986,10 +984,11 @@ JNIEXPORT int JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     MetalRTTexture *rtt = (MetalRTTexture *)jlong_to_ptr(texPtr);
     int ret = [mtlContext setRTT:rtt];
-    // TODO: MTL: If we create depth texture while creating RTT
+    // If we create depth texture while creating RTT
     // then also current implementation works fine. So in future
     // if we see any performance/state impact we should move
-    // depthTexture creation along with RTT creation.
+    // depthTexture creation along with RTT creation,
+    // implement or change in future if necessary.
     if (depthTest) {
         [mtlContext verifyDepthTexture];
     }
@@ -1070,10 +1069,11 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTransform
 {
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
 
-    // TODO: MTL: Added separate nSetTransform because previously
+    // Added separate nSetTransform because previously
     // we used to use nSetProjViewMatrix only and enabled depth test
     // by default. Also check whether we need to do anything else
-    // apart from just updating projection view matrix.
+    // apart from just updating projection view matrix,
+    // implement or change in future if necessary.
 
     [mtlContext setProjViewMatrix:m00
         m01:m01 m02:m02 m03:m03
@@ -1542,9 +1542,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCompositeMode(
  * Method:    nGetCommandQueue
  * Signature: (J)J
  */
-// TODO: MTL: This enables sharing of MTLCommandQueue between PRISM and GLASS, if needed.
-// Note : Currently, PRISM and GLASS create their own dedicated MTLCommandQueue
-// This method is unused
+// This enables sharing of MTLCommandQueue between PRISM and GLASS, if needed.
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nGetCommandQueue
     (JNIEnv *env, jclass jClass, jlong context)
 {

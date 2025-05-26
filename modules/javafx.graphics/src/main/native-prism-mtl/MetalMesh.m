@@ -52,24 +52,6 @@ typedef struct
     id<MTLDevice> device = [context getDevice];
     unsigned int size = vbSize * sizeof (float);
     unsigned int vbCount = vbSize / NUM_OF_FLOATS_PER_VERTEX;
-    // TODO: MTL: Cleanup this code in future if we think we don't need
-    // to add padding to float3 data
-    /*VS_PHONG_INPUT* pVert = vertices;
-    for (int i = 0; i < vbCount; i++) {
-        pVert->position.x = *(vb + (i * 9));
-        pVert->position.y = *(vb + (i * 9) + 1);
-        pVert->position.z = *(vb + (i * 9) + 2);
-        pVert->position.w = 1.0;
-        pVert->texCoord.x = *(vb + (i * 9) + 3);
-        pVert->texCoord.y = *(vb + (i * 9) + 4);
-        pVert->texCoord.z = 1.0;
-        pVert->texCoord.w = 1.0;
-        pVert->normal.x = *(vb + (i * 9) + 5);
-        pVert->normal.y = *(vb + (i * 9) + 6);
-        pVert->normal.z = *(vb + (i * 9) + 7);
-        pVert->normal.w = *(vb + (i * 9) + 8);
-        pVert++;
-    }*/
 
     if (numVertices != vbCount) {
         [self releaseVertexBuffer];

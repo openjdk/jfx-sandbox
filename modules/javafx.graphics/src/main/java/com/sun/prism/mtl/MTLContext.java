@@ -317,9 +317,11 @@ public class MTLContext extends BaseShaderContext {
         /*MTLLog.Debug("MTLContext.blit() :srcRTT = " + srcRTT + ", dstRTT = " + dstRTT + ", srcX0 = " +
                 srcX0 + ", srcY0 = " + srcY0 + ", srcX1 = " + srcX1 + ", srcY1 = " + srcY1 + ", dstX0 = " +
                 dstX0 + ", dstY0 = " + dstY0 + ", dstX1 = " + dstX1 + ", dstY1 = " + dstY1);*/
-        // TODO: MTL: Verify whether we can avoid this blit when we are trying
+
+        // Verify whether we can avoid this blit when we are trying
         // to resolve MSAA texture into non-MSAA texture, because in case of Metal
-        // we resolve the texture while rendering itself
+        // we resolve the texture while rendering itself,
+        // implement or change in future if necessary
         long dstNativeHandle = dstRTT == null ? 0L : ((MTLTexture)dstRTT).getNativeHandle();
         long srcNativeHandle = ((MTLTexture)srcRTT).getNativeHandle();
         nBlit(pContext, srcNativeHandle, dstNativeHandle,

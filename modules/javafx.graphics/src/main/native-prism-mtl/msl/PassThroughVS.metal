@@ -61,7 +61,7 @@ typedef struct VS_OUTPUT
     return out;
 }
 
-// TODO: MTL: Cleanup: For testing purpose only, JavaFX does not use this fragment function.
+// This shader is for testing purpose only, JavaFX does not use this fragment function.
 fragment float4 passThroughFragmentFunction(VS_OUTPUT in [[ stage_in ]]) {
     return in.fragColor;
 }

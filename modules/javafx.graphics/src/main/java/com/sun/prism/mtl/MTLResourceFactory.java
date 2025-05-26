@@ -202,7 +202,8 @@ public class MTLResourceFactory extends BaseShaderFactory {
         MTLTextureData textData = new MTLTextureData(context, pResource, size);
         MTLTextureResource resource = new MTLTextureResource(textData, true);
 
-        // TODO: MTL: contentX and contentY is set as 0 - please see ES2/D3D path and try to match it
+        // TODO: MTL: contentX and contentY is set as 0,
+        // check ES2/D3D path and try to match it
         return new MTLTexture(getContext(), resource, formatHint, wrapMode, allocw, alloch, 0, 0, allocw, alloch, useMipmap);
     }
 

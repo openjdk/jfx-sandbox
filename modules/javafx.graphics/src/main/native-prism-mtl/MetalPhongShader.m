@@ -34,8 +34,6 @@
     self = [super init];
     if (self) {
         context = ctx;
-        // TODO: MTL: Check whether we can initialize
-        // RenderPassDescriptor here
     }
     return self;
 }
