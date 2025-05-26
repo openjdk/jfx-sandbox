@@ -1699,13 +1699,7 @@ void addJSL(Project project, String name, String pkg, List<String> addExports, C
     def generateShaders = project.task("generate${name}Shaders",
             dependsOn: compileCompilers) {
         doFirst {
-            // TODO: MTL:
-            // This task gets executed for all rendering pipelines on all platforms.
-            // It generates, d3d, es2 shaders on all three platforms, and now mtl shaders.
-            // It should be fixed in mainline first and then in metal pipeline.
-            //if (IS_MAC) {
             mkdir "$project.buildDir/gensrc/mtl-headers"
-            //}
         }
         description = "Generate $name shaders from JSL"
         def sourceDir = project.file("src/main/jsl-$lowerName")
@@ -1728,7 +1722,7 @@ void addJSL(Project project, String name, String pkg, List<String> addExports, C
         source project.file("$project.buildDir/gensrc/jsl-$lowerName/$pkg")
     }
 
-    // metal shaders
+    // Metal shaders
     def compileMSLShaders = project.task("compile${name}MSLShaders",
             dependsOn: generateShaders,
             type: CompileMSLTask) {
@@ -1750,7 +1744,6 @@ void addJSL(Project project, String name, String pkg, List<String> addExports, C
         from("$project.buildDir/gensrc/jsl-$lowerName") {
             include("**/*.frag")
         }
-        // metal shaders are compiled into a MTLLibrary so copying is not needed
         into project.moduleDir
     }
 
@@ -1767,7 +1760,6 @@ void addJSL(Project project, String name, String pkg, List<String> addExports, C
         from("$project.buildDir/gensrc/jsl-$lowerName") {
             include("**/*.frag")
         }
-        // metal shaders are compiled into a MTLLibrary so copying is not needed
         into project.moduleShimsDir
     }
 
@@ -2388,7 +2380,7 @@ project(":graphics") {
     }
 
     project.task("compileMSLShaders") {
-        // an empty task to hang the Metal prism and decora shaders compile on
+        // an empty task to hang the Metal prism and decora shaders on
     }
 
     compileShimsJava.dependsOn("processShimsShaders")
@@ -2576,8 +2568,6 @@ project(":graphics") {
 
         ccWinPrismD3D.dependsOn generateD3DHeaders
     }
-
-    // TODO: MTL: add IS_MAC block 3d metal shaders
 
     // The Decora and Prism JSL files have to be generated in a very specific set of steps.
     //      1) Compile the *Compile.java classes. These live in src/main/jsl-* and will be
