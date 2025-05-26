@@ -26,11 +26,7 @@
 #ifndef METAL_PIPELINE_MANAGER_H
 #define METAL_PIPELINE_MANAGER_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 #import "MetalContext.h"
-#import "MetalRTTexture.h"
 
 /**
  * native interface for the Java class MTLPipelineManager

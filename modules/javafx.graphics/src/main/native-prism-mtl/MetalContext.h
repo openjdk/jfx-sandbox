@@ -27,9 +27,6 @@
 #define METAL_CONTEXT_H
 
 #import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
-
 #import "MetalRingBuffer.h"
 
 @class MetalRTTexture;

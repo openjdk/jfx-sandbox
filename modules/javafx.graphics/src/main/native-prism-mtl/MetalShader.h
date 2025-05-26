@@ -26,9 +26,6 @@
 #ifndef METAL_SHADER_H
 #define METAL_SHADER_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 #import "MetalContext.h"
 #import "MetalTexture.h"
 #import "MetalPipelineManager.h"

@@ -23,7 +23,6 @@
  * questions.
  */
 
-#import <jni.h>
 #import "MetalTexture.h"
 #import "MetalPipelineManager.h"
 

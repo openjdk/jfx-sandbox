@@ -41,8 +41,6 @@
 #define BUFFER_OFFSET_ALIGNMENT (32)
 
 #import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 
 @interface MetalRingBuffer : NSObject
 {
@@ -58,9 +56,7 @@
 - (id<MTLBuffer>) getCurrentBuffer;
 - (int)  reserveBytes:(unsigned int)length;
 - (unsigned int) getNumReservedBytes;
-
 - (void) dealloc;
-
 
 + (unsigned int)  getCurrentBufferIndex;
 + (void) resetBuffer :(unsigned int)index;

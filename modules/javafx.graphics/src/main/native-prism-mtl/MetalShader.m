@@ -23,8 +23,6 @@
  * questions.
  */
 
-#import <jni.h>
-
 #import "PrismShaderCommon.h"
 #import "DecoraShaderCommon.h"
 #import "MetalShader.h"

@@ -26,9 +26,7 @@
 #ifndef METAL_LIGHT_H
 #define METAL_LIGHT_H
 
-#import "MetalCommon.h"
 #import <Foundation/Foundation.h>
-#import "MetalContext.h"
 
 @interface MetalLight : NSObject
 {

@@ -28,6 +28,8 @@
 
 #import <jni.h>
 #import <simd/simd.h>
+#import <Metal/Metal.h>
+#import <Foundation/Foundation.h>
 
 #define jlong_to_ptr(value) (intptr_t)value
 #define ptr_to_jlong(value) (jlong)((intptr_t)value)

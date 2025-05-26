@@ -23,9 +23,8 @@
  * questions.
  */
 
-#import <jni.h>
-
 #import "MetalPipelineManager.h"
+#import "MetalRTTexture.h"
 #include "com_sun_prism_mtl_MTLContext.h"
 
 // ---------------------------- Debug helper for Developers -------------------------

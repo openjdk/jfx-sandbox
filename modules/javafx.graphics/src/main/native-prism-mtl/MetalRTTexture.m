@@ -23,8 +23,6 @@
  * questions.
  */
 
-#import <jni.h>
-
 #import "MetalRTTexture.h"
 #import "com_sun_prism_mtl_MTLRTTexture.h"
 

@@ -35,10 +35,10 @@
 #import "MetalRTTexture.h"
 #import "MetalPipelineManager.h"
 #import "MetalShader.h"
-#import "com_sun_prism_mtl_MTLContext.h"
 #import "MetalMesh.h"
 #import "MetalMeshView.h"
 #import "MetalPhongMaterial.h"
+#import "com_sun_prism_mtl_MTLContext.h"
 
 @implementation MetalContext
 

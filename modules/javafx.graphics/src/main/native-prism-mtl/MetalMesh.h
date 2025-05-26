@@ -26,9 +26,6 @@
 #ifndef METAL_MESH_H
 #define METAL_MESH_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 #import "MetalContext.h"
 
 #define NUM_OF_FLOATS_PER_VERTEX 9

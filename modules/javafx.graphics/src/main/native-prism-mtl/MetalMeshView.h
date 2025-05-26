@@ -26,9 +26,6 @@
 #ifndef METAL_MESHVIEW_H
 #define METAL_MESHVIEW_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 #import "MetalContext.h"
 #import "MetalMesh.h"
 #import "MetalLight.h"

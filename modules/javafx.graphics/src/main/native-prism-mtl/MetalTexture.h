@@ -26,9 +26,6 @@
 #ifndef METAL_TEXTURE_H
 #define METAL_TEXTURE_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 #import "MetalContext.h"
 
 enum PFormat {
