@@ -25,16 +25,14 @@
 
 package com.sun.prism.mtl;
 
-import com.sun.prism.ps.Shader;
 import com.sun.prism.Texture;
+import com.sun.prism.ps.Shader;
 
 import java.lang.ref.WeakReference;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.ArrayList;
-
 
 public class MTLShader implements Shader  {
 

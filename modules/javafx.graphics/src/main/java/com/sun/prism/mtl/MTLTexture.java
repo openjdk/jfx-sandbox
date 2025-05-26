@@ -32,8 +32,8 @@ import com.sun.prism.impl.BaseTexture;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
 public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTextureResource<T>> {
 

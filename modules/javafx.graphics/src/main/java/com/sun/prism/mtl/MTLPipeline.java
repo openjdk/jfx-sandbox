@@ -31,10 +31,8 @@ import com.sun.prism.GraphicsPipeline;
 import com.sun.prism.ResourceFactory;
 import com.sun.prism.impl.PrismSettings;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 
 public class MTLPipeline extends GraphicsPipeline {
 

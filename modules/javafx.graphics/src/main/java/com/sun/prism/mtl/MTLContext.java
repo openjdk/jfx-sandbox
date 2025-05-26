@@ -33,10 +33,16 @@ import com.sun.javafx.geom.transform.BaseTransform;
 import com.sun.javafx.geom.transform.GeneralTransform3D;
 import com.sun.javafx.sg.prism.NGCamera;
 import com.sun.javafx.sg.prism.NGDefaultCamera;
-import com.sun.prism.*;
+import com.sun.prism.CompositeMode;
+import com.sun.prism.Graphics;
+import com.sun.prism.MeshView;
+import com.sun.prism.RTTexture;
+import com.sun.prism.RenderTarget;
+import com.sun.prism.Texture;
 import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.impl.ps.BaseShaderContext;
 import com.sun.prism.ps.Shader;
+
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;

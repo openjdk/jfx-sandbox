@@ -25,29 +25,29 @@
 
 package com.sun.scenario.effect.compiler.backend.hw;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Set;
-import static java.util.Map.entry;
-
 import com.sun.scenario.effect.compiler.JSLParser;
 import com.sun.scenario.effect.compiler.model.CoreSymbols;
 import com.sun.scenario.effect.compiler.model.Function;
 import com.sun.scenario.effect.compiler.model.Param;
 import com.sun.scenario.effect.compiler.model.Precision;
-import com.sun.scenario.effect.compiler.model.Variable;
 import com.sun.scenario.effect.compiler.model.Qualifier;
 import com.sun.scenario.effect.compiler.model.Type;
+import com.sun.scenario.effect.compiler.model.Variable;
+import com.sun.scenario.effect.compiler.tree.CallExpr;
 import com.sun.scenario.effect.compiler.tree.DiscardStmt;
 import com.sun.scenario.effect.compiler.tree.Expr;
+import com.sun.scenario.effect.compiler.tree.FuncDef;
 import com.sun.scenario.effect.compiler.tree.JSLVisitor;
 import com.sun.scenario.effect.compiler.tree.VarDecl;
-import com.sun.scenario.effect.compiler.tree.CallExpr;
-import com.sun.scenario.effect.compiler.tree.FuncDef;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import static java.util.Map.entry;
 
 public class MSLBackend extends SLBackend {
 

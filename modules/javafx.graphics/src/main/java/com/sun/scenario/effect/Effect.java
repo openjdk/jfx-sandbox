@@ -25,18 +25,19 @@
 
 package com.sun.scenario.effect;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import com.sun.scenario.effect.impl.Renderer;
-import com.sun.scenario.effect.impl.state.AccessHelper;
-import com.sun.javafx.geom.Point2D;
 import com.sun.javafx.geom.BaseBounds;
 import com.sun.javafx.geom.DirtyRegionContainer;
 import com.sun.javafx.geom.DirtyRegionPool;
+import com.sun.javafx.geom.Point2D;
 import com.sun.javafx.geom.RectBounds;
 import com.sun.javafx.geom.Rectangle;
 import com.sun.javafx.geom.transform.BaseTransform;
+import com.sun.scenario.effect.impl.Renderer;
+import com.sun.scenario.effect.impl.state.AccessHelper;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * The base class for all filter effects.

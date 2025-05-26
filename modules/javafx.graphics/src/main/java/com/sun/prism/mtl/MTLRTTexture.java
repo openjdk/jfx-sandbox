@@ -26,8 +26,17 @@
 package com.sun.prism.mtl;
 
 import com.sun.glass.ui.Screen;
-import com.sun.prism.*;
+import com.sun.prism.Graphics;
+import com.sun.prism.Image;
+import com.sun.prism.MediaFrame;
+import com.sun.prism.PixelFormat;
+import com.sun.prism.RTTexture;
 import com.sun.prism.ReadbackRenderTarget;
+import com.sun.prism.Texture;
+import com.sun.prism.mtl.MTLContext;
+import com.sun.prism.mtl.MTLTexture;
+import com.sun.prism.mtl.MTLTextureData;
+import com.sun.prism.mtl.MTLTextureResource;
 
 import java.nio.Buffer;
 import java.nio.IntBuffer;

@@ -25,9 +25,6 @@
 
 package com.sun.prism.es2;
 
-import java.io.InputStream;
-import java.util.Map;
-
 import com.sun.glass.ui.Screen;
 import com.sun.javafx.PlatformUtil;
 import com.sun.prism.Image;
@@ -39,16 +36,19 @@ import com.sun.prism.PixelFormat;
 import com.sun.prism.Presentable;
 import com.sun.prism.PresentableState;
 import com.sun.prism.RTTexture;
-import com.sun.prism.Texture;
 import com.sun.prism.Texture.Usage;
 import com.sun.prism.Texture.WrapMode;
+import com.sun.prism.Texture;
 import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.impl.TextureResourcePool;
 import com.sun.prism.impl.ps.BaseShaderFactory;
 import com.sun.prism.ps.Shader;
 import com.sun.prism.ps.ShaderFactory;
+
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.WeakHashMap;
 
 public class ES2ResourceFactory extends BaseShaderFactory {

@@ -27,13 +27,12 @@ package com.sun.prism.mtl;
 
 import com.sun.glass.ui.Screen;
 import com.sun.javafx.geom.Rectangle;
+import com.sun.prism.CompositeMode;
 import com.sun.prism.Graphics;
+import com.sun.prism.GraphicsResource;
 import com.sun.prism.Presentable;
 import com.sun.prism.PresentableState;
-import com.sun.prism.CompositeMode;
-import com.sun.prism.GraphicsResource;
 import com.sun.prism.impl.PrismSettings;
-
 
 public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResource {
 

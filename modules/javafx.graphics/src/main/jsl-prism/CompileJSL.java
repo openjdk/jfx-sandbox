@@ -23,9 +23,9 @@
  * questions.
  */
 
-import com.sun.scenario.effect.compiler.JSLC;
+
 import com.sun.scenario.effect.compiler.JSLC.JSLCInfo;
-import com.sun.scenario.effect.compiler.JSLParser;
+import com.sun.scenario.effect.compiler.JSLC;
 import com.sun.scenario.effect.compiler.model.BaseType;
 import com.sun.scenario.effect.compiler.model.Qualifier;
 import com.sun.scenario.effect.compiler.model.Variable;
@@ -33,18 +33,18 @@ import com.sun.scenario.effect.compiler.tree.JSLVisitor;
 import com.sun.scenario.effect.compiler.tree.ProgramUnit;
 import com.sun.scenario.effect.compiler.tree.TreeScanner;
 import com.sun.scenario.effect.compiler.tree.VariableExpr;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.util.Map;
+
 import org.stringtemplate.v4.ST;
 import org.stringtemplate.v4.STGroup;
 import org.stringtemplate.v4.STGroupFile;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**

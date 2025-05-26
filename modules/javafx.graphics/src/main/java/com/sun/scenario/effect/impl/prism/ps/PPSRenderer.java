@@ -25,25 +25,21 @@
 
 package com.sun.scenario.effect.impl.prism.ps;
 
-import java.io.InputStream;
-import java.lang.reflect.Constructor;
-import java.nio.FloatBuffer;
-import java.util.Map;
 import com.sun.glass.ui.Screen;
 import com.sun.javafx.geom.Rectangle;
 import com.sun.javafx.geom.transform.BaseTransform;
 import com.sun.prism.Graphics;
-import com.sun.prism.GraphicsPipeline;
 import com.sun.prism.GraphicsPipeline.ShaderModel;
 import com.sun.prism.GraphicsPipeline.ShaderType;
+import com.sun.prism.GraphicsPipeline;
 import com.sun.prism.Image;
 import com.sun.prism.PixelFormat;
 import com.sun.prism.RTTexture;
 import com.sun.prism.ResourceFactory;
 import com.sun.prism.ResourceFactoryListener;
-import com.sun.prism.Texture;
 import com.sun.prism.Texture.Usage;
 import com.sun.prism.Texture.WrapMode;
+import com.sun.prism.Texture;
 import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.ps.Shader;
 import com.sun.prism.ps.ShaderFactory;
@@ -62,6 +58,10 @@ import com.sun.scenario.effect.impl.prism.PrImage;
 import com.sun.scenario.effect.impl.prism.PrRenderer;
 import com.sun.scenario.effect.impl.prism.PrTexture;
 
+import java.io.InputStream;
+import java.lang.reflect.Constructor;
+import java.nio.FloatBuffer;
+import java.util.Map;
 import static com.sun.scenario.effect.impl.Renderer.RendererState.*;
 
 public class PPSRenderer extends PrRenderer {

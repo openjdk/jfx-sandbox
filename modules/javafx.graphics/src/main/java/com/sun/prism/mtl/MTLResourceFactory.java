@@ -26,17 +26,28 @@
 package com.sun.prism.mtl;
 
 import com.sun.glass.ui.Screen;
-import com.sun.prism.*;
+import com.sun.prism.MediaFrame;
+import com.sun.prism.Mesh;
+import com.sun.prism.MeshView;
+import com.sun.prism.MultiTexture;
+import com.sun.prism.PhongMaterial;
+import com.sun.prism.PixelFormat;
+import com.sun.prism.Presentable;
+import com.sun.prism.PresentableState;
+import com.sun.prism.RTTexture;
+import com.sun.prism.Texture.Usage;
+import com.sun.prism.Texture.WrapMode;
+import com.sun.prism.Texture;
 import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.impl.TextureResourcePool;
 import com.sun.prism.impl.ps.BaseShaderFactory;
+import com.sun.prism.mtl.MTLContext;
+import com.sun.prism.mtl.MTLLog;
 import com.sun.prism.ps.Shader;
 import com.sun.prism.ps.ShaderFactory;
-import com.sun.prism.Texture.Usage;
-import com.sun.prism.Texture.WrapMode;
 
-import java.io.InputStream;
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.Arrays;

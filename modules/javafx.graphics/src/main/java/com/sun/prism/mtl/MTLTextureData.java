@@ -26,7 +26,6 @@
 package com.sun.prism.mtl;
 
 import com.sun.prism.impl.Disposer;
-
 import java.util.Objects;
 
 public class MTLTextureData implements Disposer.Record {

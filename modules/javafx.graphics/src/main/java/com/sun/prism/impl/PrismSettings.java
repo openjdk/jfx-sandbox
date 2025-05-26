@@ -25,11 +25,12 @@
 
 package com.sun.prism.impl;
 
+import com.sun.javafx.PlatformUtil;
+import com.sun.javafx.util.Utils;
+
 import java.util.List;
 import java.util.Properties;
 import java.util.StringTokenizer;
-import com.sun.javafx.PlatformUtil;
-import com.sun.javafx.util.Utils;
 
 /**
  * Contains the runtime arguments used by Prism.

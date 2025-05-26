@@ -25,9 +25,9 @@
 
 package com.sun.scenario.effect.impl.hw.mtl;
 
-import java.io.InputStream;
 import com.sun.scenario.effect.Effect.AccelType;
 import com.sun.scenario.effect.impl.hw.ShaderSource;
+import java.io.InputStream;
 
 public class MTLShaderSource implements ShaderSource {
 
