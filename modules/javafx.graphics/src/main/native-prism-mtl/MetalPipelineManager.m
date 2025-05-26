@@ -29,7 +29,6 @@
 #include "com_sun_prism_mtl_MTLContext.h"
 
 // ---------------------------- Debug helper for Developers -------------------------
-// Note : TODO: MTL: Remove this functionality before integrating Metal pipeline code to the mainline.
 //
 // This implementation is to utilize "Metal Debuger" present in Xcode.
 // See - https://developer.apple.com/documentation/xcode/capturing-a-metal-workload-programmatically
