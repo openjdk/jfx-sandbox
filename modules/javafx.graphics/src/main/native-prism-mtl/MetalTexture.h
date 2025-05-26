@@ -48,12 +48,12 @@ enum PFormat {
     MetalContext *context;
 
     id<MTLTexture> texture;
+    MTLPixelFormat pixelFormat;
 
     NSUInteger width;
     NSUInteger height;
 
     BOOL mipmapped;
-    MTLPixelFormat pixelFormat;
 }
 - (BOOL) isMipmapped;
 
@@ -67,8 +67,6 @@ enum PFormat {
                       useMipMap:(BOOL)useMipMap;
 
 - (void) dealloc;
-
-//- (void) blitTo:(MetalTexture*) tex;
 
 @end
 

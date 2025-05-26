@@ -49,7 +49,8 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
 
 @implementation MetalShader
 
-- (id) initWithContext:(MetalContext*)ctx withFragFunc:(NSString*) fragName
+- (id) initWithContext:(MetalContext*)ctx
+          withFragFunc:(NSString*)fragName
 {
     self = [super init];
     if (self) {
@@ -84,7 +85,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     return self;
 }
 
-- (void) setArgsUpdated:(bool) updated
+- (void) setArgsUpdated:(bool)updated
 {
     argsUpdated = updated;
 }
@@ -213,12 +214,12 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     return fragTexSamplerDict;
 }
 
-- (NSUInteger) getArgumentID:(NSString*) name
+- (NSUInteger) getArgumentID:(NSString*)name
 {
     return 0;
 }
 
-- (void) setInt:(int)uniformID i0:(int) i0
+- (void) setInt:(int)uniformID i0:(int)i0
 {
     argsUpdated = true;
     int *anIntPtr = [argumentEncoder constantDataAtIndex:uniformID];
@@ -242,14 +243,14 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     [fragTexSamplerDict setObject:sampler forKey:[NSNumber numberWithInt:texID]];
 }
 
-- (void) setFloat1:(int)uniformID f0:(float) f0
+- (void) setFloat1:(int)uniformID f0:(float)f0
 {
     argsUpdated = true;
     float *aFloatPtr = [argumentEncoder constantDataAtIndex:uniformID];
     *aFloatPtr = f0;
 }
 
-- (void) setFloat2:(int)uniformID f0:(float) f0 f1:(float) f1
+- (void) setFloat2:(int)uniformID f0:(float)f0 f1:(float)f1
 {
     argsUpdated = true;
     float *aFloatPtr = [argumentEncoder constantDataAtIndex:uniformID];
@@ -257,7 +258,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     *aFloatPtr = f1;
 }
 
-- (void) setFloat3:(int)uniformID f0:(float) f0 f1:(float) f1 f2:(float) f2
+- (void) setFloat3:(int)uniformID f0:(float)f0 f1:(float)f1 f2:(float)f2
 {
     argsUpdated = true;
     float *aFloatPtr = [argumentEncoder constantDataAtIndex:uniformID];
@@ -266,7 +267,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     *aFloatPtr = f2;
 }
 
-- (void) setFloat4:(int)uniformID f0:(float) f0 f1:(float) f1 f2:(float) f2  f3:(float) f3
+- (void) setFloat4:(int)uniformID f0:(float)f0 f1:(float)f1 f2:(float)f2  f3:(float)f3
 {
     argsUpdated = true;
     float *aFloatPtr = [argumentEncoder constantDataAtIndex:uniformID];
@@ -276,7 +277,7 @@ NSString* jStringToNSString(JNIEnv *env, jstring string)
     *aFloatPtr = f3;
 }
 
-- (void) setConstants:(int)uniformID values:(float[]) values size:(int) size
+- (void) setConstants:(int)uniformID values:(float[])values size:(int)size
 {
     argsUpdated = true;
     float *aFloatPtr = [argumentEncoder constantDataAtIndex:uniformID];

@@ -33,7 +33,7 @@
             isA:(float)isAttenuated range:(float)range
             dirX:(float)dirX dirY:(float)dirY dirZ:(float)dirZ
             inA:(float)innerAngle outA:(float)outerAngle
-            falloff:(float)falloff
+            falloff:(float)fall_off
 {
     self = [super init];
     if (self) {
@@ -43,7 +43,7 @@
         color[0] = r;
         color[1] = g;
         color[2] = b;
-        lightOn = w;
+        lightOn  = w;
         attenuation[0] = ca;
         attenuation[1] = la;
         attenuation[2] = qa;
@@ -52,21 +52,22 @@
         direction[0] = dirX;
         direction[1] = dirY;
         direction[2] = dirZ;
-        inAngle = innerAngle;
+        inAngle  = innerAngle;
         outAngle = outerAngle;
-        foff = falloff;
+        falloff  = fall_off;
     }
     return self;
 }
 
 - (bool) isPointLight
 {
-    return foff == 0 && outAngle == 180 && attenuation[3] > 0.5;
+    return falloff == 0 && outAngle == 180 && attenuation[3] > 0.5;
 }
 
 - (bool) isDirectionalLight
 {
-    // testing if attenuation.w is 0 or 1 using <0.5 since equality check for floating points might not work well
+    // Testing if attenuation.w is 0 or 1 using <0.5,
+    // since equality check for floating points might not work well
     return attenuation[3] < 0.5;
 }
 

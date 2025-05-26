@@ -57,7 +57,8 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 
 @implementation MetalPipelineManager
 
-- (void) init:(MetalContext*) ctx  libData:(dispatch_data_t) libData
+- (void) init:(MetalContext*)ctx
+      libData:(dispatch_data_t)libData
 {
     context = ctx;
     NSError *error = nil;
@@ -112,7 +113,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 #endif
 }
 
-- (id<MTLFunction>) getFunction:(NSString*) funcName
+- (id<MTLFunction>) getFunction:(NSString*)funcName
 {
     return [shaderLib newFunctionWithName:funcName];
 }
@@ -156,8 +157,8 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     return clearRttPipeState;
 }
 
-- (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>) func
-                                          compositeMode:(int) compositeMode
+- (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>)func
+                                          compositeMode:(int)compositeMode
 {
     NSError* error;
     MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
@@ -188,7 +189,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     return pipeState;
 }
 
-- (id<MTLComputePipelineState>) getComputePipelineStateWithFunc:(NSString*) funcName
+- (id<MTLComputePipelineState>) getComputePipelineStateWithFunc:(NSString*)funcName
 {
     NSError* error;
 
@@ -204,8 +205,8 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     return uyvy422ToRGBAState;
 }
 
-- (id<MTLRenderPipelineState>) getPhongPipeStateWithNumLights:(int) numLights
-                                                compositeMode:(int) compositeMode;
+- (id<MTLRenderPipelineState>) getPhongPipeStateWithNumLights:(int)numLights
+                                                compositeMode:(int)compositeMode;
 {
     NSError* error;
     NSMutableDictionary *psDict;
@@ -268,8 +269,8 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     }
 }
 
-- (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*) pipeDesc
-                         compositeMode:(int) compositeMode
+- (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*)pipeDesc
+                         compositeMode:(int)compositeMode
 {
     MTLBlendFactor srcFactor;
     MTLBlendFactor dstFactor;

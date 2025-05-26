@@ -32,12 +32,9 @@
 
 #import "MetalRingBuffer.h"
 
-@class MetalTexture;
 @class MetalRTTexture;
 @class MetalPipelineManager;
 @class MetalShader;
-@class MetalPhongShader;
-@class MetalPhongMaterial;
 @class MetalMeshView;
 
 #define BUFFER_SIZE 1
@@ -48,11 +45,11 @@
 #define INDICES_PER_IB  (MAX_NUM_QUADS * 6) // (4096 * 6 * 2 ) = 48 kb IndexBuffer
 #define VERTICES_PER_IB (MAX_NUM_QUADS * 4)
 
-struct PrismSourceVertex {
+typedef struct PrismSourceVertex {
     float x, y, z;
     float tu1, tv1;
     float tu2, tv2;
-};
+} PrismSourceVertex;
 
 typedef struct CLEAR_VS_INPUT {
     packed_float2 position;
@@ -104,7 +101,6 @@ typedef enum VertexInputIndex {
     MTLRenderPassDescriptor* rttPassDesc;
 
     MetalPipelineManager* pipelineManager;
-    MetalPhongShader *phongShader;
     MTLRenderPassDescriptor* phongRPD;
     vector_float4 cPos;
     bool depthEnabled;
@@ -116,11 +112,11 @@ typedef enum VertexInputIndex {
     id<MTLBuffer> pixelBuffer;
 }
 
-- (void) setCompositeMode:(int) mode;
+- (void) setCompositeMode:(int)mode;
 - (int) getCompositeMode;
 - (MetalPipelineManager*) getPipelineManager;
 - (MetalShader*) getCurrentShader;
-- (void) setCurrentShader:(MetalShader*) shader;
+- (void) setCurrentShader:(MetalShader*)shader;
 
 - (MetalRingBuffer*) getArgsRingBuffer;
 - (MetalRingBuffer*) getDataRingBuffer;
@@ -134,7 +130,7 @@ typedef enum VertexInputIndex {
 - (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder;
 - (void) endCurrentRenderEncoder;
 
-- (id<MTLRenderPipelineState>) getPhongPipelineStateWithNumLights:(int) numLights;
+- (id<MTLRenderPipelineState>) getPhongPipelineStateWithNumLights:(int)numLights;
 - (NSUInteger) getCurrentBufferIndex;
 
 - (void) updateDepthDetails:(bool)depthTest;
@@ -151,7 +147,7 @@ typedef enum VertexInputIndex {
 - (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height;
 - (void) resetClipRect;
 
-- (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
+- (NSInteger) drawIndexedQuads:(PrismSourceVertex const *)pSrcXYZUVs
                       ofColors:(char const *)pSrcColors
                    vertexCount:(NSUInteger)numVertices;
 
@@ -182,8 +178,7 @@ typedef enum VertexInputIndex {
 - (MTLRenderPassDescriptor*) getPhongRPD;
 - (simd_float4x4) getMVPMatrix;
 - (simd_float4x4) getWorldMatrix;
-- (void) setCameraPosition:(float)x
-        y:(float)y z:(float)z;
+- (void) setCameraPosition:(float)x y:(float)y z:(float)z;
 - (vector_float4) getCameraPosition;
 - (MTLScissorRect) getScissorRect;
 - (bool) clearDepth;

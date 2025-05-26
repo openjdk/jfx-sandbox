@@ -56,11 +56,12 @@
     id<MTLBuffer> argumentBufferForCB;
 }
 
-- (void) setArgsUpdated:(bool) updated;
+- (void) setArgsUpdated:(bool)updated;
 - (jobject) getUniformNameIdMap:(JNIEnv*)env;
-- (id) initWithContext:(MetalContext*)ctx withFragFunc:(NSString*) fragName;
-- (id<MTLRenderPipelineState>) getPipelineState:(bool) isMSAA
-                                  compositeMode:(int) compositeMode;
+- (id) initWithContext:(MetalContext*)ctx
+          withFragFunc:(NSString*)fragName;
+- (id<MTLRenderPipelineState>) getPipelineState:(bool)isMSAA
+                                  compositeMode:(int)compositeMode;
 
 - (void) copyArgBufferToRingBuffer;
 - (NSUInteger) getArgumentBufferLength;
@@ -70,7 +71,7 @@
 - (NSMutableDictionary*) getTexutresDict;
 - (NSMutableDictionary*) getSamplersDict;
 
-- (NSUInteger) getArgumentID:(NSString*) name;
+- (NSUInteger) getArgumentID:(NSString*)name;
 - (void) enable;
 - (void) disable;
 
@@ -80,14 +81,14 @@
            isLinear:(bool)isLinear
            wrapMode:(int)wrapMode;
 
-- (void) setInt:(int)uniformID i0:(int) i0;
+- (void) setInt:(int)uniformID i0:(int)i0;
 
-- (void) setFloat1:(int)uniformID f0:(float) f0;
-- (void) setFloat2:(int)uniformID f0:(float) f0 f1:(float) f1;
-- (void) setFloat3:(int)uniformID f0:(float) f0 f1:(float) f1 f2:(float) f2;
-- (void) setFloat4:(int)uniformID f0:(float) f0 f1:(float) f1 f2:(float) f2  f3:(float) f3;
+- (void) setFloat1:(int)uniformID f0:(float)f0;
+- (void) setFloat2:(int)uniformID f0:(float)f0 f1:(float)f1;
+- (void) setFloat3:(int)uniformID f0:(float)f0 f1:(float)f1 f2:(float)f2;
+- (void) setFloat4:(int)uniformID f0:(float)f0 f1:(float)f1 f2:(float)f2  f3:(float)f3;
 
-- (void) setConstants:(int)uniformID values:(float[]) values size:(int) size;
+- (void) setConstants:(int)uniformID values:(float[])values size:(int)size;
 - (void) dealloc;
 
 @end

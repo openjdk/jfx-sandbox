@@ -46,21 +46,22 @@
     NSMutableDictionary *phongPipelineStateNonMSAADepthDict;
     NSMutableDictionary *phongPipelineStateMSAANoDepthDict;
     NSMutableDictionary *phongPipelineStateMSAADepthDict;
-    id<MTLDepthStencilState> depthStencilState[2]; //[0] - disabled, [1] enabled
+    id<MTLDepthStencilState> depthStencilState[2]; // [0] - disabled, [1] - enabled
     id<MTLComputePipelineState> uyvy422ToRGBAState;
 }
 
-- (void) init:(MetalContext*) ctx libData:(dispatch_data_t) libData;
-- (id<MTLFunction>) getFunction:(NSString*) funcName;
+- (void) init:(MetalContext*)ctx
+      libData:(dispatch_data_t)libData;
+- (id<MTLFunction>) getFunction:(NSString*)funcName;
 - (id<MTLRenderPipelineState>) getClearRttPipeState;
-- (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>) fragFunc
-                                          compositeMode:(int) compositeMode;
-- (id<MTLRenderPipelineState>) getPhongPipeStateWithNumLights:(int) numLights
-                                                compositeMode:(int) compositeMode;
-- (id<MTLComputePipelineState>) getComputePipelineStateWithFunc:(NSString*) funcName;
+- (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>)fragFunc
+                                          compositeMode:(int)compositeMode;
+- (id<MTLRenderPipelineState>) getPhongPipeStateWithNumLights:(int)numLights
+                                                compositeMode:(int)compositeMode;
+- (id<MTLComputePipelineState>) getComputePipelineStateWithFunc:(NSString*)funcName;
 - (id<MTLDepthStencilState>) getDepthStencilState;
-- (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*) pipeDesc
-                         compositeMode:(int) compositeMode;
+- (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*)pipeDesc
+                         compositeMode:(int)compositeMode;
 - (void) dealloc;
 @end
 

@@ -91,7 +91,7 @@ typedef struct PS_PHONG_UNIFORMS {
         isA:(float)isAttenuated range:(float)range
         dirX:(float)dirX dirY:(float)dirY dirZ:(float)dirZ
         inA:(float)innerAngle outA:(float)outerAngle
-        falloff:(float)falloff;
+        falloff:(float)fall_off;
 
 - (MetalMesh*) getMesh;
 - (int) getCullingMode;

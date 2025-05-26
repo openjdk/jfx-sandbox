@@ -37,7 +37,6 @@
 #import "MetalShader.h"
 #import "com_sun_prism_mtl_MTLContext.h"
 #import "MetalMesh.h"
-#import "MetalPhongShader.h"
 #import "MetalMeshView.h"
 #import "MetalPhongMaterial.h"
 
@@ -362,17 +361,17 @@
     return currentBufferIndex;
 }
 
-- (id<MTLRenderPipelineState>) getPhongPipelineStateWithNumLights:(int) numLights
+- (id<MTLRenderPipelineState>) getPhongPipelineStateWithNumLights:(int)numLights
 {
     return [[self getPipelineManager] getPhongPipeStateWithNumLights:numLights
                 compositeMode:[self getCompositeMode]];
 }
 
-- (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
+- (NSInteger) drawIndexedQuads:(PrismSourceVertex const *)pSrcXYZUVs
                       ofColors:(char const *)pSrcColors
                    vertexCount:(NSUInteger)numVertices
 {
-    int vbLength   = numVertices * sizeof(struct PrismSourceVertex);
+    int vbLength   = numVertices * sizeof(PrismSourceVertex);
     int cbLength   = numVertices * 4;
     int numQuads   = numVertices / 4;
     int numIndices = numQuads * 6;
@@ -439,7 +438,7 @@
 
     for (int i = 0; numIndices > 0; i++) {
         [renderEncoder setVertexBuffer:vertexBuffer
-                                offset:(vertexOffset + (i * VERTICES_PER_IB * sizeof(struct PrismSourceVertex)))
+                                offset:(vertexOffset + (i * VERTICES_PER_IB * sizeof(PrismSourceVertex)))
                                atIndex:VertexInputIndexVertices];
 
         [renderEncoder setVertexBuffer:colorBuffer
@@ -656,7 +655,7 @@
     return currentShader;
 }
 
-- (void) setCurrentShader:(MetalShader*) shader
+- (void) setCurrentShader:(MetalShader*)shader
 {
     currentShader = shader;
 }
@@ -670,9 +669,6 @@
 - (NSInteger) setDeviceParametersFor3D
 {
     // TODO: MTL: Seems to be empty method, good to remove
-    /*if (!phongShader) {
-        phongShader = ([[MetalPhongShader alloc] createPhongShader:self]);
-    }*/
     return 1;
 }
 
@@ -705,7 +701,7 @@
     }
 }
 
-- (void) setCompositeMode:(int) mode
+- (void) setCompositeMode:(int)mode
 {
     compositeMode = mode;
 }
@@ -715,8 +711,7 @@
     return compositeMode;
 }
 
-- (void) setCameraPosition:(float)x
-            y:(float)y z:(float)z
+- (void) setCameraPosition:(float)x y:(float)y z:(float)z
 {
     cPos.x = x;
     cPos.y = y;
@@ -800,11 +795,6 @@
     if (rttPassDesc != nil) {
         [rttPassDesc release];
         rttPassDesc = nil;
-    }
-
-    if (phongShader != nil) {
-        [phongShader release];
-        phongShader = nil;
     }
 
     if (phongRPD != nil) {
@@ -963,8 +953,8 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
 {
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
 
-    struct PrismSourceVertex *pVertices =
-                    (struct PrismSourceVertex *) (*env)->GetPrimitiveArrayCritical(env, vertices, 0);
+    PrismSourceVertex *pVertices =
+                    (PrismSourceVertex *) (*env)->GetPrimitiveArrayCritical(env, vertices, 0);
     char *pColors = (char *) (*env)->GetPrimitiveArrayCritical(env, colors, 0);
 
     [mtlContext drawIndexedQuads:pVertices ofColors:pColors vertexCount:numVertices];

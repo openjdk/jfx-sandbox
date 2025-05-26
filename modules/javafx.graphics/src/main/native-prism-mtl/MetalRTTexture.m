@@ -130,11 +130,7 @@
     }
 }
 
-- (id<MTLTexture>) getTexture
-{
-    return [super getTexture];
-}
-
+- (id<MTLTexture>) getTexture { return [super getTexture]; }
 - (id<MTLTexture>) getDepthTexture { return depthTexture; }
 - (BOOL) isMSAAEnabled { return isMSAA; }
 - (id<MTLTexture>) getMSAATexture { return msaaTexture; }

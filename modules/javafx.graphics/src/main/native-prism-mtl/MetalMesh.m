@@ -30,6 +30,7 @@ typedef struct
     vector_float4 position;
     vector_float4 color;
 } MBEVertex;
+
 @implementation MetalMesh
 
 - (id) createMesh:(MetalContext*)ctx
@@ -45,9 +46,9 @@ typedef struct
 }
 
 - (bool) buildBuffersShort:(float*)vb
-                vSize:(unsigned int)vbSize
-              iBuffer:(unsigned short*)ib
-                iSize:(unsigned int)ibSize
+                     vSize:(unsigned int)vbSize
+                   iBuffer:(unsigned short*)ib
+                     iSize:(unsigned int)ibSize
 {
     id<MTLDevice> device = [context getDevice];
     unsigned int size = vbSize * sizeof (float);
@@ -79,9 +80,9 @@ typedef struct
 }
 
 - (bool) buildBuffersInt:(float*)vb
-                vSize:(unsigned int)vbSize
-              iBuffer:(unsigned int*)ib
-                iSize:(unsigned int)ibSize
+                   vSize:(unsigned int)vbSize
+                 iBuffer:(unsigned int*)ib
+                   iSize:(unsigned int)ibSize
 {
     id<MTLDevice> device = [context getDevice];
     unsigned int size = vbSize * sizeof (float);

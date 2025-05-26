@@ -46,17 +46,17 @@
 
 - (id) createMesh:(MetalContext*)ctx;
 - (bool) buildBuffersShort:(float*)vb
-                vSize:(unsigned int)vbSize
-              iBuffer:(unsigned short*)ib
-                iSize:(unsigned int)ibSize;
+                     vSize:(unsigned int)vbSize
+                   iBuffer:(unsigned short*)ib
+                     iSize:(unsigned int)ibSize;
 - (bool) buildBuffersInt:(float*)vb
-                vSize:(unsigned int)vbSize
-              iBuffer:(unsigned int*)ib
-                iSize:(unsigned int)ibSize;
+                   vSize:(unsigned int)vbSize
+                 iBuffer:(unsigned int*)ib
+                   iSize:(unsigned int)ibSize;
 - (void) release;
 - (void) createVertexBuffer:(unsigned int)size;
 - (void) releaseVertexBuffer;
-- (void) createIndexBuffer:(unsigned int)size;;
+- (void) createIndexBuffer:(unsigned int)size;
 - (void) releaseIndexBuffer;
 - (id<MTLBuffer>) getVertexBuffer;
 - (id<MTLBuffer>) getIndexBuffer;
