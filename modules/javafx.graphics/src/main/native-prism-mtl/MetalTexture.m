@@ -26,6 +26,20 @@
 #import "MetalTexture.h"
 #import "MetalPipelineManager.h"
 
+static unsigned int getPixelSize(enum MTLPixelFormat pixelFormat)
+{
+    switch (pixelFormat) {
+        case MTLPixelFormatA8Unorm:
+            return 1;
+        case MTLPixelFormatBGRA8Unorm:
+            return 4;
+        case MTLPixelFormatRGBA32Float:
+            return 16;
+        default:
+            return 0;
+    }
+}
+
 @implementation MetalTexture
 
 // This method creates a native MTLTexture
@@ -104,8 +118,8 @@
                           sourceSize:MTLSizeMake(texture.width, texture.height, texture.depth)
                             toBuffer:[context getPixelBuffer]
                    destinationOffset:(NSUInteger)0
-              destinationBytesPerRow:(NSUInteger)texture.width * 4
-            destinationBytesPerImage:(NSUInteger)texture.width * texture.height * 4];
+              destinationBytesPerRow:(NSUInteger)texture.width * getPixelSize(pixelFormat)
+            destinationBytesPerImage:(NSUInteger)texture.width * texture.height * getPixelSize(pixelFormat)];
 
         [blitEncoder endEncoding];
     }
@@ -156,20 +170,6 @@ static NSMutableDictionary *getBufferAndOffset(MetalContext* context, unsigned i
 
     [bufferOffsetDict setObject:pixelMTLBuf forKey:@(offset)];
     return bufferOffsetDict;
-}
-
-static unsigned int getPixelSize(enum MTLPixelFormat pixelFormat)
-{
-    switch (pixelFormat) {
-        case MTLPixelFormatA8Unorm:
-            return 1;
-        case MTLPixelFormatBGRA8Unorm:
-            return 4;
-        case MTLPixelFormatRGBA32Float:
-            return 16;
-        default:
-            return 0;
-    }
 }
 
 static NSMutableDictionary *copyPixelDataToRingBuffer(MetalContext* context, void* pixels,
