@@ -47,8 +47,6 @@ public class MTLShader implements Shader  {
     private static MTLShader currentEnabledShader;
 
     private MTLShader(MTLContext context, String fragmentFunctionName) {
-        MTLLog.Debug(">>> MTLShader(): fragFuncName = " + fragmentFunctionName);
-
         this.fragmentFunctionName = fragmentFunctionName;
         this.context = context;
 
@@ -59,46 +57,27 @@ public class MTLShader implements Shader  {
             throw new AssertionError("Failed to create Shader");
         }
         uniformNameIdMap = nGetUniformNameIdMap(nMetalShaderRef);
-        MTLLog.Debug("    uniformNameIdMap: " + uniformNameIdMap);
-        MTLLog.Debug("    shaderMap.size(): " + shaderMap.size());
-        MTLLog.Debug("    shaderMap" + shaderMap);
-        MTLLog.Debug("<<< MTLShader(): nMetalShaderRef = " + nMetalShaderRef);
     }
 
     public static Shader createShader(MTLContext ctx, String fragFuncName, Map<String, Integer> samplers,
                                       Map<String, Integer> params, int maxTexCoordIndex,
                                       boolean isPixcoordUsed, boolean isPerVertexColorUsed) {
-        MTLLog.Debug(">>> MTLShader.createShader()1");
-        MTLLog.Debug("    fragFuncName= " + fragFuncName);
-        MTLLog.Debug("    samplers= " + samplers);
-        MTLLog.Debug("    params= " + params);
-        MTLLog.Debug("    maxTexCoordIndex= " + maxTexCoordIndex);
-        MTLLog.Debug("    isPixcoordUsed= " + isPixcoordUsed);
-        MTLLog.Debug("    isPerVertexColorUsed= " + isPerVertexColorUsed);
-
         if (shaderMap.containsKey(fragFuncName)) {
-            MTLLog.Debug("    The shader was already created and exists in map");
-            MTLLog.Debug("<<< MTLShader.createShader()1");
             return shaderMap.get(fragFuncName);
         } else {
             MTLShader shader = new MTLShader(ctx, fragFuncName);
             shader.storeSamplers(samplers);
-            MTLLog.Debug("<<< MTLShader.createShader()1");
             return shader;
         }
     }
 
     public static MTLShader createShader(MTLContext ctx, String fragFuncName) {
-        MTLLog.Debug(">>> MTLShader.createShader()2");
-        MTLLog.Debug("    fragmentFunctionName= " + fragFuncName);
         MTLShader shader;
         if (shaderMap.containsKey(fragFuncName)) {
-            MTLLog.Debug("    The shader was already created and exists in map");
             shader = shaderMap.get(fragFuncName);
         } else {
             shader = new MTLShader(ctx, fragFuncName);
         }
-        MTLLog.Debug("<<< MTLShader.createShader()2");
         return shader;
     }
 
@@ -106,20 +85,16 @@ public class MTLShader implements Shader  {
         for (Map.Entry<String, Integer> entry : samplers.entrySet()) {
             this.samplers.put(entry.getValue(), entry.getKey());
         }
-        //MTLLog.Debug(">>> MTLShader.storeSamplers() : fragmentFunctionName : " + this.fragmentFunctionName);
-        //MTLLog.Debug("    MTLShader.storeSamplers() : samplers : " + this.samplers);
     }
 
     @Override
     public void enable() {
-        MTLLog.Debug(">> MTLShader.enable()  fragFuncName = " + fragmentFunctionName);
         currentEnabledShader = this;
         nEnable(nMetalShaderRef);
     }
 
     @Override
     public void disable() {
-        MTLLog.Debug("MTLShader.disable()  fragFuncName = " + fragmentFunctionName);
         // There are no disable calls coming from BaseShaderContext.
         // So this is a no-op. We can call disable on lastShader in
         // BaseShaderContext.checkState() but that will be a common change for
@@ -129,7 +104,6 @@ public class MTLShader implements Shader  {
 
     @Override
     public boolean isValid() {
-        MTLLog.Debug("MTLShader.isValid()");
         if (nMetalShaderRef != 0) {
             return true;
         } else {
@@ -138,8 +112,6 @@ public class MTLShader implements Shader  {
     }
 
     public static void setTexture(int texUnit, Texture tex, boolean isLinear, int wrapMode) {
-        //MTLLog.Debug(">>> MTLShader.setTexture() : fragmentFunctionName : " + currentEnabledShader.fragmentFunctionName);
-        //MTLLog.Debug("    MTLShader.setTexture() texUnit = " + texUnit + ", isLinear = " + isLinear + ", wrapMode = " + wrapMode);
         if (currentEnabledShader.textureIdRefMap.get(texUnit) != null &&
             currentEnabledShader.textureIdRefMap.get(texUnit).get() == tex) return;
 
@@ -152,71 +124,51 @@ public class MTLShader implements Shader  {
 
     @Override
     public void setConstant(String name, int i0) {
-       //MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
-       //MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", i0 = " + i0);
         nSetInt(nMetalShaderRef, uniformNameIdMap.get(name), i0);
     }
 
     @Override
     public void setConstant(String name, int i0, int i1) {
-        //MTLLog.Debug("MTLShader.setConstant() name = " + name + ", i0 = " + i0 + ", i1 = " + i1);
         throw new UnsupportedOperationException("Not implemented yet.");
     }
 
     @Override
     public void setConstant(String name, int i0, int i1, int i2) {
-        //MTLLog.Debug("MTLShader.setConstant() name = " + name + ", i0 = " + i0 + ", i1 = " + i1 + ", i2 = " + i2);
         throw new UnsupportedOperationException("Not implemented yet.");
     }
 
     @Override
     public void setConstant(String name, int i0, int i1, int i2, int i3) {
-        //MTLLog.Debug("MTLShader.setConstant() name = " + name + ", i0 = " + i0 + ", i1 = " + i1 + ", i2 = " + i2 + ", i3 = " + i3);
         throw new UnsupportedOperationException("Not implemented yet.");
     }
 
     @Override
     public void setConstants(String name, IntBuffer buf, int off, int count) {
-        //MTLLog.Debug("MTLShader.setConstants() name = " + name + ", buf = " + buf + ", off = " + off + ", count = " + count);
         throw new UnsupportedOperationException("Not implemented yet.");
     }
 
     @Override
     public void setConstant(String name, float f0) {
-        //MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
-        //MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", f0 = " + f0);
         nSetFloat1(nMetalShaderRef, uniformNameIdMap.get(name), f0);
-        //MTLLog.Debug("<< MTLShader.setConstant()");
     }
 
     @Override
     public void setConstant(String name, float f0, float f1) {
-        //MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
-        //MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", f0 = " + f0 + ", f1 = " + f1);
         nSetFloat2(nMetalShaderRef, uniformNameIdMap.get(name), f0, f1);
-        //MTLLog.Debug("<< MTLShader.setConstant()");
     }
 
     @Override
     public void setConstant(String name, float f0, float f1, float f2) {
-        //MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
-        //MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", f0 = " + f0 + ", f1 = " + f1 + ", f2 = " + f2);
         nSetFloat3(nMetalShaderRef, uniformNameIdMap.get(name), f0, f1, f2);
-        //MTLLog.Debug("<< MTLShader.setConstant()");
     }
 
     @Override
     public void setConstant(String name, float f0, float f1, float f2, float f3) {
-        //MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
-        //MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", f0 = " + f0 + ", f1 = " + f1 + ", f2 = " + f2 + ", f3 = " + f3);
         nSetFloat4(nMetalShaderRef, uniformNameIdMap.get(name), f0, f1, f2, f3);
-        //MTLLog.Debug("<< MTLShader.setConstant()");
     }
 
     @Override
     public void setConstants(String name, FloatBuffer buf, int off, int count) {
-        //MTLLog.Debug(">>> MTLShader.setConstant() : fragmentFunctionName : " + this.fragmentFunctionName);
-        //MTLLog.Debug("    MTLShader.setConstant() name = " + name + ", buf = " + buf + ", off = " + off + ", count = " + count);
         boolean direct = buf.isDirect();
         if (direct) {
             nSetConstantsBuf(nMetalShaderRef, uniformNameIdMap.get(name),
@@ -231,7 +183,6 @@ public class MTLShader implements Shader  {
 
     @Override
     public void dispose() {
-        MTLLog.Debug(">>> MTLShader.dispose() : fragmentFunctionName : " + this.fragmentFunctionName);
         if (isValid()) {
             context.disposeShader(nMetalShaderRef);
             nMetalShaderRef = 0;

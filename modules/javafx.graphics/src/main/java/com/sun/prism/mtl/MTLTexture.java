@@ -51,8 +51,6 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
               contentX, contentY, contentWidth, contentHeight, useMipmap);
         this.context = context;
         texPtr = resource.getResource().getResource();
-
-        MTLLog.Debug("MTLTexture(): context = " + context + ", resource = " + resource + ", format = " + format + ", wrapMode = " + wrapMode + ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight + ", contentX = " + contentX + ", contentY = " + contentY + ", contentWidth = " + contentWidth + ", contentHeight = " + contentHeight + ", useMipmap = " + useMipmap);
     }
 
     MTLTexture(MTLContext context, MTLTextureResource<T> resource,
@@ -66,10 +64,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
               contentX, contentY, contentWidth, contentHeight,
               maxContentWidth, maxContentHeight, useMipmap);
         this.context = context;
-
         texPtr = resource.getResource().getResource();
-
-        MTLLog.Debug("MTLTexture(): context = " + context + ", resource = " + resource + ", format = " + format + ", wrapMode = " + wrapMode + ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight + ", contentX = " + contentX + ", contentY = " + contentY + ", contentWidth = " + contentWidth + ", contentHeight = " + contentHeight + ", maxContentWidth = " + maxContentWidth + ", maxContentHeight = " + maxContentHeight + ", useMipmap = " + useMipmap);
     }
 
     public long getNativeHandle() {
@@ -106,17 +101,10 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
             }
         } else if (format.getDataType() == PixelFormat.DataType.FLOAT) {
             if (format == PixelFormat.FLOAT_XYZW) {
-                MTLLog.Debug("FLOAT_XYZW - data type of buffer is : " + buffer.getClass().getName());
-                MTLLog.Debug("Buffer capacity : " + buffer.capacity());
-                MTLLog.Debug("Buffer limit : " + buffer.limit());
-                MTLLog.Debug("srcscan  = " + srcscan);
-                MTLLog.Debug("srcw  = " + srcw);
-                MTLLog.Debug("srch  = " + srch);
-
                 FloatBuffer buf = (FloatBuffer)buffer;
                 float[] arr = buf.hasArray() ? buf.array() : null;
 
-                nUpdateFloat(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), buf, arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+                nUpdateFloat(this.context.getContextHandle(), this.getNativeHandle(), buf, arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
             } else {
                 throw new IllegalArgumentException("Unsupported FLOAT PixelFormat"+ format);
             }
@@ -126,7 +114,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
             byte[] arr = buf.hasArray() ? buf.array() : null;
 
             if (format == PixelFormat.BYTE_BGRA_PRE || format == PixelFormat.BYTE_ALPHA) {
-                nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), buf, arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+                nUpdate(this.context.getContextHandle(), this.getNativeHandle(), buf, arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
             } else if (format == PixelFormat.BYTE_RGB) {
                 // Metal does not support 24-bit format
                 // hence `arr` data needs to be converted to BGRA format that
@@ -148,7 +136,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
                     }
                 }
 
-                nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), null, arr32Bit, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
+                nUpdate(this.context.getContextHandle(), this.getNativeHandle(), null, arr32Bit, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
             } else if (format == PixelFormat.BYTE_GRAY) {
                 // Suitable 8-bit native formats are MTLPixelFormatA8Unorm & MTLPixelFormatR8Unorm.
                 // These formats do not work well with our generated shader - Texture_RGB.
@@ -173,7 +161,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
                     }
                 }
 
-                nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), null, arr32Bit, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
+                nUpdate(this.context.getContextHandle(), this.getNativeHandle(), null, arr32Bit, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
             } else if (format == PixelFormat.MULTI_YCbCr_420 || format == PixelFormat.BYTE_APPLE_422) {
                 throw new IllegalArgumentException("Format not yet supported by Metal pipeline :"+ format);
             }
@@ -184,9 +172,6 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
 
     @Override
     public void update(MediaFrame frame, boolean skipFlush) {
-
-        MTLLog.Debug("MTLTexture - update for MediaFrame.");
-
         // TODO: MTL: Check whether we need to implement MULTI_YCbCr_420 format
         // using multi-texturing.
         if (frame.getPixelFormat() == PixelFormat.MULTI_YCbCr_420 ||

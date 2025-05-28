@@ -102,4 +102,3 @@ class MTLMesh extends BaseMesh {
         }
     }
 }
-

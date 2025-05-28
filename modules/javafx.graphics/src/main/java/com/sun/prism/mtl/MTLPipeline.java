@@ -56,13 +56,11 @@ public class MTLPipeline extends GraphicsPipeline {
     }
 
     public static MTLPipeline getInstance() {
-        MTLLog.Debug("MTLPipeline.getInstance()");
         return theInstance;
     }
 
     @Override
     public boolean init() {
-        MTLLog.Debug("MTLPipeline.init()");
         HashMap devDetails = new HashMap();
         setDeviceDetails(devDetails);
         return true;

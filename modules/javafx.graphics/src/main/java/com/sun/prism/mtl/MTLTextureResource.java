@@ -32,7 +32,6 @@ public class MTLTextureResource<T extends MTLTextureData> extends DisposerManage
     MTLTextureResource(T resource, boolean canDispose) {
         super(resource, MTLVramPool.getInstance(), resource);
         this.canDispose = canDispose;
-        MTLLog.Debug("MTLTextureResource()");
     }
 
     @Override

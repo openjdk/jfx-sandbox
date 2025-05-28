@@ -39,7 +39,6 @@ public final class PrismSettings {
     public static final boolean verbose;
     public static final boolean debug;
     public static final boolean trace;
-    public static final boolean metalDebug;
     public static final boolean printAllocs;
     public static final boolean isVsyncEnabled;
     public static final boolean dirtyOptsEnabled;
@@ -186,8 +185,6 @@ public final class PrismSettings {
 
         /* Trace output*/
         trace = getBoolean(systemProperties, "prism.trace", false);
-
-        metalDebug = getBoolean(systemProperties, "prism.metalDebug", false);
 
         /* Print texture allocation data */
         printAllocs = getBoolean(systemProperties, "prism.printallocs", false);

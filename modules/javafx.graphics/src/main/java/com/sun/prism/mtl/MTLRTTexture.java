@@ -75,13 +75,6 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData>
         // pixels array contains all 0s by default
         // Initialize native texture to clear color (0,0,0,0) using pixels
         nInitRTT(nTexPtr, pixels);
-
-        MTLLog.Debug("MTLRTTexture(): context = " + context + ", resource = " + resource +
-                ", wrapMode = " + wrapMode +
-                ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight +
-                ", contentX = " + contentX + ", contentY = " + contentY +
-                ", contentWidth = " + contentWidth + ", contentHeight = " + contentHeight +
-                ", maxContentWidth = " + maxContentWidth + ", maxContentHeight = " + maxContentHeight);
     }
 
     static MTLRTTexture create(MTLContext context,
@@ -89,9 +82,6 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData>
                                int contentWidth, int contentHeight,
                                WrapMode wrapMode, boolean msaa,
                                long size) {
-        MTLLog.Debug("MTLRTTexture.create()  physicalWidth = " + physicalWidth +
-                ", physicalHeight = " + physicalHeight + ", contentWidth = " + contentWidth +
-                ", contentHeight = " + contentHeight + ", wrapMode = " + wrapMode + ", msaa = " + msaa);
         long nPtr = nCreateRT(context.getContextHandle(),
                 physicalWidth, physicalHeight,
                 contentWidth, contentHeight,
@@ -131,7 +121,6 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData>
     public int[] getPixels() {
         // Flush the VB before reading the pixels.
         getContext().flushVertexBuffer();
-        //MTLLog.Debug("MTLRTTexture.getPixels()");
         nReadPixels(nTexPtr, pixels);
         return pixels;
     }
@@ -141,9 +130,8 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData>
         // The call from Canvas rendering expects IntBuffer, which is implemented here.
         // In future, if needed, need to implement pix as ByteBuffer
         if (pix instanceof IntBuffer) {
-            //MTLLog.Debug("MTLRTTexture(): readPixels -- IntBuffer.");
             nReadPixelsFromRTT(nTexPtr, (IntBuffer)pix);
-            //pix = IntBuffer.wrap(pixels);
+            // pix = IntBuffer.wrap(pixels);
             return true;
         }
         return false;

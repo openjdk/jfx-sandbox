@@ -28,16 +28,12 @@ package com.sun.prism.mtl;
 public class MTLRTTextureData extends MTLTextureData {
     MTLRTTextureData(MTLContext context, long texPtr, long size) {
         super(context, texPtr, size);
-        MTLLog.Debug("MTLRTTextureData(): context = " + context + ", texPtr = " + texPtr);
     }
 
     @Override
     public void dispose() {
         if (pTexture != 0L) {
-            MTLLog.Debug("MTLRTTextureData.dispose()");
             if (mtlContext.isCurrentRTT(pTexture)) {
-                MTLLog.Debug("MTLRTTextureData : calling flush before" +
-                    " releasing bound RTT");
                 mtlContext.flushVertexBuffer();
             }
             MTLResourceFactory.releaseTexture(mtlContext, pTexture);

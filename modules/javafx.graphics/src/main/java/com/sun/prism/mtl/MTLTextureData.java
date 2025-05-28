@@ -62,7 +62,6 @@ public class MTLTextureData implements Disposer.Record {
     @Override
     public void dispose() {
         if (pTexture != 0L) {
-            MTLLog.Debug("MTLTextureData.dispose()");
             MTLResourceFactory.releaseTexture(mtlContext, pTexture);
             pTexture = 0L;
         }

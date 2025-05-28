@@ -28,16 +28,12 @@ package com.sun.prism.mtl;
 public class MTLFBOTextureData extends MTLTextureData {
     MTLFBOTextureData(MTLContext context, long texPtr, long size) {
         super(context, texPtr, size);
-        MTLLog.Debug("MTLFBOTextureData(): context = " + context + ", texPtr = " + texPtr);
     }
 
     @Override
     public void dispose() {
         if (pTexture != 0L) {
-            MTLLog.Debug("MTLFBOTextureData.dispose()");
             if (mtlContext.isCurrentRTT(pTexture)) {
-                MTLLog.Debug("MTLFBOTextureData : calling flush before" +
-                    " releasing bound FBO");
                 mtlContext.flushVertexBuffer();
             }
             // release of native MetalTexture will be handled by Glass
