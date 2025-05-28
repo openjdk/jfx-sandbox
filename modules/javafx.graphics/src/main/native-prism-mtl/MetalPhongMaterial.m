@@ -41,10 +41,10 @@
         specularColor.y = 1;
         specularColor.z = 1;
         specularColor.w = 32;
-        map[DIFFUSE] = NULL;
-        map[SPECULAR] = NULL;
-        map[BUMP] = NULL;
-        map[SELFILLUMINATION] = NULL;
+        map[DIFFUSE] = nil;
+        map[SPECULAR] = nil;
+        map[BUMP] = nil;
+        map[SELFILLUMINATION] = nil;
     }
     return self;
 }
@@ -129,6 +129,6 @@
         return map[mapID];
     }
     NSLog(@"MetalPhongMaterial.getMap(): mapID is out of range");
-    return NULL;
+    return nil;
 }
 @end // MetalPhongMaterial

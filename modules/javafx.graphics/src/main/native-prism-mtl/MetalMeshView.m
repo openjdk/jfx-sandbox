@@ -35,7 +35,7 @@
     if (self) {
         context = ctx;
         mesh = mtlMesh;
-        material = NULL;
+        material = nil;
         ambientLightColor.x = 0;
         ambientLightColor.y = 0;
         ambientLightColor.z = 0;

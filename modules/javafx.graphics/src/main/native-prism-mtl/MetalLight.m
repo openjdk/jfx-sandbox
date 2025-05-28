@@ -61,14 +61,14 @@
 
 - (bool) isPointLight
 {
-    return falloff == 0 && outAngle == 180 && attenuation[3] > 0.5;
+    return falloff == 0.0f && outAngle == 180.0f && attenuation[3] > 0.5f;
 }
 
 - (bool) isDirectionalLight
 {
-    // Testing if attenuation.w is 0 or 1 using <0.5,
+    // Testing if attenuation.w is 0 or 1 using < 0.5f,
     // since equality check for floating points might not work well
-    return attenuation[3] < 0.5;
+    return attenuation[3] < 0.5f;
 }
 
 @end // MetalLight

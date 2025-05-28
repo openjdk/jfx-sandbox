@@ -925,10 +925,10 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRelease
 {
     MetalContext *contextPtr = (MetalContext *)jlong_to_ptr(context);
 
-    if (contextPtr != NULL) {
+    if (contextPtr != nil) {
         [contextPtr dealloc];
     }
-    contextPtr = NULL;
+    contextPtr = nil;
 }
 
 /*
