@@ -30,9 +30,6 @@ import com.sun.prism.Material;
 import com.sun.prism.impl.BaseMeshView;
 import com.sun.prism.impl.Disposer;
 
-/**
- * TODO: 3D - Need documentation
- */
 class MTLMeshView extends BaseMeshView {
 
     static int count = 0;

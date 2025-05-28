@@ -26,16 +26,16 @@
 package com.sun.prism.es2;
 
 import com.sun.glass.ui.Screen;
-import com.sun.javafx.PlatformUtil;
 import com.sun.javafx.geom.Rectangle;
-import com.sun.prism.CompositeMode;
 import com.sun.prism.GraphicsResource;
 import com.sun.prism.Presentable;
 import com.sun.prism.PresentableState;
 import com.sun.prism.RTTexture;
+import com.sun.prism.CompositeMode;
+import com.sun.prism.impl.PrismSettings;
+import com.sun.javafx.PlatformUtil;
 import com.sun.prism.ResourceFactory;
 import com.sun.prism.Texture.WrapMode;
-import com.sun.prism.impl.PrismSettings;
 
 class ES2SwapChain implements ES2RenderTarget, Presentable, GraphicsResource {
 

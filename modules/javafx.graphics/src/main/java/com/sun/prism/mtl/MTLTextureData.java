@@ -33,9 +33,6 @@ public class MTLTextureData implements Disposer.Record {
     protected long pTexture;
     private long size;
 
-    // MTLBuffer used to store the pixel data of this texture
-    // private long nTexPixelData;
-
     private MTLTextureData() {
         mtlContext = null;
     }

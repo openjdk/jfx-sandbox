@@ -34,9 +34,6 @@ import com.sun.prism.TextureMap;
 import com.sun.prism.impl.BasePhongMaterial;
 import com.sun.prism.impl.Disposer;
 
-/**
- * TODO: 3D - Need documentation
- */
 class MTLPhongMaterial extends BasePhongMaterial implements PhongMaterial {
 
     static int count = 0;

@@ -28,6 +28,7 @@ package com.sun.glass.ui.monocle;
 import com.sun.glass.ui.Pixels;
 import com.sun.glass.ui.View;
 import com.sun.glass.ui.Window;
+
 import java.util.Map;
 
 final class MonocleView extends View {

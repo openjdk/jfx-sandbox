@@ -82,25 +82,12 @@ public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResou
 
     @Override
     public boolean prepare(Rectangle dirtyregion) {
-
         MTLContext context = getContext();
         context.flushVertexBuffer();
         MTLGraphics g = (MTLGraphics) MTLGraphics.create(context, stableBackbuffer);
         if (g == null) {
             return false;
         }
-        /*int sw = stableBackbuffer.getContentWidth();
-        int sh = stableBackbuffer.getContentHeight();
-        int dw = this.getContentWidth();
-        int dh = this.getContentHeight();
-        if (isMSAA()) {
-            context.flushVertexBuffer();
-            g.blit(stableBackbuffer, null, 0, 0, sw, sh, 0, 0, dw, dh);
-        } else {
-            g.setCompositeMode(CompositeMode.SRC);
-            g.drawTexture(stableBackbuffer, 0, 0, dw, dh, 0, 0, sw, sh);
-        }
-        context.flushVertexBuffer();*/
         stableBackbuffer.unlock();
         return true;
     }
@@ -111,14 +98,11 @@ public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResou
 
     @Override
     public boolean present() {
-
         MTLContext context = getContext();
         if (context.isDisposed()) {
             return false;
         }
-
         context.commitCurrentCommandBuffer();
-
         return true;
     }
 

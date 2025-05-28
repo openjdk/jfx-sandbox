@@ -139,8 +139,9 @@ public class MTLContext extends BaseShaderContext {
     }
 
     /**
-     * OpenGL projection transform use z-range of [-1, 1] while Metal expects it
-     * to be [0, 1], so we need to adjust the matrix .(comment from D3DContext see RT-32880.)
+     * OpenGL projection transform use z-range of [-1, 1],
+     * while Metal expects it to be [0, 1], so we need to adjust the matrix.
+     * (comment from D3DContext, see JDK-8123305)
      */
     private GeneralTransform3D adjustClipSpace(GeneralTransform3D projViewTx) {
         double[] m = projViewTx.get(tempAdjustClipSpaceMat);
@@ -543,11 +544,8 @@ public class MTLContext extends BaseShaderContext {
     @Override
     public void dispose() {
         MTLLog.Debug("(-) MTLContext Dispose is invoked");
-
         nRelease(pContext);
-        // disposeLCDBuffer();
         state = null;
-
         super.dispose();
     }
 
