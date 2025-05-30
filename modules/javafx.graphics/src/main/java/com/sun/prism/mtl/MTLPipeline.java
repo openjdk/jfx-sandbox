@@ -73,15 +73,15 @@ public class MTLPipeline extends GraphicsPipeline {
 
     @Override
     public ResourceFactory getDefaultResourceFactory(List<Screen> screens) {
-        // TODO: MTL: This creates only one resource factory for the main screen.
-        //  We need to create and maintain multiple Resource Factories, one for each screen.
+        // This creates only one resource factory, all the Metal resources like
+        // MTLBuffer, MTLTexture and created and handled in native Metal classes.
         return getResourceFactory(Screen.getMainScreen());
     }
 
     @Override
     public ResourceFactory getResourceFactory(Screen screen) {
-        // TODO: MTL: This method should return appropriate resource factory for the screen
-        //  and not just the member mtlResourceFactory
+        // All the Metal resources like MTLBuffer, MTLTexture and created and handled in native Metal files.
+        // So, a common ResourceFactory instance across screens is sufficient.
         if (mtlResourceFactory == null) {
             mtlResourceFactory = new MTLResourceFactory(screen);
 

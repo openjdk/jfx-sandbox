@@ -199,7 +199,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT2
  * Method:    nInitRTT
  * Signature: (J[I)V
  */
-// This method inits underlying native MTLTexture with passed in pixData
+// This method initializes underlying native MTLTexture with passed in pixData
 // This texure replaceRegion is executed on CPU
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nInitRTT
     (JNIEnv *env, jclass class, jlong jTexPtr, jintArray pixData)

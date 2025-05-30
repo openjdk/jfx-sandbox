@@ -47,14 +47,10 @@ public class MTLGraphics extends BaseShaderGraphics {
 
     @Override
     public void clear(Color color) {
-        float r = color.getRedPremult();
-        float g = color.getGreenPremult();
-        float b = color.getBluePremult();
-        float a = color.getAlpha();
-
         context.validateClearOp(this);
         getRenderTarget().setOpaque(color.isOpaque());
-        nClear(context.getContextHandle(), r, g, b, a, isDepthBuffer());
+        nClear(context.getContextHandle(), color.getRedPremult(), color.getGreenPremult(),
+                color.getBluePremult(), color.getAlpha(), isDepthBuffer());
     }
 
     @Override
