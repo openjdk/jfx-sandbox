@@ -357,13 +357,13 @@ public class MTLResourceFactory extends BaseShaderFactory {
         if (createw >= (Integer.MAX_VALUE / createh / bpp)) {
             throw new RuntimeException("Illegal texture dimensions (" + createw + "x" + createh + ")");
         }
-        // TODO: MTL: We dont create PowerOf64 textures in D3D/OpenGL but
-        // we are creating RTT textures like these in Metal. Removed usage of
-        // nextPowerOf64 as part of JDK-8311225 and verified Ensemble8 and
-        // demos are running fine. If usage of nextPowerOf64 is not
-        // needed we should remove it in future.
-        //createw = nextPowerOf64(createw, 8192);
-        //createh = nextPowerOf64(createh, 8192);
+        // We don't create PowerOf64 textures in D3D/OpenGL but
+        // earlier implementation of Metal required RT texture of pow64.
+        // Removed usage of nextPowerOf64 as part of JDK-8311225 and
+        // verified Ensemble8 and demos are running fine.
+        // If usage of nextPowerOf64 is not needed we should remove it in future.
+        // createw = nextPowerOf64(createw, 8192);
+        // createh = nextPowerOf64(createh, 8192);
 
         MTLVramPool pool = MTLVramPool.getInstance();
         long size = pool.estimateRTTextureSize(createw, createh, false);

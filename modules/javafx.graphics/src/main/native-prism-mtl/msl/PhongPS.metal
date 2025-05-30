@@ -34,6 +34,13 @@ using namespace metal;
 #define SPEC_CLR 2
 #define SPEC_MIX 3
 
+constexpr sampler mipmapSampler(filter::linear,
+                            mip_filter::linear,
+                               address::repeat);
+
+constexpr sampler nonMipmapSampler(filter::linear,
+                                  address::repeat);
+
 float NTSC_Gray(float3 color) {
     return dot(color, float3(0.299f, 0.587f, 0.114f));
 }
@@ -56,20 +63,12 @@ fragment float4 PhongPS0(VS_PHONG_INOUT0 vert [[stage_in]],
 {
     float2 texD = vert.texCoord;
 
-    // TODO : MTL : This is default filter and addressmode
-    // set in both OpenGL and D3D, currently i am setting it
-    // directly here, in future we can optimise it to be passed
-    // as sampler state.
-    constexpr sampler mipmapSampler(filter::linear,
-                                mip_filter::linear,
-                                   address::repeat);
     float4 tDiff = mapDiffuse.sample(mipmapSampler, texD);
     if (tDiff.a == 0.0f) discard_fragment();
     tDiff = tDiff * psUniforms.diffuseColor;
 
     float3 normal = float3(0.0f, 0.0f, 1.0f);
-    constexpr sampler nonMipmapSampler(filter::linear,
-                                        address::repeat);
+
     // bump
     if (psUniforms.isBumpMap) {
         float4 BumpSpec = mapBump.sample(nonMipmapSampler, texD);
@@ -95,20 +94,11 @@ fragment float4 PhongPS1(VS_PHONG_INOUT1 vert [[stage_in]],
 {
     float2 texD = vert.texCoord;
 
-    // TODO : MTL : This is default filter and addressmode
-    // set in both OpenGL and D3D, currently i am setting it
-    // directly here, in future we can optimise it to be passed
-    // as sampler state.
-    constexpr sampler mipmapSampler(filter::linear,
-                                mip_filter::linear,
-                                   address::repeat);
     float4 tDiff = mapDiffuse.sample(mipmapSampler, texD);
     if (tDiff.a == 0.0f) discard_fragment();
     tDiff = tDiff * psUniforms.diffuseColor;
 
     float3 normal = float3(0.0f, 0.0f, 1.0f);
-    constexpr sampler nonMipmapSampler(filter::linear,
-                                      address::repeat);
     // bump
     if (psUniforms.isBumpMap) {
         float4 BumpSpec = mapBump.sample(nonMipmapSampler, texD);
@@ -146,7 +136,9 @@ fragment float4 PhongPS1(VS_PHONG_INOUT1 vert [[stage_in]],
     float3 spotLightsFactor = float3(psUniforms.spotLightsFactors[0],
                                      psUniforms.spotLightsFactors[1],
                                      psUniforms.spotLightsFactors[2]);
-    // testing if w is 0 or 1 using < 0.5 since equality check for floating points might not work well
+
+    // Testing if w is 0 or 1 using < 0.5 since equality check
+    // for floating points might not work well
     if (lightAttenuation.w < 0.5f) {
         diffLightColor += saturate(dot(normal, -vert.worldNormLightDirs1)) * lightColor;
         specLightColor += pow(saturate(dot(-refl, -vert.worldNormLightDirs1)), specPower) * lightColor;
@@ -192,20 +184,12 @@ fragment float4 PhongPS2(VS_PHONG_INOUT2 vert [[stage_in]],
 {
    float2 texD = vert.texCoord;
 
-    // TODO : MTL : This is default filter and addressmode
-    // set in both OpenGL and D3D, currently i am setting it
-    // directly here, in future we can optimise it to be passed
-    // as sampler state.
-    constexpr sampler mipmapSampler(filter::linear,
-                                mip_filter::linear,
-                                   address::repeat);
     float4 tDiff = mapDiffuse.sample(mipmapSampler, texD);
     if (tDiff.a == 0.0f) discard_fragment();
     tDiff = tDiff * psUniforms.diffuseColor;
 
     float3 normal = float3(0.0f, 0.0f, 1.0f);
-    constexpr sampler nonMipmapSampler(filter::linear,
-                                      address::repeat);
+
     // bump
     if (psUniforms.isBumpMap) {
         float4 BumpSpec = mapBump.sample(nonMipmapSampler, texD);
@@ -257,7 +241,9 @@ fragment float4 PhongPS2(VS_PHONG_INOUT2 vert [[stage_in]],
         float3 spotLightsFactor = float3(psUniforms.spotLightsFactors[(i * 4)],
                                          psUniforms.spotLightsFactors[(i * 4) + 1],
                                          psUniforms.spotLightsFactors[(i * 4) + 2]);
-        // testing if w is 0 or 1 using < 0.5 since equality check for floating points might not work well
+
+        // Testing if w is 0 or 1 using < 0.5 since equality check
+        // for floating points might not work well
         if (lightAttenuation.w < 0.5f) {
             diffLightColor += saturate(dot(normal, -lightDir)) * lightColor;
             specLightColor += pow(saturate(dot(-refl, -lightDir)), specPower) * lightColor;
@@ -304,20 +290,12 @@ fragment float4 PhongPS3(VS_PHONG_INOUT3 vert [[stage_in]],
 {
     float2 texD = vert.texCoord;
 
-    // TODO : MTL : This is default filter and addressmode
-    // set in both OpenGL and D3D, currently i am setting it
-    // directly here, in future we can optimise it to be passed
-    // as sampler state.
-    constexpr sampler mipmapSampler(filter::linear,
-                                mip_filter::linear,
-                                   address::repeat);
     float4 tDiff = mapDiffuse.sample(mipmapSampler, texD);
     if (tDiff.a == 0.0f) discard_fragment();
     tDiff = tDiff * psUniforms.diffuseColor;
 
     float3 normal = float3(0.0f, 0.0f, 1.0f);
-    constexpr sampler nonMipmapSampler(filter::linear,
-                                      address::repeat);
+
     // bump
     if (psUniforms.isBumpMap) {
         float4 BumpSpec = mapBump.sample(nonMipmapSampler, texD);
@@ -372,7 +350,9 @@ fragment float4 PhongPS3(VS_PHONG_INOUT3 vert [[stage_in]],
         float3 spotLightsFactor = float3(psUniforms.spotLightsFactors[(i * 4)],
                                          psUniforms.spotLightsFactors[(i * 4) + 1],
                                          psUniforms.spotLightsFactors[(i * 4) + 2]);
-        // testing if w is 0 or 1 using < 0.5 since equality check for floating points might not work well
+
+        // Testing if w is 0 or 1 using < 0.5 since equality check
+        // for floating points might not work well
         if (lightAttenuation.w < 0.5f) {
             diffLightColor += saturate(dot(normal, -lightDir)) * lightColor;
             specLightColor += pow(saturate(dot(-refl, -lightDir)), specPower) * lightColor;

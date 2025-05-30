@@ -1000,19 +1000,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetClipRect
 
 /*
  * Class:     com_sun_prism_mtl_MTLContext
- * Method:    nResetTransform
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
-    (JNIEnv *env, jclass jClass, jlong context)
-{
-    // TODO: MTL: The method seems to be effectively empty, may be good to remove.
-    MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
-    //[mtlContext resetProjViewMatrix];
-}
-
-/*
- * Class:     com_sun_prism_mtl_MTLContext
  * Method:    nSetProjViewMatrix
  * Signature: (JZDDDDDDDDDDDDDDDD)V
  */
