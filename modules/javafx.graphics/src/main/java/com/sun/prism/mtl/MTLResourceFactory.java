@@ -215,7 +215,6 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
         if (texFormat == PixelFormat.MULTI_YCbCr_420) {
             // Create a MultiTexture
-
             MultiTexture tex = new MultiTexture(texFormat, WrapMode.CLAMP_TO_EDGE, width, height);
 
             // create/add the subtextures
@@ -268,7 +267,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
             frame.releaseFrame();
             return tex;
-        } //PixelFormat.MULTI_YCbCr_420
+        } // PixelFormat.MULTI_YCbCr_420
 
         Texture tex = createTexture(texFormat, Usage.DEFAULT, WrapMode.CLAMP_TO_EDGE, texWidth, texHeight);
 
@@ -296,9 +295,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public int getMaximumTextureSize() {
-        // TODO: MTL: Complete implementation
-        // This value should be fetched from the MTLDevice.
-
+        // This value can be fetched from the MTLDevice.
         // This value comes from Metal feature set tables
         return 16384; // For MTLGPUFamilyApple3 and above
     }
@@ -306,18 +303,18 @@ public class MTLResourceFactory extends BaseShaderFactory {
     @Override
     public int getRTTWidth(int w, Texture.WrapMode wrapMode) {
         // Below debugging logic replicates D3DResoureFactory
-//        if (PrismSettings.forcePow2) {
-//            w = nextPowerOfTwo(w, Integer.MAX_VALUE);
-//        }
+        // if (PrismSettings.forcePow2) {
+        //     w = nextPowerOfTwo(w, Integer.MAX_VALUE);
+        // }
         return w;
     }
 
     @Override
     public int getRTTHeight(int h, Texture.WrapMode wrapMode) {
         // Below debugging logic replicates D3DResoureFactory
-//        if (PrismSettings.forcePow2) {
-//            h = nextPowerOfTwo(h, Integer.MAX_VALUE);
-//        }
+        // if (PrismSettings.forcePow2) {
+        //     h = nextPowerOfTwo(h, Integer.MAX_VALUE);
+        // }
         return h;
     }
 

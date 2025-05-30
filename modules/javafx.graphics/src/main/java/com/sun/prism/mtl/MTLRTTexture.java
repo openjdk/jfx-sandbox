@@ -45,12 +45,11 @@ import java.nio.IntBuffer;
 public class MTLRTTexture extends MTLTexture<MTLTextureData>
                        implements RTTexture, ReadbackRenderTarget {
     private int[] pixels;
-    private int rttWidth;
-    private int rttHeight;
+    private int  rttWidth;
+    private int  rttHeight;
     private long nTexPtr;
 
     private boolean opaque;
-
     private boolean MSAA;
 
     private MTLRTTexture(MTLContext context, MTLTextureResource<MTLTextureData> resource,
@@ -69,8 +68,8 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData>
         rttHeight = contentHeight;
         pixels  = new int[rttWidth * rttHeight];
         nTexPtr = resource.getResource().getResource();
-        opaque = false;
-        MSAA   = msaa;
+        opaque  = false;
+        MSAA    = msaa;
 
         // pixels array contains all 0s by default
         // Initialize native texture to clear color (0,0,0,0) using pixels

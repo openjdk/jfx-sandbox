@@ -88,16 +88,16 @@ public class MTLContext extends BaseShaderContext {
 
     private static final ByteBuffer shaderLibBuffer;
 
-    public final static int CULL_BACK                  = 110;
-    public final static int CULL_FRONT                 = 111;
-    public final static int CULL_NONE                  = 112;
+    public final static int CULL_BACK  = 110;
+    public final static int CULL_FRONT = 111;
+    public final static int CULL_NONE  = 112;
 
     static {
         final String shaderLibName = "msl/jfxshaders.metallib";
         final Class clazz = MTLContext.class;
 
         // Get the native shader library as a stream resource and read it into
-        // an NIO ByteBuffer. This will be passed to the native MTLContext
+        // an NIO ByteBuffer. This will be passed to the native MetalContext
         // initialization, which will load the shader library for each device.
         try {
             try (var in = new BufferedInputStream(clazz.getResourceAsStream(shaderLibName))) {
@@ -165,7 +165,7 @@ public class MTLContext extends BaseShaderContext {
         targetWidth = target.getPhysicalWidth();
         targetHeight = target.getPhysicalHeight();
 
-        // Need to validate the camera before getting its computed data.
+        // Validate the camera before getting its computed data
         if (camera instanceof NGDefaultCamera) {
             ((NGDefaultCamera) camera).validate(targetWidth, targetHeight);
             projViewTx = adjustClipSpace(camera.getProjViewTx(projViewTx));
@@ -484,6 +484,7 @@ public class MTLContext extends BaseShaderContext {
                 + ", " + rawMatrix[i+8] + ", " + rawMatrix[i+12]);
         }
     }
+
     private void updateRawMatrix(GeneralTransform3D src) {
         rawMatrix[0]  = (float)src.get(0); // Scale X
         rawMatrix[1]  = (float)src.get(4); // Shear Y

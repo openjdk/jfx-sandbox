@@ -125,8 +125,7 @@ public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResou
     public Graphics createGraphics() {
 
         if (pState.getNativeFrameBuffer() == 0) {
-            //TODO: MTL : handle error gracefully
-            //System.err.println("Native backbuffer texture from Glass is nil.");
+            System.err.println("Native backbuffer texture from Glass is nil.");
             return null;
         }
 
@@ -157,7 +156,7 @@ public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResou
             if (PrismSettings.dirtyOptsEnabled) {
                 stableBackbuffer.contentsUseful();
             }
-            //copyFullBuffer = true;
+            // copyFullBuffer = true;
         }
 
         Graphics g = MTLGraphics.create(getContext(), stableBackbuffer);
@@ -172,7 +171,6 @@ public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResou
 
     @Override
     public void setOpaque(boolean opaque) {
-
     }
 
     @Override

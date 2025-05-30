@@ -80,16 +80,16 @@ public class MTLPipeline extends GraphicsPipeline {
 
     @Override
     public ResourceFactory getResourceFactory(Screen screen) {
-        // All the Metal resources like MTLBuffer, MTLTexture and created and handled in native Metal files.
+        // All the Metal resources like MTLBuffer, MTLTexture are created
+        // and handled on native side of Metal impl.
         // So, a common ResourceFactory instance across screens is sufficient.
         if (mtlResourceFactory == null) {
             mtlResourceFactory = new MTLResourceFactory(screen);
 
             // This enables sharing of MTLCommandQueue between PRISM and GLASS
-            HashMap devDetails = (HashMap) MTLPipeline.
-                getInstance().getDeviceDetails();
+            HashMap devDetails = (HashMap) MTLPipeline.getInstance().getDeviceDetails();
             devDetails.put("mtlCommandQueue",
-                mtlResourceFactory.getContext().getMetalCommandQueue());
+                                mtlResourceFactory.getContext().getMetalCommandQueue());
         }
         return mtlResourceFactory;
     }
@@ -100,7 +100,6 @@ public class MTLPipeline extends GraphicsPipeline {
             mtlResourceFactory.dispose();
             mtlResourceFactory = null;
         }
-
         super.dispose();
     }
 

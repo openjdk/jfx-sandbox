@@ -34,11 +34,11 @@ import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-public class MTLShader implements Shader  {
+public class MTLShader implements Shader {
 
+    private long nMetalShaderRef;
     private final MTLContext context;
     private final String fragmentFunctionName;
-    private long nMetalShaderRef;
     private final Map<Integer, String> samplers = new HashMap<>();
     private final Map<String, Integer> uniformNameIdMap;
     private final Map<Integer, WeakReference<Object>> textureIdRefMap = new HashMap<>();
@@ -72,13 +72,11 @@ public class MTLShader implements Shader  {
     }
 
     public static MTLShader createShader(MTLContext ctx, String fragFuncName) {
-        MTLShader shader;
         if (shaderMap.containsKey(fragFuncName)) {
-            shader = shaderMap.get(fragFuncName);
+            return shaderMap.get(fragFuncName);
         } else {
-            shader = new MTLShader(ctx, fragFuncName);
+            return new MTLShader(ctx, fragFuncName);
         }
-        return shader;
     }
 
     private void storeSamplers(Map<String, Integer> samplers) {
@@ -185,8 +183,11 @@ public class MTLShader implements Shader  {
     public void dispose() {
         if (isValid()) {
             context.disposeShader(nMetalShaderRef);
+            shaderMap.remove(fragmentFunctionName);
             nMetalShaderRef = 0;
             textureIdRefMap.clear();
+            uniformNameIdMap.clear();
+            samplers.clear();
         }
     }
 
