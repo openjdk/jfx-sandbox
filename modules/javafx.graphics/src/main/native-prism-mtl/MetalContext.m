@@ -660,18 +660,6 @@
     currentShader = shader;
 }
 
-- (NSInteger) setDeviceParametersFor2D
-{
-    // TODO: MTL: Seems to be empty method, good to remove
-    return 1;
-}
-
-- (NSInteger) setDeviceParametersFor3D
-{
-    // TODO: MTL: Seems to be empty method, good to remove
-    return 1;
-}
-
 - (void) updateDepthDetails:(bool)depthTest
 {
     if (depthTest) {
@@ -1489,30 +1477,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCameraPosition
 {
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
     [pCtx setCameraPosition:x y:y z:z];
-}
-
-/*
- * Class:     com_sun_prism_mtl_MTLContext
- * Method:    nSetDeviceParametersFor2D
- * Signature: (J)I
- */
-JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor2D
-    (JNIEnv *env, jclass jClass, jlong ctx)
-{
-    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
-    return [pCtx setDeviceParametersFor2D];
-}
-
-/*
- * Class:     com_sun_prism_mtl_MTLContext
- * Method:    nSetDeviceParametersFor3D
- * Signature: (J)I
- */
-JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor3D
-    (JNIEnv *env, jclass jClass, jlong ctx)
-{
-    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
-    return [pCtx setDeviceParametersFor3D];
 }
 
 /*

@@ -170,8 +170,6 @@ typedef enum VertexInputIndex {
 
 - (void) setWorldTransformIdentityMatrix;
 
-- (NSInteger) setDeviceParametersFor2D;
-- (NSInteger) setDeviceParametersFor3D;
 - (MTLRenderPassDescriptor*) getPhongRPD;
 - (simd_float4x4) getMVPMatrix;
 - (simd_float4x4) getWorldMatrix;

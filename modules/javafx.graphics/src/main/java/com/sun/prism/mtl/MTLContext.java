@@ -332,15 +332,21 @@ public class MTLContext extends BaseShaderContext {
     }
 
     @Override
-    public void setDeviceParametersFor2D() {
-        if (checkDisposed()) return;
-        nSetDeviceParametersFor2D(pContext);
+    protected void setDeviceParametersFor2D() {
+        // There are no Metal rendering pipeline states changed as a
+        // result of this call, hence the method is no-op.
+        // But overriding the method here for any future reference.
+        // if (checkDisposed()) return;
+        // nSetDeviceParametersFor2D(pContext);
     }
 
     @Override
     protected void setDeviceParametersFor3D() {
-        if (checkDisposed()) return;
-        nSetDeviceParametersFor3D(pContext);
+        // There are no Metal rendering pipeline states changed as a
+        // result of this call, hence the method is no-op.
+        // But overriding the method here for any future reference.
+        // if (checkDisposed()) return;
+        // nSetDeviceParametersFor3D(pContext);
     }
 
     long createMTLMesh() {
@@ -541,8 +547,6 @@ public class MTLContext extends BaseShaderContext {
                                                   double m10, double m11, double m12, double m13,
                                                   double m20, double m21, double m22, double m23,
                                                   double m30, double m31, double m32, double m33);
-    private static native int nSetDeviceParametersFor2D(long pContext);
-    private static native int nSetDeviceParametersFor3D(long pContext);
     private static native void nSetCameraPosition(long pContext, double x, double y, double z);
     private static native long nCreateMTLMesh(long pContext);
     private static native void nReleaseMTLMesh(long pContext, long nativeHandle);
