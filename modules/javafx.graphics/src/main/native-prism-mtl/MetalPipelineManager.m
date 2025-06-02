@@ -132,7 +132,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     }
     if (clearRttPipeState == nil) {
         MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
-        pipeDesc.vertexFunction   = [self getFunction:@"clearVF"];;
+        pipeDesc.vertexFunction   = [self getFunction:@"clearVF"];
         pipeDesc.fragmentFunction = [self getFunction:@"clearFF"];
         pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //[[context getRTT] getPixelFormat]; //rtt.pixelFormat
         pipeDesc.sampleCount = sampleCount;

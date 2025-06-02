@@ -54,7 +54,7 @@ public class MSLBackend extends SLBackend {
     private static String headerFilesDir = null;
     private static StringBuilder fragmentShaderHeader;
     private static final String FRAGMENT_SHADER_HEADER_FILE_NAME = "FragmentShaderCommon.h";
-    private static final StringBuilder objCHeader = new StringBuilder();;
+    private static final StringBuilder objCHeader = new StringBuilder();
     private static String objCHeaderFileName;
     private static final String PRISM_SHADER_HEADER_FILE_NAME = "PrismShaderCommon.h";
     private static final String DECORA_SHADER_HEADER_FILE_NAME = "DecoraShaderCommon.h";
