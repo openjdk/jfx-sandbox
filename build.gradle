@@ -2588,6 +2588,7 @@ project(":graphics") {
     modulePath += File.pathSeparator + "${rootProject.projectDir}/modules/javafx.base/build/classes/java/main"
     def outPkg = IS_WINDOWS ? "com/sun/scenario/effect/impl/hw/d3d/hlsl" : (IS_MAC ? "com/sun/scenario/effect/impl/hw/mtl/msl" : "")
 
+    // The GenAllDecoraShader.java class generates all the Decora shaders
     addJSL(project, "Decora", outPkg, decoraAddExports) { sourceDir, destinationDir ->
         [[fileName: "GenAllDecoraShaders", generator: "GenAllDecoraShaders", outputs: "-all"]].each { settings ->
             javaexec {

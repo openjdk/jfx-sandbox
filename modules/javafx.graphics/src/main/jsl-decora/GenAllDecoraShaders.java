@@ -31,7 +31,6 @@ import java.lang.reflect.Method;
 
 public class GenAllDecoraShaders {
 
-    // TODO: MTL: This array should be passed from build.gradle
     static String [][] compileShaders = {
             {"CompileJSL", "-all", "ColorAdjust"},
             {"CompileJSL", "-all", "Brightpass"},
