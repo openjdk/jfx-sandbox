@@ -24,13 +24,16 @@
  */
 
 #import "MetalRingBuffer.h"
+#import "MetalContext.h"
 
 @implementation MetalRingBuffer
 
 static bool isBufferInUse[NUM_BUFFERS];
 static unsigned int currentBufferIndex;
 
-- (MetalRingBuffer*) init:(unsigned int)size {
+- (MetalRingBuffer*) init:(MetalContext*)ctx
+                   ofSize:(unsigned int)size {
+
     self = [super init];
     if (self) {
         bufferSize = size;
@@ -40,8 +43,8 @@ static unsigned int currentBufferIndex;
 
         for (int i = 0; i < NUM_BUFFERS; i++) {
             isBufferInUse[i] = false;
-            buffer[i] = [MTLCreateSystemDefaultDevice() newBufferWithLength:bufferSize
-                                                                    options:MTLResourceStorageModeShared];
+            buffer[i] = [[ctx getDevice] newBufferWithLength:bufferSize
+                                                     options:MTLResourceStorageModeShared];
             buffer[i].label = [NSString stringWithFormat:@"JFX Ring Buffer"];
         }
     }

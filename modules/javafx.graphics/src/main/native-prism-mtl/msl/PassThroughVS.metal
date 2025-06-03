@@ -60,8 +60,3 @@ typedef struct VS_OUTPUT
     out.texCoord1   = v_in[v_id].texCoord1;
     return out;
 }
-
-// This shader is for testing purpose only, JavaFX does not use this fragment function.
-fragment float4 passThroughFragmentFunction(VS_OUTPUT in [[ stage_in ]]) {
-    return in.fragColor;
-}

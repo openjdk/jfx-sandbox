@@ -46,13 +46,17 @@
 {
     self = [super init];
     if (self) {
+        device = MTLCreateSystemDefaultDevice();
+
         currentRingBufferIndex = 0;
         ringBufferSemaphore = dispatch_semaphore_create(0);
         ringBufferLock = [[NSLock alloc] init];
         isWaitingForBuffer = false;
 
-        argsRingBuffer = [[MetalRingBuffer alloc] init:ARGS_BUFFER_SIZE];
-        dataRingBuffer = [[MetalRingBuffer alloc] init:DATA_BUFFER_SIZE];
+        argsRingBuffer = [[MetalRingBuffer alloc] init:self
+                                                ofSize:ARGS_BUFFER_SIZE];
+        dataRingBuffer = [[MetalRingBuffer alloc] init:self
+                                                ofSize:DATA_BUFFER_SIZE];
         transientBuffersForCB = [[NSMutableArray alloc] init];
         shadersUsedInCB = [[NSMutableSet alloc] init];
         isScissorEnabled = false;
@@ -63,7 +67,6 @@
         nonLinearSamplerDict = [[NSMutableDictionary alloc] init];
         compositeMode = com_sun_prism_mtl_MTLContext_MTL_COMPMODE_SRCOVER; //default
 
-        device = MTLCreateSystemDefaultDevice();
         currentBufferIndex = 0;
         commandQueue = [device newCommandQueue];
         commandQueue.label = @"The only MTLCommandQueue";

@@ -66,7 +66,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     if (shaderLib != nil) {
         vertexFunction = [self getFunction:@"passThrough"];
     } else {
-        NSLog(@"-> MetalPipelineManager.init: Failed to create shader library");
+        NSLog(@"MetalPipelineManager.init: Failed to create shader library");
     }
 
     clearRttPipeStateNoDepthDict = [[NSMutableDictionary alloc] init];
@@ -96,7 +96,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 
             MTLCaptureManager* captureManager = [MTLCaptureManager sharedCaptureManager];
             if (![captureManager supportsDestination:MTLCaptureDestinationGPUTraceDocument]) {
-                NSLog(@" MTLCaptureDestinationGPUTraceDocument destination is not supported.");
+                NSLog(@"MTLCaptureDestinationGPUTraceDocument destination is not supported.");
             } else {
                 NSLog(@"MTLCaptureDestinationGPUTraceDocument destination is supported.");
                 MTLCaptureDescriptor* captureDescriptor = [MTLCaptureDescriptor new];
@@ -108,6 +108,8 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
                 [captureManager startCaptureWithDescriptor:captureDescriptor error:nil];
             }
         }
+    } else {
+        NSLog(@"MTL_CAPTURE_ENABLED is available only in macOS 14 and later versions");
     }
 #endif
 }
@@ -134,7 +136,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
         pipeDesc.vertexFunction   = [self getFunction:@"clearVF"];
         pipeDesc.fragmentFunction = [self getFunction:@"clearFF"];
-        pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //[[context getRTT] getPixelFormat]; //rtt.pixelFormat
+        pipeDesc.colorAttachments[0].pixelFormat = [[context getRTT] getPixelFormat];
         pipeDesc.sampleCount = sampleCount;
         if ([context clearDepth]) {
             pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
@@ -163,7 +165,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
     pipeDesc.vertexFunction = vertexFunction;
     pipeDesc.fragmentFunction = func;
-    pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
+    pipeDesc.colorAttachments[0].pixelFormat = [[context getRTT] getPixelFormat];
 
     if ([context isDepthEnabled]) {
         pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
@@ -233,7 +235,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
         pipeDesc.vertexFunction = [self getFunction:vertFuncName];
         pipeDesc.fragmentFunction = [self getFunction:fragFuncName];
-        pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
+        pipeDesc.colorAttachments[0].pixelFormat = [[context getRTT] getPixelFormat];
         if ([context isDepthEnabled]) {
             pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
         } else {

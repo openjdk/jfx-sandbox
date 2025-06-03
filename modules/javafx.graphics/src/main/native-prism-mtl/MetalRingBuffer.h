@@ -40,6 +40,8 @@
 // For more details see metal feature set table and doc of BlitEncoder.copyFromBuffer
 #define BUFFER_OFFSET_ALIGNMENT (32)
 
+@class MetalContext;
+
 #import "MetalCommon.h"
 
 @interface MetalRingBuffer : NSObject
@@ -50,7 +52,8 @@
     unsigned int bufferSize;
 }
 
-- (MetalRingBuffer*) init:(unsigned int)size;
+- (MetalRingBuffer*) init:(MetalContext*)ctx
+                   ofSize:(unsigned int)size;
 - (void) resetOffsets;
 - (id<MTLBuffer>) getBuffer;
 - (id<MTLBuffer>) getCurrentBuffer;
