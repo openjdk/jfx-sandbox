@@ -6,7 +6,7 @@ import java.nio.IntBuffer;
 
 public class HeadlessPixels extends Pixels {
 
-    HeadlessPixels(int width, int height, ByteBuffer data) {
+    HeadlessPixels(int width, int height, ByteBuffer data) { 
         super(width, height, data);
     }
 
@@ -14,7 +14,7 @@ public class HeadlessPixels extends Pixels {
         super(width, height, data, scalex, scaley);
     }
 
-    HeadlessPixels(int width, int height, IntBuffer data) {
+    HeadlessPixels(int width, int height, IntBuffer data) { 
         super(width, height, data);
     }
 
@@ -24,7 +24,10 @@ public class HeadlessPixels extends Pixels {
 
     @Override
     protected void _fillDirectByteBuffer(ByteBuffer bb) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        System.err.println("FILL from this w = " + this.getWidth());
+        System.err.println("FILL from this w = " + this.getBuffer());
+        System.err.println("Need to fill buffer "+bb);
+        bb.put(this.bytes);
     }
 
     @Override
@@ -36,5 +39,5 @@ public class HeadlessPixels extends Pixels {
     protected void _attachByte(long ptr, int w, int h, ByteBuffer bytes, byte[] array, int offset) {
         throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
-
+    
 }

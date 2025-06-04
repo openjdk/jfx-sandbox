@@ -5,30 +5,37 @@ import com.sun.glass.events.MouseEvent;
 import com.sun.glass.ui.Application;
 import com.sun.glass.ui.GlassRobot;
 import com.sun.glass.ui.Window;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.paint.Color;
 
 public class HeadlessRobot extends GlassRobot {
 
+    final int multiplierX = 40;
+    final int multiplierY = 40;
     private final HeadlessApplication application;
-    private final MouseInput mouseInput;
-
-    private NestedRunnableProcessor processor;
+    private Window activeWindow = null;
 
     private double mouseX, mouseY;
-    private int modifiers;
-    
-    private boolean keyControl = false;
-    private boolean keyShift = false;
-    private boolean keyCommand = false;
-    private boolean keyAlt = false;
 
-    public HeadlessRobot(HeadlessApplication application, HeadlessWindow window) {
+    private final SpecialKeys specialKeys = new SpecialKeys();
+    private final MouseState mouseState = new MouseState();
+    private final char[] NO_CHAR = { };
+
+    public HeadlessRobot(HeadlessApplication application) {
         this.application = application;
-        this.mouseInput = new MouseInput(application, window);
+    }
+
+    void windowAdded(HeadlessWindow window) {
+        if (this.activeWindow == null) activeWindow = window;
+    }
+
+    void windowRemoved(HeadlessWindow window) {
+        if (this.activeWindow == window) activeWindow = null;
     }
 
     @Override
@@ -42,32 +49,32 @@ public class HeadlessRobot extends GlassRobot {
     @Override
     public void keyPress(KeyCode keyCode) {
         checkWindowFocused();
-        if (activeWindow == null) {
-            return;
-        }
-        HeadlessView view = (HeadlessView) activeWindow.getView();
+        if (activeWindow == null) return;
+        HeadlessView view = (HeadlessView)activeWindow.getView();
         int code = keyCode.getCode();
         processSpecialKeys(code, true);
         char[] keyval = getKeyChars(code);
         int mods = getKeyModifiers();
         if (view != null) {
             view.notifyKey(KeyEvent.PRESS, code, keyval, mods);
-            if (keyval.length > 0) {
+            if (keyval.length > 0) { 
                 view.notifyKey(KeyEvent.TYPED, 0, keyval, mods);
             }
+
         }
     }
 
     @Override
     public void keyRelease(KeyCode keyCode) {
         checkWindowFocused();
-        if (activeWindow == null) return;
+        if (activeWindow == null) return; 
         HeadlessView view = (HeadlessView)activeWindow.getView();
         int code = keyCode.getCode();
-        processSpecialKeys(code, false);
+        processSpecialKeys(code, false); 
         int mods = getKeyModifiers();
-        char[] keyval = new char[0];
-        if (view != null) {
+        char[] keyval = new char[1];
+        keyval[0] = (char) code;
+        if (view != null) { 
             view.notifyKey(KeyEvent.RELEASE, code, keyval, mods);
         }
     }
@@ -84,49 +91,174 @@ public class HeadlessRobot extends GlassRobot {
 
     @Override
     public void mouseMove(double x, double y) {
+//        Thread.dumpStack();
         this.mouseX = x;
         this.mouseY = y;
         checkWindowEnterExit();
-        if (activeWindow == null) return;
+        if (activeWindow == null) return; 
         HeadlessView view = (HeadlessView)activeWindow.getView();
-        if (view == null) return;
+        if (view == null) return; 
         int wx = activeWindow.getX();
         int wy = activeWindow.getY();
-        view.notifyMouse(MouseEvent.MOVE, MouseEvent.BUTTON_NONE, (int)mouseX-wx, (int)mouseY-wy, (int)mouseX, (int)mouseY, modifiers, false, false);
+        int buttonEvent = MouseEvent.BUTTON_NONE;
+        int mouseEvent = MouseEvent.MOVE;
+        if (mouseState.pressedButtons.size() > 0) {
+            MouseButton button = mouseState.pressedButtons.stream().findFirst().get();
+            buttonEvent = getGlassEventButton(button);
+            mouseEvent = MouseEvent.DRAG;
+        }
+        int modifiers = 0;
+        view.notifyMouse(mouseEvent, buttonEvent, (int)mouseX-wx, (int)mouseY-wy, (int)mouseX, (int)mouseY, modifiers, false, false);
     }
 
     @Override
     public void mousePress(MouseButton... buttons) {
         Application.checkEventThread();
+        mouseState.pressedButtons.addAll(Arrays.asList(buttons));
+        checkWindowEnterExit();
         HeadlessView view = (HeadlessView)activeWindow.getView();
-        if (view == null) {
+        if (view == null) { 
             view = (HeadlessView)activeWindow.getView();
-            if (view == null) {
-                System.err.println("no view for this window, return");
+            if (view == null) { 
+                return;
             }
         }
         int wx = activeWindow.getX();
         int wy = activeWindow.getY();
-        view.notifyMouse(MouseEvent.DOWN, MouseEvent.BUTTON_LEFT, (int)mouseX-wx, (int)mouseY-wy, (int)mouseX, (int)mouseY, modifiers, true, true);
+        int modifiers = getModifiers(buttons);
+        view.notifyMouse(MouseEvent.DOWN, getGlassEventButton(buttons), (int)mouseX-wx, (int)mouseY-wy, (int)mouseX, (int)mouseY, modifiers, true, true);
+        int buttonCode = getGlassEventButton(buttons);
+        view.notifyMouse(MouseEvent.DOWN, buttonCode, (int)mouseX-wx, (int)mouseY-wy, (int)mouseX, (int)mouseY, modifiers, true, true);
+        if (buttonCode == MouseEvent.BUTTON_RIGHT) {
+            view.notifyMenu((int)mouseX-wx, (int)mouseY-wy, (int)mouseX, (int)mouseY, false);
+        }
     }
 
     @Override
     public void mouseRelease(MouseButton... buttons) {
         Application.checkEventThread();
+        mouseState.pressedButtons.removeAll(Arrays.asList(buttons));
+        checkWindowEnterExit();
+        if (this.activeWindow == null) {
+            return;
+        }
         HeadlessView view = (HeadlessView) activeWindow.getView();
         int wx = activeWindow.getX();
         int wy = activeWindow.getY();
-        view.notifyMouse(MouseEvent.UP, MouseEvent.BUTTON_LEFT, (int) mouseX - wx, (int) mouseY - wy, (int) mouseX, (int) mouseY, modifiers, true, true);
+        int modifiers = getModifiers(buttons);
+        view.notifyMouse(MouseEvent.UP, getGlassEventButton(buttons), (int) mouseX - wx, (int) mouseY - wy, (int) mouseX, (int) mouseY, modifiers, true, true);
     }
 
     @Override
     public void mouseWheel(int wheelAmt) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        checkWindowFocused();
+//        checkWindowEnterExit();
+
+        final int dff = wheelAmt > 0 ? -1 : 1;
+        HeadlessView view = (HeadlessView) activeWindow.getView();
+
+        int wx = activeWindow.getX();
+        int wy = activeWindow.getY();
+        int repeat = Math.abs(wheelAmt);
+        for (int i = 0; i < repeat; i++) {
+//            this.mouseX = this.mouseX + dff;
+//            this.mouseY = this.mouseY + dff;     
+//            view.notifyMouse(MouseEvent.MOVE, MouseEvent.BUTTON_NONE, (int) mouseX - wx, (int) mouseY - wy, (int) mouseX, (int) mouseY, 0, true, true);
+int mods = 0;
+view.notifyScroll((int) mouseX, (int) mouseY, wx, wy, 0, dff, mods, 0, 0, 0, 0, multiplierX, multiplierY);
+        }
     }
 
     @Override
     public Color getPixelColor(double x, double y) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        HeadlessWindow topWindow = getTopWindow();
+        return topWindow.getColor((int)x, (int) y);
+    }
+
+    @Override
+    public WritableImage getScreenCapture(WritableImage image, double x, double y, double width, double height, boolean scaleToFit) {
+        return super.getScreenCapture(image, x, y, width, height, scaleToFit); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/OverriddenMethodBody
+    }
+
+    @Override
+    public void getScreenCapture(int x, int y, int width, int height, int[] data, boolean scaleToFit) {
+        checkWindowFocused();
+        ((HeadlessWindow)activeWindow).getScreenCapture(x, y, width, height, data, scaleToFit);
+    }
+
+    private void checkActiveWindowExists() {
+        if ((this.activeWindow != null) && (!this.activeWindow.isVisible())) {
+            this.activeWindow = null;
+        }
+    }
+    private void checkWindowFocused() {
+        checkActiveWindowExists();
+        this.activeWindow = getFocusedWindow();
+    }
+
+    private void checkWindowEnterExit() {
+        checkActiveWindowExists();
+        Window oldWindow = activeWindow;
+        this.activeWindow = getTargetWindow(this.mouseX, this.mouseY);
+
+        if (this.activeWindow == null) {
+            if (oldWindow != null) {
+                HeadlessView oldView = (HeadlessView)oldWindow.getView();
+                if (oldView != null) {
+                    oldView.notifyMouse(MouseEvent.EXIT, MouseEvent.BUTTON_NONE, 0, 0,0,0, 0, true, true);
+                }
+            }
+            return;
+        } 
+        int wx = activeWindow.getX();
+        int wy = activeWindow.getY();
+
+        if (activeWindow != oldWindow) {
+            HeadlessView view = (HeadlessView)activeWindow.getView();
+            int modifiers = 0;
+            view.notifyMouse(MouseEvent.ENTER, MouseEvent.BUTTON_NONE, (int)mouseX-wx, (int)mouseY-wy, (int)mouseX, (int)mouseY, modifiers, true, true);
+            if (oldWindow != null) { 
+                HeadlessView oldView = (HeadlessView)oldWindow.getView();
+                if (oldView != null) { 
+                    int owx = oldWindow.getX();
+                    int owy = oldWindow.getY();
+                    oldView.notifyMouse(MouseEvent.EXIT, MouseEvent.BUTTON_NONE, (int)mouseX-owx, (int)mouseY-owy, (int)mouseX, (int)mouseY, modifiers, true, true);
+                }
+            }
+        }
+    }
+
+    private HeadlessWindow getTopWindow() {
+        List<Window> windows = Window.getWindows().stream()
+                .filter(win -> win.getView() != null)
+                .filter(win -> !win.isClosed())
+                .filter(win -> !win.isMinimized()).toList();
+        if (windows.isEmpty()) return null;
+        if (windows.size() == 1) return (HeadlessWindow)windows.get(0);
+        return (HeadlessWindow)windows.get(windows.size() -1);
+    }
+
+    private HeadlessWindow getFocusedWindow() {
+        List<Window> windows = Window.getWindows().stream()
+                .filter(win -> win.getView()!= null)
+                .filter(win -> !win.isClosed())
+                .filter(win -> win.isFocused()).toList();
+        if (windows.isEmpty()) return null;
+        if (windows.size() == 1) return (HeadlessWindow)windows.get(0);
+        return (HeadlessWindow)windows.get(windows.size() -1);
+    }
+
+    private HeadlessWindow getTargetWindow(double x, double y) {
+        List<Window> windows = Window.getWindows().stream()
+                .filter(win -> win.getView()!= null)
+                .filter(win -> !win.isClosed())
+                .filter(win -> (x >= win.getX() && x <= win.getX() + win.getWidth()
+                        && y >= win.getY() && y <= win.getY()+ win.getHeight())).toList();
+        if (windows.isEmpty()) {
+            return null;
+        }
+        if (windows.size() == 1) return (HeadlessWindow)windows.get(0);
+        return (HeadlessWindow)windows.get(windows.size() -1);
     }
 
     int getModifiers(MouseButton... buttons) {
@@ -153,117 +285,48 @@ public class HeadlessRobot extends GlassRobot {
         return modifiers;
     }
 
-    private static MouseState convertToMouseState(boolean press, MouseState state, MouseButton... buttons) {
-        for (MouseButton button : buttons) {
-            switch (button) {
-                case PRIMARY:
-                    if (press) {
-                        state.pressButton(MouseEvent.BUTTON_LEFT);
-                    } else {
-                        state.releaseButton(MouseEvent.BUTTON_LEFT);
-                    }
-                    break;
-                case SECONDARY:
-                    if (press) {
-                        state.pressButton(MouseEvent.BUTTON_RIGHT);
-                    } else {
-                        state.releaseButton(MouseEvent.BUTTON_RIGHT);
-                    }
-                    break;
-                case MIDDLE:
-                    if (press) {
-                        state.pressButton(MouseEvent.BUTTON_OTHER);
-                    } else {
-                        state.releaseButton(MouseEvent.BUTTON_OTHER);
-                    }
-                    break;
-                case BACK:
-                    if (press) {
-                        state.pressButton(MouseEvent.BUTTON_BACK);
-                    } else {
-                        state.releaseButton(MouseEvent.BUTTON_BACK);
-                    }
-                    break;
-                case FORWARD:
-                    if (press) {
-                        state.pressButton(MouseEvent.BUTTON_FORWARD);
-                    } else {
-                        state.releaseButton(MouseEvent.BUTTON_FORWARD);
-                    }
-                    break;
-                default:
-                    throw new IllegalArgumentException("MouseButton: " + button
-                            + " not supported by Monocle Robot");
-            }
+    int getGlassEventButton(MouseButton[] buttons) {
+        if ((buttons == null) || (buttons.length == 0)) return 0;
+        return getGlassEventButton(buttons[0]);
+    }
+
+    int getGlassEventButton(MouseButton button) {
+        if (button == MouseButton.SECONDARY) return MouseEvent.BUTTON_RIGHT;
+        if (button == MouseButton.PRIMARY) return MouseEvent.BUTTON_LEFT;
+        if (button == MouseButton.MIDDLE) return MouseEvent.BUTTON_OTHER;
+        if (button == MouseButton.BACK) return MouseEvent.BUTTON_BACK;
+        if (button == MouseButton.FORWARD) return MouseEvent.BUTTON_FORWARD;
+        return MouseEvent.BUTTON_NONE;
+    }
+
+    private void processSpecialKeys(int c, boolean on) {
+        if (c == KeyEvent.VK_CONTROL) {
+            this.specialKeys.keyControl = on;
         }
-        return state;
-    }
-
-    private Window activeWindow = null;
-    private void checkWindowFocused() {
-        this.activeWindow = getFocusedWindow();
-    }
-    private void checkWindowEnterExit() {
-        Window oldWindow = activeWindow;
-        this.activeWindow = getTargetWindow(this.mouseX, this.mouseY);
-
-        if (this.activeWindow == null) return;
-        int wx = activeWindow.getX();
-        int wy = activeWindow.getY();
-
-        if (activeWindow != oldWindow) {
-            HeadlessView view = (HeadlessView)activeWindow.getView();
-            view.notifyMouse(MouseEvent.ENTER, MouseEvent.BUTTON_NONE, (int)mouseX-wx, (int)mouseY-wy, (int)mouseX, (int)mouseY, modifiers, true, true);
-            if (oldWindow != null) {
-                HeadlessView oldView = (HeadlessView)oldWindow.getView();
-                if (oldView != null) {
-                    int owx = oldWindow.getX();
-                    int owy = oldWindow.getY();
-                    oldView.notifyMouse(MouseEvent.EXIT, MouseEvent.BUTTON_NONE, (int)mouseX-owx, (int)mouseY-owy, (int)mouseX, (int)mouseY, modifiers, true, true);
-                }
-            }
+        if (c == KeyEvent.VK_SHIFT) {
+            this.specialKeys.keyShift = on;
+        }
+        if (c == KeyEvent.VK_COMMAND) {
+            this.specialKeys.keyCommand = on;
+        }
+        if (c == KeyEvent.VK_ALT) {
+            this.specialKeys.keyAlt = on;
         }
     }
-
-    private HeadlessWindow getFocusedWindow() {
-        List<Window> windows = Window.getWindows().stream()
-                .filter(win -> win.getView()!= null)
-                .filter(win -> !win.isClosed())
-                .filter(win -> win.isFocused()).toList();
-        if (windows.isEmpty()) return null;
-        if (windows.size() == 1) return (HeadlessWindow)windows.get(0);
-        return (HeadlessWindow)windows.get(windows.size() -1);
-    }
-
-    private HeadlessWindow getTargetWindow(double x, double y) {
-        List<Window> windows = Window.getWindows().stream()
-                .filter(win -> win.getView()!= null)
-                .filter(win -> !win.isClosed())
-                .filter(win -> (x >= win.getX() && x <= win.getX() + win.getWidth()
-                        && y >= win.getY() && y <= win.getY()+ win.getHeight())).toList();
-        if (windows.isEmpty()) return null;
-        if (windows.size() == 1) return (HeadlessWindow)windows.get(0);
-        return (HeadlessWindow)windows.get(windows.size() -1);
-    }
-    
-        private boolean numLock = false;
-    private boolean capsLock = false;
-        private final char[] NO_CHAR = { };
-
     private char[] getKeyChars(int key) {
         char c = '\000';
-        boolean shifted = this.keyShift;
+        boolean shifted = this.specialKeys.keyShift;
         // TODO: implement configurable keyboard mappings.
         // The following is only for US keyboards
         if (key >= KeyEvent.VK_A && key <= KeyEvent.VK_Z) {
-            shifted ^= capsLock;
+            shifted ^= this.specialKeys.capsLock;
             if (shifted) {
                 c = (char) (key - KeyEvent.VK_A + 'A');
             } else {
                 c = (char) (key - KeyEvent.VK_A + 'a');
             }
         } else if (key >= KeyEvent.VK_NUMPAD0 && key <= KeyEvent.VK_NUMPAD9) {
-            if (numLock) {
+            if (this.specialKeys.numLock) {
                 c = (char) (key - KeyEvent.VK_NUMPAD0 + '0');
             }
         } else if (key >= KeyEvent.VK_0 && key <= KeyEvent.VK_9) {
@@ -324,27 +387,26 @@ public class HeadlessRobot extends GlassRobot {
         return c == '\000' ? NO_CHAR : new char[] { c };
     }
 
-    private void processSpecialKeys(int c, boolean on) {
-        if (c == KeyEvent.VK_CONTROL) {
-            this.keyControl = on;
-        } 
-        if (c == KeyEvent.VK_SHIFT) {
-            this.keyShift = on;
-        }
-        if (c == KeyEvent.VK_COMMAND) {
-            this.keyCommand = on;
-        }
-        if (c == KeyEvent.VK_ALT) {
-            this.keyAlt = on;
-        }
-    }
 
     private int getKeyModifiers() {
         int answer = 0;
-        if (this.keyControl) answer = answer | KeyEvent.MODIFIER_CONTROL;
-        if (this.keyShift) answer = answer | KeyEvent.MODIFIER_SHIFT;
-        if (this.keyCommand) answer = answer | KeyEvent.MODIFIER_COMMAND;
-        if (this.keyAlt) answer = answer | KeyEvent.MODIFIER_ALT;
+        if (this.specialKeys.keyControl) answer = answer | KeyEvent.MODIFIER_CONTROL;
+        if (this.specialKeys.keyShift) answer = answer | KeyEvent.MODIFIER_SHIFT;
+        if (this.specialKeys.keyCommand) answer = answer | KeyEvent.MODIFIER_COMMAND;
+        if (this.specialKeys.keyAlt) answer = answer | KeyEvent.MODIFIER_ALT;
         return answer;
+    }
+
+    class SpecialKeys {
+        boolean keyControl;
+        boolean keyShift;
+        boolean keyCommand;
+        boolean keyAlt;
+        boolean capsLock;
+        boolean numLock;
+    }
+
+    class MouseState {
+        final HashSet<MouseButton> pressedButtons = new HashSet<>();
     }
 }

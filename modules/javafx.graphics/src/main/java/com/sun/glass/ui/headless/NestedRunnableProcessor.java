@@ -12,6 +12,7 @@ public class NestedRunnableProcessor implements Runnable {
 
     private final BlockingQueue<Runnable> runnableQueue = new LinkedBlockingQueue<>();
 
+    @Override
     public void run() {
         newRunLoop();
     }
@@ -36,6 +37,7 @@ public class NestedRunnableProcessor implements Runnable {
         try {
             latch.await();
         } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
@@ -73,4 +75,6 @@ public class NestedRunnableProcessor implements Runnable {
         boolean active;
         Object returnValue;
     }
+
+    
 }

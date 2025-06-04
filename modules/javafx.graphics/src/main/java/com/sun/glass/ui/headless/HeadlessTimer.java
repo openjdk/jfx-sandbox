@@ -16,7 +16,7 @@ public class HeadlessTimer extends Timer {
 
     @Override
     protected long _start(Runnable runnable) {
-        throw new UnsupportedOperationException("Not supported.");
+        throw new RuntimeException("vsync timer not supported");
     }
 
     @Override
@@ -30,6 +30,7 @@ public class HeadlessTimer extends Timer {
         }
         task = scheduler.scheduleAtFixedRate(runnable, 0, period, TimeUnit.MILLISECONDS);
         return 1;
+
     }
 
     @Override
@@ -47,5 +48,5 @@ public class HeadlessTimer extends Timer {
     @Override
     protected void _resume(long timer) {
     }
-
+    
 }

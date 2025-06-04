@@ -2171,7 +2171,7 @@ allprojects {
         }
 
         if (IS_HEADLESS_TEST) {
-            systemProperty 'glass.platform', 'Monocle'
+            systemProperty 'glass.platform', 'Headless'
             systemProperty 'monocle.platform', 'Headless'
             systemProperty 'prism.order', 'sw'
             systemProperty 'com.sun.javafx.gestures.zoom', 'true'
@@ -3891,7 +3891,7 @@ project(":web") {
         }
 
         // Run web tests in headless mode
-        systemProperty 'glass.platform', 'Monocle'
+        systemProperty 'glass.platform', 'Headless'
         systemProperty 'monocle.platform', 'Headless'
         systemProperty 'prism.order', 'sw'
         dependsOn testWebArchiveJar

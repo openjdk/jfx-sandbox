@@ -1,19 +1,28 @@
 package com.sun.glass.ui.headless;
 
+import com.sun.glass.events.ViewEvent;
 import com.sun.glass.ui.Pixels;
 import com.sun.glass.ui.View;
-import com.sun.glass.events.ViewEvent;
-import com.sun.glass.ui.Window;
 import java.util.Map;
 
 public class HeadlessView extends View {
 
+    private Map capabilities;
+    private int x = 0;
+    private int y = 0;
+    private long parentPtr = 0;
+    private Pixels pixels;
+    
+    private boolean imeEnabled;
+
     @Override
     protected void _enableInputMethodEvents(long ptr, boolean enable) {
+        this.imeEnabled = enable;
     }
 
     @Override
     protected long _create(Map capabilities) {
+        this.capabilities = capabilities;
         return 1;
     }
 
@@ -24,21 +33,17 @@ public class HeadlessView extends View {
 
     @Override
     protected int _getX(long ptr) {
-        return 0;
+        return x;
     }
 
     @Override
     protected int _getY(long ptr) {
-        return 0;
-    }
-
-    @Override
-    protected void notifyResize(int width, int height) {
-        super.notifyResize(width, height);
+        return y;
     }
 
     @Override
     protected void _setParent(long ptr, long parentPtr) {
+        parentPtr = parentPtr;
     }
 
     @Override
@@ -48,7 +53,7 @@ public class HeadlessView extends View {
 
     @Override
     protected void _scheduleRepaint(long ptr) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
@@ -66,6 +71,13 @@ public class HeadlessView extends View {
 
     @Override
     protected void _uploadPixels(long ptr, Pixels pixels) {
+        HeadlessWindow window = (HeadlessWindow)this.getWindow();
+        this.pixels = pixels;
+        window.blit(pixels);
+    }
+
+    Pixels getPixels() {
+        return this.pixels;
     }
 
     @Override
@@ -79,10 +91,30 @@ public class HeadlessView extends View {
     @Override
     protected void _exitFullscreen(long ptr, boolean animate) {
         HeadlessWindow window = (HeadlessWindow)this.getWindow();
-        if (window != null) {
+        if (window != null) { 
             window.setFullscreen(false);
         }
         notifyView(ViewEvent.FULLSCREEN_EXIT);
+    }
+ 
+    @Override
+    protected void notifyResize(int width, int height) {
+        super.notifyResize(width, height);
+    }
+
+    @Override
+    protected void notifyMouse(int type, int button, int x, int y, int xAbs, int yAbs, int modifiers, boolean isPopupTrigger, boolean isSynthesized) {
+        super.notifyMouse(type, button, x, y, xAbs, yAbs, modifiers, isPopupTrigger, isSynthesized);
+    }
+
+    @Override
+    protected void notifyMenu(int x, int y, int xAbs, int yAbs, boolean isKeyboardTrigger) {
+        super.notifyMenu(x, y, xAbs, yAbs, isKeyboardTrigger);
+    }
+
+    @Override
+    protected void notifyScroll(int x, int y, int xAbs, int yAbs, double deltaX, double deltaY, int modifiers, int lines, int chars, int defaultLines, int defaultChars, double xMultiplier, double yMultiplier) {
+        super.notifyScroll(x, y, xAbs, yAbs, deltaX, deltaY, modifiers, lines, chars, defaultLines, defaultChars, xMultiplier, yMultiplier);
     }
 
     @Override
@@ -91,53 +123,8 @@ public class HeadlessView extends View {
     }
 
     @Override
-    protected void notifyMouse(int type, int button,
-            int x, int y, int xAbs, int yAbs, int modifiers,
-            boolean isPopupTrigger, boolean isSynthesized) {
-        super.notifyMouse(type, button, x, y, xAbs, yAbs, modifiers,
-                isPopupTrigger,
-                isSynthesized);
-    }
-
-    @Override
-    protected void notifyScroll(int x, int y, int xAbs, int yAbs,
-            double deltaX, double deltaY, int modifiers,
-            int lines, int chars,
-            int defaultLines, int defaultChars,
-            double xMultiplier, double yMultiplier) {
-        super.notifyScroll(x, y, xAbs, yAbs, deltaX, deltaY,
-                modifiers, lines, chars,
-                defaultLines, defaultChars, xMultiplier,
-                yMultiplier);
-    }
-
-    @Override
-    protected int notifyDragEnter(int x, int y, int absx, int absy, int recommendedDropAction) {
-        return super.notifyDragEnter(x, y, absx, absy, recommendedDropAction);
-    }
-
-    @Override
-    protected void notifyDragLeave() {
-        super.notifyDragLeave();
-    }
-
-    @Override
-    protected int notifyDragDrop(int x, int y, int absx, int absy, int recommendedDropAction) {
-        return super.notifyDragDrop(x, y, absx, absy, recommendedDropAction);
-    }
-
-    @Override
-    protected int notifyDragOver(int x, int y, int absx, int absy, int recommendedDropAction) {
-        return super.notifyDragOver(x, y, absx, absy, recommendedDropAction);
-    }
-
-    @Override
-    protected void notifyDragEnd(int performedAction) {
-        super.notifyDragEnd(performedAction);
-    }
-
-    @Override
-    public void uploadPixels(Pixels pixels) {
+    protected void notifyRepaint(int x, int y, int width, int height) {
+        super.notifyRepaint(x, y, width, height);
     }
 
 }

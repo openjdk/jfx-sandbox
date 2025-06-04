@@ -5,7 +5,7 @@ import com.sun.glass.ui.Pixels;
 
 public class HeadlessCursor extends Cursor {
 
-    HeadlessCursor(int type) {
+     HeadlessCursor(int type) {
         super(type);
     }
 
@@ -13,5 +13,5 @@ public class HeadlessCursor extends Cursor {
     protected long _createCursor(int x, int y, Pixels pixels) {
         return 1;
     }
-
+   
 }
