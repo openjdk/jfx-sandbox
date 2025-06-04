@@ -40,15 +40,15 @@ typedef struct CLEAR_VS_OUTPUT
     vector_float4 position [[position]];
 } CLEAR_VS_OUTPUT;
 
-[[vertex]] CLEAR_VS_OUTPUT clearVF(const    uint            v_id [[ vertex_id ]],
-                                   constant CLEAR_VS_INPUT* v_in [[ buffer(0) ]])
+vertex CLEAR_VS_OUTPUT clearVF(const    uint            v_id [[ vertex_id ]],
+                               constant CLEAR_VS_INPUT* v_in [[ buffer(0) ]])
 {
     CLEAR_VS_OUTPUT out;
     out.position = vector_float4(v_in[v_id].position.xy, 0.0, 1.0);
     return out;
 }
 
-[[fragment]] float4 clearFF(constant float4& color [[ buffer(2) ]])
+fragment float4 clearFF(constant float4& color [[ buffer(2) ]])
 {
     return color;
 }

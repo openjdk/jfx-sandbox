@@ -28,7 +28,7 @@
 
 using namespace metal;
 
-[[kernel]]  void uyvy422_to_rgba(const device uchar4 *YUV422Buff [[buffer(0)]],
+kernel void uyvy422_to_rgba(const device uchar4 *YUV422Buff [[buffer(0)]],
                             texture2d<half, access::write> outTex [[texture(0)]],
                             uint2 gid [[thread_position_in_grid]])
 {

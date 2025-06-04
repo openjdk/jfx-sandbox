@@ -45,10 +45,10 @@ typedef struct VS_OUTPUT
     vector_float2 texCoord1;
 } VS_OUTPUT;
 
-[[vertex]] VS_OUTPUT passThrough(const uint v_id [[ vertex_id ]],
-                      constant VS_INPUT * v_in [[ buffer(0) ]],
-                      constant float4x4 & mvp_matrix [[ buffer(1) ]],
-                      constant VS_COLOR * c_in [[ buffer(2) ]])
+vertex VS_OUTPUT passThrough(const uint v_id [[ vertex_id ]],
+                    constant VS_INPUT * v_in [[ buffer(0) ]],
+                    constant float4x4 & mvp_matrix [[ buffer(1) ]],
+                    constant VS_COLOR * c_in [[ buffer(2) ]])
 {
     VS_OUTPUT out;
     out.position    = vector_float4(v_in[v_id].position.xy, 0.0, 1.0) * mvp_matrix;

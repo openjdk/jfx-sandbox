@@ -459,7 +459,7 @@ public class MSLBackend extends SLBackend {
     public String getShader() {
         String shader = super.getShader();
         updateCommonHeaders();
-        String fragmentFunctionDef = "\n[[fragment]] float4 " + shaderFunctionName + "(VS_OUTPUT in [[ stage_in ]],";
+        String fragmentFunctionDef = "\nfragment float4 " + shaderFunctionName + "(VS_OUTPUT in [[ stage_in ]],";
         fragmentFunctionDef += "\n    device " + uniformStructName + "& uniforms [[ buffer(0) ]]";
         for (int i = 0; i < texSamplerMap.size(); i++) {
             fragmentFunctionDef += ",\n    sampler sampler"+i+" [[ sampler("+i+") ]]";

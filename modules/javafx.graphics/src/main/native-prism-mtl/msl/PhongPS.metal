@@ -54,7 +54,7 @@ float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float d
     return cutoff >= 0.0f ? 1.0f : 0.0f;
 }
 
-[[fragment]] float4 PhongPS0(VS_PHONG_INOUT0 vert [[stage_in]],
+fragment float4 PhongPS0(VS_PHONG_INOUT0 vert [[stage_in]],
                         constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
                         texture2d<float> mapDiffuse [[ texture(0) ]],
                         texture2d<float> mapSpecular [[ texture(1) ]],
@@ -85,7 +85,7 @@ float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float d
     return float4(saturate(rez), tDiff.a);
 }
 
-[[fragment]] float4 PhongPS1(VS_PHONG_INOUT1 vert [[stage_in]],
+fragment float4 PhongPS1(VS_PHONG_INOUT1 vert [[stage_in]],
                         constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
                         texture2d<float> mapDiffuse [[ texture(0) ]],
                         texture2d<float> mapSpecular [[ texture(1) ]],
@@ -175,7 +175,7 @@ float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float d
     return float4(saturate(rez), tDiff.a);
 }
 
-[[fragment]] float4 PhongPS2(VS_PHONG_INOUT2 vert [[stage_in]],
+fragment float4 PhongPS2(VS_PHONG_INOUT2 vert [[stage_in]],
                         constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
                         texture2d<float> mapDiffuse [[ texture(0) ]],
                         texture2d<float> mapSpecular [[ texture(1) ]],
@@ -281,7 +281,7 @@ float computeSpotlightFactor3(float3 l, float3 lightDir, float cosOuter, float d
     return float4(saturate(rez), tDiff.a);
 }
 
-[[fragment]] float4 PhongPS3(VS_PHONG_INOUT3 vert [[stage_in]],
+fragment float4 PhongPS3(VS_PHONG_INOUT3 vert [[stage_in]],
                         constant PS_PHONG_UNIFORMS & psUniforms [[ buffer(0) ]],
                         texture2d<float> mapDiffuse [[ texture(0) ]],
                         texture2d<float> mapSpecular [[ texture(1) ]],

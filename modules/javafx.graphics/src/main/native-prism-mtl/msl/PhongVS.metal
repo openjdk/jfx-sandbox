@@ -49,7 +49,7 @@ float3 getLocalVector(float3 global, float3 N[3]) {
     return float3(dot(global, N[1]), dot(global, N[2]), dot(global, N[0]));
 }
 
-[[vertex]] VS_PHONG_INOUT0 PhongVS0(const uint v_id [[ vertex_id ]],
+vertex VS_PHONG_INOUT0 PhongVS0(const uint v_id [[ vertex_id ]],
                       constant VS_PHONG_INPUT * v_in [[ buffer(0) ]],
                       constant VS_PHONG_UNIFORMS & vsUniforms [[ buffer(1) ]])
 {
@@ -74,7 +74,7 @@ float3 getLocalVector(float3 global, float3 N[3]) {
     return out;
 }
 
-[[vertex]] VS_PHONG_INOUT1 PhongVS1(const uint v_id [[ vertex_id ]],
+vertex VS_PHONG_INOUT1 PhongVS1(const uint v_id [[ vertex_id ]],
                       constant VS_PHONG_INPUT * v_in [[ buffer(0) ]],
                       constant VS_PHONG_UNIFORMS & vsUniforms [[ buffer(1) ]])
 {
@@ -103,7 +103,7 @@ float3 getLocalVector(float3 global, float3 N[3]) {
     return out;
 }
 
-[[vertex]] VS_PHONG_INOUT2 PhongVS2(const uint v_id [[ vertex_id ]],
+vertex VS_PHONG_INOUT2 PhongVS2(const uint v_id [[ vertex_id ]],
                       constant VS_PHONG_INPUT * v_in [[ buffer(0) ]],
                       constant VS_PHONG_UNIFORMS & vsUniforms [[ buffer(1) ]])
 {
@@ -136,7 +136,7 @@ float3 getLocalVector(float3 global, float3 N[3]) {
     return out;
 }
 
-[[vertex]] VS_PHONG_INOUT3 PhongVS3(const uint v_id [[ vertex_id ]],
+vertex VS_PHONG_INOUT3 PhongVS3(const uint v_id [[ vertex_id ]],
                       constant VS_PHONG_INPUT * v_in [[ buffer(0) ]],
                       constant VS_PHONG_UNIFORMS & vsUniforms [[ buffer(1) ]])
 {
