@@ -207,22 +207,22 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
 
     // Native methods
 
-    native private static void nUpdate(long contextHandle, long pResource,
+    private static native void nUpdate(long contextHandle, long pResource,
                                        ByteBuffer buf, byte[] pixels,
                                        int dstx, int dsty, int srcx, int srcy,
                                        int w, int h, int stride);
 
-    native private static void nUpdateFloat(long contextHandle, long pResource,
+    private static native void nUpdateFloat(long contextHandle, long pResource,
                                             FloatBuffer buf, float[] pixels,
                                             int dstx, int dsty, int srcx, int srcy,
                                             int w, int h, int stride);
 
-    native private static void nUpdateInt(long contextHandle, long pResource,
+    private static native void nUpdateInt(long contextHandle, long pResource,
                                           IntBuffer buf, int[] pixels,
                                           int dstx, int dsty, int srcx, int srcy,
                                           int w, int h, int stride);
 
-    native private static void nUpdateYUV422(long contextHandle, long pResource,
+    private static native void nUpdateYUV422(long contextHandle, long pResource,
                                        byte[] pixels,
                                        int dstx, int dsty, int srcx, int srcy,
                                        int w, int h, int stride);

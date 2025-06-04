@@ -193,26 +193,26 @@ public class MTLShader implements Shader {
 
     // Native methods
 
-    native private static long nCreateMetalShader(long context, String fragFuncName);
-    native private static Map  nGetUniformNameIdMap(long nMetalShader);
-    native private static void nEnable(long nMetalShader);
-    native private static void nDisable(long nMetalShader);
+    private static native long nCreateMetalShader(long context, String fragFuncName);
+    private static native Map  nGetUniformNameIdMap(long nMetalShader);
+    private static native void nEnable(long nMetalShader);
+    private static native void nDisable(long nMetalShader);
 
-    native private static void nSetTexture(long nMetalShader, int texID, int uniformID,
+    private static native void nSetTexture(long nMetalShader, int texID, int uniformID,
                                            long texPtr, boolean isLinear, int wrapMode);
 
-    native private static void nSetInt(long nMetalShader, int uniformID, int i0);
+    private static native void nSetInt(long nMetalShader, int uniformID, int i0);
 
-    native private static void nSetFloat1(long nMetalShader, int uniformID, float f0);
-    native private static void nSetFloat2(long nMetalShader, int uniformID,
+    private static native void nSetFloat1(long nMetalShader, int uniformID, float f0);
+    private static native void nSetFloat2(long nMetalShader, int uniformID,
                                             float f0, float f1);
-    native private static void nSetFloat3(long nMetalShader, int uniformID,
+    private static native void nSetFloat3(long nMetalShader, int uniformID,
                                             float f0, float f1, float f2);
-    native private static void nSetFloat4(long nMetalShader, int uniformID,
+    private static native void nSetFloat4(long nMetalShader, int uniformID,
                                             float f0, float f1, float f2, float f3);
 
-    native private static void nSetConstants(long nMetalShader, int uniformID,
+    private static native void nSetConstants(long nMetalShader, int uniformID,
                                             float[] values, int size);
-    native private static void nSetConstantsBuf(long nMetalShader, int uniformID,
+    private static native void nSetConstantsBuf(long nMetalShader, int uniformID,
                                     Object values, int valuesByteOffset, int size);
 }

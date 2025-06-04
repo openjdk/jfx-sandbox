@@ -47,6 +47,9 @@
         context = ctx;
         isMSAA  = isMsaa;
 
+        pixelFormat = MTLPixelFormatBGRA8Unorm;
+        mipmapped = NO;
+
         @autoreleasepool {
             MTLTextureDescriptor *texDescriptor = [MTLTextureDescriptor new];
             texDescriptor.storageMode = MTLStorageModeManaged;
@@ -54,7 +57,7 @@
             texDescriptor.width  = width;
             texDescriptor.height = height;
             texDescriptor.textureType = MTLTextureType2D;
-            texDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
+            texDescriptor.pixelFormat = pixelFormat;
             texDescriptor.sampleCount = 1;
             texDescriptor.hazardTrackingMode = MTLHazardTrackingModeTracked;
 
@@ -69,7 +72,7 @@
                 msaaTexDescriptor.width  = width;
                 msaaTexDescriptor.height = height;
                 msaaTexDescriptor.textureType = MTLTextureType2DMultisample;
-                msaaTexDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
+                msaaTexDescriptor.pixelFormat = pixelFormat;
                 //By default all SoC's on macOS support 4 sample count
                 msaaTexDescriptor.sampleCount = 4;
                 msaaTexture = [device newTextureWithDescriptor:msaaTexDescriptor];
@@ -94,6 +97,8 @@
         width = physicalWidth = pw;
         height = physicalHeight = ph;
         context = ctx;
+        pixelFormat = MTLPixelFormatBGRA8Unorm;
+        mipmapped = NO;
         id <MTLTexture> tex = (__bridge id<MTLTexture>)(jlong_to_ptr(pTex));
         texture = tex;
     }

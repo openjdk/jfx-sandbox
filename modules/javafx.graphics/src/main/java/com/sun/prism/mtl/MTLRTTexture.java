@@ -168,13 +168,13 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData>
 
     // Native methods
 
-    native private static long nCreateRT(long context, int pw, int ph, int cw, int ch,
+    private static native long nCreateRT(long context, int pw, int ph, int cw, int ch,
                                          WrapMode wrapMode, boolean msaa);
-    native private static long nCreateRT2(long context, long pTex, int pw, int ph);
-    native private static void nReadPixels(long nativeHandle, int[] pixBuffer);
-    native private static void nReadPixelsFromRTT(long nativeHandle, IntBuffer pixBuffer);
-    native private static long nGetPixelDataPtr(long nativeHandle);
-    native private static void nInitRTT(long pTex, int[] pix);
+    private static native long nCreateRT2(long context, long pTex, int pw, int ph);
+    private static native void nReadPixels(long nativeHandle, int[] pixBuffer);
+    private static native void nReadPixelsFromRTT(long nativeHandle, IntBuffer pixBuffer);
+    private static native long nGetPixelDataPtr(long nativeHandle);
+    private static native void nInitRTT(long pTex, int[] pix);
 
 
     // Unsupported Operation methods
