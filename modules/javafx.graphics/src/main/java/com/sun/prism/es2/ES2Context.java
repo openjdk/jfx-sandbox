@@ -147,7 +147,6 @@ class ES2Context extends BaseShaderContext {
             drawable = dummyGLDrawable;
         }
         if (drawable != currentDrawable) {
-
             glContext.makeCurrent(drawable);
             // Need to restore FBO to on screen framebuffer
             glContext.bindFBO(0);
