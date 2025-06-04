@@ -318,6 +318,7 @@ public class MSLBackend extends SLBackend {
             fragmentShaderHeader = new StringBuilder();
             fragmentShaderHeader.append("#ifndef FRAGMENT_COMMON_H\n");
             fragmentShaderHeader.append("#define FRAGMENT_COMMON_H\n\n");
+            fragmentShaderHeader.append("#pragma clang diagnostic ignored \"-Wunused\"\n\n");
             fragmentShaderHeader.append("#include <simd/simd.h>\n");
             fragmentShaderHeader.append("#include <metal_stdlib>\n\n");
             fragmentShaderHeader.append("using namespace metal;\n\n");
