@@ -48,7 +48,8 @@ vertex CLEAR_VS_OUTPUT clearVF(const    uint            v_id [[ vertex_id ]],
     return out;
 }
 
-fragment float4 clearFF(constant float4& color [[ buffer(2) ]])
+fragment float4 clearFF(constant float4* color [[ buffer(2) ]])
 {
-    return color;
+    float4 outFragColor = float4(color[0].r, color[0].g, color[0].b, color[0].a);
+    return outFragColor;
 }
