@@ -55,6 +55,11 @@ NativeInstance::~NativeInstance()
 
     if (mDXGIFactory)
     {
+        for(IDXGIAdapter1* adapter: mDXGIAdapters)
+        {
+            adapter->Release();
+        }
+
         mDXGIAdapters.clear();
         mDXGIFactory.Reset();
     }

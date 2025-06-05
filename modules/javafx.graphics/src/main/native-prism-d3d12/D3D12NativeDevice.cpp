@@ -241,6 +241,7 @@ NativeDevice::~NativeDevice()
     if (mCommandQueue) mCommandQueue.Reset();
     if (mDevice) mDevice.Reset();
 
+    mAdapter->Release();
     mAdapter = nullptr;
     D3D12NI_LOG_DEBUG("Device destroyed");
 }
@@ -249,8 +250,9 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
 {
     if (adapter == nullptr) return false;
 
-    mAdapter = adapter;
     mShaderLibrary = shaderLibrary;
+    mAdapter = adapter;
+    mAdapter->AddRef();
 
     // we're asking for FL 11_0 for highest compatibility
     // we probably won't need anything higher than that
