@@ -91,10 +91,13 @@ ResourceManager::~ResourceManager()
     for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
     {
         mTextures[i].reset();
+        mRuntimeParametersStash.textures[i].reset();
     }
 
     mVertexShader.reset();
     mPixelShader.reset();
+    mRuntimeParametersStash.vertexShader.reset();
+    mRuntimeParametersStash.pixelShader.reset();
 
     D3D12NI_LOG_DEBUG("ResourceManager destroyed");
 }

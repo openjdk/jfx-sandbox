@@ -205,7 +205,7 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
 
     @Override
     public void dispose() {
-        mSwapChain.close();
+        mSwapChain.dispose();
         mOffscreenRTT.dispose();
     }
 }

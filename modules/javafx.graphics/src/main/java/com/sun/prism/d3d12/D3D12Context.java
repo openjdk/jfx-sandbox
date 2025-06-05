@@ -225,7 +225,9 @@ class D3D12Context extends BaseShaderContext {
 
     @Override
     public void dispose() {
-        mDevice.close();
+        // super.dispose() must be first - that frees resources which require NativeDevice
+        // to be valid in order to properly release
         super.dispose();
+        mDevice.dispose();
     }
 }

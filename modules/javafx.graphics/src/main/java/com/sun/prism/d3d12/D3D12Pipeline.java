@@ -214,7 +214,7 @@ public final class D3D12Pipeline extends GraphicsPipeline {
 
         mFactories = null;
 
-        mInstance.close();
+        mInstance.dispose();
         theInstance = null;
 
         super.dispose();

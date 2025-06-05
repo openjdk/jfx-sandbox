@@ -140,7 +140,7 @@ class D3D12PhongMaterial extends BasePhongMaterial {
         @Override
         public void dispose() {
             if (mMaterial.isValid()) {
-                mMaterial.close();
+                mMaterial.dispose();
             }
         }
     }

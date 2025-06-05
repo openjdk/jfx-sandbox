@@ -31,6 +31,9 @@ import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.impl.TextureResourcePool;
 
 // TODO: D3D12: this probably should be D3D12TextureResourcePool
+//
+// TODO: D3D12: it seems this is not explicitly disposed? This means
+// we have some Textures remaining which don't get properly freed on close
 class D3D12ResourcePool extends BaseResourcePool<D3D12TextureData>
     implements TextureResourcePool<D3D12TextureData> {
 

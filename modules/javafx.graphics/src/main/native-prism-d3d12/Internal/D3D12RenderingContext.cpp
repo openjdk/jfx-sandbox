@@ -93,7 +93,6 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
     if (!mRenderTarget.IsSet()) return;
 
     mRenderTarget.Apply(mNativeDevice->GetCurrentCommandList(), mState);
-
     DescriptorData rtData = mRenderTarget.Get()->GetRTVDescriptorData();
 
     float rgba[4] = { r, g, b, a };
@@ -130,6 +129,7 @@ void RenderingContext::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView)
 void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
 {
     mRenderTarget.Set(renderTarget);
+    if (!renderTarget) return;
 
     D3D12_VIEWPORT viewport;
     D3D12NI_ZERO_STRUCT(viewport);

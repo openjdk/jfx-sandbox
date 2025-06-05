@@ -66,11 +66,11 @@ class D3D12TextureData implements Disposer.Record {
     public void dispose() {
         if (isRTT()) {
             PrismTrace.rttDisposed(mRenderTarget.getPtr());
-            mRenderTarget.close();
-            mTexture.close();
+            mRenderTarget.dispose();
+            mTexture.dispose();
         } else {
             PrismTrace.textureDisposed(mTexture.getPtr());
-            mTexture.close();
+            mTexture.dispose();
         }
     }
 

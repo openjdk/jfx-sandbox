@@ -57,7 +57,7 @@ NativeRenderTarget::~NativeRenderTarget()
     mDepthTexture.reset();
     mNativeDevice.reset();
 
-    D3D12NI_LOG_DEBUG("RenderTarget destroyed");
+    D3D12NI_LOG_TRACE("--- RenderTarget destroyed (%ux%u) ---", mWidth, mHeight);
 }
 
 bool NativeRenderTarget::Init(const NIPtr<NativeTexture>& texture)

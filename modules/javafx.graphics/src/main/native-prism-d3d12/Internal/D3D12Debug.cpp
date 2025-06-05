@@ -200,11 +200,6 @@ Debug::Debug()
 
 Debug::~Debug()
 {
-    if (mIsEnabled && mDXGIDebug)
-    {
-        D3D12NI_LOG_INFO("Reporting live objects at Debug destructor:");
-        mDXGIDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
-    }
 }
 
 Debug& Debug::Instance()
@@ -268,7 +263,13 @@ bool Debug::Init()
 
 bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
 {
-    mNativeDevice = device;
+    mD3D12Device = device->GetDevice();
+
+    if (!mD3D12Device)
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize Debug class - D3D12 device is NULL");
+        return false;
+    }
 
     if (!mIsEnabled)
     {
@@ -276,8 +277,11 @@ bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
         return true;
     }
 
-    HRESULT hr = mNativeDevice->GetDevice()->QueryInterface(IID_PPV_ARGS(&mD3D12InfoQueue));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to get DXGI Info Queue interface");
+    HRESULT hr = mD3D12Device->QueryInterface(IID_PPV_ARGS(&mD3D12DebugDevice));
+    D3D12NI_RET_IF_FAILED(hr, false, "Failed to get D3D12 Debug Device interface");
+
+    hr = mD3D12Device->QueryInterface(IID_PPV_ARGS(&mD3D12InfoQueue));
+    D3D12NI_RET_IF_FAILED(hr, false, "Failed to get D3D12 Info Queue interface");
 
     // a list of debug messages to filter out
     D3D12_MESSAGE_ID filterMsgs[] =
@@ -324,6 +328,40 @@ bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
     return true;
 }
 
+void Debug::ReleaseAndReportLiveObjects()
+{
+    // This function should be the last resource release section when NativeDevice gets removed.
+    // If below reports differ from what logs suggest we have a leak that needs fixing.
+
+    if (!mIsEnabled) return;
+
+    D3D12NI_LOG_DEBUG(" ======= Starting Live Object report =======");
+    D3D12NI_LOG_DEBUG("Note that this only reports app-used live objects, ignoring internal ones.");
+
+    mD3D12Device.Reset();
+    mD3D12InfoQueue.Reset();
+    mD3D12Debug.Reset();
+
+    if (mD3D12DebugDevice)
+    {
+        D3D12NI_LOG_DEBUG("Live D3D12 objects at Debug Release (there should be only one ID3D12Device with Refcount: 1):");
+        mD3D12DebugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL);
+        mD3D12DebugDevice.Reset();
+    }
+
+    mDXGIInfoQueue.Reset();
+
+    if (mDXGIDebug)
+    {
+        D3D12NI_LOG_DEBUG("Live DXGI objects at Debug Release (this list should be empty):");
+        mDXGIDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+    }
+
+    D3D12NI_LOG_DEBUG(" ======= Live Object report complete =======");
+
+    mIsEnabled = false;
+}
+
 bool Debug::IsEnabled()
 {
     return mIsEnabled;
@@ -332,7 +370,7 @@ bool Debug::IsEnabled()
 void Debug::ExamineDeviceRemoved()
 {
     // Device removed reason can always be fetched
-    HRESULT reason = mNativeDevice->GetDevice()->GetDeviceRemovedReason();
+    HRESULT reason = mD3D12Device->GetDeviceRemovedReason();
     if (SUCCEEDED(reason))
     {
         // quietly exit, device is OK
@@ -351,7 +389,7 @@ void Debug::ExamineDeviceRemoved()
     }
 
     D3D12DeviceRemovedExtendedData dred;
-    HRESULT hr = mNativeDevice->GetDevice()->QueryInterface(IID_PPV_ARGS(&dred));
+    HRESULT hr = mD3D12Device->QueryInterface(IID_PPV_ARGS(&dred));
     D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to fetch DRED interface");
 
     D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT dredBreadcrumbs;

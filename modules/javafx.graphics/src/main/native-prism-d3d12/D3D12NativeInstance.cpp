@@ -285,7 +285,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeInstance_nReleaseN
 {
     if (!ptr) return;
 
-   D3D12::FreeNIObject<D3D12::NativeInstance>(ptr);
+    D3D12::FreeNIObject<D3D12::NativeInstance>(ptr);
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeInstance_nInit

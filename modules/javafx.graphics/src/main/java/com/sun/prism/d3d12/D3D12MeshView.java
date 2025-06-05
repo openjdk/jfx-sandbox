@@ -117,7 +117,7 @@ public class D3D12MeshView extends BaseMeshView {
         @Override
         public void dispose() {
             if (mMeshView.isValid()) {
-                mMeshView.close();
+                mMeshView.dispose();
             }
         }
     }

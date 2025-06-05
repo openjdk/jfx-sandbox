@@ -61,16 +61,18 @@ using D3DBlobPtr = Ptr<ID3DBlob>;
 using D3D12DevicePtr = Ptr<ID3D12Device4>;
 using D3D12CommandAllocatorPtr = Ptr<ID3D12CommandAllocator>;
 using D3D12CommandQueuePtr = Ptr<ID3D12CommandQueue>;
-using D3D12DebugPtr = Ptr<ID3D12Debug3>;
 using D3D12DeviceRemovedExtendedData = Ptr<ID3D12DeviceRemovedExtendedData>;
 using D3D12DeviceRemovedExtendedDataSettings = Ptr<ID3D12DeviceRemovedExtendedDataSettings>;
-using D3D12InfoQueuePtr = Ptr<ID3D12InfoQueue1>;
 using D3D12DescriptorHeapPtr = Ptr<ID3D12DescriptorHeap>;
 using D3D12FencePtr = Ptr<ID3D12Fence>;
 using D3D12GraphicsCommandListPtr = Ptr<ID3D12GraphicsCommandList1>;
 using D3D12PipelineStatePtr = Ptr<ID3D12PipelineState>;
 using D3D12ResourcePtr = Ptr<ID3D12Resource>;
 using D3D12RootSignaturePtr = Ptr<ID3D12RootSignature>;
+
+using D3D12DebugPtr = Ptr<ID3D12Debug3>;
+using D3D12InfoQueuePtr = Ptr<ID3D12InfoQueue1>;
+using D3D12DebugDevicePtr = Ptr<ID3D12DebugDevice2>;
 
 // smart-pointer container for internal objects
 template <typename T>

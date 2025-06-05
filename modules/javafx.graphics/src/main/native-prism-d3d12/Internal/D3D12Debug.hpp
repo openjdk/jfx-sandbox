@@ -33,11 +33,12 @@ namespace Internal {
 
 class Debug
 {
-    NIPtr<NativeDevice> mNativeDevice;
+    D3D12DevicePtr mD3D12Device;
     DXGIDebugPtr mDXGIDebug;
     DXGIInfoQueuePtr mDXGIInfoQueue;
     D3D12DebugPtr mD3D12Debug;
     D3D12InfoQueuePtr mD3D12InfoQueue;
+    D3D12DebugDevicePtr mD3D12DebugDevice;
     DWORD mD3D12MessageCallbackCookie;
     bool mIsEnabled;
     bool mIsDREDEnabled;
@@ -58,6 +59,7 @@ public:
 
     bool Init();
     bool InitDeviceDebug(const NIPtr<NativeDevice>& debug);
+    void ReleaseAndReportLiveObjects();
     bool IsEnabled();
     void ExamineDeviceRemoved();
 };

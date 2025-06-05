@@ -285,9 +285,6 @@ void InternalShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& com
         }
     }
 
-    // LKDEBUG - SOMETIMES THERE IS PROBLEM HERE BUT I DON'T KNOW WHAT YET
-    // [D3D12-ERROR] <Internal\D3D12Debug.cpp:66> D3D12 EXECUTION Error: GPU-BASED VALIDATION: Draw, Descriptor type doesn't match shader register type: Descriptor Heap Index To DescriptorTableStart: [506], Descriptor Heap Index FromTableStart: [0], Descriptor Type in Heap: D3D12_DESCRIPTOR_RANGE_TYPE_CBV, Register Type: D3D12_DESCRIPTOR_RANGE_TYPE_SRV, Index of Descriptor Range: 0, Shader Stage: PIXEL, Root Parameter Index: [4], Draw Index: [0], Shader Code: C:\Users\Lukasz\dev\code\jfx-sandbox\rt\modules\javafx.graphics\src\main\native-prism-d3d12\hlsl6\Mtl1PS.hlsl(89,20-20), Asm Instruction Range: [0xe-0xffffffff], Asm Operand Index: [0], Command List: 0x000001FC5A84DE90:'Direct Command List #7', Command List Type: D3D12_COMMAND_LIST_TYPE_DIRECT, SRV/UAV/CBV Descriptor Heap: 0x000001FC088B5210:'SRV Descriptor Heap', Sampler Descriptor Heap: 0x000001FC088B49A0:'Sampler Heap', Pipeline State: 0x000001FC55C6C520:'GPSO-Mtl1VS-Mtl1PS_s1n-SRC_OVER-4xMSAA-Depth',
-
     if (mTextureCount > 0 && mTextureDTable && mSamplerDTable)
     {
         commandList->SetGraphicsRootDescriptorTable(mTextureDTableRSIndex, mTextureDTable.gpu);

@@ -94,16 +94,6 @@ public:
     {
         return mSamplerHeap.GetHeap();
     }
-
-    inline const NIPtr<Shader>& GetVertexShader()
-    {
-        return mVertexShader;
-    }
-
-    inline const NIPtr<Shader>& GetPixelShader()
-    {
-        return mPixelShader;
-    }
 };
 
 } // namespace D3D12

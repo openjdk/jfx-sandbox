@@ -221,28 +221,18 @@ NativeDevice::~NativeDevice()
 {
     D3D12NI_LOG_DEBUG("Destroying device");
 
-    // ensures the pipeline is purged
-    mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
-
-    if (mRingBuffer) mRingBuffer.reset();
-    if (mConstantRingBuffer) mConstantRingBuffer.reset();
-    if (m2DIndexBuffer) m2DIndexBuffer.reset();
-    if (mCommandListPool) mCommandListPool.reset();
-    if (mShaderLibrary) mShaderLibrary.reset();
-    if (mRenderingContext) mRenderingContext.reset();
-    if (mRTVHeap) mRTVHeap.reset();
-    if (mDSVHeap) mDSVHeap.reset();
-    if (mResourceDisposer) mResourceDisposer.reset();
-    if (mRootSignatureManager) mRootSignatureManager.reset();
-
-    mWaitableOps.clear();
-
     if (mFence) mFence.Reset();
     if (mCommandQueue) mCommandQueue.Reset();
     if (mDevice) mDevice.Reset();
 
-    mAdapter->Release();
-    mAdapter = nullptr;
+    if (mAdapter)
+    {
+        mAdapter->Release();
+        mAdapter = nullptr;
+    }
+
+    Internal::Debug::Instance().ReleaseAndReportLiveObjects();
+
     D3D12NI_LOG_DEBUG("Device destroyed");
 }
 
@@ -258,6 +248,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     // we probably won't need anything higher than that
     HRESULT hr = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&mDevice));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create D3D12 Device");
+    mDevice->SetName(L"Main D3D12 Device");
 
     D3D12NI_LOG_DEBUG("Device created");
 
@@ -360,6 +351,32 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     mPhongVS = GetInternalShader(Constants::PHONG_VS_NAME);
 
     return true;
+}
+
+void NativeDevice::Release()
+{
+    D3D12NI_LOG_DEBUG("Releasing Device resources");
+
+    // ensures the pipeline is purged
+    mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
+
+    mWaitableOps.clear();
+
+    if (mRenderingContext) mRenderingContext.reset();
+    if (mRingBuffer) mRingBuffer.reset();
+    if (mConstantRingBuffer) mConstantRingBuffer.reset();
+    if (m2DIndexBuffer) m2DIndexBuffer.reset();
+    if (mCommandListPool) mCommandListPool.reset();
+    if (mShaderLibrary) mShaderLibrary.reset();
+    if (mSamplerStorage) mSamplerStorage.reset();
+    if (mRTVHeap) mRTVHeap.reset();
+    if (mDSVHeap) mDSVHeap.reset();
+    if (mResourceDisposer) mResourceDisposer.reset();
+    if (mRootSignatureManager) mRootSignatureManager.reset();
+
+    mPassthroughVS.reset();
+    mPhongVS.reset();
+    mCurrent2DShader.reset();
 }
 
 NIPtr<Internal::Buffer> NativeDevice::CreateBuffer(const void* initialData, size_t size, bool cpuWriteable, D3D12_RESOURCE_STATES finalState)
@@ -1165,6 +1182,10 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nReleaseNat
 {
     if (!ptr) return;
 
+    // Device needs an explicit Release() call to free up internal objects
+    // This makes sure those objects remove cleanly while NativeDevice and its
+    // D3D12DevicePtr are still valid
+    D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->Release();
     D3D12::FreeNIObject<D3D12::NativeDevice>(ptr);
 }
 

@@ -25,15 +25,14 @@
 
 package com.sun.prism.d3d12.ni;
 
-abstract class D3D12NativeObject implements AutoCloseable {
+abstract class D3D12NativeObject {
     protected long ptr;
 
     protected D3D12NativeObject(long ptr) {
         this.ptr = ptr;
     }
 
-    @Override
-    public void close() {
+    public void dispose() {
         if (ptr != 0) {
             nReleaseNativeObject(ptr);
             ptr = 0;

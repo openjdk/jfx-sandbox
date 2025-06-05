@@ -51,7 +51,7 @@ public class D3D12ShaderData implements Disposer.Record {
     @Override
     public void dispose() {
         if (isValid()) {
-            mShader.close();
+            mShader.dispose();
         }
     }
 }

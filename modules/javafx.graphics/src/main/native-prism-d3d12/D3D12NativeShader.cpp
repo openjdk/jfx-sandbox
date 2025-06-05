@@ -123,7 +123,7 @@ NativeShader::~NativeShader()
 
     mNativeDevice.reset();
 
-    D3D12NI_LOG_DEBUG("NativeShader destroyed");
+    D3D12NI_LOG_TRACE("--- NativeShader %s destroyed ---", mName.c_str());
 }
 
 bool NativeShader::Init(const std::string& name, void* code, size_t size)

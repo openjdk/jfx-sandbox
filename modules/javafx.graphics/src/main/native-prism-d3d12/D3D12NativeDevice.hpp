@@ -106,6 +106,7 @@ public:
     ~NativeDevice();
 
     bool Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibrary>& shaderLibrary);
+    void Release();
 
     // separate, internal buffer creator
     // used for 2D Index Buffer and internals of Mesh

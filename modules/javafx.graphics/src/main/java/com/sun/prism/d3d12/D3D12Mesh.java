@@ -97,7 +97,7 @@ class D3D12Mesh extends BaseMesh {
 
         @Override
         public void dispose() {
-            mMesh.close();
+            mMesh.dispose();
         }
 
         public boolean isValid() {
