@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,10 +41,10 @@
         specularColor.y = 1;
         specularColor.z = 1;
         specularColor.w = 32;
-        map[DIFFUSE] = NULL;
-        map[SPECULAR] = NULL;
-        map[BUMP] = NULL;
-        map[SELFILLUMINATION] = NULL;
+        map[DIFFUSE] = nil;
+        map[SPECULAR] = nil;
+        map[BUMP] = nil;
+        map[SELFILLUMINATION] = nil;
     }
     return self;
 }
@@ -129,6 +129,6 @@
         return map[mapID];
     }
     NSLog(@"MetalPhongMaterial.getMap(): mapID is out of range");
-    return NULL;
+    return nil;
 }
 @end // MetalPhongMaterial

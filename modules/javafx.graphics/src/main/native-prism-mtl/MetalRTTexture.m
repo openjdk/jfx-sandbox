@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,6 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-
-#import <jni.h>
 
 #import "MetalRTTexture.h"
 #import "com_sun_prism_mtl_MTLRTTexture.h"
@@ -49,6 +47,9 @@
         context = ctx;
         isMSAA  = isMsaa;
 
+        pixelFormat = MTLPixelFormatBGRA8Unorm;
+        mipmapped = NO;
+
         @autoreleasepool {
             MTLTextureDescriptor *texDescriptor = [MTLTextureDescriptor new];
             texDescriptor.storageMode = MTLStorageModeManaged;
@@ -56,7 +57,7 @@
             texDescriptor.width  = width;
             texDescriptor.height = height;
             texDescriptor.textureType = MTLTextureType2D;
-            texDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
+            texDescriptor.pixelFormat = pixelFormat;
             texDescriptor.sampleCount = 1;
             texDescriptor.hazardTrackingMode = MTLHazardTrackingModeTracked;
 
@@ -71,7 +72,7 @@
                 msaaTexDescriptor.width  = width;
                 msaaTexDescriptor.height = height;
                 msaaTexDescriptor.textureType = MTLTextureType2DMultisample;
-                msaaTexDescriptor.pixelFormat = MTLPixelFormatBGRA8Unorm;
+                msaaTexDescriptor.pixelFormat = pixelFormat;
                 //By default all SoC's on macOS support 4 sample count
                 msaaTexDescriptor.sampleCount = 4;
                 msaaTexture = [device newTextureWithDescriptor:msaaTexDescriptor];
@@ -96,6 +97,8 @@
         width = physicalWidth = pw;
         height = physicalHeight = ph;
         context = ctx;
+        pixelFormat = MTLPixelFormatBGRA8Unorm;
+        mipmapped = NO;
         id <MTLTexture> tex = (__bridge id<MTLTexture>)(jlong_to_ptr(pTex));
         texture = tex;
     }
@@ -130,11 +133,7 @@
     }
 }
 
-- (id<MTLTexture>) getTexture
-{
-    return [super getTexture];
-}
-
+- (id<MTLTexture>) getTexture { return [super getTexture]; }
 - (id<MTLTexture>) getDepthTexture { return depthTexture; }
 - (BOOL) isMSAAEnabled { return isMSAA; }
 - (id<MTLTexture>) getMSAATexture { return msaaTexture; }
@@ -205,7 +204,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nCreateRT2
  * Method:    nInitRTT
  * Signature: (J[I)V
  */
-// This method inits underlying native MTLTexture with passed in pixData
+// This method initializes underlying native MTLTexture with passed in pixData
 // This texure replaceRegion is executed on CPU
 JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLRTTexture_nInitRTT
     (JNIEnv *env, jclass class, jlong jTexPtr, jintArray pixData)

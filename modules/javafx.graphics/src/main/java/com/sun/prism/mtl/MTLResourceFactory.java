@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,27 @@
 package com.sun.prism.mtl;
 
 import com.sun.glass.ui.Screen;
-import com.sun.prism.*;
+import com.sun.prism.MediaFrame;
+import com.sun.prism.Mesh;
+import com.sun.prism.MeshView;
+import com.sun.prism.MultiTexture;
+import com.sun.prism.PhongMaterial;
+import com.sun.prism.PixelFormat;
+import com.sun.prism.Presentable;
+import com.sun.prism.PresentableState;
+import com.sun.prism.RTTexture;
+import com.sun.prism.Texture.Usage;
+import com.sun.prism.Texture.WrapMode;
+import com.sun.prism.Texture;
 import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.impl.TextureResourcePool;
 import com.sun.prism.impl.ps.BaseShaderFactory;
+import com.sun.prism.mtl.MTLContext;
 import com.sun.prism.ps.Shader;
 import com.sun.prism.ps.ShaderFactory;
-import com.sun.prism.Texture.Usage;
-import com.sun.prism.Texture.WrapMode;
 
-import java.io.InputStream;
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -47,14 +57,11 @@ public class MTLResourceFactory extends BaseShaderFactory {
     private final MTLContext context;
 
     MTLResourceFactory(Screen screen) {
-        MTLLog.Debug("MTLResourceFactory(): screen = " + screen);
-        MTLLog.Debug(">>> MTLResourceFactory()");
         context = new MTLContext(screen, this);
         context.initState();
         if (PrismSettings.noClampToZero && PrismSettings.verbose) {
-            System.err.println("prism.noclamptozero not supported by MTL");
+            System.err.println("prism.noClampToZero not supported by MTL");
         }
-        MTLLog.Debug("<<< MTLResourceFactory()");
     }
 
     static int nextPowerOfTwo(int val, int max) {
@@ -99,16 +106,8 @@ public class MTLResourceFactory extends BaseShaderFactory {
     public Shader createShader(String shaderName, Map<String, Integer> samplers,
                                Map<String, Integer> params, int maxTexCoordIndex,
                                boolean isPixcoordUsed, boolean isPerVertexColorUsed) {
-        MTLLog.Debug(">>> MTLResourceFactory.createShader()");
-        MTLLog.Debug("    shaderName: " + shaderName);
-        MTLLog.Debug("    samplers: " + samplers);
-        MTLLog.Debug("    params: " + params);
-        MTLLog.Debug("    maxTexCoordIndex: " + maxTexCoordIndex);
-        MTLLog.Debug("    isPixcoordUsed: " + isPixcoordUsed);
-        MTLLog.Debug("    isPerVertexColorUsed: " + isPerVertexColorUsed);
         Shader shader = MTLShader.createShader(getContext(), shaderName, samplers,
                 params, maxTexCoordIndex, isPixcoordUsed, isPerVertexColorUsed);
-        MTLLog.Debug("<<< MTLResourceFactory.createShader()");
         return shader;
     }
 
@@ -191,7 +190,8 @@ public class MTLResourceFactory extends BaseShaderFactory {
         MTLTextureData textData = new MTLTextureData(context, pResource, size);
         MTLTextureResource resource = new MTLTextureResource(textData, true);
 
-        // TODO: MTL: contentX and contentY is set as 0 - please see ES2/D3D path and try to match it
+        // contentX and contentY is set as 0 unlike D3D/ES2.
+        // The wrap mode are addressed, can be mapped to D3D/ES2 only if necessary.
         return new MTLTexture(getContext(), resource, formatHint, wrapMode, allocw, alloch, 0, 0, allocw, alloch, useMipmap);
     }
 
@@ -205,12 +205,6 @@ public class MTLResourceFactory extends BaseShaderFactory {
         int texHeight = frame.getEncodedHeight();
         PixelFormat texFormat = frame.getPixelFormat();
 
-        MTLLog.Debug(">>> MTLResourceFactory.createTexture()------- for media -------");
-        MTLLog.Debug("(width, height) = ("+ width +", "+height+")");
-        MTLLog.Debug("(texWidth, texHeight) = ("+ texWidth +", "+texHeight+")");
-        MTLLog.Debug("PixelFormat = "+ texFormat);
-        MTLLog.Debug("<<< MTLResourceFactory.createTexture()------- for media -------");
-
         checkTextureSize(texWidth, texHeight, frame);
 
         int bpp = texFormat.getBytesPerPixelUnit();
@@ -221,8 +215,6 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
         if (texFormat == PixelFormat.MULTI_YCbCr_420) {
             // Create a MultiTexture
-            MTLLog.Debug("Creating a MultiTexture.");
-
             MultiTexture tex = new MultiTexture(texFormat, WrapMode.CLAMP_TO_EDGE, width, height);
 
             // create/add the subtextures
@@ -275,7 +267,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
             frame.releaseFrame();
             return tex;
-        } //PixelFormat.MULTI_YCbCr_420
+        } // PixelFormat.MULTI_YCbCr_420
 
         Texture tex = createTexture(texFormat, Usage.DEFAULT, WrapMode.CLAMP_TO_EDGE, texWidth, texHeight);
 
@@ -303,9 +295,7 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public int getMaximumTextureSize() {
-        // TODO: MTL: Complete implementation
-        // This value should be fetched from the MTLDevice.
-
+        // This value can be fetched from the MTLDevice.
         // This value comes from Metal feature set tables
         return 16384; // For MTLGPUFamilyApple3 and above
     }
@@ -313,18 +303,18 @@ public class MTLResourceFactory extends BaseShaderFactory {
     @Override
     public int getRTTWidth(int w, Texture.WrapMode wrapMode) {
         // Below debugging logic replicates D3DResoureFactory
-//        if (PrismSettings.forcePow2) {
-//            w = nextPowerOfTwo(w, Integer.MAX_VALUE);
-//        }
+        // if (PrismSettings.forcePow2) {
+        //     w = nextPowerOfTwo(w, Integer.MAX_VALUE);
+        // }
         return w;
     }
 
     @Override
     public int getRTTHeight(int h, Texture.WrapMode wrapMode) {
         // Below debugging logic replicates D3DResoureFactory
-//        if (PrismSettings.forcePow2) {
-//            h = nextPowerOfTwo(h, Integer.MAX_VALUE);
-//        }
+        // if (PrismSettings.forcePow2) {
+        //     h = nextPowerOfTwo(h, Integer.MAX_VALUE);
+        // }
         return h;
     }
 
@@ -350,8 +340,6 @@ public class MTLResourceFactory extends BaseShaderFactory {
     }
 
     public RTTexture createRTTexture(int width, int height, Texture.WrapMode wrapMode, boolean msaa) {
-        MTLLog.Debug("MTLResourceFactory.createRTTexture(): width = " + width +
-                ", height = " + height + ", wrapMode = " + wrapMode + ", msaa = " + msaa);
         int createw = width;
         int createh = height;
         int cx = 0;
@@ -369,13 +357,13 @@ public class MTLResourceFactory extends BaseShaderFactory {
         if (createw >= (Integer.MAX_VALUE / createh / bpp)) {
             throw new RuntimeException("Illegal texture dimensions (" + createw + "x" + createh + ")");
         }
-        // TODO: MTL: We dont create PowerOf64 textures in D3D/OpenGL but
-        // we are creating RTT textures like these in Metal. Removed usage of
-        // nextPowerOf64 as part of JDK-8311225 and verified Ensemble8 and
-        // demos are running fine. If usage of nextPowerOf64 is not
-        // needed we should remove it in future.
-        //createw = nextPowerOf64(createw, 8192);
-        //createh = nextPowerOf64(createh, 8192);
+        // We don't create PowerOf64 textures in D3D/OpenGL but
+        // earlier implementation of Metal required RT texture of pow64.
+        // Removed usage of nextPowerOf64 as part of JDK-8311225 and
+        // verified Ensemble8 and demos are running fine.
+        // If usage of nextPowerOf64 is not needed we should remove it in future.
+        // createw = nextPowerOf64(createw, 8192);
+        // createh = nextPowerOf64(createh, 8192);
 
         MTLVramPool pool = MTLVramPool.getInstance();
         long size = pool.estimateRTTextureSize(createw, createh, false);
@@ -403,10 +391,6 @@ public class MTLResourceFactory extends BaseShaderFactory {
 
     @Override
     public void dispose() {
-        // This is simply invoking super method as of now.
-        // TODO: MTL: Complete implementation
-        MTLLog.Debug("MTLResourceFactory dispose is invoked");
-
         super.dispose();
         context.dispose();
     }

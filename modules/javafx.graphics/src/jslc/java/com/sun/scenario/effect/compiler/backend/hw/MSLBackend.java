@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,36 +25,36 @@
 
 package com.sun.scenario.effect.compiler.backend.hw;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Set;
-import static java.util.Map.entry;
-
 import com.sun.scenario.effect.compiler.JSLParser;
 import com.sun.scenario.effect.compiler.model.CoreSymbols;
 import com.sun.scenario.effect.compiler.model.Function;
 import com.sun.scenario.effect.compiler.model.Param;
 import com.sun.scenario.effect.compiler.model.Precision;
-import com.sun.scenario.effect.compiler.model.Variable;
 import com.sun.scenario.effect.compiler.model.Qualifier;
 import com.sun.scenario.effect.compiler.model.Type;
+import com.sun.scenario.effect.compiler.model.Variable;
+import com.sun.scenario.effect.compiler.tree.CallExpr;
 import com.sun.scenario.effect.compiler.tree.DiscardStmt;
 import com.sun.scenario.effect.compiler.tree.Expr;
+import com.sun.scenario.effect.compiler.tree.FuncDef;
 import com.sun.scenario.effect.compiler.tree.JSLVisitor;
 import com.sun.scenario.effect.compiler.tree.VarDecl;
-import com.sun.scenario.effect.compiler.tree.CallExpr;
-import com.sun.scenario.effect.compiler.tree.FuncDef;
+
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import static java.util.Map.entry;
 
 public class MSLBackend extends SLBackend {
 
     private static String headerFilesDir = null;
     private static StringBuilder fragmentShaderHeader;
     private static final String FRAGMENT_SHADER_HEADER_FILE_NAME = "FragmentShaderCommon.h";
-    private static final StringBuilder objCHeader = new StringBuilder();;
+    private static final StringBuilder objCHeader = new StringBuilder();
     private static String objCHeaderFileName;
     private static final String PRISM_SHADER_HEADER_FILE_NAME = "PrismShaderCommon.h";
     private static final String DECORA_SHADER_HEADER_FILE_NAME = "DecoraShaderCommon.h";
@@ -318,6 +318,7 @@ public class MSLBackend extends SLBackend {
             fragmentShaderHeader = new StringBuilder();
             fragmentShaderHeader.append("#ifndef FRAGMENT_COMMON_H\n");
             fragmentShaderHeader.append("#define FRAGMENT_COMMON_H\n\n");
+            fragmentShaderHeader.append("#pragma clang diagnostic ignored \"-Wunused\"\n\n");
             fragmentShaderHeader.append("#include <simd/simd.h>\n");
             fragmentShaderHeader.append("#include <metal_stdlib>\n\n");
             fragmentShaderHeader.append("using namespace metal;\n\n");

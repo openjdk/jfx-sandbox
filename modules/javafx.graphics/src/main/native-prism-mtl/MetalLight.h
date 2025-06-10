@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,10 +26,7 @@
 #ifndef METAL_LIGHT_H
 #define METAL_LIGHT_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
 #import <Foundation/Foundation.h>
-#import "MetalContext.h"
 
 @interface MetalLight : NSObject
 {
@@ -42,7 +39,7 @@
     float direction[3];
     float inAngle;
     float outAngle;
-    float foff;
+    float falloff;
 }
 
 - (MetalLight*) createLight:(float)x y:(float)y z:(float)z
@@ -51,7 +48,7 @@
             isA:(float)isAttenuated range:(float)range
             dirX:(float)dirX dirY:(float)dirY dirZ:(float)dirZ
             inA:(float)innerAngle outA:(float)outerAngle
-            falloff:(float)falloff;
+            falloff:(float)fall_off;
 
 - (bool) isPointLight;
 - (bool) isDirectionalLight;

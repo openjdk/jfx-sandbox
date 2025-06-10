@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,6 @@
 #ifndef METAL_TEXTURE_H
 #define METAL_TEXTURE_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 #import "MetalContext.h"
 
 enum PFormat {
@@ -48,12 +45,12 @@ enum PFormat {
     MetalContext *context;
 
     id<MTLTexture> texture;
+    MTLPixelFormat pixelFormat;
 
     NSUInteger width;
     NSUInteger height;
 
     BOOL mipmapped;
-    MTLPixelFormat pixelFormat;
 }
 - (BOOL) isMipmapped;
 
@@ -67,8 +64,6 @@ enum PFormat {
                       useMipMap:(BOOL)useMipMap;
 
 - (void) dealloc;
-
-//- (void) blitTo:(MetalTexture*) tex;
 
 @end
 

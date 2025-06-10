@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,9 +59,4 @@ typedef struct VS_OUTPUT
     out.texCoord0   = v_in[v_id].texCoord0;
     out.texCoord1   = v_in[v_id].texCoord1;
     return out;
-}
-
-// TODO: MTL: Cleanup: For testing purpose only, JavaFX does not use this fragment function.
-fragment float4 passThroughFragmentFunction(VS_OUTPUT in [[ stage_in ]]) {
-    return in.fragColor;
 }

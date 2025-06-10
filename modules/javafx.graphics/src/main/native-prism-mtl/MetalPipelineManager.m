@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,11 @@
  * questions.
  */
 
-#import <jni.h>
-
 #import "MetalPipelineManager.h"
+#import "MetalRTTexture.h"
 #include "com_sun_prism_mtl_MTLContext.h"
 
 // ---------------------------- Debug helper for Developers -------------------------
-// Note : TODO: MTL: Remove this functionality before integrating Metal pipeline code to the mainline.
 //
 // This implementation is to utilize "Metal Debuger" present in Xcode.
 // See - https://developer.apple.com/documentation/xcode/capturing-a-metal-workload-programmatically
@@ -58,7 +56,8 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 
 @implementation MetalPipelineManager
 
-- (void) init:(MetalContext*) ctx  libData:(dispatch_data_t) libData
+- (void) init:(MetalContext*)ctx
+      libData:(dispatch_data_t)libData
 {
     context = ctx;
     NSError *error = nil;
@@ -67,7 +66,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     if (shaderLib != nil) {
         vertexFunction = [self getFunction:@"passThrough"];
     } else {
-        NSLog(@"-> MetalPipelineManager.init: Failed to create shader library");
+        NSLog(@"MetalPipelineManager.init: Failed to create shader library");
     }
 
     clearRttPipeStateNoDepthDict = [[NSMutableDictionary alloc] init];
@@ -97,7 +96,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
 
             MTLCaptureManager* captureManager = [MTLCaptureManager sharedCaptureManager];
             if (![captureManager supportsDestination:MTLCaptureDestinationGPUTraceDocument]) {
-                NSLog(@" MTLCaptureDestinationGPUTraceDocument destination is not supported.");
+                NSLog(@"MTLCaptureDestinationGPUTraceDocument destination is not supported.");
             } else {
                 NSLog(@"MTLCaptureDestinationGPUTraceDocument destination is supported.");
                 MTLCaptureDescriptor* captureDescriptor = [MTLCaptureDescriptor new];
@@ -109,11 +108,13 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
                 [captureManager startCaptureWithDescriptor:captureDescriptor error:nil];
             }
         }
+    } else {
+        NSLog(@"MTL_CAPTURE_ENABLED is available only in macOS 14 and later versions");
     }
 #endif
 }
 
-- (id<MTLFunction>) getFunction:(NSString*) funcName
+- (id<MTLFunction>) getFunction:(NSString*)funcName
 {
     return [shaderLib newFunctionWithName:funcName];
 }
@@ -133,9 +134,9 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     }
     if (clearRttPipeState == nil) {
         MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
-        pipeDesc.vertexFunction   = [self getFunction:@"clearVF"];;
+        pipeDesc.vertexFunction   = [self getFunction:@"clearVF"];
         pipeDesc.fragmentFunction = [self getFunction:@"clearFF"];
-        pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //[[context getRTT] getPixelFormat]; //rtt.pixelFormat
+        pipeDesc.colorAttachments[0].pixelFormat = [[context getRTT] getPixelFormat];
         pipeDesc.sampleCount = sampleCount;
         if ([context clearDepth]) {
             pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
@@ -157,14 +158,14 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     return clearRttPipeState;
 }
 
-- (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>) func
-                                          compositeMode:(int) compositeMode
+- (id<MTLRenderPipelineState>) getPipeStateWithFragFunc:(id<MTLFunction>)func
+                                          compositeMode:(int)compositeMode
 {
     NSError* error;
     MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
     pipeDesc.vertexFunction = vertexFunction;
     pipeDesc.fragmentFunction = func;
-    pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
+    pipeDesc.colorAttachments[0].pixelFormat = [[context getRTT] getPixelFormat];
 
     if ([context isDepthEnabled]) {
         pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
@@ -189,7 +190,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     return pipeState;
 }
 
-- (id<MTLComputePipelineState>) getComputePipelineStateWithFunc:(NSString*) funcName
+- (id<MTLComputePipelineState>) getComputePipelineStateWithFunc:(NSString*)funcName
 {
     NSError* error;
 
@@ -205,8 +206,8 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     return uyvy422ToRGBAState;
 }
 
-- (id<MTLRenderPipelineState>) getPhongPipeStateWithNumLights:(int) numLights
-                                                compositeMode:(int) compositeMode;
+- (id<MTLRenderPipelineState>) getPhongPipeStateWithNumLights:(int)numLights
+                                                compositeMode:(int)compositeMode;
 {
     NSError* error;
     NSMutableDictionary *psDict;
@@ -234,7 +235,7 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
         MTLRenderPipelineDescriptor* pipeDesc = [[MTLRenderPipelineDescriptor alloc] init];
         pipeDesc.vertexFunction = [self getFunction:vertFuncName];
         pipeDesc.fragmentFunction = [self getFunction:fragFuncName];
-        pipeDesc.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm; //rtt.pixelFormat
+        pipeDesc.colorAttachments[0].pixelFormat = [[context getRTT] getPixelFormat];
         if ([context isDepthEnabled]) {
             pipeDesc.depthAttachmentPixelFormat = MTLPixelFormatDepth32Float;
         } else {
@@ -269,8 +270,8 @@ NSString *GPUTraceFilename = @"file:///tmp/fx_metal.gputrace";
     }
 }
 
-- (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*) pipeDesc
-                         compositeMode:(int) compositeMode
+- (void) setPipelineCompositeBlendMode:(MTLRenderPipelineDescriptor*)pipeDesc
+                         compositeMode:(int)compositeMode
 {
     MTLBlendFactor srcFactor;
     MTLBlendFactor dstFactor;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,13 +27,12 @@ package com.sun.prism.mtl;
 
 import com.sun.glass.ui.Screen;
 import com.sun.javafx.geom.Rectangle;
+import com.sun.prism.CompositeMode;
 import com.sun.prism.Graphics;
+import com.sun.prism.GraphicsResource;
 import com.sun.prism.Presentable;
 import com.sun.prism.PresentableState;
-import com.sun.prism.CompositeMode;
-import com.sun.prism.GraphicsResource;
 import com.sun.prism.impl.PrismSettings;
-
 
 public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResource {
 
@@ -83,25 +82,12 @@ public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResou
 
     @Override
     public boolean prepare(Rectangle dirtyregion) {
-
         MTLContext context = getContext();
         context.flushVertexBuffer();
         MTLGraphics g = (MTLGraphics) MTLGraphics.create(context, stableBackbuffer);
         if (g == null) {
             return false;
         }
-        /*int sw = stableBackbuffer.getContentWidth();
-        int sh = stableBackbuffer.getContentHeight();
-        int dw = this.getContentWidth();
-        int dh = this.getContentHeight();
-        if (isMSAA()) {
-            context.flushVertexBuffer();
-            g.blit(stableBackbuffer, null, 0, 0, sw, sh, 0, 0, dw, dh);
-        } else {
-            g.setCompositeMode(CompositeMode.SRC);
-            g.drawTexture(stableBackbuffer, 0, 0, dw, dh, 0, 0, sw, sh);
-        }
-        context.flushVertexBuffer();*/
         stableBackbuffer.unlock();
         return true;
     }
@@ -112,14 +98,11 @@ public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResou
 
     @Override
     public boolean present() {
-
         MTLContext context = getContext();
         if (context.isDisposed()) {
             return false;
         }
-
         context.commitCurrentCommandBuffer();
-
         return true;
     }
 
@@ -142,8 +125,7 @@ public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResou
     public Graphics createGraphics() {
 
         if (pState.getNativeFrameBuffer() == 0) {
-            //TODO: MTL : handle error gracefully
-            //System.err.println("Native backbuffer texture from Glass is nil.");
+            System.err.println("Native backbuffer texture from Glass is nil.");
             return null;
         }
 
@@ -174,7 +156,7 @@ public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResou
             if (PrismSettings.dirtyOptsEnabled) {
                 stableBackbuffer.contentsUseful();
             }
-            //copyFullBuffer = true;
+            // copyFullBuffer = true;
         }
 
         Graphics g = MTLGraphics.create(getContext(), stableBackbuffer);
@@ -189,7 +171,6 @@ public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResou
 
     @Override
     public void setOpaque(boolean opaque) {
-
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,10 +33,16 @@ import com.sun.javafx.geom.transform.BaseTransform;
 import com.sun.javafx.geom.transform.GeneralTransform3D;
 import com.sun.javafx.sg.prism.NGCamera;
 import com.sun.javafx.sg.prism.NGDefaultCamera;
-import com.sun.prism.*;
+import com.sun.prism.CompositeMode;
+import com.sun.prism.Graphics;
+import com.sun.prism.MeshView;
+import com.sun.prism.RTTexture;
+import com.sun.prism.RenderTarget;
+import com.sun.prism.Texture;
 import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.impl.ps.BaseShaderContext;
 import com.sun.prism.ps.Shader;
+
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -82,16 +88,16 @@ public class MTLContext extends BaseShaderContext {
 
     private static final ByteBuffer shaderLibBuffer;
 
-    public final static int CULL_BACK                  = 110;
-    public final static int CULL_FRONT                 = 111;
-    public final static int CULL_NONE                  = 112;
+    public final static int CULL_BACK  = 110;
+    public final static int CULL_FRONT = 111;
+    public final static int CULL_NONE  = 112;
 
     static {
         final String shaderLibName = "msl/jfxshaders.metallib";
         final Class clazz = MTLContext.class;
 
         // Get the native shader library as a stream resource and read it into
-        // an NIO ByteBuffer. This will be passed to the native MTLContext
+        // an NIO ByteBuffer. This will be passed to the native MetalContext
         // initialization, which will load the shader library for each device.
         try {
             try (var in = new BufferedInputStream(clazz.getResourceAsStream(shaderLibName))) {
@@ -133,8 +139,9 @@ public class MTLContext extends BaseShaderContext {
     }
 
     /**
-     * OpenGL projection transform use z-range of [-1, 1] while Metal expects it
-     * to be [0, 1], so we need to adjust the matrix .(comment from D3DContext see RT-32880.)
+     * OpenGL projection transform use z-range of [-1, 1],
+     * while Metal expects it to be [0, 1], so we need to adjust the matrix.
+     * (comment from D3DContext, see JDK-8123305)
      */
     private GeneralTransform3D adjustClipSpace(GeneralTransform3D projViewTx) {
         double[] m = projViewTx.get(tempAdjustClipSpaceMat);
@@ -160,7 +167,7 @@ public class MTLContext extends BaseShaderContext {
         targetWidth = target.getPhysicalWidth();
         targetHeight = target.getPhysicalHeight();
 
-        // Need to validate the camera before getting its computed data.
+        // Validate the camera before getting its computed data
         if (camera instanceof NGDefaultCamera) {
             ((NGDefaultCamera) camera).validate(targetWidth, targetHeight);
             projViewTx = adjustClipSpace(camera.getProjViewTx(projViewTx));
@@ -188,7 +195,6 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void setTexture(int texUnit, Texture tex) {
-        //MTLLog.Debug("MTLContext.setTexture() : texUnit = " + texUnit + ", tex = " + tex);
         if (checkDisposed()) return;
 
         if (tex != null) tex.assertLocked();
@@ -202,7 +208,6 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void updateTexture(int texUnit, Texture tex) {
-        //MTLLog.Debug("MTLContext.updateTexture() :texUnit = " + texUnit + ", tex = " + tex);
         boolean linear;
         int wrapMode;
         if (tex != null) {
@@ -262,22 +267,18 @@ public class MTLContext extends BaseShaderContext {
     @Override
     protected void updateClipRect(Rectangle clipRect) {
         if (clipRect == null || clipRect.isEmpty()) {
-            //MTLLog.Debug("MTLContext.updateClipRect() Disable ScissorTest: " + clipRect);
             nResetClipRect(pContext);
         } else {
             int x = clipRect.x;
             int y = clipRect.y;
             int width  = clipRect.width;
             int height = clipRect.height;
-            //MTLLog.Debug("MTLContext.updateClipRect() Enable ScissorTest: " + clipRect);
             nSetClipRect(pContext, x, y, width, height);
         }
     }
 
     @Override
     protected void updateCompositeMode(CompositeMode mode) {
-        //MTLLog.Debug("MTLContext.updateCompositeMode() :mode = " + mode);
-
         int mtlCompMode;
         switch (mode) {
             case CLEAR:
@@ -307,13 +308,13 @@ public class MTLContext extends BaseShaderContext {
     }
 
     @Override
-    public void blit(RTTexture srcRTT, RTTexture dstRTT, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0, int dstX1, int dstY1) {
-        /*MTLLog.Debug("MTLContext.blit() :srcRTT = " + srcRTT + ", dstRTT = " + dstRTT + ", srcX0 = " +
-                srcX0 + ", srcY0 = " + srcY0 + ", srcX1 = " + srcX1 + ", srcY1 = " + srcY1 + ", dstX0 = " +
-                dstX0 + ", dstY0 = " + dstY0 + ", dstX1 = " + dstX1 + ", dstY1 = " + dstY1);*/
-        // TODO: MTL: Verify whether we can avoid this blit when we are trying
+    public void blit(RTTexture srcRTT, RTTexture dstRTT,
+                    int srcX0, int srcY0, int srcX1, int srcY1,
+                    int dstX0, int dstY0, int dstX1, int dstY1) {
+        // Verify whether we can avoid this blit when we are trying
         // to resolve MSAA texture into non-MSAA texture, because in case of Metal
-        // we resolve the texture while rendering itself
+        // we resolve the texture while rendering itself,
+        // implement or change in future if necessary
         long dstNativeHandle = dstRTT == null ? 0L : ((MTLTexture)dstRTT).getNativeHandle();
         long srcNativeHandle = ((MTLTexture)srcRTT).getNativeHandle();
         nBlit(pContext, srcNativeHandle, dstNativeHandle,
@@ -326,7 +327,6 @@ public class MTLContext extends BaseShaderContext {
         MTLLog.Debug("numVertices = " + numVertices);
         MTLLog.Debug("coordArray : length = " + coordArray.length);
         MTLLog.Debug("colorArray : length = " + colorArray.length);
-
         nDrawIndexedQuads(getContextHandle(), coordArray, colorArray, numVertices);
     }
 
@@ -340,81 +340,73 @@ public class MTLContext extends BaseShaderContext {
     }
 
     @Override
-    public void setDeviceParametersFor2D() {
-        if (checkDisposed()) return;
-        MTLLog.Debug("2D : MTLContext:setDeviceParametersFor2D()");
-        nSetDeviceParametersFor2D(pContext);
+    protected void setDeviceParametersFor2D() {
+        // There are no Metal rendering pipeline states changed as a
+        // result of this call, hence the method is no-op.
+        // But overriding the method here for any future reference.
+        // if (checkDisposed()) return;
+        // nSetDeviceParametersFor2D(pContext);
     }
 
     @Override
     protected void setDeviceParametersFor3D() {
-        if (checkDisposed()) return;
-        MTLLog.Debug("3D : MTLContext:setDeviceParametersFor3D()");
-        nSetDeviceParametersFor3D(pContext);
+        // There are no Metal rendering pipeline states changed as a
+        // result of this call, hence the method is no-op.
+        // But overriding the method here for any future reference.
+        // if (checkDisposed()) return;
+        // nSetDeviceParametersFor3D(pContext);
     }
 
     long createMTLMesh() {
         if (checkDisposed()) return 0;
-        MTLLog.Debug("3D : MTLContext:createMTLMesh()");
         return nCreateMTLMesh(pContext);
     }
 
     void releaseMTLMesh(long nativeHandle) {
-        MTLLog.Debug("3D : MTLContext:releaseMTLMesh()");
         nReleaseMTLMesh(pContext, nativeHandle);
     }
 
     boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
                                 short[] indexBuffer, int indexBufferLength) {
-        MTLLog.Debug("3D : MTLContext:buildNativeGeometryShort()");
         return nBuildNativeGeometryShort(pContext, nativeHandle, vertexBuffer,
             vertexBufferLength, indexBuffer, indexBufferLength);
     }
 
     boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
                                 int[] indexBuffer, int indexBufferLength) {
-        MTLLog.Debug("3D : MTLContext:buildNativeGeometryInt()");
         return nBuildNativeGeometryInt(pContext, nativeHandle, vertexBuffer,
             vertexBufferLength, indexBuffer, indexBufferLength);
     }
 
     long createMTLPhongMaterial() {
-        MTLLog.Debug("3D : MTLContext:createMTLPhongMaterial()");
         return nCreateMTLPhongMaterial(pContext);
     }
 
     void releaseMTLPhongMaterial(long nativeHandle) {
-        MTLLog.Debug("3D : MTLContext:createMTLPhongMaterial()");
         nReleaseMTLPhongMaterial(pContext, nativeHandle);
     }
 
     void setDiffuseColor(long nativePhongMaterial, float r, float g, float b, float a) {
-        MTLLog.Debug("3D : MTLContext:setDiffuseColor()");
         nSetDiffuseColor(pContext, nativePhongMaterial, r, g, b, a);
     }
 
     void setSpecularColor(long nativePhongMaterial, boolean set, float r, float g, float b, float a) {
-        MTLLog.Debug("3D : MTLContext:setSpecularColor()");
         nSetSpecularColor(pContext, nativePhongMaterial, set, r, g, b, a);
     }
 
     void setMap(long nativePhongMaterial, int mapType, long nativeTexture) {
-        MTLLog.Debug("3D : MTLContext:setMap()");
         nSetMap(pContext, nativePhongMaterial, mapType, nativeTexture);
     }
 
     long createMTLMeshView(long nativeMesh) {
-        MTLLog.Debug("3D : MTLContext:createMTLMeshView()");
         return nCreateMTLMeshView(pContext, nativeMesh);
     }
 
     void releaseMTLMeshView(long nativeMeshView) {
-        MTLLog.Debug("3D : MTLContext:releaseMTLMeshView()");
         nReleaseMTLMeshView(pContext, nativeMeshView);
     }
 
     void setCullingMode(long nativeMeshView, int cullMode) {
-        MTLLog.Debug("3D : MTLContext:setCullingMode()");
         int cm;
         if (cullMode == MeshView.CULL_NONE) {
             cm = CULL_NONE;
@@ -429,17 +421,14 @@ public class MTLContext extends BaseShaderContext {
     }
 
     void setMaterial(long nativeMeshView, long nativePhongMaterial) {
-        MTLLog.Debug("3D : MTLContext:setMaterial()");
         nSetMaterial(pContext, nativeMeshView, nativePhongMaterial);
     }
 
     void setWireframe(long nativeMeshView, boolean wireframe) {
-        MTLLog.Debug("3D : MTLContext:setWireframe()");
         nSetWireframe(pContext, nativeMeshView, wireframe);
     }
 
     void setAmbientLight(long nativeMeshView, float r, float g, float b) {
-        MTLLog.Debug("3D : MTLContext:setAmbientLight()");
         nSetAmbientLight(pContext, nativeMeshView, r, g, b);
     }
 
@@ -448,14 +437,12 @@ public class MTLContext extends BaseShaderContext {
                   float ca, float la, float qa, float isAttenuated, float maxRange,
                   float dirX, float dirY, float dirZ,
                   float innerAngle, float outerAngle, float falloff) {
-        MTLLog.Debug("3D : MTLContext:setLight()");
         nSetLight(pContext, nativeMeshView, index, x, y, z, r, g, b, w,
                     ca, la, qa, isAttenuated, maxRange,
                     dirX, dirY, dirZ, innerAngle, outerAngle, falloff);
     }
 
     void renderMeshView(long nativeMeshView, Graphics g) {
-        MTLLog.Debug("3D : MTLContext:renderMeshView()");
         // Support retina display by scaling the projViewTx and pass it to the shader.
         float pixelScaleFactorX = g.getPixelScaleFactorX();
         float pixelScaleFactorY = g.getPixelScaleFactorY();
@@ -505,6 +492,7 @@ public class MTLContext extends BaseShaderContext {
                 + ", " + rawMatrix[i+8] + ", " + rawMatrix[i+12]);
         }
     }
+
     private void updateRawMatrix(GeneralTransform3D src) {
         rawMatrix[0]  = (float)src.get(0); // Scale X
         rawMatrix[1]  = (float)src.get(4); // Shear Y
@@ -534,35 +522,31 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     public void dispose() {
-        MTLLog.Debug("(-) MTLContext Dispose is invoked");
-
         nRelease(pContext);
-        // disposeLCDBuffer();
         state = null;
-
         super.dispose();
     }
 
     // Native methods
 
-    native private static long nInitialize(ByteBuffer shaderLibPathStr);
-    native private static void nCommitCurrentCommandBuffer(long context);
-    native private static long nGetCommandQueue(long context);
-    native private static void nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
-    native private static int  nUpdateRenderTarget(long context, long texPtr, boolean depthTest);
-    native private static void nResetTransform(long context);
-    native private static void nSetProjViewMatrix(long pContext, boolean isOrtho,
+    private static native long nInitialize(ByteBuffer shaderLibPathStr);
+    private static native void nCommitCurrentCommandBuffer(long context);
+    private static native long nGetCommandQueue(long context);
+    private static native void nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
+    private static native int  nUpdateRenderTarget(long context, long texPtr, boolean depthTest);
+
+    private static native void nSetProjViewMatrix(long pContext, boolean isOrtho,
                                                     double m00, double m01, double m02, double m03,
                                                     double m10, double m11, double m12, double m13,
                                                     double m20, double m21, double m22, double m23,
                                                     double m30, double m31, double m32, double m33);
-    native private static void nSetTransform(long pContext,
+    private static native void nSetTransform(long pContext,
                                                   double m00, double m01, double m02, double m03,
                                                   double m10, double m11, double m12, double m13,
                                                   double m20, double m21, double m22, double m23,
                                                   double m30, double m31, double m32, double m33);
 
-    native private static void nSetCompositeMode(long context, int mode);
+    private static native void nSetCompositeMode(long context, int mode);
     private static native void nResetClipRect(long context);
     private static native void nSetClipRect(long context, int x, int y, int width, int height);
 
@@ -572,8 +556,6 @@ public class MTLContext extends BaseShaderContext {
                                                   double m10, double m11, double m12, double m13,
                                                   double m20, double m21, double m22, double m23,
                                                   double m30, double m31, double m32, double m33);
-    private static native int nSetDeviceParametersFor2D(long pContext);
-    private static native int nSetDeviceParametersFor3D(long pContext);
     private static native void nSetCameraPosition(long pContext, double x, double y, double z);
     private static native long nCreateMTLMesh(long pContext);
     private static native void nReleaseMTLMesh(long pContext, long nativeHandle);

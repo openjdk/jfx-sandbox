@@ -35,11 +35,10 @@
 #import "MetalRTTexture.h"
 #import "MetalPipelineManager.h"
 #import "MetalShader.h"
-#import "com_sun_prism_mtl_MTLContext.h"
 #import "MetalMesh.h"
-#import "MetalPhongShader.h"
 #import "MetalMeshView.h"
 #import "MetalPhongMaterial.h"
+#import "com_sun_prism_mtl_MTLContext.h"
 
 @implementation MetalContext
 
@@ -47,13 +46,17 @@
 {
     self = [super init];
     if (self) {
+        device = MTLCreateSystemDefaultDevice();
+
         currentRingBufferIndex = 0;
         ringBufferSemaphore = dispatch_semaphore_create(0);
         ringBufferLock = [[NSLock alloc] init];
         isWaitingForBuffer = false;
 
-        argsRingBuffer = [[MetalRingBuffer alloc] init:ARGS_BUFFER_SIZE];
-        dataRingBuffer = [[MetalRingBuffer alloc] init:DATA_BUFFER_SIZE];
+        argsRingBuffer = [[MetalRingBuffer alloc] init:self
+                                                ofSize:ARGS_BUFFER_SIZE];
+        dataRingBuffer = [[MetalRingBuffer alloc] init:self
+                                                ofSize:DATA_BUFFER_SIZE];
         transientBuffersForCB = [[NSMutableArray alloc] init];
         shadersUsedInCB = [[NSMutableSet alloc] init];
         isScissorEnabled = false;
@@ -64,7 +67,6 @@
         nonLinearSamplerDict = [[NSMutableDictionary alloc] init];
         compositeMode = com_sun_prism_mtl_MTLContext_MTL_COMPMODE_SRCOVER; //default
 
-        device = MTLCreateSystemDefaultDevice();
         currentBufferIndex = 0;
         commandQueue = [device newCommandQueue];
         commandQueue.label = @"The only MTLCommandQueue";
@@ -132,10 +134,9 @@
     if (rtt != rttPtr) {
         [self endCurrentRenderEncoder];
     }
-    // TODO: MTL:
     // The method can possibly be optmized(with no significant gain in FPS)
     // to avoid updating RenderPassDescriptor if the render target
-    // is not being changed.
+    // is not being changed, implement or change in future if necessary.
     rtt = rttPtr;
     id<MTLTexture> mtlTex = [rtt getTexture];
     [self validatePixelBuffer:(mtlTex.width * mtlTex.height * 4)];
@@ -363,17 +364,17 @@
     return currentBufferIndex;
 }
 
-- (id<MTLRenderPipelineState>) getPhongPipelineStateWithNumLights:(int) numLights
+- (id<MTLRenderPipelineState>) getPhongPipelineStateWithNumLights:(int)numLights
 {
     return [[self getPipelineManager] getPhongPipeStateWithNumLights:numLights
                 compositeMode:[self getCompositeMode]];
 }
 
-- (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
+- (NSInteger) drawIndexedQuads:(PrismSourceVertex const *)pSrcXYZUVs
                       ofColors:(char const *)pSrcColors
                    vertexCount:(NSUInteger)numVertices
 {
-    int vbLength   = numVertices * sizeof(struct PrismSourceVertex);
+    int vbLength   = numVertices * sizeof(PrismSourceVertex);
     int cbLength   = numVertices * 4;
     int numQuads   = numVertices / 4;
     int numIndices = numQuads * 6;
@@ -440,7 +441,7 @@
 
     for (int i = 0; numIndices > 0; i++) {
         [renderEncoder setVertexBuffer:vertexBuffer
-                                offset:(vertexOffset + (i * VERTICES_PER_IB * sizeof(struct PrismSourceVertex)))
+                                offset:(vertexOffset + (i * VERTICES_PER_IB * sizeof(PrismSourceVertex)))
                                atIndex:VertexInputIndexVertices];
 
         [renderEncoder setVertexBuffer:colorBuffer
@@ -657,25 +658,9 @@
     return currentShader;
 }
 
-- (void) setCurrentShader:(MetalShader*) shader
+- (void) setCurrentShader:(MetalShader*)shader
 {
     currentShader = shader;
-}
-
-- (NSInteger) setDeviceParametersFor2D
-{
-    // TODO: MTL: Seems to be empty method, good to remove
-    return 1;
-}
-
-- (NSInteger) setDeviceParametersFor3D
-{
-    // TODO: MTL: Seems to be empty method, good to remove
-    // TODO: MTL: Check whether we need to do shader initialization here
-    /*if (!phongShader) {
-        phongShader = ([[MetalPhongShader alloc] createPhongShader:self]);
-    }*/
-    return 1;
 }
 
 - (void) updateDepthDetails:(bool)depthTest
@@ -707,7 +692,7 @@
     }
 }
 
-- (void) setCompositeMode:(int) mode
+- (void) setCompositeMode:(int)mode
 {
     compositeMode = mode;
 }
@@ -717,8 +702,7 @@
     return compositeMode;
 }
 
-- (void) setCameraPosition:(float)x
-            y:(float)y z:(float)z
+- (void) setCameraPosition:(float)x y:(float)y z:(float)z
 {
     cPos.x = x;
     cPos.y = y;
@@ -802,11 +786,6 @@
     if (rttPassDesc != nil) {
         [rttPassDesc release];
         rttPassDesc = nil;
-    }
-
-    if (phongShader != nil) {
-        [phongShader release];
-        phongShader = nil;
     }
 
     if (phongRPD != nil) {
@@ -937,10 +916,10 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nRelease
 {
     MetalContext *contextPtr = (MetalContext *)jlong_to_ptr(context);
 
-    if (contextPtr != NULL) {
+    if (contextPtr != nil) {
         [contextPtr dealloc];
     }
-    contextPtr = NULL;
+    contextPtr = nil;
 }
 
 /*
@@ -965,8 +944,8 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nDrawIndexedQuads
 {
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
 
-    struct PrismSourceVertex *pVertices =
-                    (struct PrismSourceVertex *) (*env)->GetPrimitiveArrayCritical(env, vertices, 0);
+    PrismSourceVertex *pVertices =
+                    (PrismSourceVertex *) (*env)->GetPrimitiveArrayCritical(env, vertices, 0);
     char *pColors = (char *) (*env)->GetPrimitiveArrayCritical(env, colors, 0);
 
     [mtlContext drawIndexedQuads:pVertices ofColors:pColors vertexCount:numVertices];
@@ -986,10 +965,11 @@ JNIEXPORT int JNICALL Java_com_sun_prism_mtl_MTLContext_nUpdateRenderTarget
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
     MetalRTTexture *rtt = (MetalRTTexture *)jlong_to_ptr(texPtr);
     int ret = [mtlContext setRTT:rtt];
-    // TODO: MTL: If we create depth texture while creating RTT
+    // If we create depth texture while creating RTT
     // then also current implementation works fine. So in future
     // if we see any performance/state impact we should move
-    // depthTexture creation along with RTT creation.
+    // depthTexture creation along with RTT creation,
+    // implement or change in future if necessary.
     if (depthTest) {
         [mtlContext verifyDepthTexture];
     }
@@ -1019,19 +999,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetClipRect
 {
     MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
     [pCtx resetClipRect];
-}
-
-/*
- * Class:     com_sun_prism_mtl_MTLContext
- * Method:    nResetTransform
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nResetTransform
-    (JNIEnv *env, jclass jClass, jlong context)
-{
-    // TODO: MTL: The method seems to be effectively empty, may be good to remove.
-    MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
-    //[mtlContext resetProjViewMatrix];
 }
 
 /*
@@ -1070,10 +1037,11 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetTransform
 {
     MetalContext *mtlContext = (MetalContext *)jlong_to_ptr(context);
 
-    // TODO: MTL: Added separate nSetTransform because previously
+    // Added separate nSetTransform because previously
     // we used to use nSetProjViewMatrix only and enabled depth test
     // by default. Also check whether we need to do anything else
-    // apart from just updating projection view matrix.
+    // apart from just updating projection view matrix,
+    // implement or change in future if necessary.
 
     [mtlContext setProjViewMatrix:m00
         m01:m01 m02:m02 m03:m03
@@ -1503,30 +1471,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCameraPosition
 
 /*
  * Class:     com_sun_prism_mtl_MTLContext
- * Method:    nSetDeviceParametersFor2D
- * Signature: (J)I
- */
-JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor2D
-    (JNIEnv *env, jclass jClass, jlong ctx)
-{
-    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
-    return [pCtx setDeviceParametersFor2D];
-}
-
-/*
- * Class:     com_sun_prism_mtl_MTLContext
- * Method:    nSetDeviceParametersFor3D
- * Signature: (J)I
- */
-JNIEXPORT jint JNICALL Java_com_sun_prism_mtl_MTLContext_nSetDeviceParametersFor3D
-    (JNIEnv *env, jclass jClass, jlong ctx)
-{
-    MetalContext *pCtx = (MetalContext*)jlong_to_ptr(ctx);
-    return [pCtx setDeviceParametersFor3D];
-}
-
-/*
- * Class:     com_sun_prism_mtl_MTLContext
  * Method:    nSetCompositeMode
  * Signature: (JI)V
  */
@@ -1542,9 +1486,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_mtl_MTLContext_nSetCompositeMode(
  * Method:    nGetCommandQueue
  * Signature: (J)J
  */
-// TODO: MTL: This enables sharing of MTLCommandQueue between PRISM and GLASS, if needed.
-// Note : Currently, PRISM and GLASS create their own dedicated MTLCommandQueue
-// This method is unused
+// This enables sharing of MTLCommandQueue between PRISM and GLASS, if needed.
 JNIEXPORT jlong JNICALL Java_com_sun_prism_mtl_MTLContext_nGetCommandQueue
     (JNIEnv *env, jclass jClass, jlong context)
 {

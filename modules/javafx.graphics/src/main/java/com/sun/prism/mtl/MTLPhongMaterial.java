@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,14 @@
 package com.sun.prism.mtl;
 
 import com.sun.javafx.PlatformUtil;
+import com.sun.javafx.logging.PlatformLogger;
 import com.sun.prism.Image;
 import com.sun.prism.PhongMaterial;
 import com.sun.prism.Texture;
 import com.sun.prism.TextureMap;
 import com.sun.prism.impl.BasePhongMaterial;
 import com.sun.prism.impl.Disposer;
-import com.sun.javafx.logging.PlatformLogger;
 
-/**
- * TODO: MTL: 3D - Need documentation
- */
 class MTLPhongMaterial extends BasePhongMaterial implements PhongMaterial {
 
     static int count = 0;

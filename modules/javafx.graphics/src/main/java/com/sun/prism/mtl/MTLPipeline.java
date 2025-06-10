@@ -31,10 +31,8 @@ import com.sun.prism.GraphicsPipeline;
 import com.sun.prism.ResourceFactory;
 import com.sun.prism.impl.PrismSettings;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 
 public class MTLPipeline extends GraphicsPipeline {
 
@@ -58,13 +56,11 @@ public class MTLPipeline extends GraphicsPipeline {
     }
 
     public static MTLPipeline getInstance() {
-        MTLLog.Debug("MTLPipeline.getInstance()");
         return theInstance;
     }
 
     @Override
     public boolean init() {
-        MTLLog.Debug("MTLPipeline.init()");
         HashMap devDetails = new HashMap();
         setDeviceDetails(devDetails);
         return true;
@@ -77,23 +73,23 @@ public class MTLPipeline extends GraphicsPipeline {
 
     @Override
     public ResourceFactory getDefaultResourceFactory(List<Screen> screens) {
-        // TODO: MTL: This creates only one resource factory for the main screen.
-        //  We need to create and maintain multiple Resource Factories, one for each screen.
+        // This creates only one resource factory, all the Metal resources like
+        // MTLBuffer, MTLTexture and created and handled in native Metal classes.
         return getResourceFactory(Screen.getMainScreen());
     }
 
     @Override
     public ResourceFactory getResourceFactory(Screen screen) {
-        // TODO: MTL: This method should return appropriate resource factory for the screen
-        //  and not just the member mtlResourceFactory
+        // All the Metal resources like MTLBuffer, MTLTexture are created
+        // and handled on native side of Metal impl.
+        // So, a common ResourceFactory instance across screens is sufficient.
         if (mtlResourceFactory == null) {
             mtlResourceFactory = new MTLResourceFactory(screen);
 
             // This enables sharing of MTLCommandQueue between PRISM and GLASS
-            HashMap devDetails = (HashMap) MTLPipeline.
-                getInstance().getDeviceDetails();
+            HashMap devDetails = (HashMap) MTLPipeline.getInstance().getDeviceDetails();
             devDetails.put("mtlCommandQueue",
-                mtlResourceFactory.getContext().getMetalCommandQueue());
+                                mtlResourceFactory.getContext().getMetalCommandQueue());
         }
         return mtlResourceFactory;
     }
@@ -104,7 +100,6 @@ public class MTLPipeline extends GraphicsPipeline {
             mtlResourceFactory.dispose();
             mtlResourceFactory = null;
         }
-
         super.dispose();
     }
 

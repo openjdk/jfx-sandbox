@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,6 @@
 #ifndef METAL_MESHVIEW_H
 #define METAL_MESHVIEW_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 #import "MetalContext.h"
 #import "MetalMesh.h"
 #import "MetalLight.h"
@@ -91,7 +88,7 @@ typedef struct PS_PHONG_UNIFORMS {
         isA:(float)isAttenuated range:(float)range
         dirX:(float)dirX dirY:(float)dirY dirZ:(float)dirZ
         inA:(float)innerAngle outA:(float)outerAngle
-        falloff:(float)falloff;
+        falloff:(float)fall_off;
 
 - (MetalMesh*) getMesh;
 - (int) getCullingMode;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@ typedef struct
     vector_float4 position;
     vector_float4 color;
 } MBEVertex;
+
 @implementation MetalMesh
 
 - (id) createMesh:(MetalContext*)ctx
@@ -45,31 +46,13 @@ typedef struct
 }
 
 - (bool) buildBuffersShort:(float*)vb
-                vSize:(unsigned int)vbSize
-              iBuffer:(unsigned short*)ib
-                iSize:(unsigned int)ibSize
+                     vSize:(unsigned int)vbSize
+                   iBuffer:(unsigned short*)ib
+                     iSize:(unsigned int)ibSize
 {
     id<MTLDevice> device = [context getDevice];
     unsigned int size = vbSize * sizeof (float);
     unsigned int vbCount = vbSize / NUM_OF_FLOATS_PER_VERTEX;
-    // TODO: MTL: Cleanup this code in future if we think we don't need
-    // to add padding to float3 data
-    /*VS_PHONG_INPUT* pVert = vertices;
-    for (int i = 0; i < vbCount; i++) {
-        pVert->position.x = *(vb + (i * 9));
-        pVert->position.y = *(vb + (i * 9) + 1);
-        pVert->position.z = *(vb + (i * 9) + 2);
-        pVert->position.w = 1.0;
-        pVert->texCoord.x = *(vb + (i * 9) + 3);
-        pVert->texCoord.y = *(vb + (i * 9) + 4);
-        pVert->texCoord.z = 1.0;
-        pVert->texCoord.w = 1.0;
-        pVert->normal.x = *(vb + (i * 9) + 5);
-        pVert->normal.y = *(vb + (i * 9) + 6);
-        pVert->normal.z = *(vb + (i * 9) + 7);
-        pVert->normal.w = *(vb + (i * 9) + 8);
-        pVert++;
-    }*/
 
     if (numVertices != vbCount) {
         [self releaseVertexBuffer];
@@ -97,9 +80,9 @@ typedef struct
 }
 
 - (bool) buildBuffersInt:(float*)vb
-                vSize:(unsigned int)vbSize
-              iBuffer:(unsigned int*)ib
-                iSize:(unsigned int)ibSize
+                   vSize:(unsigned int)vbSize
+                 iBuffer:(unsigned int*)ib
+                   iSize:(unsigned int)ibSize
 {
     id<MTLDevice> device = [context getDevice];
     unsigned int size = vbSize * sizeof (float);

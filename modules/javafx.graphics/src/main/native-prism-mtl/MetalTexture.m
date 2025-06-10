@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,31 +23,24 @@
  * questions.
  */
 
-#import <jni.h>
 #import "MetalTexture.h"
 #import "MetalPipelineManager.h"
 
-@implementation MetalTexture
-
-// TODO: MTL: This is a helper method to print debug messages.
-// Should be removed before integrating to mainline.
-NSString *nameForPixelFormat(NSUInteger format) {
-    switch (format) {
-        case PFORMAT_INT_ARGB_PRE:  return @"PFORMAT_INT_ARGB_PRE : MTLPixelFormatBGRA8Unorm";
-        case PFORMAT_BYTE_RGBA_PRE: return @"PFORMAT_BYTE_RGBA_PRE : MTLPixelFormatBGRA8Unorm";
-        case PFORMAT_BYTE_BGRA_PRE: return @"PFORMAT_BYTE_BGRA_PRE : MTLPixelFormatBGRA8Unorm";
-        case PFORMAT_BYTE_RGB:      return @"PFORMAT_BYTE_RGB : MTLPixelFormatBGRA8Unorm";
-        case PFORMAT_BYTE_GRAY:     return @"PFORMAT_BYTE_GRAY : MTLPixelFormatBGRA8Unorm";
-
-        case PFORMAT_BYTE_ALPHA:    return @"PFORMAT_BYTE_ALPHA : MTLPixelFormatA8Unorm";
-
-        case PFORMAT_FLOAT_XYZW:    return @"PFORMAT_FLOAT_XYZW : MTLPixelFormatRGBA32Float";
-
-        case PFORMAT_MULTI_YV_12:   return @"PFORMAT_MULTI_YV_12 : NOT SUPPORTED";
-        case PFORMAT_BYTE_APPL_422: return @"PFORMAT_BYTE_APPL_422 : NOT SUPPORTED";
-        default: return @"Unknown MTLPixelFormat";
+static unsigned int getPixelSize(enum MTLPixelFormat pixelFormat)
+{
+    switch (pixelFormat) {
+        case MTLPixelFormatA8Unorm:
+            return 1;
+        case MTLPixelFormatBGRA8Unorm:
+            return 4;
+        case MTLPixelFormatRGBA32Float:
+            return 16;
+        default:
+            return 0;
     }
 }
+
+@implementation MetalTexture
 
 // This method creates a native MTLTexture
 - (MetalTexture*) createTexture:(MetalContext*)ctx
@@ -125,8 +118,8 @@ NSString *nameForPixelFormat(NSUInteger format) {
                           sourceSize:MTLSizeMake(texture.width, texture.height, texture.depth)
                             toBuffer:[context getPixelBuffer]
                    destinationOffset:(NSUInteger)0
-              destinationBytesPerRow:(NSUInteger)texture.width * 4
-            destinationBytesPerImage:(NSUInteger)texture.width * texture.height * 4];
+              destinationBytesPerRow:(NSUInteger)texture.width * getPixelSize(pixelFormat)
+            destinationBytesPerImage:(NSUInteger)texture.width * texture.height * getPixelSize(pixelFormat)];
 
         [blitEncoder endEncoding];
     }
@@ -177,20 +170,6 @@ static NSMutableDictionary *getBufferAndOffset(MetalContext* context, unsigned i
 
     [bufferOffsetDict setObject:pixelMTLBuf forKey:@(offset)];
     return bufferOffsetDict;
-}
-
-static unsigned int getPixelSize(enum MTLPixelFormat pixelFormat)
-{
-    switch (pixelFormat) {
-        case MTLPixelFormatA8Unorm:
-            return 1;
-        case MTLPixelFormatBGRA8Unorm:
-            return 4;
-        case MTLPixelFormatRGBA32Float:
-            return 16;
-        default:
-            return 0;
-    }
 }
 
 static NSMutableDictionary *copyPixelDataToRingBuffer(MetalContext* context, void* pixels,

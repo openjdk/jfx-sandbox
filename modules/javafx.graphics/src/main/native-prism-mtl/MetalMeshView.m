@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@
     if (self) {
         context = ctx;
         mesh = mtlMesh;
-        material = NULL;
+        material = nil;
         ambientLightColor.x = 0;
         ambientLightColor.y = 0;
         ambientLightColor.z = 0;
@@ -94,7 +94,7 @@
         isA:(float)isAttenuated range:(float)range
         dirX:(float)dirX dirY:(float)dirY dirZ:(float)dirZ
         inA:(float)innerAngle outA:(float)outerAngle
-        falloff:(float)falloff
+        falloff:(float)fall_off
 {
     // NOTE: We only support up to 3 point lights at the present
     if (index >= 0 && index <= MAX_NUM_LIGHTS - 1) {
@@ -105,7 +105,7 @@
             isA:isAttenuated range:range
             dirX:dirX dirY:dirY dirZ:dirZ
             inA:innerAngle outA:outerAngle
-            falloff:falloff]);
+            falloff:fall_off]);
             lights[index] = light;
         } else {
             lights[index]->position[0] = x;
@@ -125,7 +125,7 @@
             lights[index]->direction[2] = dirZ;
             lights[index]->inAngle = innerAngle;
             lights[index]->outAngle = outerAngle;
-            lights[index]->foff = falloff;
+            lights[index]->falloff = fall_off;
         }
         lightsDirty = TRUE;
     }
@@ -182,7 +182,7 @@
             float cosOuter = cos(light->outAngle * M_PI / 180);
             psUniforms.spotLightsFactors[s++] = cosOuter;
             psUniforms.spotLightsFactors[s++] = cosInner - cosOuter;
-            psUniforms.spotLightsFactors[s++] = light->foff;
+            psUniforms.spotLightsFactors[s++] = light->falloff;
             psUniforms.spotLightsFactors[s++] = 0;
         }
     }
