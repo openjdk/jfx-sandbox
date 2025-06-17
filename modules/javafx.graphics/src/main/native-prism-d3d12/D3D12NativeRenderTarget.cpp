@@ -45,12 +45,12 @@ NativeRenderTarget::~NativeRenderTarget()
 {
     if (mDescriptors)
     {
-        mNativeDevice->GetRTVDescriptorHeap()->Free(mDescriptors);
+        mNativeDevice->GetRTVDescriptorAllocator()->Free(mDescriptors);
     }
 
     if (mDSVDescriptor)
     {
-        mNativeDevice->GetDSVDescriptorHeap()->Free(mDSVDescriptor);
+        mNativeDevice->GetDSVDescriptorAllocator()->Free(mDSVDescriptor);
     }
 
     mTexture.reset();
@@ -63,7 +63,7 @@ NativeRenderTarget::~NativeRenderTarget()
 bool NativeRenderTarget::Init(const NIPtr<NativeTexture>& texture)
 {
     mTexture = texture;
-    mDescriptors = mNativeDevice->GetRTVDescriptorHeap()->Allocate(1);
+    mDescriptors = mNativeDevice->GetRTVDescriptorAllocator()->Allocate(1);
 
     return Refresh();
 }
@@ -82,7 +82,7 @@ bool NativeRenderTarget::EnsureHasDepthBuffer()
         return false;
     }
 
-    mDSVDescriptor = mNativeDevice->GetDSVDescriptorHeap()->Allocate(1);
+    mDSVDescriptor = mNativeDevice->GetDSVDescriptorAllocator()->Allocate(1);
     if (!mDSVDescriptor)
     {
         D3D12NI_LOG_ERROR("Failed to allocate DSV descriptor for Depth Buffer");

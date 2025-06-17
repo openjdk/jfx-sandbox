@@ -25,10 +25,8 @@
 
 #pragma once
 
-#include "../D3D12Common.hpp"
-
-#include "D3D12DescriptorAllocator.hpp"
-#include "D3D12SamplerDesc.hpp"
+#include "D3D12Common.hpp"
+#include "D3D12DescriptorHeap.hpp"
 
 #include <unordered_map>
 
@@ -36,23 +34,26 @@
 namespace D3D12 {
 namespace Internal {
 
-class SamplerStorage
+class DescriptorAllocator
 {
     NIPtr<NativeDevice> mNativeDevice;
-    DescriptorAllocator mSamplerAllocator;
-    std::unordered_map<SamplerDesc, DescriptorData> mSamplerContainer;
-    DescriptorData mNullSampler;
+    std::unordered_map<uint32_t, DescriptorHeap> mHeaps;
+    uint32_t mLastHeapID;
+    D3D12_DESCRIPTOR_HEAP_TYPE mType;
+    bool mShaderVisible;
+    std::string mName;
 
-    D3D12_SAMPLER_DESC BuildD3D12SamplerDesc(const SamplerDesc& sd) const;
-    D3D12_TEXTURE_ADDRESS_MODE TranslateWrapMode(TextureWrapMode wrapMode) const;
-    D3D12_FILTER TranslateIsLinear(bool isLinear) const;
+    std::string HeapSpecificName(uint32_t id) const;
+    bool AddHeap();
 
 public:
-    SamplerStorage(const NIPtr<NativeDevice>& nativeDevice);
-    ~SamplerStorage() = default;
+    DescriptorAllocator(const NIPtr<NativeDevice>& nativeDevice);
+    ~DescriptorAllocator() = default;
 
-    bool Init();
-    const DescriptorData& GetSampler(const SamplerDesc& sd) const;
+    bool Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible);
+    DescriptorData Allocate(uint32_t count);
+    void Free(const DescriptorData& data);
+    void SetName(const std::string& name);
 };
 
 } // namespace Internal

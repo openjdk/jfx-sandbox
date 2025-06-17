@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,61 +34,35 @@
 namespace D3D12 {
 namespace Internal {
 
-DescriptorHeap::DescriptorHeap(const NIPtr<NativeDevice>& device)
-    : mDevice(device)
-    , mHeap()
+DescriptorHeap::DescriptorHeap(const D3D12DescriptorHeapPtr& heap, uint32_t incrementSize, uint32_t id, const std::string& name)
+    : mHeap(heap)
     , mShaderVisible(false)
     , mCPUStartHandle{0}
     , mGPUStartHandle{0}
+    , mIncrementSize(incrementSize)
     , mSlotAvailability()
     , mFirstFreeSlot(0)
-    , mReady(false)
+    , mSize(0)
+    , mAllocatedCountTotal(0)
+    , mID(id)
+    , mName(name)
 {
-    for (bool& slot: mSlotAvailability)
-    {
-        slot = true;
-    }
-}
+    D3D12_DESCRIPTOR_HEAP_DESC desc = mHeap->GetDesc();
 
-bool DescriptorHeap::Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible)
-{
-    D3D12_DESCRIPTOR_HEAP_DESC desc;
-    D3D12NI_ZERO_STRUCT(desc);
-    desc.Type = type;
-    // TODO: D3D12: this is static count for now, to be automatically increased later on
-    desc.NumDescriptors = MAX_DESCRIPTOR_SLOT_COUNT;
-    desc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    // TODO: D3D12: for multi-adapters, we need to set below to non-zero.
-    // See: https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_descriptor_heap_desc
-    desc.NodeMask = 0;
-
-    HRESULT hr = mDevice->GetDevice()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mHeap));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Descriptor Heap");
-
-    mShaderVisible = shaderVisible;
+    mShaderVisible = (desc.Flags & D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
+    mSize = desc.NumDescriptors;
 
     mCPUStartHandle = mHeap->GetCPUDescriptorHandleForHeapStart();
-    mIncrementSize = mDevice->GetDevice()->GetDescriptorHandleIncrementSize(type);
+    if (mShaderVisible) mGPUStartHandle = mHeap->GetGPUDescriptorHandleForHeapStart();
 
-    if (mShaderVisible)
-    {
-        mGPUStartHandle = mHeap->GetGPUDescriptorHandleForHeapStart();
-    }
-
-    mAllocatedCountTotal = 0;
-    mSize = MAX_DESCRIPTOR_SLOT_COUNT;
-    mReady = true;
-
-    return true;
+    for (uint32_t i = 0; i < MAX_DESCRIPTOR_SLOT_COUNT; ++i) mSlotAvailability[i] = true;
 }
 
 DescriptorData DescriptorHeap::Allocate(UINT count)
 {
-    if (!mReady) return DescriptorData();
-
-    if (count > mSlotAvailability.size())
+    if (count > mSlotAvailability.size() - mAllocatedCountTotal)
     {
-        D3D12NI_ASSERT(count > mSlotAvailability.size(), "Too many descriptors requested for alloc");
+        D3D12NI_LOG_DEBUG("Too many descriptors requested for alloc");
         return DescriptorData();
     }
 
@@ -139,7 +113,7 @@ DescriptorData DescriptorHeap::Allocate(UINT count)
             mAllocatedCountTotal += count;
             D3D12NI_LOG_TRACE("%s: Allocated %u descriptors, %u/%u taken", mName.c_str(), count, mAllocatedCountTotal, mSize);
 
-            return DescriptorData(retCPUHandle, retGPUHandle, count, mIncrementSize);
+            return DescriptorData(retCPUHandle, retGPUHandle, count, mIncrementSize, mID);
         }
     }
     while (i != mFirstFreeSlot);
@@ -150,7 +124,7 @@ DescriptorData DescriptorHeap::Allocate(UINT count)
 
 void DescriptorHeap::Free(const DescriptorData& data)
 {
-    if (!mReady) return;
+    D3D12NI_ASSERT(data.allocatorId == mID, "Tried to free descriptor data block which does not belong to this allocator");
 
     size_t slot = (data.cpu.ptr - mCPUStartHandle.ptr) / mIncrementSize;
     size_t finalSlot = slot + data.count;
@@ -163,7 +137,7 @@ void DescriptorHeap::Free(const DescriptorData& data)
     }
 
     mAllocatedCountTotal -= freed;
-    D3D12NI_LOG_TRACE("%s: Freed %u descriptors, %u/%u taken ", mName.c_str(), freed, mAllocatedCountTotal, mSize);
+    D3D12NI_LOG_TRACE("%s: Freed %u descriptors, %u/%u taken", mName.c_str(), freed, mAllocatedCountTotal, mSize);
 }
 
 void DescriptorHeap::SetName(const std::string& name)

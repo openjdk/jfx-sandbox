@@ -51,6 +51,27 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
         &mResourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&mTextureResource));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Texture's Committed Resource");
 
+    // Allocate the most commonly used descriptor covering all mips
+    // The only time we'll need something different is when calling MipmapGen
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+    D3D12NI_ZERO_STRUCT(srvDesc);
+    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    srvDesc.Format = mResourceDesc.Format;
+    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = mMipLevels;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.PlaneSlice = 0;
+    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+
+    mSRVDescriptor = mNativeDevice->GetSRVDescriptorAllocator()->Allocate(1);
+    if (!mSRVDescriptor)
+    {
+        D3D12NI_LOG_ERROR("Failed to allocate base SRV descriptor for texture");
+        return false;
+    }
+
+    mNativeDevice->GetDevice()->CreateShaderResourceView(mTextureResource.Get(), &srvDesc, mSRVDescriptor.CPU(0));
+
     // Texture will be separately loaded with data via Java's Texture.update() calls
     // Fill in remaining members and leave
     for (auto& state: mStates)
@@ -94,7 +115,16 @@ NativeTexture::NativeTexture(const NIPtr<NativeDevice>& nativeDevice)
 
 NativeTexture::~NativeTexture()
 {
-    mNativeDevice->MarkResourceDisposed(mTextureResource);
+    if (mTextureResource)
+    {
+        mNativeDevice->MarkResourceDisposed(mTextureResource);
+    }
+
+    if (mSRVDescriptor)
+    {
+        mNativeDevice->GetSRVDescriptorAllocator()->Free(mSRVDescriptor);
+    }
+
     mNativeDevice.reset();
 
     if (mTextureResource)
@@ -175,18 +205,26 @@ void NativeTexture::SetSamplerParameters(TextureWrapMode wrapMode, bool isLinear
 
 void NativeTexture::WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipLevels, UINT mostDetailedMip)
 {
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-    D3D12NI_ZERO_STRUCT(srvDesc);
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format = mResourceDesc.Format;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MipLevels = (mipLevels == 0) ? mMipLevels : mipLevels;
-    srvDesc.Texture2D.MostDetailedMip = mostDetailedMip;
-    srvDesc.Texture2D.PlaneSlice = 0;
-    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
+    if (mipLevels == 0 && mostDetailedMip == 0)
+    {
+        // fast path for most use cases
+        mNativeDevice->GetDevice()->CopyDescriptorsSimple(1, descriptorCpu, mSRVDescriptor.CPU(0), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    }
+    else
+    {
+        // slow path, usually should only be taken by MipmapGen
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+        D3D12NI_ZERO_STRUCT(srvDesc);
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Format = mResourceDesc.Format;
+        srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = (mipLevels == 0) ? mMipLevels : mipLevels;
+        srvDesc.Texture2D.MostDetailedMip = mostDetailedMip;
+        srvDesc.Texture2D.PlaneSlice = 0;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-    // TODO: D3D12: Replace with CopyDescriptorsSimple?
-    mNativeDevice->GetDevice()->CreateShaderResourceView(mTextureResource.Get(), &srvDesc, descriptorCpu);
+        mNativeDevice->GetDevice()->CreateShaderResourceView(mTextureResource.Get(), &srvDesc, descriptorCpu);
+    }
 }
 
 void NativeTexture::WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipSlice)
@@ -197,7 +235,6 @@ void NativeTexture::WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& desc
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
     uavDesc.Texture2D.MipSlice = mipSlice;
 
-    // TODO: D3D12: Replace with CopyDescriptorsSimple?
     mNativeDevice->GetDevice()->CreateUnorderedAccessView(mTextureResource.Get(), nullptr, &uavDesc, descriptorCpu);
 }
 

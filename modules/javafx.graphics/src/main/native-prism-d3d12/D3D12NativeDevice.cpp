@@ -204,8 +204,8 @@ NativeDevice::NativeDevice()
     , mRootSignatureManager()
     , mRenderingContext()
     , mResourceDisposer()
-    , mRTVHeap()
-    , mDSVHeap()
+    , mRTVAllocator()
+    , mDSVAllocator()
     , mShaderLibrary()
     , mPassthroughVS()
     , mPhongVS()
@@ -321,22 +321,30 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
 
     mConstantRingBuffer->SetDebugName("Constant Ring Buffer");
 
-    mRTVHeap = std::make_shared<Internal::DescriptorHeap>(shared_from_this());
-    if (!mRTVHeap->Init(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false))
+    mRTVAllocator = std::make_shared<Internal::DescriptorAllocator>(shared_from_this());
+    if (!mRTVAllocator->Init(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false))
     {
-        D3D12NI_LOG_ERROR("Failed to allocate RTV Descriptor Heap");
+        D3D12NI_LOG_ERROR("Failed to create RTV Descriptor Allocator");
         return false;
     }
 
-    mDSVHeap = std::make_shared<Internal::DescriptorHeap>(shared_from_this());
-    if (!mDSVHeap->Init(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false))
+    mDSVAllocator = std::make_shared<Internal::DescriptorAllocator>(shared_from_this());
+    if (!mDSVAllocator->Init(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false))
     {
-        D3D12NI_LOG_ERROR("Failed to allocate DSV Descriptor Heap");
+        D3D12NI_LOG_ERROR("Failed to create DSV Descriptor Allocator");
         return false;
     }
 
-    mRTVHeap->SetName("RenderTargetView Descriptor Heap");
-    mDSVHeap->SetName("DepthStencilView Descriptor Heap");
+    mSRVAllocator = std::make_shared<Internal::DescriptorAllocator>(shared_from_this());
+    if (!mSRVAllocator->Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, false))
+    {
+        D3D12NI_LOG_ERROR("Failed to create SRV Descriptor Allocator");
+        return false;
+    }
+
+    mRTVAllocator->SetName("RenderTargetView Descriptor Heap");
+    mDSVAllocator->SetName("DepthStencilView Descriptor Heap");
+    mSRVAllocator->SetName("CBV/SRV/UAV Descriptor Heap");
 
     mSamplerStorage = std::make_shared<Internal::SamplerStorage>(shared_from_this());
     if (!mSamplerStorage->Init())
@@ -369,8 +377,9 @@ void NativeDevice::Release()
     if (mCommandListPool) mCommandListPool.reset();
     if (mShaderLibrary) mShaderLibrary.reset();
     if (mSamplerStorage) mSamplerStorage.reset();
-    if (mRTVHeap) mRTVHeap.reset();
-    if (mDSVHeap) mDSVHeap.reset();
+    if (mRTVAllocator) mRTVAllocator.reset();
+    if (mDSVAllocator) mDSVAllocator.reset();
+    if (mSRVAllocator) mSRVAllocator.reset();
     if (mResourceDisposer) mResourceDisposer.reset();
     if (mRootSignatureManager) mRootSignatureManager.reset();
 
@@ -469,9 +478,9 @@ int NativeDevice::GetMaximumTextureSize() const
     return D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 }
 
-void NativeDevice::MarkResourceDisposed(const D3D12ResourcePtr& resource)
+void NativeDevice::MarkResourceDisposed(const D3D12PageablePtr& pageable)
 {
-    mResourceDisposer->MarkDisposed(resource);
+    mResourceDisposer->MarkDisposed(pageable);
 }
 
 void NativeDevice::Clear(float r, float g, float b, float a, bool clearDepth)

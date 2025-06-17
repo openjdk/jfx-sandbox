@@ -28,6 +28,7 @@
 #include "D3D12Common.hpp"
 #include "D3D12Constants.hpp"
 
+#include "Internal/D3D12DescriptorData.hpp"
 #include "Internal/D3D12SamplerDesc.hpp"
 
 #include <array>
@@ -48,6 +49,7 @@ class NativeTexture
     std::wstring mDebugName;
     UINT mMipLevels;
     Internal::SamplerDesc mSamplerDesc;
+    Internal::DescriptorData mSRVDescriptor;
 
     bool InitInternal(const D3D12_RESOURCE_DESC& desc);
 

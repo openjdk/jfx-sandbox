@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,27 +44,27 @@ class ResourceDisposer: public IWaitableOperation
     template <typename T>
     using ResourceList = std::list<T>;
 
-    struct ResourcePurgeCheckpoint
+    struct PageablePurgeCheckpoint
     {
         // at which fence checkpoint we're supposed to purge the resource
         uint64_t fenceValue;
-        // a list of resources to clear at that checkpoint
-        ResourceList<D3D12ResourcePtr> resources;
+        // a list of pageables to clear at that checkpoint
+        ResourceList<D3D12PageablePtr> pageables;
 
-        ResourcePurgeCheckpoint()
+        PageablePurgeCheckpoint()
             : fenceValue(0)
-            , resources()
+            , pageables()
         {}
     };
 
     NIPtr<NativeDevice> mNativeDevice;
-    std::deque<ResourcePurgeCheckpoint> mResourcesToPurge;
+    std::deque<PageablePurgeCheckpoint> mPageablesToPurge;
 
 public:
     ResourceDisposer(const NIPtr<NativeDevice>& nativeDevice);
     ~ResourceDisposer();
 
-    void MarkDisposed(const D3D12ResourcePtr& resource);
+    void MarkDisposed(const D3D12PageablePtr& pageable);
 
     virtual void OnQueueSignal(uint64_t fenceValue) override;
     virtual void OnFenceSignaled(uint64_t fenceValue) override;

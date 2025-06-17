@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@ namespace Internal {
 
 ResourceDisposer::ResourceDisposer(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
-    , mResourcesToPurge()
+    , mPageablesToPurge()
 {
     mNativeDevice->RegisterWaitableOperation(this);
 }
@@ -46,45 +46,46 @@ ResourceDisposer::~ResourceDisposer()
     mNativeDevice->UnregisterWaitableOperation(this);
 }
 
-void ResourceDisposer::MarkDisposed(const D3D12ResourcePtr& resource)
+void ResourceDisposer::MarkDisposed(const D3D12PageablePtr& pageable)
 {
-    // in case we receive a resource from NativeBuffer/NativeTexture
+    // in case we receive a pageable from NativeBuffer/NativeTexture
     // which did not have Init() called for it
-    if (!resource) return;
+    if (!pageable) return;
 
-    if (mResourcesToPurge.empty() || mResourcesToPurge.back().fenceValue > 0)
+    if (mPageablesToPurge.empty() || mPageablesToPurge.back().fenceValue > 0)
     {
-        mResourcesToPurge.emplace_back();
+        mPageablesToPurge.emplace_back();
     }
 
-    mResourcesToPurge.back().resources.emplace_back(std::move(resource));
+    mPageablesToPurge.back().pageables.emplace_back(std::move(pageable));
 }
+
 
 void ResourceDisposer::OnQueueSignal(uint64_t fenceValue)
 {
-    if (!mResourcesToPurge.empty() && mResourcesToPurge.back().fenceValue == 0)
+    if (!mPageablesToPurge.empty() && mPageablesToPurge.back().fenceValue == 0)
     {
-        mResourcesToPurge.back().fenceValue = fenceValue;
+        mPageablesToPurge.back().fenceValue = fenceValue;
     }
 }
 
 void ResourceDisposer::OnFenceSignaled(uint64_t fenceValue)
 {
-    while (!mResourcesToPurge.empty())
+    while (!mPageablesToPurge.empty())
     {
-        ResourcePurgeCheckpoint& checkpoint = mResourcesToPurge.front();
+        PageablePurgeCheckpoint& checkpoint = mPageablesToPurge.front();
 
         // Skip this checkpoint if OnQueueSignal was not yet called (checkpoint's fence value is 0) or
         // if our command list has not yet finished (checkpoint's fence value is higher than the provided one)
         // We assume checkpoints will be allocated in always incremental order, like in RingContainer
         if (checkpoint.fenceValue == 0 || checkpoint.fenceValue > fenceValue) break;
 
-        for (D3D12ResourcePtr& r: checkpoint.resources)
+        for (D3D12PageablePtr& p: checkpoint.pageables)
         {
-            r.Reset();
+            p.Reset();
         }
 
-        mResourcesToPurge.pop_front();
+        mPageablesToPurge.pop_front();
     }
 }
 

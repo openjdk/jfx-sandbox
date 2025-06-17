@@ -102,7 +102,7 @@ DescriptorData RingDescriptorHeap::Reserve(size_t count)
     Region r = ReserveInternal(count, 1);
     if (r.size == 0) return DescriptorData();
 
-    return DescriptorData::Form(mCPUHeapStart.ptr, mGPUHeapStart.ptr, static_cast<UINT>(r.offsetFromStart), static_cast<UINT>(count), mIncrementSize);
+    return DescriptorData::Form(mCPUHeapStart.ptr, mGPUHeapStart.ptr, static_cast<UINT>(r.offsetFromStart), static_cast<UINT>(count), mIncrementSize, 0);
 }
 
 void RingDescriptorHeap::SetDebugName(const std::string& name)

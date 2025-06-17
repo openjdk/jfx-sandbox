@@ -39,7 +39,7 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
 {
     for (Internal::DescriptorData& rtv: mRTVs)
     {
-        mNativeDevice->GetRTVDescriptorHeap()->Free(rtv);
+        mNativeDevice->GetRTVDescriptorAllocator()->Free(rtv);
     }
 
     mBufferCount = count;
@@ -69,7 +69,7 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
         hr = mBuffers[i]->SetName(name.c_str());
         D3D12NI_RET_IF_FAILED(hr, false, "Failed to name SwapChain buffer");
 
-        mRTVs[i] = mNativeDevice->GetRTVDescriptorHeap()->Allocate(1);
+        mRTVs[i] = mNativeDevice->GetRTVDescriptorAllocator()->Allocate(1);
         if (!mRTVs[i])
         {
             D3D12NI_LOG_ERROR("Failed to allocate RTV for SwapChain buffer #%u", i);
@@ -120,7 +120,7 @@ NativeSwapChain::~NativeSwapChain()
     for (size_t i = 0; i < mBuffers.size(); ++i)
     {
         mBuffers[i].Reset();
-        mNativeDevice->GetRTVDescriptorHeap()->Free(mRTVs[i]);
+        mNativeDevice->GetRTVDescriptorAllocator()->Free(mRTVs[i]);
     }
 
     mBuffers.clear();

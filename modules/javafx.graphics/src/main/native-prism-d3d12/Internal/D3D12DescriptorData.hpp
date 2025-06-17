@@ -39,31 +39,34 @@ struct DescriptorData
     D3D12_GPU_DESCRIPTOR_HANDLE gpu; // GPU pointer to start of available descriptors
     UINT count; // how many descriptors we can take
     size_t singleSize; // by how much increase the pointer to reach further descriptors
+    uint32_t allocatorId; // which allocator/heap this data belongs to
 
     DescriptorData()
-        : DescriptorData(0, 0, 0, 0)
+        : DescriptorData(0, 0, 0, 0, 0)
     {}
 
-    DescriptorData(SIZE_T cpuPtr, D3D12_GPU_VIRTUAL_ADDRESS gpuPtr, UINT c, size_t single)
+    DescriptorData(SIZE_T cpuPtr, D3D12_GPU_VIRTUAL_ADDRESS gpuPtr, UINT c, size_t single, uint32_t allocatorId)
         : cpu{cpuPtr}
         , gpu{gpuPtr}
         , count(c)
         , singleSize(single)
+        , allocatorId(allocatorId)
     {}
 
-    DescriptorData(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle, UINT c, size_t single)
+    DescriptorData(D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle, UINT c, size_t single, uint32_t allocatorId)
         : cpu(cpuHandle)
         , gpu(gpuHandle)
         , count(c)
         , singleSize(single)
+        , allocatorId(allocatorId)
     {}
 
-    static DescriptorData Form(SIZE_T cpuStart, D3D12_GPU_VIRTUAL_ADDRESS gpuStart, UINT offset, UINT count, size_t singleSize)
+    static DescriptorData Form(SIZE_T cpuStart, D3D12_GPU_VIRTUAL_ADDRESS gpuStart, UINT offset, UINT count, size_t singleSize, uint32_t allocatorId)
     {
         SIZE_T offsetBytes = offset * singleSize;
         SIZE_T cpu = cpuStart + offsetBytes;
         D3D12_GPU_VIRTUAL_ADDRESS gpu = (gpuStart > 0) ? gpuStart + offsetBytes : 0;
-        return DescriptorData(cpu, gpu, count, singleSize);
+        return DescriptorData(cpu, gpu, count, singleSize, allocatorId);
     }
 
     inline D3D12_CPU_DESCRIPTOR_HANDLE CPU(UINT i) const
@@ -105,11 +108,11 @@ struct DescriptorData
 
         if (gpu.ptr > 0)
         {
-            return DescriptorData(CPU(from), GPU(from), amount, singleSize);
+            return DescriptorData(CPU(from), GPU(from), amount, singleSize, allocatorId);
         }
         else
         {
-            return DescriptorData(CPU(from), {0}, amount, singleSize);
+            return DescriptorData(CPU(from), {0}, amount, singleSize, allocatorId);
         }
     }
 

@@ -38,7 +38,7 @@
 #include "Internal/D3D12Buffer.hpp"
 #include "Internal/D3D12CheckpointQueue.hpp"
 #include "Internal/D3D12CommandListPool.hpp"
-#include "Internal/D3D12DescriptorHeap.hpp"
+#include "Internal/D3D12DescriptorAllocator.hpp"
 #include "Internal/D3D12IWaitableOperation.hpp"
 #include "Internal/D3D12RootSignatureManager.hpp"
 #include "Internal/D3D12ResourceDisposer.hpp"
@@ -75,8 +75,9 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::RootSignatureManager> mRootSignatureManager;
     NIPtr<Internal::RenderingContext> mRenderingContext;
     NIPtr<Internal::ResourceDisposer> mResourceDisposer;
-    NIPtr<Internal::DescriptorHeap> mRTVHeap;
-    NIPtr<Internal::DescriptorHeap> mDSVHeap;
+    NIPtr<Internal::DescriptorAllocator> mRTVAllocator;
+    NIPtr<Internal::DescriptorAllocator> mDSVAllocator;
+    NIPtr<Internal::DescriptorAllocator> mSRVAllocator;
     NIPtr<Internal::SamplerStorage> mSamplerStorage;
     NIPtr<Internal::ShaderLibrary> mShaderLibrary;
     NIPtr<Internal::Shader> mPassthroughVS;
@@ -122,7 +123,7 @@ public:
                                         TextureUsage usage, TextureWrapMode wrapMode, int samples, bool useMipmap);
     int GetMaximumMSAASampleSize(DXGI_FORMAT format) const;
     int GetMaximumTextureSize() const;
-    void MarkResourceDisposed(const D3D12ResourcePtr& texture);
+    void MarkResourceDisposed(const D3D12PageablePtr& pageable);
 
     void Clear(float r, float g, float b, float a, bool clearDepth);
     void ClearTextureUnit(uint32_t unit);
@@ -190,14 +191,19 @@ public:
         return mRootSignatureManager;
     }
 
-    const NIPtr<Internal::DescriptorHeap>& GetRTVDescriptorHeap() const
+    const NIPtr<Internal::DescriptorAllocator>& GetRTVDescriptorAllocator() const
     {
-        return mRTVHeap;
+        return mRTVAllocator;
     }
 
-    const NIPtr<Internal::DescriptorHeap>& GetDSVDescriptorHeap() const
+    const NIPtr<Internal::DescriptorAllocator>& GetDSVDescriptorAllocator() const
     {
-        return mDSVHeap;
+        return mDSVAllocator;
+    }
+
+    const NIPtr<Internal::DescriptorAllocator>& GetSRVDescriptorAllocator() const
+    {
+        return mSRVAllocator;
     }
 
     const NIPtr<Internal::SamplerStorage>& GetSamplerStorage() const

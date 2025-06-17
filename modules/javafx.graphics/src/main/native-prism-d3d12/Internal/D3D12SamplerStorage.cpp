@@ -96,13 +96,13 @@ D3D12_FILTER SamplerStorage::TranslateIsLinear(bool isLinear) const
 
 SamplerStorage::SamplerStorage(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
-    , mSamplerHeap(nativeDevice)
+    , mSamplerAllocator(nativeDevice)
 {
 }
 
 bool SamplerStorage::Init()
 {
-    if (!mSamplerHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, false))
+    if (!mSamplerAllocator.Init(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, false))
     {
         D3D12NI_LOG_ERROR("Failed to initialize Sampler Heap");
         return false;
@@ -112,7 +112,7 @@ bool SamplerStorage::Init()
     {
         D3D12_SAMPLER_DESC desc = BuildD3D12SamplerDesc(sd);
 
-        DescriptorData descriptor = mSamplerHeap.Allocate(1);
+        DescriptorData descriptor = mSamplerAllocator.Allocate(1);
         if (!descriptor)
         {
             D3D12NI_LOG_ERROR("Failed to allocate Sampler for variant: %s", sd.ToString().c_str());

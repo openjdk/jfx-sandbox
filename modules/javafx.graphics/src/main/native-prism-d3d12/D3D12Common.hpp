@@ -66,6 +66,7 @@ using D3D12DeviceRemovedExtendedDataSettings = Ptr<ID3D12DeviceRemovedExtendedDa
 using D3D12DescriptorHeapPtr = Ptr<ID3D12DescriptorHeap>;
 using D3D12FencePtr = Ptr<ID3D12Fence>;
 using D3D12GraphicsCommandListPtr = Ptr<ID3D12GraphicsCommandList1>;
+using D3D12PageablePtr = Ptr<ID3D12Pageable>;
 using D3D12PipelineStatePtr = Ptr<ID3D12PipelineState>;
 using D3D12ResourcePtr = Ptr<ID3D12Resource>;
 using D3D12RootSignaturePtr = Ptr<ID3D12RootSignature>;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,35 +37,40 @@ namespace Internal {
 
 class DescriptorHeap
 {
-    static constexpr uint32_t MAX_DESCRIPTOR_SLOT_COUNT = 512;
+public:
+    static constexpr uint32_t MAX_DESCRIPTOR_SLOT_COUNT = 2048;
 
-    NIPtr<NativeDevice> mDevice;
-    std::string mName;
+private:
     D3D12DescriptorHeapPtr mHeap;
     bool mShaderVisible;
+    uint32_t mSize;
     D3D12_CPU_DESCRIPTOR_HANDLE mCPUStartHandle;
     D3D12_GPU_DESCRIPTOR_HANDLE mGPUStartHandle;
-    UINT mIncrementSize;
+    uint32_t mIncrementSize;
 
     std::array<bool, MAX_DESCRIPTOR_SLOT_COUNT> mSlotAvailability;
     size_t mFirstFreeSlot;
-    uint32_t mSize;
     uint32_t mAllocatedCountTotal;
-    bool mReady;
+    uint32_t mID;
+    std::string mName;
 
 public:
-    DescriptorHeap(const NIPtr<NativeDevice>& device);
+    DescriptorHeap(const D3D12DescriptorHeapPtr& heap, UINT incrementSize, uint32_t id, const std::string& name);
     ~DescriptorHeap() = default;
 
-    bool Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible);
     DescriptorData Allocate(UINT count);
     void Free(const DescriptorData& data);
 
     void SetName(const std::string& name);
 
-    const D3D12DescriptorHeapPtr& GetHeap() const
+    inline const D3D12DescriptorHeapPtr& GetHeap() const
     {
         return mHeap;
+    }
+
+    inline bool Empty() const
+    {
+        return (mAllocatedCountTotal == 0);
     }
 };
 
