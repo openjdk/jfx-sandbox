@@ -133,7 +133,7 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
         // special case, we'll have to loop-around
         if (mUsed + sizeToEnd + size > mSize)
         {
-            AwaitNextCheckpoint(size);
+            AwaitNextCheckpoint(sizeToEnd + size);
             if (mUsed + sizeToEnd + size > mSize)
             {
                 D3D12NI_LOG_ERROR("%s fully allocated, cannot allocate %ld bytes (h: %ld t: %ld used: %ld size %ld)",
