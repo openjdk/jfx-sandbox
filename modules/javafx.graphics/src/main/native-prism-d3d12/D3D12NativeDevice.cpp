@@ -439,7 +439,7 @@ NIPtr<NativeRenderTarget>* NativeDevice::CreateRenderTarget(const NIPtr<NativeTe
 
 NIPtr<NativeShader>* NativeDevice::CreateShader(const std::string& name, void* buf, UINT size)
 {
-    return CreateNIDeviceObject<NativeShader>(shared_from_this(), name, buf, size);
+    return CreateNIObject<NativeShader>(name, buf, size);
 }
 
 NIPtr<NativeTexture>* NativeDevice::CreateTexture(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags,

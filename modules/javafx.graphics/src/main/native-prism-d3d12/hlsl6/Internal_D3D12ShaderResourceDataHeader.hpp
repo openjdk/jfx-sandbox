@@ -61,35 +61,35 @@ using ShaderResourceCollection = std::unordered_map<std::string, ShaderResources
 
 
 ResourceBindings PassThroughVSConstantBuffers = {
-    { "WorldViewProj", ResourceAssignmentType::DESCRIPTOR, ShaderSlots::PASSTHROUGH_WVP_TRANSFORM, 1, 16 * sizeof(float) }
+    { "WorldViewProj", ResourceAssignmentType::DESCRIPTOR, ShaderSlots::GRAPHICS_RS_VS_DATA, 1, 16 * sizeof(float) }
 };
 
 
 ResourceBindings Mtl1VSConstantBuffers = {
-    { "gData", ResourceAssignmentType::DESCRIPTOR, ShaderSlots::PHONG_VS_DATA, 1, (4 + 16 + 16) * sizeof(float) },
-    { "gLight", ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS, ShaderSlots::PHONG_VS_LIGHT_SPEC, Constants::MAX_LIGHTS, (4 + 4) * sizeof(float) },
+    { "gData", ResourceAssignmentType::DESCRIPTOR, ShaderSlots::GRAPHICS_RS_VS_DATA, 1, (4 + 16 + 16) * sizeof(float) },
+    { "gLight", ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS, ShaderSlots::GRAPHICS_RS_VS_DATA_DTABLE, Constants::MAX_LIGHTS, (4 + 4) * sizeof(float) },
 };
 
 ResourceBindings Mtl1PSConstantBuffers = {
-    { "gColor", ResourceAssignmentType::DESCRIPTOR, ShaderSlots::PHONG_PS_COLOR_SPEC, 1, (4 + 4 + 4) * sizeof(float) },
-    { "gLight", ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS, ShaderSlots::PHONG_PS_LIGHT_SPEC, Constants::MAX_LIGHTS, (4 + 4 + 4 + 4) * sizeof(float) },
+    { "gColor", ResourceAssignmentType::DESCRIPTOR, ShaderSlots::GRAPHICS_RS_PS_DATA, 1, (4 + 4 + 4) * sizeof(float) },
+    { "gLight", ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS, ShaderSlots::GRAPHICS_RS_PS_DATA_DTABLE, Constants::MAX_LIGHTS, (4 + 4 + 4 + 4) * sizeof(float) },
 };
 
 // TODO: D3D12: assumes all textures share the same DTable and it always has 4 spots. This might be reduced in shaders
 //              where there some of the maps are not used (for now we allocate null descriptors there). This could optimize
 //              memory consumption and frequency of Ring Descriptor Heap flushing.
 ResourceBindings Mtl1PSTextures = {
-    { "mapDiffuse", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::PHONG_PS_TEXTURE_DTABLE, 1, 0 },
-    { "mapSpecular", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::PHONG_PS_TEXTURE_DTABLE, 1, 0 },
-    { "mapBumpHeight", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::PHONG_PS_TEXTURE_DTABLE, 1, 0 },
-    { "mapSelfIllum", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::PHONG_PS_TEXTURE_DTABLE, 1, 0 },
+    { "mapDiffuse", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, 1, 0 },
+    { "mapSpecular", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, 1, 0 },
+    { "mapBumpHeight", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, 1, 0 },
+    { "mapSelfIllum", ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, 1, 0 },
 };
 
 ResourceBindings Mtl1PSSamplers = {
-    { "samplerDiffuse", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
-    { "samplerSpecular", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
-    { "samplerBumpHeight", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
-    { "samplerSelfIllum", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::PHONG_PS_SAMPLER_DTABLE, 1, 0 },
+    { "samplerDiffuse", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, 1, 0 },
+    { "samplerSpecular", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, 1, 0 },
+    { "samplerBumpHeight", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, 1, 0 },
+    { "samplerSelfIllum", ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, 1, 0 },
 };
 
 ShaderResourceCollection InternalShaders = {

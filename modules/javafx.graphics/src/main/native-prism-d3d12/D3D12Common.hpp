@@ -142,6 +142,7 @@ void FreeNIObject(jlong ptr)
 
 // bytes per pixel calculator
 // only covers pixel formats supported by JFX
+// TODO: D3D12: Many of these utility functions should probably be moved to D3D12Utils.hpp
 constexpr uint32_t GetDXGIFormatBPP(DXGI_FORMAT format)
 {
     switch (format)
@@ -162,6 +163,20 @@ constexpr uint32_t GetDXGIFormatBPP(DXGI_FORMAT format)
     // TODO: D3D12: DXGI_FORMAT_NV12
     default:
         return 0;
+    }
+}
+
+constexpr bool IsDepthFormat(DXGI_FORMAT format)
+{
+    switch (format)
+    {
+    case DXGI_FORMAT_D16_UNORM:
+    case DXGI_FORMAT_D24_UNORM_S8_UINT:
+    case DXGI_FORMAT_D32_FLOAT:
+    case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
+        return true;
+    default:
+        return false;
     }
 }
 

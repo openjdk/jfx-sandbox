@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,23 +46,7 @@ namespace D3D12 {
 class NativeShader: public Internal::Shader
 {
 private:
-    // Root Signatures have slots which describe how Shaders access resources.
-    // These can be used for root constants, descriptors or descriptor
-    // tables. Some restrictions do apply to how those slots are used:
-    //   - Each respective slot type increases in access latency
-    //   - Texture SRVs must always be accessed via a descriptor table
-    //   - A Root Signature can have at most 64 32-bit slots
-    static const uint32_t MAX_AVAILABLE_SLOTS = 64;
-    // root descriptors are GPU virtual addresses, so they take 64 bits (2 slots)
-    static const uint32_t ROOT_DESCRIPTOR_SLOT_SIZE = 2;
-    // descriptor tables take one 32bit slot
-    static const uint32_t DESCRIPTOR_TABLE_SLOT_SIZE = 1;
-
-    NIPtr<NativeDevice> mNativeDevice;
-    D3D12RootSignaturePtr mRootSignature;
     JSLC::ShaderResourceCollection mShaderResources;
-    uint32_t mTextureDTableIndex;
-    uint32_t mSamplerDTableIndex;
     uint32_t mCBufferDescriptorIndex;
     uint32_t mTextureCount;
     Internal::RingBuffer::Region mLastAllocatedCBufferRegion;
@@ -70,21 +54,15 @@ private:
     Internal::DescriptorData mLastAllocatedSamplerDescriptors;
 
     uint32_t GetTotalBindingSize(const JSLC::ResourceBinding& binding) const;
-    bool RequiresTexturesDTable(const JSLC::ShaderResourceCollection& resources) const;
 
 public:
-    NativeShader(const NIPtr<NativeDevice>& nativeDevice);
+    NativeShader();
     ~NativeShader();
 
     bool Init(const std::string& name, void* code, size_t size);
 
     virtual bool PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) override;
     virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
-
-    inline const D3D12RootSignaturePtr& GetRootSignature() const
-    {
-        return mRootSignature;
-    }
 };
 
 } // namespace D3D12

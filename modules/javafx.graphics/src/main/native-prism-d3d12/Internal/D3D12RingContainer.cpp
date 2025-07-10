@@ -45,7 +45,6 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
 {
     while (mSize - mUsed < needed)
     {
-        D3D12NI_ASSERT(!mCheckpoints.empty(), "Attempted to await for next checkpoint while none are set.");
         if (mCheckpoints.empty())
         {
             // NOTE: we landed here because Ring Container couldn't allocate any more

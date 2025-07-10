@@ -50,14 +50,15 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
         // Assume Shader variants are denoted by an _ sign
         // variants SHOULD have the same resource declarations though, so filter out "_" and suffix
         size_t underscore = name.find_last_of('_');
-        std::string basename;
         if (underscore == std::string::npos)
         {
             D3D12NI_LOG_ERROR("Cannot locate resources for internal shader %s", name.c_str());
             return false;
         }
 
-        basename = name.substr(0, underscore);
+        std::string basename = name.substr(0, underscore);
+        //std::string variant = name.substr(underscore + 1);
+        //D3D12NI_LOG_DEBUG("LKDEBUG Loading shader variant %s", variant.c_str());
         resources = InternalShaderResource::InternalShaders.find(basename);
         if (resources == InternalShaderResource::InternalShaders.end())
         {
@@ -140,8 +141,8 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
         mSamplerCount++;
     }
 
-    mTextureDTableRSIndex = ShaderSlots::PHONG_PS_TEXTURE_DTABLE;
-    mSamplerDTableRSIndex = ShaderSlots::PHONG_PS_SAMPLER_DTABLE;
+    mTextureDTableRSIndex = ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE;
+    mSamplerDTableRSIndex = ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE;
 
     // debug info
 

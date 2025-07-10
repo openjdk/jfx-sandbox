@@ -208,18 +208,7 @@ void RenderingContext::SetPixelShader(const NIPtr<Shader>& pixelShader)
 
     if (pixelShader)
     {
-        if (pixelShader->GetMode() == ShaderPipelineMode::UI_2D &&
-            pixelShader->GetName().find("BlitPS") == std::string::npos)
-        {
-            // TODO: D3D12: this should be unified to a single common graphics root signature
-            //              above condition is also a "hack". Common RS should get rid of it.
-            NIPtr<NativeShader> niShader = std::dynamic_pointer_cast<NativeShader>(pixelShader);
-            mRootSignature.Set(niShader->GetRootSignature());
-        }
-        else
-        {
-            mRootSignature.Set(mNativeDevice->GetRootSignatureManager()->GetGraphicsRootSignature());
-        }
+        mRootSignature.Set(mNativeDevice->GetRootSignatureManager()->GetGraphicsRootSignature());
     }
 
     ClearResourcesApplied();

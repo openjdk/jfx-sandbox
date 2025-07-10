@@ -182,6 +182,14 @@ public class HLSL6Backend extends SLBackend {
     private boolean mainJustDefined = false;
 
     @Override
+    protected String getHeader() {
+        return
+        """
+        #include "ShaderCommon.hlsl"
+        """;
+    }
+
+    @Override
     protected String getType(Type t) {
         return TYPE_MAP.get(t.toString());
     }
@@ -252,6 +260,7 @@ public class HLSL6Backend extends SLBackend {
         Function func = d.getFunction();
         if (func.getName().equals("main")) {
             // generate main function
+            output("[RootSignature(JFX_INTERNAL_GRAPHICS_RS)]\n");
             output("float4 " + func.getName() + "(");
             // TODO this used to be float2, but it has to be float4 now
             // Must replace all "pixcoord" uses with "pixcoord.xy" as this otherwise produces

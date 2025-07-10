@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,12 @@
  * questions.
  */
 
+import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.Optional
+
 class CompileHLSL6Task extends NativeCompileTask {
+    @Optional @InputDirectory File shaderIncludeDir;
+
     protected File outputFile(File sourceFile) {
         new File("$output/${sourceFile.name.replace('.hlsl', '.cso')}");
     }
@@ -31,10 +36,15 @@ class CompileHLSL6Task extends NativeCompileTask {
     protected void doCompile(File sourceFile, File outputFile){
         project.exec({
             def DEBUG_FLAGS = [ "/Zi", "/Qembed_debug", "/O0" ]
-            commandLine = ["$project.DXC", "/T", "ps_6_0", "/Fo", "$outputFile", "$sourceFile"];
-            if (project.getProperty("IS_DEBUG_NATIVE")) {
-                commandLine.addAll(DEBUG_FLAGS);
+            def cmd = ["$project.DXC", "/T", "ps_6_0", "/Fo", "$outputFile"];
+            if (shaderIncludeDir != null) {
+                cmd.addAll(["/I", shaderIncludeDir.toString()]);
             }
+            if (project.getProperty("IS_DEBUG_NATIVE")) {
+                cmd.addAll(DEBUG_FLAGS);
+            }
+            cmd.add("$sourceFile");
+            commandLine = cmd;
             environment(project.WINDOWS_NATIVE_COMPILE_ENVIRONMENT);
         });
     }

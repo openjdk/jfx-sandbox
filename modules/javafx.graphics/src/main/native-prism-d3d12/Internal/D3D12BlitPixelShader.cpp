@@ -92,8 +92,8 @@ bool BlitPixelShader::PrepareShaderResources(const ShaderResourceHelpers& helper
 
 void BlitPixelShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const
 {
-    commandList->SetGraphicsRootDescriptorTable(ShaderSlots::PHONG_PS_TEXTURE_DTABLE, mSourceTextureDTable.GPU(0));
-    commandList->SetGraphicsRootDescriptorTable(ShaderSlots::PHONG_PS_SAMPLER_DTABLE, mSourceTextureSamplerDTable.GPU(0));
+    commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mSourceTextureDTable.GPU(0));
+    commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mSourceTextureSamplerDTable.GPU(0));
 }
 
 } // namespace Internal

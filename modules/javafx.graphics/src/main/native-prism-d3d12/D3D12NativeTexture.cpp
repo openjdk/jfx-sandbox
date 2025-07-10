@@ -51,26 +51,29 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
         &mResourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&mTextureResource));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Texture's Committed Resource");
 
-    // Allocate the most commonly used descriptor covering all mips
-    // The only time we'll need something different is when calling MipmapGen
-    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
-    D3D12NI_ZERO_STRUCT(srvDesc);
-    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-    srvDesc.Format = mResourceDesc.Format;
-    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MipLevels = mMipLevels;
-    srvDesc.Texture2D.MostDetailedMip = 0;
-    srvDesc.Texture2D.PlaneSlice = 0;
-    srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
-
-    mSRVDescriptor = mNativeDevice->GetSRVDescriptorAllocator()->Allocate(1);
-    if (!mSRVDescriptor)
+    if (!IsDepthFormat(mResourceDesc.Format))
     {
-        D3D12NI_LOG_ERROR("Failed to allocate base SRV descriptor for texture");
-        return false;
-    }
+        // Allocate the most commonly used descriptor covering all mips
+        // The only time we'll need something different is when calling MipmapGen
+        D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
+        D3D12NI_ZERO_STRUCT(srvDesc);
+        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        srvDesc.Format = mResourceDesc.Format;
+        srvDesc.ViewDimension = (desc.SampleDesc.Count > 1) ? D3D12_SRV_DIMENSION_TEXTURE2DMS : D3D12_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = mMipLevels;
+        srvDesc.Texture2D.MostDetailedMip = 0;
+        srvDesc.Texture2D.PlaneSlice = 0;
+        srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-    mNativeDevice->GetDevice()->CreateShaderResourceView(mTextureResource.Get(), &srvDesc, mSRVDescriptor.CPU(0));
+        mSRVDescriptor = mNativeDevice->GetSRVDescriptorAllocator()->Allocate(1);
+        if (!mSRVDescriptor)
+        {
+            D3D12NI_LOG_ERROR("Failed to allocate base SRV descriptor for texture");
+            return false;
+        }
+
+        mNativeDevice->GetDevice()->CreateShaderResourceView(mTextureResource.Get(), &srvDesc, mSRVDescriptor.CPU(0));
+    }
 
     // Texture will be separately loaded with data via Java's Texture.update() calls
     // Fill in remaining members and leave
@@ -205,7 +208,7 @@ void NativeTexture::SetSamplerParameters(TextureWrapMode wrapMode, bool isLinear
 
 void NativeTexture::WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipLevels, UINT mostDetailedMip)
 {
-    if (mipLevels == 0 && mostDetailedMip == 0)
+    if (mSRVDescriptor && mipLevels == 0 && mostDetailedMip == 0)
     {
         // fast path for most use cases
         mNativeDevice->GetDevice()->CopyDescriptorsSimple(1, descriptorCpu, mSRVDescriptor.CPU(0), D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);

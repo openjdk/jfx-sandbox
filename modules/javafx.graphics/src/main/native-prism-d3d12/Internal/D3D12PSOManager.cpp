@@ -101,18 +101,7 @@ bool PSOManager::ConstructNewPSO(const GraphicsPSOParameters& params)
     // shaders
     desc.VS = params.vertexShader->GetBytecode();
     desc.PS = params.pixelShader->GetBytecode();
-
-    // TODO: D3D12: Root Signature hack, rework to use common RS for all Graphics
-    if (params.pixelShader->GetMode() == ShaderPipelineMode::UI_2D &&
-        params.pixelShader->GetName().find("BlitPS") == std::string::npos)
-    {
-        const NIPtr<NativeShader>& niShader = std::dynamic_pointer_cast<NativeShader>(params.pixelShader);
-        desc.pRootSignature = niShader->GetRootSignature().Get();
-    }
-    else
-    {
-        desc.pRootSignature = mNativeDevice->GetRootSignatureManager()->GetGraphicsRootSignature().Get();
-    }
+    desc.pRootSignature = mNativeDevice->GetRootSignatureManager()->GetGraphicsRootSignature().Get();
 
     desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
@@ -188,7 +177,7 @@ bool PSOManager::ConstructNewPSO(const GraphicsPSOParameters& params)
     catch (const std::exception& e)
     {
         (void)e; // prevents "unused" warning when running a Release build
-        D3D12NI_LOG_ERROR("Failed to emplace new PSO to cache: %s", e.what());
+        D3D12NI_LOG_ERROR("Failed to emplace new Graphics PSO to cache: %s", e.what());
         return false;
     }
 
@@ -216,7 +205,17 @@ bool PSOManager::ConstructNewPSO(const ComputePSOParameters& params)
     D3D12NI_LOG_TRACE("--- Compute PSO (%S) created ---", name.c_str());
 #endif // DEBUG
 
-    mComputePipelines.emplace(std::make_pair(params, std::move(pipelineState)));
+    try
+    {
+        mComputePipelines.emplace(std::make_pair(params, std::move(pipelineState)));
+    }
+    catch (const std::exception& e)
+    {
+        (void)e; // prevents "unused" warning when running a Release build
+        D3D12NI_LOG_ERROR("Failed to emplace new Compute PSO to cache: %s", e.what());
+        return false;
+    }
+
     return true;
 }
 

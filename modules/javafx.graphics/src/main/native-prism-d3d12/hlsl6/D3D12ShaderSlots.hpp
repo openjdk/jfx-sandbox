@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,20 +28,16 @@
 namespace D3D12 {
 namespace ShaderSlots {
 
-// 2D Passthrough vertex shader, binds to index 0 in Root Signature (ensured in D3D12NativeShader.cpp)
+// Below assingments must match root signature entry indexes in ShaderCommon.hlsl
 
-const unsigned int PASSTHROUGH_WVP_TRANSFORM = 0;
+const unsigned int GRAPHICS_RS_VS_DATA = 0; // Root Descriptor
+const unsigned int GRAPHICS_RS_PS_DATA = 1; // Root Descriptor
 
-// Below assingments must match root signature entry indexes in Mtl1PS.hlsl
+const unsigned int GRAPHICS_RS_VS_DATA_DTABLE = 2; // Descriptor Table
+const unsigned int GRAPHICS_RS_PS_DATA_DTABLE = 3; // Descriptor Table
 
-const unsigned int PHONG_VS_DATA = 0;       // Root Descriptor
-const unsigned int PHONG_PS_COLOR_SPEC = 1; // Root Descriptor
-
-const unsigned int PHONG_VS_LIGHT_SPEC = 2; // Descriptor Table
-const unsigned int PHONG_PS_LIGHT_SPEC = 3; // Descriptor Table
-
-const unsigned int PHONG_PS_TEXTURE_DTABLE = 4; // Descriptor Table
-const unsigned int PHONG_PS_SAMPLER_DTABLE = 5; // Descriptor Table
+const unsigned int GRAPHICS_RS_PS_TEXTURE_DTABLE = 4; // Descriptor Table
+const unsigned int GRAPHICS_RS_PS_SAMPLER_DTABLE = 5; // Descriptor Table
 
 } // namespace ShaderSlots
 } // namespace D3D12

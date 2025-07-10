@@ -1720,11 +1720,12 @@ void addJSL(Project project, String name, String pkg, List<String> addExports, C
     def compileHLSL6Shaders = project.task("compile${name}HLSL6Shaders",
             dependsOn: generateShaders,
             type: CompileHLSL6Task) {
-        enabled = IS_WINDOWS
-        description = "Compile $name HLSL 6 files into .cso files"
-        matches = ".*\\.hlsl"
+        enabled IS_WINDOWS
+        description "Compile $name HLSL 6 files into .cso files"
+        matches "^(?!ShaderCommon).*\\.hlsl" // match all except the ShaderCommon header file
         output project.file("$project.buildDir/hlsl6/$name/$pkg/d3d12/hlsl6")
         source project.file("$project.buildDir/gensrc/jsl-$lowerName/$pkg/d3d12/hlsl6")
+        shaderIncludeDir project.file("$project.projectDir/src/main/native-prism-d3d12/hlsl6")
     }
 
     def processShaders = project.task("process${name}Shaders",
