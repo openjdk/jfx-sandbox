@@ -31,6 +31,19 @@
 namespace D3D12 {
 namespace Internal {
 
+int32_t InternalShader::GetTextureCountFromVariant(const std::string& variant)
+{
+    // we work this out in reverse, pattern is:
+    //   'i' at the end == with self illumination, missing 'i' means no self illum
+    //   'b' at the beginning == with bump mapping; 's' at the beginning == without bump map (simple)
+    //   number in the middle == number of lights; no matter for us here
+    //   't' or 'm' at the end == uses specular map; otherwise not
+    if (variant[variant.size() - 1] == 'i') return 4; // self illum map takes the last spot so we need all of them
+    if (variant[0] == 'b') return 3; // bump map is third out of four, we can skip the last spot
+    if (variant[variant.size() - 1] == 't' || variant[variant.size() - 1] == 'm') return 2;
+    return 1;
+}
+
 InternalShader::InternalShader()
     : Shader()
     , mCBufferDescriptorRegions()
@@ -42,6 +55,8 @@ InternalShader::InternalShader()
 
 bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize)
 {
+    int32_t textureCountFromVariant = -1;
+
     // try an exact name search first
     auto resources = InternalShaderResource::InternalShaders.find(name);
     if (resources == InternalShaderResource::InternalShaders.end())
@@ -57,14 +72,15 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
         }
 
         std::string basename = name.substr(0, underscore);
-        //std::string variant = name.substr(underscore + 1);
-        //D3D12NI_LOG_DEBUG("LKDEBUG Loading shader variant %s", variant.c_str());
         resources = InternalShaderResource::InternalShaders.find(basename);
         if (resources == InternalShaderResource::InternalShaders.end())
         {
             D3D12NI_LOG_ERROR("Cannot locate resources for internal shader %s", name.c_str());
             return false;
         }
+
+        std::string variant = name.substr(underscore + 1);
+        textureCountFromVariant = GetTextureCountFromVariant(variant);
     }
 
     if (!Shader::Init(name, mode, visibility, code, codeSize))
@@ -107,40 +123,33 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
 
     mConstantBufferStorage.resize(constantBufferTotalSize);
 
-    // count how many DTable slots we need for textures (if any)
-    mTextureCount = 0;
-    for (size_t i = 0; i < shaderResources.textures.size(); ++i)
+    if (textureCountFromVariant >= 0)
     {
-        const InternalShaderResource::ResourceBinding& texture = shaderResources.textures[i];
+        mTextureCount = textureCountFromVariant;
+    }
+    else
+    {
+        // shader variant did not provide us with how many textures we need so
+        // count how many DTable slots we need for textures (if any)
+        mTextureCount = 0;
+        for (size_t i = 0; i < shaderResources.textures.size(); ++i)
+        {
+            const InternalShaderResource::ResourceBinding& texture = shaderResources.textures[i];
 
-        AddShaderResource(
-            texture.name,
-            ResourceAssignment(
-                texture.type, texture.rootIndex, static_cast<uint32_t>(i), 0, 0
-            )
-        );
+            AddShaderResource(
+                texture.name,
+                ResourceAssignment(
+                    texture.type, texture.rootIndex, static_cast<uint32_t>(i), 0, 0
+                )
+            );
 
-        mTextureCount++;
+            mTextureCount++;
+        }
     }
 
     mTotalRVDescriptorCount += mTextureCount;
 
-    // and similarly, for samplers
-    mSamplerCount = 0;
-    for (size_t i = 0; i < shaderResources.samplers.size(); ++i)
-    {
-        const InternalShaderResource::ResourceBinding& sampler = shaderResources.samplers[i];
-
-        AddShaderResource(
-            sampler.name,
-            ResourceAssignment(
-                sampler.type, sampler.rootIndex, static_cast<uint32_t>(i), 0, 0
-            )
-        );
-
-        mSamplerCount++;
-    }
-
+    mSamplerCount = mTextureCount;
     mTextureDTableRSIndex = ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE;
     mSamplerDTableRSIndex = ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE;
 

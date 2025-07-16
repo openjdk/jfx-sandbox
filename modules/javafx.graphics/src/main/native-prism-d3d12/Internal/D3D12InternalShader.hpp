@@ -69,6 +69,8 @@ class InternalShader: public Shader
     uint32_t mSamplerDTableRSIndex;
     DescriptorData mSamplerDTable;
 
+    int32_t GetTextureCountFromVariant(const std::string& variant);
+
 public:
     InternalShader();
 
