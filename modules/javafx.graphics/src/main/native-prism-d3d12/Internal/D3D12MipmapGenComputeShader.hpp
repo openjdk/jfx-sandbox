@@ -41,9 +41,7 @@ namespace Internal {
  */
 class MipmapGenComputeShader: public Shader
 {
-    RingBuffer::Region mCBufferView;
-    DescriptorData mTextureDTable;
-    DescriptorData mUAVDTable;
+    virtual bool PrepareDescriptors(const NativeTextureBank& textures) override;
 
 public:
     struct CBuffer
@@ -56,9 +54,7 @@ public:
     MipmapGenComputeShader();
 
     bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize) override;
-
-    virtual bool PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) override;
-    virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
+    virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const override;
 };
 
 } // namespace Internal

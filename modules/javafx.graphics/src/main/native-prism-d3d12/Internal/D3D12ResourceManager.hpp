@@ -53,14 +53,17 @@ class ResourceManager
     NIPtr<Shader> mVertexShader;
     NIPtr<Shader> mPixelShader;
     NativeTextureBank mTextures;
-    RingDescriptorHeap mSRVHeap;
+    RingDescriptorHeap mDescriptorHeap;
     RingDescriptorHeap mSamplerHeap;
-    Shader::ShaderResourceHelpers mShaderHelpers;
 
     // Compute Resources
     NIPtr<Shader> mComputeShader;
 
     void UpdateTextureDescriptorTable(const DescriptorData& dtable);
+    bool PrepareConstants(const NIPtr<Shader>& shaderResourceData, Shader::DescriptorData& descriptors);
+    bool PrepareTextureViews(const NIPtr<Shader>& shaderResourceData, Shader::DescriptorData& descriptors);
+    bool PrepareSamplers(const NIPtr<Shader>& shaderResourceData, Shader::DescriptorData& descriptors);
+    bool PrepareShaderResources(const NIPtr<Shader>& shader);
 
 public:
     ResourceManager(const NIPtr<NativeDevice>& nativeDevice);
@@ -87,7 +90,7 @@ public:
 
     inline const D3D12DescriptorHeapPtr& GetHeap() const
     {
-        return mSRVHeap.GetHeap();
+        return mDescriptorHeap.GetHeap();
     }
 
     inline const D3D12DescriptorHeapPtr& GetSamplerHeap() const

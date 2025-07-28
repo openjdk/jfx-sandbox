@@ -87,10 +87,6 @@ uint32_t NativeShader::GetTotalBindingSize(const JSLC::ResourceBinding& binding)
 NativeShader::NativeShader()
     : Shader()
     , mShaderResources()
-    , mCBufferDescriptorIndex(0)
-    , mTextureCount(0)
-    , mLastAllocatedCBufferRegion()
-    , mLastAllocatedSRVDescriptors()
 {
 }
 
@@ -137,7 +133,9 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
 
     // size of constant buffer storage used by the shader
     uint32_t constantDataTotalSize = 0;
-    mTextureCount = 0;
+    mResourceData.textureCount = 0;
+    mResourceData.uavCount = 0;
+    mResourceData.cbufferDTableCount = 0;
 
     for (auto& binding: mShaderResources)
     {
@@ -151,7 +149,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
                     ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, binding.slot, 0, 0
                 )
             );
-            mTextureCount++;
+            mResourceData.textureCount++;
             break;
         }
         case JSLC::ResourceBindingType::SAMPLER:
@@ -195,69 +193,52 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
         D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first.c_str(), ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
     }
 
+    // NativeShader (Phong/Decora) assume we need only one big constant buffer for all data
+    // so combine it all into one region
+    mResourceData.cbufferDirectSize = constantDataTotalSize;
     mConstantBufferStorage.resize(constantDataTotalSize);
 
     return true;
 }
 
-bool NativeShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
+bool NativeShader::PrepareDescriptors(const NativeTextureBank& textures)
 {
-    if (mTextureCount > 0)
+    for (uint32_t i = 0; i < mResourceData.textureCount; ++i)
     {
-        mLastAllocatedSRVDescriptors = helpers.rvAllocator(mTextureCount);
-        mLastAllocatedSamplerDescriptors = helpers.samplerAllocator(mTextureCount);
-
-        // should not happen
-        if (!mLastAllocatedSRVDescriptors || !mLastAllocatedSamplerDescriptors)
+        if (textures[i])
         {
-            D3D12NI_LOG_ERROR("Native Shader %s: Descriptor Tables are NULL, but we have textures we need to use", mName.c_str());
-            return false;
-        }
-
-        for (uint32_t i = 0; i < mTextureCount; ++i)
-        {
-            if (textures[i])
-            {
-                textures[i]->WriteSRVToDescriptor(mLastAllocatedSRVDescriptors.CPU(i));
-                textures[i]->WriteSamplerToDescriptor(mLastAllocatedSamplerDescriptors.CPU(i));
-            }
-            else
-            {
-                helpers.nullSRVCreator(D3D12_SRV_DIMENSION_TEXTURE2D, mLastAllocatedSRVDescriptors.CPU(i));
-            }
+            textures[i]->WriteSRVToDescriptor(mLastDescriptorData.SRVDescriptors.CPU(i));
+            textures[i]->WriteSamplerToDescriptor(mLastDescriptorData.SamplerDescriptors.CPU(i));
         }
     }
 
     if (mConstantBufferStorage.size() > 0)
     {
-        mLastAllocatedCBufferRegion = helpers.constantAllocator(mConstantBufferStorage.size(), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-
-        if (mLastAllocatedCBufferRegion)
-        {
-            memcpy(mLastAllocatedCBufferRegion.cpu, mConstantBufferStorage.data(), mConstantBufferStorage.size());
-        }
-        else
+        if (!mLastDescriptorData.ConstantDataDirectRegion)
         {
             // should not happen
             D3D12NI_LOG_ERROR("Native shader %s: Failed to allocate cbuffer descriptor", mName.c_str());
             return false;
         }
+
+        memcpy(mLastDescriptorData.ConstantDataDirectRegion.cpu, mConstantBufferStorage.data(), mConstantBufferStorage.size());
     }
 
     return true;
 }
 
-void NativeShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const
+void NativeShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const
 {
-    if (mTextureCount > 0)
+    // NativeShaders are always Pixel shaders
+    if (mResourceData.textureCount > 0)
     {
-        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mLastAllocatedSRVDescriptors.gpu);
-        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mLastAllocatedSamplerDescriptors.gpu);
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mLastDescriptorData.SRVDescriptors.gpu);
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mLastDescriptorData.SamplerDescriptors.gpu);
     }
 
-    if (mLastAllocatedCBufferRegion)
+    if (mLastDescriptorData.ConstantDataDirectRegion)
     {
-        commandList->SetGraphicsRootConstantBufferView(ShaderSlots::GRAPHICS_RS_PS_DATA, mLastAllocatedCBufferRegion.gpu);
+        commandList->SetGraphicsRootConstantBufferView(ShaderSlots::GRAPHICS_RS_PS_DATA, mLastDescriptorData.ConstantDataDirectRegion.gpu);
     }
 }
 

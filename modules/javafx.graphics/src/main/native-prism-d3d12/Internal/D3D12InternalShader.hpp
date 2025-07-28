@@ -41,43 +41,37 @@ class InternalShader: public Shader
     {
         ResourceAssignment assignment;
         RingBuffer::Region region;
+        bool assigned;
+
+        CBufferRegion()
+            : assignment(ResourceAssignmentType::DESCRIPTOR, 0, 0, 0, 0)
+            , region()
+            , assigned(false)
+        {}
 
         CBufferRegion(ResourceAssignment a)
             : assignment(a)
+            , region()
+            , assigned(true)
         {}
+
+        operator bool() const
+        {
+            return assigned;
+        }
     };
 
-    struct CBufferDTable
-    {
-        uint32_t rootIndex;
-        uint32_t count;
-        DescriptorData dtable;
+    std::vector<CBufferRegion> mCBufferDTableRegions;
+    CBufferRegion mCBufferDirectRegion;
 
-        CBufferDTable(uint32_t rootIndex, uint32_t count)
-            : rootIndex(rootIndex)
-            , count(count)
-        {}
-    };
-
-    std::vector<CBufferRegion> mCBufferDescriptorRegions;
-    std::vector<CBufferDTable> mCBufferDTables;
-    size_t mTextureCount;
-    size_t mSamplerCount;
-    size_t mTotalRVDescriptorCount;
-    uint32_t mTextureDTableRSIndex;
-    DescriptorData mTextureDTable;
-    uint32_t mSamplerDTableRSIndex;
-    DescriptorData mSamplerDTable;
-
-    int32_t GetTextureCountFromVariant(const std::string& variant);
+    int32_t GetTextureCountFromVariant(const std::string& variant) const;
+    virtual bool PrepareDescriptors(const NativeTextureBank& textures) override;
 
 public:
     InternalShader();
 
     bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize) override;
-
-    virtual bool PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) override;
-    virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
+    virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const override;
 };
 
 } // namespace Internal

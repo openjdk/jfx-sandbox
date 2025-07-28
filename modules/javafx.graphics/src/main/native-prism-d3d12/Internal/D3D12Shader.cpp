@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,9 @@ Shader::Shader()
     , mBytecodeBuffer()
     , mConstantBufferStorage()
     , mShaderResourceAssignments()
+    , mResourceData()
+    , mLastDescriptorData()
+    , mConstantsDirty(true)
 {
 }
 
@@ -75,6 +78,8 @@ bool Shader::SetConstants(const std::string& name, const void* data, size_t size
     const uint8_t* srcDataPtr = reinterpret_cast<const uint8_t*>(data);
     memcpy(dstDataPtr, srcDataPtr, size);
 
+    mConstantsDirty = true;
+
     return true;
 }
 
@@ -88,6 +93,12 @@ bool Shader::SetConstantsInArray(const std::string& name, uint32_t idx, const vo
     resourceName += ']';
 
     return SetConstants(resourceName, data, size);
+}
+
+bool Shader::AcceptDescriptorData(const DescriptorData& descriptorData, const NativeTextureBank& textures)
+{
+    mLastDescriptorData = descriptorData;
+    return PrepareDescriptors(textures);
 }
 
 } // namespace Internal

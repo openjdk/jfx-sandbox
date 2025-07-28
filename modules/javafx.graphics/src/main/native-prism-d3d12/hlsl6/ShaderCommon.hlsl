@@ -23,24 +23,26 @@
  * questions.
  */
 
+#include "D3D12ShaderLimits.h"
+
 #define JFX_INTERNAL_GRAPHICS_RS \
     "RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)," \
     "CBV(b0, visibility = SHADER_VISIBILITY_VERTEX)," \
     "CBV(b0, visibility = SHADER_VISIBILITY_PIXEL)," \
     "DescriptorTable(" \
-        "CBV(b1, numDescriptors = 3)," \
+        "CBV(b1, numDescriptors = " STR(D3D12NI_SHADER_LIMITS_MAX_VERTEX_CBV_DTABLE_ENTRIES) ")," \
         "visibility = SHADER_VISIBILITY_VERTEX" \
     ")," \
     "DescriptorTable(" \
-        "CBV(b1, numDescriptors = 3)," \
+        "CBV(b1, numDescriptors = " STR(D3D12NI_SHADER_LIMITS_MAX_PIXEL_CBV_DTABLE_ENTRIES) ")," \
         "visibility = SHADER_VISIBILITY_PIXEL" \
     ")," \
     "DescriptorTable(" \
-        "SRV(t0, numDescriptors = 4)," \
+        "SRV(t0, numDescriptors = " STR(D3D12NI_SHADER_LIMITS_MAX_PIXEL_SRV_DTABLE_ENTRIES) ")," \
         "visibility = SHADER_VISIBILITY_PIXEL" \
     ")," \
     "DescriptorTable(" \
-        "Sampler(s0, numDescriptors = 4)," \
+        "Sampler(s0, numDescriptors = " STR(D3D12NI_SHADER_LIMITS_MAX_PIXEL_SRV_DTABLE_ENTRIES) ")," \
         "visibility = SHADER_VISIBILITY_PIXEL" \
     "),"
 
@@ -48,10 +50,10 @@
     "RootFlags(0)," \
     "CBV(b0)," \
     "DescriptorTable(" \
-        "UAV(u0, numDescriptors = 4)" \
+        "UAV(u0, numDescriptors = " STR(D3D12NI_SHADER_LIMITS_MAX_COMPUTE_UAV_DTABLE_ENTRIES) ")" \
     ")," \
     "DescriptorTable(" \
-        "SRV(t0, numDescriptors = 4)" \
+        "SRV(t0, numDescriptors = " STR(D3D12NI_SHADER_LIMITS_MAX_COMPUTE_SRV_DTABLE_ENTRIES) ")" \
     ")," \
     "StaticSampler(s0),"
 

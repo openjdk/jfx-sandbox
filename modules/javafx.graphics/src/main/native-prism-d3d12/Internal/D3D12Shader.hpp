@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,6 +49,29 @@ namespace Internal {
  */
 class Shader
 {
+public:
+    struct ResourceData
+    {
+        uint32_t textureCount = 0;          // this assumes 1 texture needs 1 sampler
+        uint32_t uavCount = 0;
+        uint32_t cbufferDTableCount = 0;    // amount of constant buffers that are accessed via a DTable
+                                            // Directly-written descriptrors should NOT count towards this number
+        size_t cbufferDTableSingleSize = 0; // size of a single entry in CBV DTable;
+        size_t cbufferDirectSize = 0;       // size of a directly-written descriptor
+    };
+
+    struct DescriptorData
+    {
+        Internal::DescriptorData SRVDescriptors;                // Descirptor Table for SRVs
+        Internal::DescriptorData UAVDescriptors;                // Descriptor Table for UAVs
+        Internal::DescriptorData SamplerDescriptors;            // Descriptor Table for Samplers (allocated on Sampler heap)
+        Internal::DescriptorData CBufferTableDescriptors;       // Descriptor Table for constants, if requested
+        Internal::RingBuffer::Region ConstantDataDTableRegions; // Region for all DTable constant data, which is as big as:
+                                                                //   align(cbufferDTableSingleSize, CONSTANT_BUFFER_DATA_ALIGNMENT) * cbufferDTableCount
+        Internal::RingBuffer::Region ConstantDataDirectRegion;  // Region for direct constant data, which is as big as:
+                                                                //   align(cbufferDirectSize, CONSTANT_BUFFER_DATA_ALIGNMENT)
+    };
+
 protected:
     struct ResourceAssignment
     {
@@ -76,36 +99,24 @@ protected:
     std::vector<uint8_t> mBytecodeBuffer;
     std::vector<uint8_t> mConstantBufferStorage;
     ResourceAssignmentCollection mShaderResourceAssignments;
+    ResourceData mResourceData;
+    DescriptorData mLastDescriptorData;
+    bool mConstantsDirty;
 
     void SetConstantBufferData(void* data, size_t size, size_t storageOffset);
     void AddShaderResource(const std::string& name, const ResourceAssignment& resource);
 
+    virtual bool PrepareDescriptors(const NativeTextureBank& textures) = 0;
+
 public:
-    using ConstantAllocator = std::function<RingBuffer::Region(size_t size, size_t alignment)>;
-    using ResourceViewAllocator = std::function<DescriptorData(size_t count)>;
-    using SamplerAllocator = std::function<DescriptorData(size_t count)>;
-    using CBVCreator = std::function<void(D3D12_GPU_VIRTUAL_ADDRESS cbufferPtr, UINT size, D3D12_CPU_DESCRIPTOR_HANDLE destDescriptor)>;
-    using NullResourceViewCreator = std::function<void(D3D12_SRV_DIMENSION dimension, D3D12_CPU_DESCRIPTOR_HANDLE descriptor)>;
-
-    // TODO: D3D12: This probably can be done nicer, if InternalShader and this class can be made aware
-    //              of NativeDevice... Explore that alternative
-    struct ShaderResourceHelpers
-    {
-        ConstantAllocator constantAllocator; // allocates ring buffer space
-        ResourceViewAllocator rvAllocator; // allocates resource views (SRV, UAV)
-        SamplerAllocator samplerAllocator;
-        CBVCreator cbvCreator;
-        NullResourceViewCreator nullSRVCreator;
-    };
-
     Shader();
 
     virtual bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize);
     bool SetConstants(const std::string& name, const void* data, size_t size);
     bool SetConstantsInArray(const std::string& name, uint32_t idx, const void* data, size_t size);
 
-    virtual bool PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) = 0;
-    virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const = 0;
+    bool AcceptDescriptorData(const DescriptorData& descriptorData, const NativeTextureBank& textures);
+    virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const = 0;
 
     inline const std::string& GetName() const
     {
@@ -120,6 +131,21 @@ public:
     inline const D3D12_SHADER_BYTECODE& GetBytecode() const
     {
         return mBytecode;
+    }
+
+    inline const ResourceData& GetResourceData() const
+    {
+        return mResourceData;
+    }
+
+    inline bool AreConstantsDirty() const
+    {
+        return mConstantsDirty;
+    }
+
+    inline void ClearConstantsDirty()
+    {
+        mConstantsDirty = false;
     }
 };
 

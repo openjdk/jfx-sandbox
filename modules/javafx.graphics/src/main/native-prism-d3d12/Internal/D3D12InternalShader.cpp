@@ -25,13 +25,16 @@
 
 #include "D3D12InternalShader.hpp"
 
+#include "D3D12Utils.hpp"
+
 #include "Internal_D3D12ShaderResourceDataHeader.hpp"
 
 
 namespace D3D12 {
 namespace Internal {
 
-int32_t InternalShader::GetTextureCountFromVariant(const std::string& variant)
+// TODO: D3D12: this information should probably be pre-compiled somehow?
+int32_t InternalShader::GetTextureCountFromVariant(const std::string& variant) const
 {
     // we work this out in reverse, pattern is:
     //   'i' at the end == with self illumination, missing 'i' means no self illum
@@ -46,10 +49,8 @@ int32_t InternalShader::GetTextureCountFromVariant(const std::string& variant)
 
 InternalShader::InternalShader()
     : Shader()
-    , mCBufferDescriptorRegions()
-    , mTextureCount(0)
-    , mTextureDTableRSIndex(0)
-    , mTextureDTable()
+    , mCBufferDTableRegions()
+    , mCBufferDirectRegion()
 {
 }
 
@@ -79,8 +80,11 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
             return false;
         }
 
-        std::string variant = name.substr(underscore + 1);
-        textureCountFromVariant = GetTextureCountFromVariant(variant);
+        if (basename == "Mtl1PS")
+        {
+            std::string variant = name.substr(underscore + 1);
+            textureCountFromVariant = GetTextureCountFromVariant(variant);
+        }
     }
 
     if (!Shader::Init(name, mode, visibility, code, codeSize))
@@ -93,30 +97,37 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
 
     // constant buffer preparation
     uint32_t constantBufferTotalSize = 0;
-    mTotalRVDescriptorCount = 0;
     for (const InternalShaderResource::ResourceBinding& constantBuffer: shaderResources.constantBuffers)
     {
         if (constantBuffer.type == ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS)
         {
-            mCBufferDTables.emplace_back(constantBuffer.rootIndex, constantBuffer.count);
-            mTotalRVDescriptorCount += constantBuffer.count;
-        }
+            D3D12NI_ASSERT(mResourceData.cbufferDTableCount == 0, "%s: CBV DTable already declared. We can only fit one CBV DTable per shader.", mName.c_str());
+            mResourceData.cbufferDTableSingleSize = constantBuffer.size;
+            mResourceData.cbufferDTableCount = constantBuffer.count;
 
-        for (uint32_t i = 0; i < constantBuffer.count; ++i)
-        {
-            ResourceAssignment assignment(constantBuffer.type, constantBuffer.rootIndex, i, constantBuffer.size, constantBufferTotalSize);
-
-            std::string name = constantBuffer.name;
-            if (constantBuffer.type == ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS)
+            for (uint32_t i = 0; i < constantBuffer.count; ++i)
             {
+                ResourceAssignment assignment(constantBuffer.type, constantBuffer.rootIndex, i, constantBuffer.size, constantBufferTotalSize);
+
+                std::string name = constantBuffer.name;
                 name += '[';
                 name += std::to_string(i);
                 name += ']';
+
+                AddShaderResource(name, assignment);
+                mCBufferDTableRegions.emplace_back(assignment);
+                constantBufferTotalSize += constantBuffer.size;
             }
+        }
+        else
+        {
+            D3D12NI_ASSERT(!mCBufferDirectRegion && mResourceData.cbufferDirectSize == 0, "%s: Direct CBV already declared. We can only fit one direct CBV per shader.", mName.c_str());
+            mResourceData.cbufferDirectSize = constantBuffer.size;
 
-            AddShaderResource(name, assignment);
-            mCBufferDescriptorRegions.emplace_back(assignment);
+            ResourceAssignment assignment(constantBuffer.type, constantBuffer.rootIndex, 0, constantBuffer.size, constantBufferTotalSize);
+            AddShaderResource(constantBuffer.name, assignment);
 
+            mCBufferDirectRegion = CBufferRegion(assignment);
             constantBufferTotalSize += constantBuffer.size;
         }
     }
@@ -125,13 +136,13 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
 
     if (textureCountFromVariant >= 0)
     {
-        mTextureCount = textureCountFromVariant;
+        mResourceData.textureCount = textureCountFromVariant;
     }
     else
     {
         // shader variant did not provide us with how many textures we need so
         // count how many DTable slots we need for textures (if any)
-        mTextureCount = 0;
+        mResourceData.textureCount = 0;
         for (size_t i = 0; i < shaderResources.textures.size(); ++i)
         {
             const InternalShaderResource::ResourceBinding& texture = shaderResources.textures[i];
@@ -143,19 +154,12 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
                 )
             );
 
-            mTextureCount++;
+            mResourceData.textureCount++;
         }
     }
 
-    mTotalRVDescriptorCount += mTextureCount;
-
-    mSamplerCount = mTextureCount;
-    mTextureDTableRSIndex = ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE;
-    mSamplerDTableRSIndex = ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE;
-
     // debug info
-
-    D3D12NI_LOG_DEBUG("Internal Shader %s resource assignments (needs %d descriptors total):", mName.c_str(), mTotalRVDescriptorCount);
+    D3D12NI_LOG_DEBUG("Internal Shader %s resource assignments (needs %d texture/sampler descriptors + %d cbv descriptors):", mName.c_str(), mResourceData.textureCount, mResourceData.cbufferDTableCount);
     for (const auto& r: mShaderResourceAssignments)
     {
         const ResourceAssignment& ra = r.second;
@@ -165,106 +169,36 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
     return true;
 }
 
-bool InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures)
+bool InternalShader::PrepareDescriptors(const NativeTextureBank& textures)
 {
-    // To prevent following situations in the middle of rendering:
-    //   - alloc some CBVs/SRVs
-    //   - Signal (no Draw had a chance to consume the Descriptors yet!)
-    //   - alloc more CBVs/SRVs
-    // we allocate once in full and then split allocated space
-    DescriptorData allDescriptors;
-    UINT usedDescriptors = 0;
-    if (mTotalRVDescriptorCount > 0)
+    // populate the CBuffer regions reserved by ResourceManager
+    size_t singleCBVSizeAligned = Utils::Align<size_t>(mResourceData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+    for (size_t i = 0; i < mCBufferDTableRegions.size(); ++i)
     {
-        allDescriptors = helpers.rvAllocator(mTotalRVDescriptorCount);
-        if (!allDescriptors)
-        {
-            D3D12NI_LOG_ERROR("InternalShader %s: Failed to allocate space for %d descriptors", mName.c_str(), mTotalRVDescriptorCount);
-            return false;
-        }
+        CBufferRegion& cbr = mCBufferDTableRegions[i];
+        cbr.region = mLastDescriptorData.ConstantDataDTableRegions.Subregion(singleCBVSizeAligned * i, singleCBVSizeAligned);
+
+        const uint8_t* src = reinterpret_cast<uint8_t*>(mConstantBufferStorage.data()) + cbr.assignment.offsetInCBStorage;
+        memcpy(cbr.region.cpu, src, cbr.assignment.sizeInCBStorage);
     }
 
-    for (size_t i = 0; i < mCBufferDTables.size(); ++i)
+    if (mCBufferDirectRegion)
     {
-        mCBufferDTables[i].dtable = allDescriptors.Range(usedDescriptors, mCBufferDTables[i].count);
-        usedDescriptors += mCBufferDTables[i].count;
+        mCBufferDirectRegion.region = mLastDescriptorData.ConstantDataDirectRegion;
+
+        const uint8_t* src = reinterpret_cast<uint8_t*>(mConstantBufferStorage.data()) + mCBufferDirectRegion.assignment.offsetInCBStorage;
+        memcpy(mCBufferDirectRegion.region.cpu, src, mCBufferDirectRegion.assignment.sizeInCBStorage);
     }
 
-    for (size_t i = 0; i < mCBufferDescriptorRegions.size(); ++i)
+    // write in textures directly
+    if (mResourceData.textureCount > 0)
     {
-        CBufferRegion& cbr = mCBufferDescriptorRegions[i];
-        cbr.region = helpers.constantAllocator(cbr.assignment.sizeInCBStorage, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-
-        if (cbr.region)
-        {
-            const uint8_t* src = reinterpret_cast<uint8_t*>(mConstantBufferStorage.data()) + cbr.assignment.offsetInCBStorage;
-            memcpy(cbr.region.cpu, src, cbr.assignment.sizeInCBStorage);
-        }
-        else
-        {
-            D3D12NI_LOG_ERROR("InternalShader %s: Failed to reserve space for constant buffer at RS index %u", mName.c_str(), cbr.assignment.rootIndex);
-            return false;
-        }
-
-        if (cbr.assignment.type == ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS)
-        {
-            // write a CBV onto our descriptors here
-            size_t idx = 0;
-            for (idx = 0; idx < mCBufferDTables.size(); ++idx)
-            {
-                if (mCBufferDTables[idx].rootIndex == cbr.assignment.rootIndex)
-                {
-                    helpers.cbvCreator(
-                        cbr.region.gpu,
-                        static_cast<UINT>(cbr.region.size),
-                        mCBufferDTables[idx].dtable.CPU(cbr.assignment.index)
-                    );
-                    break;
-                }
-            }
-
-            if (idx == mCBufferDTables.size())
-            {
-                D3D12NI_LOG_ERROR("InternalShader %s: Couldn't find descriptor table entry for Constant Buffer at RS index %u:%u", mName.c_str(), mCBufferDescriptorRegions[i].assignment.rootIndex, mCBufferDescriptorRegions[i].assignment.index);
-                return false;
-            }
-        }
-    }
-
-    if (mTextureCount > 0)
-    {
-        mTextureDTable = allDescriptors.Range(usedDescriptors, static_cast<UINT>(mTextureCount));
-
-        mSamplerDTable = helpers.samplerAllocator(mSamplerCount);
-        if (!mSamplerDTable)
-        {
-            D3D12NI_LOG_ERROR("Internal shader %s: Failed to allocate DTable for %u samplers", mName.c_str(), mSamplerCount);
-            return false;
-        }
-
-        uint32_t usedTextures = Constants::MAX_TEXTURE_UNITS;
-        while (usedTextures > 0 && !textures[usedTextures - 1])
-        {
-            usedTextures--;
-        }
-
-        // should not happen
-        if ((!mTextureDTable || !mSamplerDTable) && usedTextures != 0)
-        {
-            D3D12NI_LOG_ERROR("Internal shader %s: Descriptor Tables are NULL, but we have textures we need to use", mName.c_str());
-            return false;
-        }
-
-        for (uint32_t i = 0; i < usedTextures; ++i)
+        for (uint32_t i = 0; i < mResourceData.textureCount; ++i)
         {
             if (textures[i])
             {
-                textures[i]->WriteSRVToDescriptor(mTextureDTable.CPU(i));
-                textures[i]->WriteSamplerToDescriptor(mSamplerDTable.CPU(i));
-            }
-            else
-            {
-                helpers.nullSRVCreator(D3D12_SRV_DIMENSION_TEXTURE2D, mTextureDTable.CPU(i));
+                textures[i]->WriteSRVToDescriptor(mLastDescriptorData.SRVDescriptors.CPU(i));
+                textures[i]->WriteSamplerToDescriptor(mLastDescriptorData.SamplerDescriptors.CPU(i));
             }
         }
     }
@@ -272,38 +206,23 @@ bool InternalShader::PrepareShaderResources(const ShaderResourceHelpers& helpers
     return true;
 }
 
-void InternalShader::ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const
+void InternalShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const
 {
-    for (const auto& r: mCBufferDescriptorRegions)
+    if (mCBufferDirectRegion)
     {
-        const ResourceAssignment& ra = r.assignment;
-
-        switch (ra.type)
-        {
-        case ResourceAssignmentType::DESCRIPTOR:
-        {
-            commandList->SetGraphicsRootConstantBufferView(ra.rootIndex, r.region.gpu);
-            break;
-        }
-        case ResourceAssignmentType::DESCRIPTOR_TABLE_CBUFFERS:
-        case ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES:
-        case ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS:
-            // ignored - will be set later
-            break;
-        default:
-            D3D12NI_LOG_ERROR("Internal shader %s: Unrecognized resource assignment type for resource at RS index %u", mName.c_str(), ra.rootIndex);
-        }
+        commandList->SetGraphicsRootConstantBufferView(mCBufferDirectRegion.assignment.rootIndex, mCBufferDirectRegion.region.gpu);
     }
 
-    if (mTextureCount > 0 && mTextureDTable && mSamplerDTable)
+    if (mLastDescriptorData.CBufferTableDescriptors && mCBufferDTableRegions.size() > 0)
     {
-        commandList->SetGraphicsRootDescriptorTable(mTextureDTableRSIndex, mTextureDTable.gpu);
-        commandList->SetGraphicsRootDescriptorTable(mSamplerDTableRSIndex, mSamplerDTable.gpu);
+        commandList->SetGraphicsRootDescriptorTable(mCBufferDTableRegions[0].assignment.rootIndex, mLastDescriptorData.CBufferTableDescriptors.gpu);
     }
 
-    for (size_t i = 0; i < mCBufferDTables.size(); ++i)
+    if (mResourceData.textureCount > 0)
     {
-        commandList->SetGraphicsRootDescriptorTable(mCBufferDTables[i].rootIndex, mCBufferDTables[i].dtable.gpu);
+        // textures only apply to Pixel Shaders
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mLastDescriptorData.SRVDescriptors.GPU(0));
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mLastDescriptorData.SamplerDescriptors.GPU(0));
     }
 }
 

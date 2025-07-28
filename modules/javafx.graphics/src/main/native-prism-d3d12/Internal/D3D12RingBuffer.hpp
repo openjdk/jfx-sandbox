@@ -58,6 +58,14 @@ public:
         {
             return (cpu != 0);
         }
+
+        inline Region Subregion(size_t offset, size_t size)
+        {
+            D3D12NI_ASSERT(offset >= 0 && size > 0, "Invalid Subregion parameters requested");
+            D3D12NI_ASSERT(offset + size <= this->size, "Invalid Subregion parameters requested");
+
+            return Region((uint8_t*)cpu + offset, gpu + offset, size, offsetFromStart + offset);
+        }
     };
 
 private:

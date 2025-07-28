@@ -30,6 +30,8 @@ namespace ShaderSlots {
 
 // Below assingments must match root signature entry indexes in ShaderCommon.hlsl
 
+// Graphics RS
+
 const unsigned int GRAPHICS_RS_VS_DATA = 0; // Root Descriptor
 const unsigned int GRAPHICS_RS_PS_DATA = 1; // Root Descriptor
 
@@ -38,6 +40,14 @@ const unsigned int GRAPHICS_RS_PS_DATA_DTABLE = 3; // Descriptor Table
 
 const unsigned int GRAPHICS_RS_PS_TEXTURE_DTABLE = 4; // Descriptor Table
 const unsigned int GRAPHICS_RS_PS_SAMPLER_DTABLE = 5; // Descriptor Table
+
+
+// Compute RS
+
+const unsigned int COMPUTE_RS_CONSTANT_DATA = 0; // Root Descriptor
+
+const unsigned int COMPUTE_RS_UAV_DTABLE = 1; // Descriptor Table
+const unsigned int COMPUTE_RS_TEXTURE_DTABLE = 2; // Descriptor Table
 
 } // namespace ShaderSlots
 } // namespace D3D12

@@ -27,6 +27,8 @@
 
 #include "D3D12Debug.hpp"
 
+#include "D3D12ShaderLimits.h"
+
 #include "../D3D12Constants.hpp"
 #include "../D3D12NativeDevice.hpp"
 
@@ -45,7 +47,8 @@ bool RootSignatureManager::Init()
     // See hlsl/ShaderCommon.hlsl for details
     std::vector<D3D12_ROOT_PARAMETER> rsParams;
     D3D12_ROOT_PARAMETER rsParam;
-    D3D12_DESCRIPTOR_RANGE CBVRange;
+    D3D12_DESCRIPTOR_RANGE vertexCBVRange;
+    D3D12_DESCRIPTOR_RANGE pixelCBVRange;
     D3D12_DESCRIPTOR_RANGE UAVRange;
     D3D12_DESCRIPTOR_RANGE SRVRange;
     D3D12_DESCRIPTOR_RANGE SamplerRange;
@@ -64,28 +67,31 @@ bool RootSignatureManager::Init()
     rsParams.emplace_back(rsParam);
 
     // Vertex Shader Descriptor Table - gLightSpec
-    D3D12NI_ZERO_STRUCT(CBVRange);
-    CBVRange.BaseShaderRegister = 1;
-    CBVRange.RegisterSpace = 0;
-    CBVRange.NumDescriptors = Constants::MAX_LIGHTS;
-    CBVRange.OffsetInDescriptorsFromTableStart = 0;
-    CBVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+    D3D12NI_ZERO_STRUCT(vertexCBVRange);
+    vertexCBVRange.BaseShaderRegister = 1;
+    vertexCBVRange.RegisterSpace = 0;
+    vertexCBVRange.NumDescriptors = D3D12NI_SHADER_LIMITS_MAX_VERTEX_CBV_DTABLE_ENTRIES;
+    vertexCBVRange.OffsetInDescriptorsFromTableStart = 0;
+    vertexCBVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 
     rsParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
     rsParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-    rsParam.DescriptorTable.pDescriptorRanges = &CBVRange;
+    rsParam.DescriptorTable.pDescriptorRanges = &vertexCBVRange;
     rsParam.DescriptorTable.NumDescriptorRanges = 1;
     rsParams.emplace_back(rsParam);
 
     // Similarly in Pixel Shader - gLightSpec
+    pixelCBVRange = vertexCBVRange;
+    pixelCBVRange.NumDescriptors = D3D12NI_SHADER_LIMITS_MAX_PIXEL_CBV_DTABLE_ENTRIES;
     rsParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    rsParam.DescriptorTable.pDescriptorRanges = &pixelCBVRange;
     rsParams.emplace_back(rsParam);
 
     // Pixel Shader textures/maps
     D3D12NI_ZERO_STRUCT(SRVRange);
     SRVRange.BaseShaderRegister = 0;
     SRVRange.RegisterSpace = 0;
-    SRVRange.NumDescriptors = 4; // diffuse, specular, bump, selfIllum
+    SRVRange.NumDescriptors = D3D12NI_SHADER_LIMITS_MAX_PIXEL_SRV_DTABLE_ENTRIES; // diffuse, specular, bump, selfIllum
     SRVRange.OffsetInDescriptorsFromTableStart = 0;
     SRVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 
@@ -99,7 +105,7 @@ bool RootSignatureManager::Init()
     D3D12NI_ZERO_STRUCT(SamplerRange);
     SamplerRange.BaseShaderRegister = 0;
     SamplerRange.RegisterSpace = 0;
-    SamplerRange.NumDescriptors = 4; // diffuse, specular, bump, selfIllum
+    SamplerRange.NumDescriptors = D3D12NI_SHADER_LIMITS_MAX_PIXEL_SRV_DTABLE_ENTRIES; // diffuse, specular, bump, selfIllum
     SamplerRange.OffsetInDescriptorsFromTableStart = 0;
     SamplerRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
 
@@ -163,7 +169,7 @@ bool RootSignatureManager::Init()
     D3D12NI_ZERO_STRUCT(UAVRange);
     UAVRange.BaseShaderRegister = 0;
     UAVRange.RegisterSpace = 0;
-    UAVRange.NumDescriptors = 4;
+    UAVRange.NumDescriptors = D3D12NI_SHADER_LIMITS_MAX_COMPUTE_UAV_DTABLE_ENTRIES;
     UAVRange.OffsetInDescriptorsFromTableStart = 0;
     UAVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
 
@@ -177,7 +183,7 @@ bool RootSignatureManager::Init()
     D3D12NI_ZERO_STRUCT(SRVRange);
     SRVRange.BaseShaderRegister = 0;
     SRVRange.RegisterSpace = 0;
-    SRVRange.NumDescriptors = 4;
+    SRVRange.NumDescriptors = D3D12NI_SHADER_LIMITS_MAX_COMPUTE_SRV_DTABLE_ENTRIES;
     SRVRange.OffsetInDescriptorsFromTableStart = 0;
     SRVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 

@@ -38,9 +38,9 @@ class Utils
 
 public:
     template <typename T>
-    static inline T Align(T offset, T alignment)
+    static inline T Align(T x, T alignment)
     {
-        return (offset + alignment - 1u) & ~(alignment - 1u);
+        return (x + alignment - 1u) & ~(alignment - 1u);
     }
 
     static inline uint32_t CalcSubresource(uint32_t mipSlice, uint32_t mipLevels, uint32_t arraySlice)

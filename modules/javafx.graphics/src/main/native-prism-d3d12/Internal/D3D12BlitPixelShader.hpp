@@ -43,13 +43,13 @@ class BlitPixelShader: public Shader
     DescriptorData mSourceTextureDTable;
     DescriptorData mSourceTextureSamplerDTable;
 
+    virtual bool PrepareDescriptors(const NativeTextureBank& textures) override;
+
 public:
     BlitPixelShader();
 
     bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize) override;
-
-    virtual bool PrepareShaderResources(const ShaderResourceHelpers& helpers, const NativeTextureBank& textures) override;
-    virtual void ApplyShaderResources(const D3D12GraphicsCommandListPtr& commandList) const override;
+    virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const override;
 };
 
 } // namespace Internal
