@@ -103,6 +103,11 @@ public:
         return mMipLevels;
     }
 
+    inline const Internal::SamplerDesc& GetSamplerDesc() const
+    {
+        return mSamplerDesc;
+    }
+
     inline bool HasMipmaps() const
     {
         return (mMipLevels > 1);

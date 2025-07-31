@@ -57,7 +57,7 @@ bool BlitPixelShader::Init(const std::string& name, ShaderPipelineMode mode, D3D
         return false;
     }
 
-    mResourceData.textureCount = 1;
+    mResourceData.textureCount = mResourceData.samplerCount = 1;
 
     return true;
 }
@@ -70,18 +70,17 @@ bool BlitPixelShader::PrepareDescriptors(const NativeTextureBank& textures)
         return false;
     }
 
-    // write textrue descriptor tables
-    // we assume slot 0 is source and slot 1 is destination
-    textures[0]->WriteSRVToDescriptor(mLastDescriptorData.SRVDescriptors.CPU(0));
-    textures[0]->WriteSamplerToDescriptor(mLastDescriptorData.SamplerDescriptors.CPU(0));
+    // write textrue descriptor table entry
+    // slot 0 is source and destination is current Render Target
+    textures[0]->WriteSRVToDescriptor(mDescriptorData.SRVDescriptors.CPU(0));
 
     return true;
 }
 
 void BlitPixelShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const
 {
-    commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mLastDescriptorData.SRVDescriptors.GPU(0));
-    commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mLastDescriptorData.SamplerDescriptors.GPU(0));
+    commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.GPU(0));
+    commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mDescriptorData.SamplerDescriptors.GPU(0));
 }
 
 } // namespace Internal

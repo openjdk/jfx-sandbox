@@ -65,12 +65,13 @@ class InternalShader: public Shader
     CBufferRegion mCBufferDirectRegion;
 
     int32_t GetTextureCountFromVariant(const std::string& variant) const;
-    virtual bool PrepareDescriptors(const NativeTextureBank& textures) override;
 
-public:
+    public:
     InternalShader();
 
     bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize) override;
+
+    virtual bool PrepareDescriptors(const NativeTextureBank& textures) override;
     virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const override;
 };
 

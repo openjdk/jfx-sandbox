@@ -43,7 +43,7 @@ Shader::Shader()
     , mConstantBufferStorage()
     , mShaderResourceAssignments()
     , mResourceData()
-    , mLastDescriptorData()
+    , mDescriptorData()
     , mConstantsDirty(true)
 {
 }
@@ -93,12 +93,6 @@ bool Shader::SetConstantsInArray(const std::string& name, uint32_t idx, const vo
     resourceName += ']';
 
     return SetConstants(resourceName, data, size);
-}
-
-bool Shader::AcceptDescriptorData(const DescriptorData& descriptorData, const NativeTextureBank& textures)
-{
-    mLastDescriptorData = descriptorData;
-    return PrepareDescriptors(textures);
 }
 
 } // namespace Internal

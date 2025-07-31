@@ -49,13 +49,14 @@ private:
     JSLC::ShaderResourceCollection mShaderResources;
 
     uint32_t GetTotalBindingSize(const JSLC::ResourceBinding& binding) const;
-    virtual bool PrepareDescriptors(const NativeTextureBank& textures) override;
 
-public:
+    public:
     NativeShader();
     ~NativeShader();
 
     bool Init(const std::string& name, void* code, size_t size);
+
+    virtual bool PrepareDescriptors(const NativeTextureBank& textures) override;
     virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const override;
 };
 

@@ -54,10 +54,15 @@ struct SamplerDesc
         return "wrapMode = " + wrapModeStr + "; isLinear = " + std::to_string(isLinear);
     }
 
-    bool operator==(const SamplerDesc& other) const
+    inline bool operator==(const SamplerDesc& other) const
     {
         return wrapMode == other.wrapMode &&
                isLinear == other.isLinear;
+    }
+
+    inline bool operator!=(const SamplerDesc& other) const
+    {
+        return !operator==(other);
     }
 };
 

@@ -33,39 +33,13 @@
 namespace D3D12 {
 namespace Internal {
 
-ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
-    : mNativeDevice(nativeDevice)
-    , mPixelShader()
-    , mTextures()
-    , mDescriptorHeap(nativeDevice)
-    , mSamplerHeap(nativeDevice)
-{
-    // TODO: D3D12: PERF fine-tune ring descriptor heap parameters
-    if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 2048, 1536))
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize main Ring Descriptor Heap");
-    }
-    mDescriptorHeap.SetDebugName("CBV/SRV/UAV Descriptor Heap");
-
-    // Maximum limit of Samplers is 2048
-    //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-support
-    //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-feature-levels
-    // TODO: This applies to Tier 2 hardware and above, Tier 1 limits Samplers to 16.
-    //       We could possibly restrict that by raising Feature Level to 12 in NativeDevice;
-    //       verify if this should be done after all
-    if (!mSamplerHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, 2048, 1536))
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize Sampler Ring Descriptor Heap");
-    }
-    mSamplerHeap.SetDebugName("Sampler Heap");
-}
-
-bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader, Shader::DescriptorData& descriptors)
+bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader)
 {
     // quietly exit early if constants do not need to be re-prepared
     if (!shader->AreConstantsDirty()) return true;
 
     const Shader::ResourceData& resourceData = shader->GetResourceData();
+    Shader::DescriptorData& descriptors = shader->GetDescriptorData();
 
     if (resourceData.cbufferDirectSize > 0)
     {
@@ -116,9 +90,12 @@ bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader, Shader::Desc
     return true;
 }
 
-bool ResourceManager::PrepareTextureViews(const NIPtr<Shader>& shader, Shader::DescriptorData& descriptors)
+bool ResourceManager::PrepareTextureViews(const NIPtr<Shader>& shader)
 {
+    if (!mTexturesDirty) return true;
+
     const Shader::ResourceData& resourceData = shader->GetResourceData();
+    Shader::DescriptorData& descriptors = shader->GetDescriptorData();
 
     if (resourceData.textureCount > 0)
     {
@@ -149,15 +126,27 @@ bool ResourceManager::PrepareTextureViews(const NIPtr<Shader>& shader, Shader::D
     return true;
 }
 
-bool ResourceManager::PrepareSamplers(const NIPtr<Shader>& shader, Shader::DescriptorData& descriptors)
+bool ResourceManager::PrepareSamplers(const NIPtr<Shader>& shader)
 {
     const Shader::ResourceData& resourceData = shader->GetResourceData();
+    Shader::DescriptorData& descriptors = shader->GetDescriptorData();
 
-    // TODO: D3D12: Optimize by skipping the sampler reserve when samplers don't change
-    // Reserve as many samplers as textures
-    if (resourceData.textureCount > 0)
+    // Reserve samplers and write them if needed
+    if (resourceData.samplerCount > 0)
     {
-        descriptors.SamplerDescriptors = mSamplerHeap.Reserve(resourceData.textureCount);
+        if (mSamplersDirty)
+        {
+            mLastSamplerDescriptors = mSamplerHeap.Reserve(resourceData.textureCount);
+
+            for (uint32_t i = 0; i < resourceData.samplerCount; ++i)
+            {
+                mTextures[i]->WriteSamplerToDescriptor(mLastSamplerDescriptors.CPU(i));
+            }
+
+            mSamplersDirty = false;
+        }
+
+        descriptors.SamplerDescriptors = mLastSamplerDescriptors;
     }
 
     return true;
@@ -175,22 +164,55 @@ bool ResourceManager::PrepareShaderResources(const NIPtr<Shader>& shader)
     //  - Calling SetTexture() should dirty the SRV update and independently check if Samplers are dirty too
     //  - Setting Shader constants should dirty the Constant Data
     //     - Maybe we should do the constants set via ResourceManager? What about NativeShader API though...
-    Shader::DescriptorData descriptors;
-    if (!PrepareConstants(shader, descriptors)) return false;
-    if (!PrepareTextureViews(shader, descriptors)) return false;
-    if (!PrepareSamplers(shader, descriptors)) return false;
+    if (!PrepareConstants(shader)) return false;
+    if (!PrepareTextureViews(shader)) return false;
+    if (!PrepareSamplers(shader)) return false;
 
     // we provide mTextures to Shader mostly because of each shader accessing Texture (sub)resources differently
     // ex. MipmapGenComputeShader wants to populate Texture's subresources when generating mip levels instead of
     // simply viewing Textures as a whole resource, including all of its subresources.
     // As such, it makes more sense to let Shaders decide how to write Views onto Descriptors we just prepared for them.
-    if (!shader->AcceptDescriptorData(descriptors, mTextures)) return false;
+    if (!shader->PrepareDescriptors(mTextures)) return false;
 
     return true;
 }
 
+ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
+    : mNativeDevice(nativeDevice)
+    , mVertexShader()
+    , mPixelShader()
+    , mTextures()
+    , mDescriptorHeap(nativeDevice)
+    , mSamplerHeap(nativeDevice)
+    , mTexturesDirty(true)
+    , mSamplersDirty(true)
+{
+    // TODO: D3D12: PERF fine-tune ring descriptor heap parameters
+    if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 4 * 1024, 3 * 1024))
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize main Ring Descriptor Heap");
+    }
+    mDescriptorHeap.SetDebugName("CBV/SRV/UAV Descriptor Heap");
+
+    // Maximum limit of Samplers is 2048
+    //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-support
+    //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-feature-levels
+    // TODO: This applies to Tier 2 hardware and above, Tier 1 limits Samplers to 16.
+    //       We could possibly restrict that by raising Feature Level to 12 in NativeDevice;
+    //       verify if this should be done after all
+    if (!mSamplerHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, 2048, 1536))
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize Sampler Ring Descriptor Heap");
+    }
+    mSamplerHeap.SetDebugName("Sampler Heap");
+
+    mNativeDevice->RegisterWaitableOperation(this);
+}
+
 ResourceManager::~ResourceManager()
 {
+    mNativeDevice->UnregisterWaitableOperation(this);
+
     for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
     {
         mTextures[i].reset();
@@ -235,6 +257,7 @@ void ResourceManager::ClearTextureUnit(uint32_t slot)
     D3D12NI_ASSERT(slot < Constants::MAX_TEXTURE_UNITS, "Provided too high slot %u (max %u)", slot, Constants::MAX_TEXTURE_UNITS);
 
     mTextures[slot].reset();
+    mTexturesDirty = true;
 }
 
 void ResourceManager::EnsureStates(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES state)
@@ -250,24 +273,41 @@ void ResourceManager::EnsureStates(const D3D12GraphicsCommandListPtr& commandLis
 
 void ResourceManager::SetVertexShader(const NIPtr<Shader>& shader)
 {
+    if (shader == mVertexShader) return;
+
     mVertexShader = shader;
+    mVertexShader->SetConstantsDirty(true);
 }
 
 void ResourceManager::SetPixelShader(const NIPtr<Shader>& shader)
 {
+    if (shader == mPixelShader) return;
+
     mPixelShader = shader;
+    mPixelShader->SetConstantsDirty(true);
 }
 
 void ResourceManager::SetComputeShader(const NIPtr<Shader>& shader)
 {
+    if (shader == mComputeShader) return;
+
     mComputeShader = shader;
+    mComputeShader->SetConstantsDirty(true);
 }
 
 void ResourceManager::SetTexture(uint32_t slot, const NIPtr<NativeTexture>& tex)
 {
     D3D12NI_ASSERT(slot < Constants::MAX_TEXTURE_UNITS, "Provided too high slot %u (max %u)", slot, Constants::MAX_TEXTURE_UNITS);
 
+    if (mTextures[slot] == tex) return;
+
+    if (!mTextures[slot] || (mTextures[slot]->GetSamplerDesc() != tex->GetSamplerDesc()))
+    {
+        mSamplersDirty = true;
+    }
+
     mTextures[slot] = tex;
+    mTexturesDirty = true;
 }
 
 void ResourceManager::StashParameters()
@@ -283,13 +323,33 @@ void ResourceManager::StashParameters()
 
 void ResourceManager::RestoreStashedParameters()
 {
-    mVertexShader = mRuntimeParametersStash.vertexShader;
-    mPixelShader = mRuntimeParametersStash.pixelShader;
+    SetVertexShader(mRuntimeParametersStash.vertexShader);
+    SetPixelShader(mRuntimeParametersStash.pixelShader);
 
     for (size_t i = 0; i < mTextures.size(); ++i)
     {
-        mTextures[i] = mRuntimeParametersStash.textures[i];
+        if (mRuntimeParametersStash.textures[i])
+        {
+            SetTexture(static_cast<uint32_t>(i), mRuntimeParametersStash.textures[i]);
+        }
+        else
+        {
+            ClearTextureUnit(static_cast<uint32_t>(i));
+        }
     }
+}
+
+void ResourceManager::OnQueueSignal(uint64_t)
+{
+    // here we only have to mark the dirty flags so that we don't reuse descriptor data that's
+    // already consumed and marked free by Ring Containers
+    mTexturesDirty = true;
+    mSamplersDirty = true;
+}
+
+void ResourceManager::OnFenceSignaled(uint64_t)
+{
+    // noop
 }
 
 } // namespace Internal

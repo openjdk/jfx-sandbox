@@ -33,14 +33,13 @@
 #include "D3D12Shader.hpp"
 #include "D3D12RingBuffer.hpp"
 #include "D3D12RingDescriptorHeap.hpp"
-
-#include <queue>
+#include "D3D12IWaitableOperation.hpp"
 
 
 namespace D3D12 {
 namespace Internal {
 
-class ResourceManager
+class ResourceManager: public IWaitableOperation
 {
     struct RuntimeParametersStash
     {
@@ -55,14 +54,17 @@ class ResourceManager
     NativeTextureBank mTextures;
     RingDescriptorHeap mDescriptorHeap;
     RingDescriptorHeap mSamplerHeap;
+    Internal::DescriptorData mLastSamplerDescriptors;
+    bool mTexturesDirty;
+    bool mSamplersDirty;
 
     // Compute Resources
     NIPtr<Shader> mComputeShader;
 
     void UpdateTextureDescriptorTable(const DescriptorData& dtable);
-    bool PrepareConstants(const NIPtr<Shader>& shaderResourceData, Shader::DescriptorData& descriptors);
-    bool PrepareTextureViews(const NIPtr<Shader>& shaderResourceData, Shader::DescriptorData& descriptors);
-    bool PrepareSamplers(const NIPtr<Shader>& shaderResourceData, Shader::DescriptorData& descriptors);
+    bool PrepareConstants(const NIPtr<Shader>& shaderResourceData);
+    bool PrepareTextureViews(const NIPtr<Shader>& shaderResourceData);
+    bool PrepareSamplers(const NIPtr<Shader>& shaderResourceData);
     bool PrepareShaderResources(const NIPtr<Shader>& shader);
 
 public:
@@ -82,6 +84,9 @@ public:
 
     void StashParameters();
     void RestoreStashedParameters();
+
+    virtual void OnQueueSignal(uint64_t fenceValue) override;
+    virtual void OnFenceSignaled(uint64_t fenceValue) override;
 
     inline const NIPtr<NativeTexture>& GetTexture(uint32_t slot) const
     {

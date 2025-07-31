@@ -61,6 +61,7 @@ bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mo
     AddShaderResource("gData", ResourceAssignment(ResourceAssignmentType::DESCRIPTOR, 0, 0, sizeof(CBuffer), 0));
 
     mResourceData.textureCount = 1;
+    mResourceData.samplerCount = 0; // Compute shaders embed a static sampler via Root Signature
     mResourceData.uavCount = 4;
     mResourceData.cbufferDirectSize = sizeof(CBuffer);
 
@@ -82,16 +83,16 @@ bool MipmapGenComputeShader::PrepareDescriptors(const NativeTextureBank& texture
     }
 
     const CBuffer* cb = reinterpret_cast<const CBuffer*>(mConstantBufferStorage.data());
-    memcpy(mLastDescriptorData.ConstantDataDirectRegion.cpu, mConstantBufferStorage.data(), sizeof(CBuffer));
+    memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, mConstantBufferStorage.data(), sizeof(CBuffer));
 
     // write source mip level as SRV (our input)
-    textures[0]->WriteSRVToDescriptor(mLastDescriptorData.SRVDescriptors.CPU(0), 1, cb->sourceLevel);
+    textures[0]->WriteSRVToDescriptor(mDescriptorData.SRVDescriptors.CPU(0), 1, cb->sourceLevel);
 
     // write destination mip levels as UAVs (output)
     // destination levels are one higher than source
     for (uint32_t i = 0; i < cb->numLevels; ++i)
     {
-        textures[0]->WriteUAVToDescriptor(mLastDescriptorData.UAVDescriptors.CPU(i), (cb->sourceLevel + 1) + i);
+        textures[0]->WriteUAVToDescriptor(mDescriptorData.UAVDescriptors.CPU(i), (cb->sourceLevel + 1) + i);
     }
 
     return true;
@@ -99,9 +100,9 @@ bool MipmapGenComputeShader::PrepareDescriptors(const NativeTextureBank& texture
 
 void MipmapGenComputeShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const
 {
-    commandList->SetComputeRootConstantBufferView(ShaderSlots::COMPUTE_RS_CONSTANT_DATA, mLastDescriptorData.ConstantDataDirectRegion.gpu);
-    commandList->SetComputeRootDescriptorTable(ShaderSlots::COMPUTE_RS_UAV_DTABLE, mLastDescriptorData.UAVDescriptors.GPU(0));
-    commandList->SetComputeRootDescriptorTable(ShaderSlots::COMPUTE_RS_TEXTURE_DTABLE, mLastDescriptorData.SRVDescriptors.GPU(0));
+    commandList->SetComputeRootConstantBufferView(ShaderSlots::COMPUTE_RS_CONSTANT_DATA, mDescriptorData.ConstantDataDirectRegion.gpu);
+    commandList->SetComputeRootDescriptorTable(ShaderSlots::COMPUTE_RS_UAV_DTABLE, mDescriptorData.UAVDescriptors.GPU(0));
+    commandList->SetComputeRootDescriptorTable(ShaderSlots::COMPUTE_RS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.GPU(0));
 }
 
 } // namespace Internal

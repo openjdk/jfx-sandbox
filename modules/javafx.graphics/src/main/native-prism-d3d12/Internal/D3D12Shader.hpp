@@ -52,7 +52,8 @@ class Shader
 public:
     struct ResourceData
     {
-        uint32_t textureCount = 0;          // this assumes 1 texture needs 1 sampler
+        uint32_t textureCount = 0;
+        uint32_t samplerCount = 0;
         uint32_t uavCount = 0;
         uint32_t cbufferDTableCount = 0;    // amount of constant buffers that are accessed via a DTable
                                             // Directly-written descriptrors should NOT count towards this number
@@ -100,13 +101,11 @@ protected:
     std::vector<uint8_t> mConstantBufferStorage;
     ResourceAssignmentCollection mShaderResourceAssignments;
     ResourceData mResourceData;
-    DescriptorData mLastDescriptorData;
+    DescriptorData mDescriptorData;
     bool mConstantsDirty;
 
     void SetConstantBufferData(void* data, size_t size, size_t storageOffset);
     void AddShaderResource(const std::string& name, const ResourceAssignment& resource);
-
-    virtual bool PrepareDescriptors(const NativeTextureBank& textures) = 0;
 
 public:
     Shader();
@@ -115,7 +114,7 @@ public:
     bool SetConstants(const std::string& name, const void* data, size_t size);
     bool SetConstantsInArray(const std::string& name, uint32_t idx, const void* data, size_t size);
 
-    bool AcceptDescriptorData(const DescriptorData& descriptorData, const NativeTextureBank& textures);
+    virtual bool PrepareDescriptors(const NativeTextureBank& textures) = 0;
     virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const = 0;
 
     inline const std::string& GetName() const
@@ -138,14 +137,19 @@ public:
         return mResourceData;
     }
 
+    inline DescriptorData& GetDescriptorData()
+    {
+        return mDescriptorData;
+    }
+
     inline bool AreConstantsDirty() const
     {
         return mConstantsDirty;
     }
 
-    inline void ClearConstantsDirty()
+    inline void SetConstantsDirty(bool dirty)
     {
-        mConstantsDirty = false;
+        mConstantsDirty = dirty;
     }
 };
 

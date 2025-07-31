@@ -186,6 +186,8 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
         }
     }
 
+    mResourceData.samplerCount = mResourceData.textureCount;
+
     D3D12NI_LOG_DEBUG("Shader %s resource assignments:", mName.c_str());
     for (const auto& r: mShaderResourceAssignments)
     {
@@ -207,21 +209,20 @@ bool NativeShader::PrepareDescriptors(const NativeTextureBank& textures)
     {
         if (textures[i])
         {
-            textures[i]->WriteSRVToDescriptor(mLastDescriptorData.SRVDescriptors.CPU(i));
-            textures[i]->WriteSamplerToDescriptor(mLastDescriptorData.SamplerDescriptors.CPU(i));
+            textures[i]->WriteSRVToDescriptor(mDescriptorData.SRVDescriptors.CPU(i));
         }
     }
 
     if (mConstantBufferStorage.size() > 0)
     {
-        if (!mLastDescriptorData.ConstantDataDirectRegion)
+        if (!mDescriptorData.ConstantDataDirectRegion)
         {
             // should not happen
             D3D12NI_LOG_ERROR("Native shader %s: Failed to allocate cbuffer descriptor", mName.c_str());
             return false;
         }
 
-        memcpy(mLastDescriptorData.ConstantDataDirectRegion.cpu, mConstantBufferStorage.data(), mConstantBufferStorage.size());
+        memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, mConstantBufferStorage.data(), mConstantBufferStorage.size());
     }
 
     return true;
@@ -232,13 +233,13 @@ void NativeShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandLi
     // NativeShaders are always Pixel shaders
     if (mResourceData.textureCount > 0)
     {
-        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mLastDescriptorData.SRVDescriptors.gpu);
-        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mLastDescriptorData.SamplerDescriptors.gpu);
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.gpu);
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mDescriptorData.SamplerDescriptors.gpu);
     }
 
-    if (mLastDescriptorData.ConstantDataDirectRegion)
+    if (mDescriptorData.ConstantDataDirectRegion)
     {
-        commandList->SetGraphicsRootConstantBufferView(ShaderSlots::GRAPHICS_RS_PS_DATA, mLastDescriptorData.ConstantDataDirectRegion.gpu);
+        commandList->SetGraphicsRootConstantBufferView(ShaderSlots::GRAPHICS_RS_PS_DATA, mDescriptorData.ConstantDataDirectRegion.gpu);
     }
 }
 

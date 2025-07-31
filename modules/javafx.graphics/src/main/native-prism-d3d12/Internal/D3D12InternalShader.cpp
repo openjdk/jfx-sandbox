@@ -158,6 +158,8 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
         }
     }
 
+    mResourceData.samplerCount = mResourceData.textureCount;
+
     // debug info
     D3D12NI_LOG_DEBUG("Internal Shader %s resource assignments (needs %d texture/sampler descriptors + %d cbv descriptors):", mName.c_str(), mResourceData.textureCount, mResourceData.cbufferDTableCount);
     for (const auto& r: mShaderResourceAssignments)
@@ -176,7 +178,7 @@ bool InternalShader::PrepareDescriptors(const NativeTextureBank& textures)
     for (size_t i = 0; i < mCBufferDTableRegions.size(); ++i)
     {
         CBufferRegion& cbr = mCBufferDTableRegions[i];
-        cbr.region = mLastDescriptorData.ConstantDataDTableRegions.Subregion(singleCBVSizeAligned * i, singleCBVSizeAligned);
+        cbr.region = mDescriptorData.ConstantDataDTableRegions.Subregion(singleCBVSizeAligned * i, singleCBVSizeAligned);
 
         const uint8_t* src = reinterpret_cast<uint8_t*>(mConstantBufferStorage.data()) + cbr.assignment.offsetInCBStorage;
         memcpy(cbr.region.cpu, src, cbr.assignment.sizeInCBStorage);
@@ -184,7 +186,7 @@ bool InternalShader::PrepareDescriptors(const NativeTextureBank& textures)
 
     if (mCBufferDirectRegion)
     {
-        mCBufferDirectRegion.region = mLastDescriptorData.ConstantDataDirectRegion;
+        mCBufferDirectRegion.region = mDescriptorData.ConstantDataDirectRegion;
 
         const uint8_t* src = reinterpret_cast<uint8_t*>(mConstantBufferStorage.data()) + mCBufferDirectRegion.assignment.offsetInCBStorage;
         memcpy(mCBufferDirectRegion.region.cpu, src, mCBufferDirectRegion.assignment.sizeInCBStorage);
@@ -197,8 +199,7 @@ bool InternalShader::PrepareDescriptors(const NativeTextureBank& textures)
         {
             if (textures[i])
             {
-                textures[i]->WriteSRVToDescriptor(mLastDescriptorData.SRVDescriptors.CPU(i));
-                textures[i]->WriteSamplerToDescriptor(mLastDescriptorData.SamplerDescriptors.CPU(i));
+                textures[i]->WriteSRVToDescriptor(mDescriptorData.SRVDescriptors.CPU(i));
             }
         }
     }
@@ -213,16 +214,16 @@ void InternalShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& command
         commandList->SetGraphicsRootConstantBufferView(mCBufferDirectRegion.assignment.rootIndex, mCBufferDirectRegion.region.gpu);
     }
 
-    if (mLastDescriptorData.CBufferTableDescriptors && mCBufferDTableRegions.size() > 0)
+    if (mDescriptorData.CBufferTableDescriptors && mCBufferDTableRegions.size() > 0)
     {
-        commandList->SetGraphicsRootDescriptorTable(mCBufferDTableRegions[0].assignment.rootIndex, mLastDescriptorData.CBufferTableDescriptors.gpu);
+        commandList->SetGraphicsRootDescriptorTable(mCBufferDTableRegions[0].assignment.rootIndex, mDescriptorData.CBufferTableDescriptors.gpu);
     }
 
     if (mResourceData.textureCount > 0)
     {
         // textures only apply to Pixel Shaders
-        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mLastDescriptorData.SRVDescriptors.GPU(0));
-        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mLastDescriptorData.SamplerDescriptors.GPU(0));
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.GPU(0));
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mDescriptorData.SamplerDescriptors.GPU(0));
     }
 }
 
