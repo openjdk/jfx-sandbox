@@ -85,6 +85,12 @@ bool RenderingContext::Init()
         return false;
     }
 
+    if (!mState.resourceManager.Init())
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize Resource Manager");
+        return false;
+    }
+
     return true;
 }
 

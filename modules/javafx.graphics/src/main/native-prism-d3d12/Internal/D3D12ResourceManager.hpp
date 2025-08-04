@@ -54,6 +54,7 @@ class ResourceManager: public IWaitableOperation
     NativeTextureBank mTextures;
     RingDescriptorHeap mDescriptorHeap;
     RingDescriptorHeap mSamplerHeap;
+    RingBuffer mConstantRingBuffer;
     Internal::DescriptorData mLastSamplerDescriptors;
     bool mTexturesDirty;
     bool mSamplersDirty;
@@ -71,6 +72,7 @@ public:
     ResourceManager(const NIPtr<NativeDevice>& nativeDevice);
     ~ResourceManager();
 
+    bool Init();
     bool PrepareResources();
     bool PrepareComputeResources();
     void ApplyResources(const D3D12GraphicsCommandListPtr& commandList) const;

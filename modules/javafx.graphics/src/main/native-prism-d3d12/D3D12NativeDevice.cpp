@@ -213,7 +213,6 @@ NativeDevice::NativeDevice()
     , mCommandListPool()
     , m2DIndexBuffer()
     , mRingBuffer()
-    , mConstantRingBuffer()
 {
 }
 
@@ -309,17 +308,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
         D3D12NI_LOG_ERROR("Failed to initialize main Ring Buffer");
         return false;
     }
-
     mRingBuffer->SetDebugName("Main Ring Buffer");
-
-    mConstantRingBuffer = std::make_shared<Internal::RingBuffer>(shared_from_this());
-    if (!mConstantRingBuffer->Init(4 * 1024 * 1024, 3 * 1024 * 1024))
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize constant data Ring Buffer");
-        return false;
-    }
-
-    mConstantRingBuffer->SetDebugName("Constant Ring Buffer");
 
     mRTVAllocator = std::make_shared<Internal::DescriptorAllocator>(shared_from_this());
     if (!mRTVAllocator->Init(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false))
@@ -372,7 +361,6 @@ void NativeDevice::Release()
 
     if (mRenderingContext) mRenderingContext.reset();
     if (mRingBuffer) mRingBuffer.reset();
-    if (mConstantRingBuffer) mConstantRingBuffer.reset();
     if (m2DIndexBuffer) m2DIndexBuffer.reset();
     if (mCommandListPool) mCommandListPool.reset();
     if (mShaderLibrary) mShaderLibrary.reset();

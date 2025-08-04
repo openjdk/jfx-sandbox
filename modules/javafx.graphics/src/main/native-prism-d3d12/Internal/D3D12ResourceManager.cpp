@@ -43,7 +43,7 @@ bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader)
 
     if (resourceData.cbufferDirectSize > 0)
     {
-        descriptors.ConstantDataDirectRegion = mNativeDevice->GetConstantRingBuffer()->Reserve(resourceData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+        descriptors.ConstantDataDirectRegion = mConstantRingBuffer.Reserve(resourceData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
         if (!descriptors.ConstantDataDirectRegion)
         {
             D3D12NI_LOG_ERROR("Failed to reserve Constant Ring Buffer space for direct constant data");
@@ -59,7 +59,7 @@ bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader)
         D3D12NI_ASSERT(resourceData.cbufferDTableSingleSize > 0, "Requested CBV DTable allocation, yet single size is zero");
 
         size_t singleCBufferSizeAligned = Utils::Align<size_t>(resourceData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-        descriptors.ConstantDataDTableRegions = mNativeDevice->GetConstantRingBuffer()->Reserve(singleCBufferSizeAligned * resourceData.cbufferDTableCount, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+        descriptors.ConstantDataDTableRegions = mConstantRingBuffer.Reserve(singleCBufferSizeAligned * resourceData.cbufferDTableCount, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
         if (!descriptors.ConstantDataDTableRegions)
         {
             D3D12NI_LOG_ERROR("Failed to reserve Constant Ring Buffer space for descriptor table constant data of size %zd", singleCBufferSizeAligned * resourceData.cbufferDTableCount);
@@ -184,28 +184,10 @@ ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
     , mTextures()
     , mDescriptorHeap(nativeDevice)
     , mSamplerHeap(nativeDevice)
+    , mConstantRingBuffer(nativeDevice)
     , mTexturesDirty(true)
     , mSamplersDirty(true)
 {
-    // TODO: D3D12: PERF fine-tune ring descriptor heap parameters
-    if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 12 * 1024, 9 * 1024))
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize main Ring Descriptor Heap");
-    }
-    mDescriptorHeap.SetDebugName("CBV/SRV/UAV Descriptor Heap");
-
-    // Maximum limit of Samplers is 2048
-    //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-support
-    //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-feature-levels
-    // TODO: This applies to Tier 2 hardware and above, Tier 1 limits Samplers to 16.
-    //       We could possibly restrict that by raising Feature Level to 12 in NativeDevice;
-    //       verify if this should be done after all
-    if (!mSamplerHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, 2048, 1536))
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize Sampler Ring Descriptor Heap");
-    }
-    mSamplerHeap.SetDebugName("Sampler Heap");
-
     mNativeDevice->RegisterWaitableOperation(this);
 }
 
@@ -225,6 +207,40 @@ ResourceManager::~ResourceManager()
     mRuntimeParametersStash.pixelShader.reset();
 
     D3D12NI_LOG_DEBUG("ResourceManager destroyed");
+}
+
+bool ResourceManager::Init()
+{
+        // TODO: D3D12: PERF fine-tune ring descriptor heap parameters
+    if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 12 * 1024, 9 * 1024))
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize main Ring Descriptor Heap");
+        return false;
+    }
+
+    // Maximum limit of Samplers is 2048
+    //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-support
+    //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-feature-levels
+    // TODO: This applies to Tier 2 hardware and above, Tier 1 limits Samplers to 16.
+    //       We could possibly restrict that by raising Feature Level to 12 in NativeDevice;
+    //       verify if this should be done after all
+    if (!mSamplerHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, 2048, 1536))
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize Sampler Ring Descriptor Heap");
+        return false;
+    }
+
+    if (!mConstantRingBuffer.Init(4 * 1024 * 1024, 3 * 1024 * 1024))
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize constant data Ring Buffer");
+        return false;
+    }
+
+    mDescriptorHeap.SetDebugName("CBV/SRV/UAV Descriptor Heap");
+    mSamplerHeap.SetDebugName("Sampler Heap");
+    mConstantRingBuffer.SetDebugName("Constant Ring Buffer");
+
+    return true;
 }
 
 // Assumes it is called only if attached shader resources change or we switch to a new Command List

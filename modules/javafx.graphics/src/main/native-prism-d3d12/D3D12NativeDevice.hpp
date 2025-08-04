@@ -87,7 +87,6 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::CommandListPool> mCommandListPool;
     NIPtr<Internal::Buffer> m2DIndexBuffer;
     NIPtr<Internal::RingBuffer> mRingBuffer; // used for larger data (ex. 2D Vertex Buffer, texture upload)
-    NIPtr<Internal::RingBuffer> mConstantRingBuffer; // used purely for CBuffers for Shaders
 
     struct Transforms
     {
@@ -179,11 +178,6 @@ public:
     const NIPtr<Internal::RingBuffer>& GetRingBuffer() const
     {
         return mRingBuffer;
-    }
-
-    const NIPtr<Internal::RingBuffer>& GetConstantRingBuffer() const
-    {
-        return mConstantRingBuffer;
     }
 
     const NIPtr<Internal::RootSignatureManager>& GetRootSignatureManager() const
