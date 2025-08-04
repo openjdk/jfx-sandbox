@@ -304,7 +304,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
 
     // TODO: D3D12: PERF these parameters need fine-tuning once the backend is feature complete
     mRingBuffer = std::make_shared<Internal::RingBuffer>(shared_from_this());
-    if (!mRingBuffer->Init(1024 * 8 * Constants::MAX_BATCH_QUADS, 1024 * 6 * Constants::MAX_BATCH_QUADS))
+    if (!mRingBuffer->Init(32 * 1024 * Constants::MAX_BATCH_QUADS, 24 * 1024 * Constants::MAX_BATCH_QUADS))
     {
         D3D12NI_LOG_ERROR("Failed to initialize main Ring Buffer");
         return false;
@@ -313,7 +313,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     mRingBuffer->SetDebugName("Main Ring Buffer");
 
     mConstantRingBuffer = std::make_shared<Internal::RingBuffer>(shared_from_this());
-    if (!mConstantRingBuffer->Init(1024 * 1024, 768 * 1024))
+    if (!mConstantRingBuffer->Init(4 * 1024 * 1024, 3 * 1024 * 1024))
     {
         D3D12NI_LOG_ERROR("Failed to initialize constant data Ring Buffer");
         return false;

@@ -188,7 +188,7 @@ ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
     , mSamplersDirty(true)
 {
     // TODO: D3D12: PERF fine-tune ring descriptor heap parameters
-    if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 4 * 1024, 3 * 1024))
+    if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 12 * 1024, 9 * 1024))
     {
         D3D12NI_LOG_ERROR("Failed to initialize main Ring Descriptor Heap");
     }
