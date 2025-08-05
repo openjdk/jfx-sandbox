@@ -91,7 +91,6 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
 
     // default settings
     mSettings.apiOpts = true;
-    mSettings.midframeWait = true;
 
     // fetch configuration
     mSettings.verbose = GetBool("verbose");
@@ -104,9 +103,6 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
     mSettings.fileLog = GetBoolProperty("prism.d3d12.fileLog");
     mSettings.dred = GetBoolProperty("prism.d3d12.dred");
     mSettings.profilerSummary = GetBoolProperty("prism.d3d12.profilerSummary");
-
-    bool midframeWait;
-    if (TryGetBoolProperty("prism.d3d12.midframeWait", midframeWait)) mSettings.midframeWait = midframeWait;
 
     bool apiOpts;
     if (TryGetBoolProperty("prism.d3d12.apiOpts", apiOpts)) mSettings.apiOpts = apiOpts;

@@ -52,8 +52,6 @@ class Config
         bool apiOpts;
         bool dred;
         bool profilerSummary;
-        bool midframeWait; // see RingContainer::FlushCommandList() for explanation
-                           // TODO: this field/property is unused and should be removed
     } mSettings;
 
     Config();
@@ -140,11 +138,6 @@ public:
     inline bool IsProfilerSummaryEnabled()
     {
         return mSettings.profilerSummary;
-    }
-
-    inline bool IsMidframeWaitEnabled()
-    {
-        return mSettings.midframeWait;
     }
 };
 
