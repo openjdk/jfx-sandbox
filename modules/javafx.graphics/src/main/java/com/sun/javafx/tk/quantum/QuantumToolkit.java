@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -235,7 +235,7 @@ public final class QuantumToolkit extends Toolkit {
         pipeline = GraphicsPipeline.getPipeline();
 
         /* shutdown the pipeline on System.exit, ^c
-         * needed with X11 and Windows, see RT-32501
+         * needed with X11 and Windows, see JDK-8095201
          */
         shutdownHook = new Thread("Glass/Prism Shutdown Hook") {
             @Override public void run() {
@@ -608,9 +608,9 @@ public final class QuantumToolkit extends Toolkit {
         }
     }
 
-    @Override public TKStage createTKStage(Window peerWindow, boolean securityDialog, StageStyle stageStyle, boolean primary, Modality modality, TKStage owner, boolean rtl) {
+    @Override public TKStage createTKStage(Window peerWindow, StageStyle stageStyle, boolean primary, Modality modality, TKStage owner, boolean rtl) {
         assertToolkitRunning();
-        WindowStage stage = new WindowStage(peerWindow, securityDialog, stageStyle, modality, owner);
+        WindowStage stage = new WindowStage(peerWindow, stageStyle, modality, owner);
         if (primary) {
             stage.setIsPrimary();
         }
@@ -619,10 +619,17 @@ public final class QuantumToolkit extends Toolkit {
         return stage;
     }
 
+    private boolean maxNestedEventLoopsHit() {
+        if (eventLoopMap == null) {
+            return false;
+        }
+        return eventLoopMap.size() >= PlatformImpl.MAX_NESTED_EVENT_LOOPS;
+    }
+
     @Override public boolean canStartNestedEventLoop() {
         checkFxUserThread();
 
-        return inPulse == 0;
+        return inPulse == 0 && !maxNestedEventLoopsHit();
     }
 
     @Override public Object enterNestedEventLoop(Object key) {
@@ -633,7 +640,12 @@ public final class QuantumToolkit extends Toolkit {
         }
 
         if (!canStartNestedEventLoop()) {
-            throw new IllegalStateException("Cannot enter nested loop during animation or layout processing");
+            if (maxNestedEventLoopsHit()) {
+                throw new IllegalStateException("Exceeded limit on number of nested event loops (" +
+                    PlatformImpl.MAX_NESTED_EVENT_LOOPS + ")");
+            } else {
+                throw new IllegalStateException("Cannot enter nested loop during animation or layout processing");
+            }
         }
 
         if (eventLoopMap == null) {
@@ -681,9 +693,7 @@ public final class QuantumToolkit extends Toolkit {
 
     @Override public TKStage createTKPopupStage(Window peerWindow, StageStyle popupStyle, TKStage owner) {
         assertToolkitRunning();
-        boolean securityDialog = owner instanceof WindowStage ?
-                ((WindowStage)owner).isSecurityDialog() : false;
-        WindowStage stage = new WindowStage(peerWindow, securityDialog, popupStyle, null, owner);
+        WindowStage stage = new WindowStage(peerWindow, popupStyle, null, owner);
         stage.setIsPopup();
         stage.init(systemMenu);
         return stage;
@@ -1222,6 +1232,8 @@ public final class QuantumToolkit extends Toolkit {
                 return Application.GetApplication().supportsTransparentWindows();
             case UNIFIED_WINDOW:
                 return Application.GetApplication().supportsUnifiedWindows();
+            case EXTENDED_WINDOW:
+                return Application.GetApplication().supportsExtendedWindows();
             case TWO_LEVEL_FOCUS:
                 return Application.GetApplication().hasTwoLevelFocus();
             case VIRTUAL_KEYBOARD:
@@ -1275,7 +1287,7 @@ public final class QuantumToolkit extends Toolkit {
             case Clipboard.ACTION_REFERENCE:
                 return TransferMode.LINK;
             case Clipboard.ACTION_ANY:
-                return TransferMode.COPY; // select a reasonable trasnfer mode as workaround until RT-22840
+                return TransferMode.COPY; // select a reasonable trasnfer mode as workaround until JDK-8118478
         }
         return null;
     }

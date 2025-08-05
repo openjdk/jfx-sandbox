@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,7 +132,7 @@ public final class PrismSettings {
         dirtyRegionCount = Utils.clamp(0, getInt(systemProperties, "prism.dirtyregioncount", 6, null), 15);
 
         // Scrolling cache optimization
-        // Disabled as a workaround for RT-39755.
+        // Disabled as a workaround for JDK-8093860.
         scrollCacheOpt = getBoolean(systemProperties, "prism.scrollcacheopt", false);
 
         /* Dirty region optimizations */
@@ -208,8 +208,6 @@ public final class PrismSettings {
             if (PlatformUtil.isWindows()) {
                 tryOrderArr = new String[] { "d3d", "sw" };
             } else if (PlatformUtil.isMac()) {
-                // TODO: MTL: This order is temporary. During the initial releases,
-                // es2 will remain first in order.
                 tryOrderArr = new String[] { "mtl", "es2", "sw" };
             } else if (PlatformUtil.isIOS()) {
                 tryOrderArr = new String[] { "es2" };
@@ -301,7 +299,7 @@ public final class PrismSettings {
          * value. A value of <= 0 will disable this clamping, causing the
          * limit reported by the card to be used without modification.
          *
-         * See RT-21998. This is a workaround for the fact that we don't
+         * See JDK-8117239. This is a workaround for the fact that we don't
          * yet handle the case where a texture allocation fails during
          * rendering of a very large tiled image.
          */

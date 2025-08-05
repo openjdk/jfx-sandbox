@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
 
 #define NUM_BUFFERS (3)
 
-// TODO: MTL: The alignment varies for different platforms.
+// The alignment varies for different platforms.
 // The alignment value can/should be retrived from device capabilities and updated accordingly.
 //
 // 1. For fragment function buffer uniforms the offset must be:
@@ -38,11 +38,11 @@
 // 2. BlitEncoder offset: needs to be a multiple of the destination texture’s pixel size.
 //
 // For more details see metal feature set table and doc of BlitEncoder.copyFromBuffer
-#define BUFFER_OFFSET_ALIGNMENT (32)
+// #define BUFFER_OFFSET_ALIGNMENT (32)
+
+@class MetalContext;
 
 #import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 
 @interface MetalRingBuffer : NSObject
 {
@@ -50,20 +50,22 @@
     unsigned int currentOffset;
     unsigned int numReservedBytes;
     unsigned int bufferSize;
+    unsigned int bufferOffsetAlignment;
 }
 
-- (MetalRingBuffer*) init:(unsigned int)size;
+- (MetalRingBuffer*) init:(MetalContext*)ctx
+                   ofSize:(unsigned int)size;
 - (void) resetOffsets;
 - (id<MTLBuffer>) getBuffer;
 - (id<MTLBuffer>) getCurrentBuffer;
 - (int)  reserveBytes:(unsigned int)length;
-
+- (unsigned int) getNumReservedBytes;
 - (void) dealloc;
 
 + (unsigned int)  getCurrentBufferIndex;
 + (void) resetBuffer :(unsigned int)index;
 + (bool) isBufferAvailable;
-+ (void) updateBufferInUse;
++ (unsigned int) updateBufferInUse;
 
 @end
 

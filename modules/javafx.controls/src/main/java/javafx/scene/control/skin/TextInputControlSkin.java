@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -230,7 +230,7 @@ public abstract class TextInputControlSkin<T extends TextInputControl> extends S
             { bind(control.focusedProperty(), control.anchorProperty(), control.caretPositionProperty(),
                     control.disabledProperty(), control.editableProperty(), displayCaret, blinkProperty());}
             @Override protected boolean computeValue() {
-                // RT-10682: On Windows, we show the caret during selection, but on others we hide it
+                // JDK-8111037: On Windows, we show the caret during selection, but on others we hide it
                 return !blinkProperty().get() && displayCaret.get() && control.isFocused() &&
                         (isWindows() || (control.getCaretPosition() == control.getAnchor())) &&
                         !control.isDisabled() &&
@@ -659,7 +659,7 @@ public abstract class TextInputControlSkin<T extends TextInputControl> extends S
      *
      * @param unit the unit of text to move by.
      * @param dir the direction of movement.
-     * @param select whether to extends the selection to the new posititon.
+     * @param select whether to extends the selection to the new position.
      */
     public abstract void moveCaret(TextUnit unit, Direction dir, boolean select);
 

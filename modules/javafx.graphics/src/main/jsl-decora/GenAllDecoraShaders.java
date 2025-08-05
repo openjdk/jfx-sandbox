@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,7 @@ import java.lang.reflect.Method;
 
 public class GenAllDecoraShaders {
 
-    // TODO: MTL: This array should be passed from build.gradle
-    static String [][] compileShaders = {
+    private static final String [][] compileShaders = {
             {"CompileJSL", "-all", "ColorAdjust"},
             {"CompileJSL", "-all", "Brightpass"},
             {"CompileJSL", "-all", "SepiaTone"},
@@ -45,30 +44,7 @@ public class GenAllDecoraShaders {
             {"CompileLinearConvolve", "-hw", "LinearConvolveShadow"}
     };
 
-    /*
-    // TODO: MTL: Cleanup
-    // This commented block is copied from build.gradle. Only for reference to
-    // compare how it was before introducing this file.
-
-    [fileName: "ColorAdjust", generator: "CompileJSL", outputs: "-all"],
-    [fileName: "Brightpass", generator: "CompileJSL", outputs: "-all"],
-    [fileName: "SepiaTone", generator: "CompileJSL", outputs: "-all"],
-    [fileName: "PerspectiveTransform", generator: "CompileJSL", outputs: "-all"],
-    [fileName: "DisplacementMap", generator: "CompileJSL", outputs: "-all"],
-    [fileName: "InvertMask", generator: "CompileJSL", outputs: "-all"],
-    [fileName: "Blend", generator: "CompileBlend", outputs: "-all"],
-    [fileName: "PhongLighting", generator: "CompilePhong", outputs: "-all"],
-    [fileName: "LinearConvolve", generator: "CompileLinearConvolve", outputs: "-hw"],
-    [fileName: "LinearConvolveShadow", generator: "CompileLinearConvolve", outputs: "-hw"]
-    */
-
     public static void main(String[] args) throws Exception {
-        /*
-        // TODO: MTL: Cleanup
-        System.err.println("GenAllDecoraShaders.main() -> following are the arguments received: ");
-        for (int i = 0; i < args.length; i++) {
-            System.err.println("                           args[" + i + "]  = " + args[i]);
-        } */
         for (int i = 0; i < compileShaders.length; i++) {
             args[7] = compileShaders[i][1];
             args[8] = compileShaders[i][2];

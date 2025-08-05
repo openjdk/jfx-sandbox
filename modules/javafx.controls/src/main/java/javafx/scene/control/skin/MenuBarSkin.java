@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
-
+import javafx.application.Platform;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -77,7 +77,7 @@ import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Pair;
-
+import javafx.util.Subscription;
 import com.sun.javafx.menu.MenuBase;
 import com.sun.javafx.scene.ParentHelper;
 import com.sun.javafx.scene.SceneHelper;
@@ -130,7 +130,7 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
     private WeakChangeListener<Boolean> weakMenuVisibilityChangeListener;
     private ListenerHelper sceneListenerHelper;
     private IDisconnectable windowFocusHelper;
-
+    private volatile Subscription windowSubscription;
     private boolean pendingDismiss = false;
     private boolean altKeyPressed = false;
 
@@ -141,10 +141,10 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
      *                                                                         *
      **************************************************************************/
 
-    // RT-20411 : reset menu selected/focused state
+    // JDK-8127045 : reset menu selected/focused state
     private EventHandler<ActionEvent> menuActionEventHandler = t -> {
         if (t.getSource() instanceof CustomMenuItem) {
-            // RT-29614 If CustomMenuItem hideOnClick is false, dont hide
+            // JDK-8124120 If CustomMenuItem hideOnClick is false, dont hide
             CustomMenuItem cmi = (CustomMenuItem)t.getSource();
             if (!cmi.isHideOnClick()) return;
         }
@@ -212,7 +212,7 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
         menuBarFocusedPropertyListener = (ov, t, t1) -> {
             unSelectMenus();
             if (t1 && !container.getChildren().isEmpty()) {
-                // RT-23147 when MenuBar's focusTraversable is true the first
+                // JDK-8126368 when MenuBar's focusTraversable is true the first
                 // menu will visually indicate focus
                 menuModeStart(0);
                 openMenuButton = ((MenuBarButton)container.getChildren().get(0));
@@ -229,21 +229,40 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
 
         ListenerHelper lh = ListenerHelper.get(this);
 
+        if (Platform.isFxApplicationThread()) {
+            if (Toolkit.getToolkit().getSystemMenu().isSupported()) {
+                lh.addInvalidationListener(control.useSystemMenuBarProperty(), (v) -> {
+                    rebuildUI();
+                });
+            }
+        } else {
+            // delay rebuildUI() until after MenuBar becomes a part of the scene graph
+            // this subscription will be removed by cleanUpListeners()
+            windowSubscription = getSkinnable()
+                .sceneProperty()
+                .flatMap(Scene::windowProperty)
+                .subscribe(w -> {
+                    if (w != null) {
+                        if (Toolkit.getToolkit().getSystemMenu().isSupported()) {
+                            lh.addInvalidationListener(control.useSystemMenuBarProperty(), (v) -> {
+                                rebuildUI();
+                            });
+                        }
+                        // this method will unsubscribe on first run
+                        rebuildUI();
+                    }
+                });
+        }
+
         rebuildUI();
         lh.addListChangeListener(control.getMenus(), (v) -> {
             rebuildUI();
         });
 
-        if (Toolkit.getToolkit().getSystemMenu().isSupported()) {
-            lh.addInvalidationListener(control.useSystemMenuBarProperty(), (v) -> {
-                rebuildUI();
-            });
-        }
-
         // When the mouse leaves the menu, the last hovered item should lose
         // it's focus so that it is no longer selected. This code returns focus
         // to the MenuBar itself, such that keyboard navigation can continue.
-          // fix RT-12254 : menu bar should not request focus on mouse exit.
+          // fix JDK-8112401 : menu bar should not request focus on mouse exit.
 //        addEventFilter(MouseEvent.MOUSE_EXITED, new EventHandler<MouseEvent>() {
 //            @Override
 //            public void handle(MouseEvent event) {
@@ -328,7 +347,7 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
                         case DOWN:
                             // case SPACE:
                             // case ENTER:
-                            // RT-18859: Doing nothing for space and enter
+                            // JDK-8127205: Doing nothing for space and enter
                             if (control.getScene().getWindow().isFocused()) {
                                 if (focusedMenuIndex != -1) {
                                     Menu menuToOpen = getSkinnable().getMenus().get(focusedMenuIndex);
@@ -446,8 +465,8 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
      *                                                                         *
      **************************************************************************/
 
-    // RT-22480: This is intended as private API for SceneBuilder,
-    // pending fix for RT-19857: Keeping menu in the Mac menu bar when
+    // JDK-8102072: This is intended as private API for SceneBuilder,
+    // pending fix for JDK-8090562: Keeping menu in the Mac menu bar when
     // there is no more stage
     /**
      * Set the default system menu bar. This allows an application to keep menu
@@ -646,7 +665,13 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
         }
 
         cleanUpListeners();
-        cleanUpSystemMenu();
+
+        if (Platform.isFxApplicationThread()) {
+            cleanUpSystemMenu();
+        } else {
+            Platform.runLater(this::cleanUpSystemMenu);
+        }
+
         getChildren().remove(container);
 
         // call super.dispose last since it sets control to null
@@ -783,6 +808,12 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
     }
 
     private void cleanUpListeners() {
+        Subscription sub = windowSubscription;
+        if (sub != null) {
+            sub.unsubscribe();
+            windowSubscription = null;
+        }
+
         getSkinnable().focusedProperty().removeListener(weakMenuBarFocusedPropertyListener);
 
         for (Menu m : getSkinnable().getMenus()) {
@@ -805,7 +836,7 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
 
             menuButton.dispose();
 
-            // RT-29729 : old instance of context menu window/popup for this MenuButton needs
+            // JDK-8118781 : old instance of context menu window/popup for this MenuButton needs
             // to be cleaned up. Setting the skin to null - results in a call to dispose()
             // on the skin which in this case MenuButtonSkinBase - does the subsequent
             // clean up to ContextMenu/popup window.
@@ -817,12 +848,15 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
     }
 
     private void rebuildUI() {
+        if (!Platform.isFxApplicationThread()) {
+            return;
+        }
         cleanUpListeners();
 
         if (Toolkit.getToolkit().getSystemMenu().isSupported()) {
             final Scene scene = getSkinnable().getScene();
             if (scene != null) {
-                // RT-36554 - make sure system menu is updated when this MenuBar's scene changes.
+                // JDK-8094110 - make sure system menu is updated when this MenuBar's scene changes.
                 if (sceneChangeListener == null) {
                     sceneChangeListener = (observable, oldValue, newValue) -> {
 
@@ -990,6 +1024,7 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
         getSkinnable().requestLayout();
     }
 
+    // always called in the fx application thread
     private void cleanUpSystemMenu() {
         if (sceneChangeListener != null && getSkinnable() != null) {
             getSkinnable().sceneProperty().removeListener(sceneChangeListener);

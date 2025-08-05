@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 import javafx.scene.web.WebEngine;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Disabled;
 import org.w3c.dom.*;
 import org.w3c.dom.css.*;
 import org.w3c.dom.events.*;
@@ -51,8 +50,6 @@ import com.sun.webkit.dom.*;
  * <p><strong>DOM should be accessed from FX thread only,
  * so please be sure to use submit(Callable).</strong>
  */
-
-@Disabled("JDK-8344596")
 public class DOMTest extends TestBase {
 
     @Test public void testGetSetId() {

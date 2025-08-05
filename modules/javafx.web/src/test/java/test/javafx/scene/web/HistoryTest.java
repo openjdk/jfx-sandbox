@@ -34,12 +34,10 @@ import javafx.collections.ListChangeListener;
 import java.util.Date;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Disabled;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-@Disabled("JDK-8344596")
 public class HistoryTest extends TestBase {
     WebHistory history = getEngine().getHistory();
 

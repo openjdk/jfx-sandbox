@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,26 +32,25 @@ import com.sun.prism.impl.BaseTexture;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.nio.FloatBuffer;
+import java.nio.IntBuffer;
 
-public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTextureResource<T>> {
+class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTextureResource<T>> {
 
     private final MTLContext context;
-    private long texPtr;
+    private final long texPtr;
 
     MTLTexture(MTLContext context, MTLTextureResource<T> resource,
                PixelFormat format, WrapMode wrapMode,
                int physicalWidth, int physicalHeight,
-               int contentX, int contentY, int contentWidth, int contentHeight, boolean useMipmap) {
+               int contentX, int contentY, int contentWidth, int contentHeight,
+               boolean useMipmap) {
 
         super(resource, format, wrapMode,
               physicalWidth, physicalHeight,
               contentX, contentY, contentWidth, contentHeight, useMipmap);
         this.context = context;
         texPtr = resource.getResource().getResource();
-
-        MTLLog.Debug("MTLTexture(): context = " + context + ", resource = " + resource + ", format = " + format + ", wrapMode = " + wrapMode + ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight + ", contentX = " + contentX + ", contentY = " + contentY + ", contentWidth = " + contentWidth + ", contentHeight = " + contentHeight + ", useMipmap = " + useMipmap);
     }
 
     MTLTexture(MTLContext context, MTLTextureResource<T> resource,
@@ -65,10 +64,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
               contentX, contentY, contentWidth, contentHeight,
               maxContentWidth, maxContentHeight, useMipmap);
         this.context = context;
-
         texPtr = resource.getResource().getResource();
-
-        MTLLog.Debug("MTLTexture(): context = " + context + ", resource = " + resource + ", format = " + format + ", wrapMode = " + wrapMode + ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight + ", contentX = " + contentX + ", contentY = " + contentY + ", contentWidth = " + contentWidth + ", contentHeight = " + contentHeight + ", maxContentWidth = " + maxContentWidth + ", maxContentHeight = " + maxContentHeight + ", useMipmap = " + useMipmap);
     }
 
     public long getNativeHandle() {
@@ -79,7 +75,7 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
         return context;
     }
 
-    // TODO: We don't handle mipmap in shared texture yet.
+    // We don't handle mipmap in shared texture yet.
     private MTLTexture(MTLTexture sharedTex, WrapMode newMode) {
         super(sharedTex, newMode, false);
         this.context = sharedTex.context;
@@ -91,91 +87,86 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
         return new MTLTexture(this, newMode);
     }
 
-    native private static void nUpdate(long contextHandle, long pResource,
-                                       ByteBuffer buf, byte[] pixels,
-                                       int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
-    native private static void nUpdateFloat(long contextHandle, long pResource,
-                                            FloatBuffer buf, float[] pixels,
-                                            int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
+    private void updateTextureInt(Buffer buffer, PixelFormat format,
+                                int dstx, int dsty,
+                                int srcx, int srcy,
+                                int srcw, int srch,
+                                int srcscan) {
+        if (format == PixelFormat.INT_ARGB_PRE) {
+            IntBuffer buf = (IntBuffer) buffer;
+            int[] arr = buf.hasArray() ? buf.array() : null;
+            nUpdateInt(getNativeHandle(), buf, arr,
+                       dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+        } else {
+            throw new IllegalArgumentException("Unsupported INT PixelFormat: " + format);
+        }
+    }
 
-    native private static void nUpdateInt(long contextHandle, long pResource,
-                                          IntBuffer buf, int[] pixels,
-                                          int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
+    private void updateTextureFloat(Buffer buffer, PixelFormat format,
+                                int dstx, int dsty,
+                                int srcx, int srcy,
+                                int srcw, int srch,
+                                int srcscan) {
+        if (format == PixelFormat.FLOAT_XYZW) {
+            FloatBuffer buf = (FloatBuffer) buffer;
+            float[] arr = buf.hasArray() ? buf.array() : null;
+            nUpdateFloat(getNativeHandle(), buf, arr,
+                         dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+        } else {
+            throw new IllegalArgumentException("Unsupported FLOAT PixelFormat: " + format);
+        }
+    }
 
-    native private static void nUpdateYUV422(long contextHandle, long pResource,
-                                       byte[] pixels,
-                                       int dstx, int dsty, int srcx, int srcy, int w, int h, int stride);
+    private void updateTextureByte(Buffer buffer, PixelFormat format,
+                                int dstx, int dsty,
+                                int srcx, int srcy,
+                                int srcw, int srch,
+                                int srcscan) {
+        ByteBuffer buf = (ByteBuffer) buffer;
+        buf.rewind();
+        byte[] arr = buf.hasArray() ? buf.array() : null;
 
-@Override
-    public void update(Buffer buffer, PixelFormat format, int dstx, int dsty, int srcx, int srcy, int srcw, int srch, int srcscan, boolean skipFlush) {
+        switch (format) {
+            case PixelFormat.BYTE_BGRA_PRE,
+                 PixelFormat.BYTE_ALPHA ->
+                nUpdate(getNativeHandle(), buf, arr,
+                        dstx, dsty, srcx, srcy, srcw, srch, srcscan);
 
-        if (format.getDataType() == PixelFormat.DataType.INT) {
-            if (format == PixelFormat.INT_ARGB_PRE) {
-                IntBuffer buf = (IntBuffer)buffer;
-                int[] arr = buf.hasArray() ? buf.array() : null;
-
-                nUpdateInt(this.context.getContextHandle(), this.getNativeHandle(), buf, arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
-            } else {
-                throw new IllegalArgumentException("Unsupported INT PixelFormat"+ format);
-            }
-        } else if (format.getDataType() == PixelFormat.DataType.FLOAT) {
-            if (format == PixelFormat.FLOAT_XYZW) {
-                MTLLog.Debug("FLOAT_XYZW - data type of buffer is : " + buffer.getClass().getName());
-                MTLLog.Debug("Buffer capacity : " + buffer.capacity());
-                MTLLog.Debug("Buffer limit : " + buffer.limit());
-                MTLLog.Debug("srcscan  = " + srcscan);
-                MTLLog.Debug("srcw  = " + srcw);
-                MTLLog.Debug("srch  = " + srch);
-
-                FloatBuffer buf = (FloatBuffer)buffer;
-                float[] arr = buf.hasArray() ? buf.array() : null;
-
-                nUpdateFloat(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), buf, arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
-            } else {
-                throw new IllegalArgumentException("Unsupported FLOAT PixelFormat"+ format);
-            }
-        } else if (format.getDataType() == PixelFormat.DataType.BYTE) {
-            ByteBuffer buf = (ByteBuffer)buffer;
-            buf.rewind();
-            byte[] arr = buf.hasArray() ? buf.array() : null;
-
-            if (format == PixelFormat.BYTE_BGRA_PRE || format == PixelFormat.BYTE_ALPHA) {
-                nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), buf, arr, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
-            } else if (format == PixelFormat.BYTE_RGB) {
+            case PixelFormat.BYTE_RGB -> {
+                // Convert 24-bit RGB to 32-bit BGRA
                 // Metal does not support 24-bit format
-                // hence `arr` data needs to be converted to BGRA format that
-                // the native metal texture expects
+                // hence `arr` data needs to be converted to BGRA format
                 byte[] arr32Bit = new byte[srcw * srch * 4];
                 int dstIndex = 0;
                 int index = 0;
 
-                final int rowStride = srcw * 3;
-                final int totalBytes = srch * rowStride;
+                int rowStride = srcw * 3;
+                int totalBytes = srch * rowStride;
 
                 for (int rowIndex = 0; rowIndex < totalBytes; rowIndex += rowStride) {
                     for (int colIndex = 0; colIndex < rowStride; colIndex += 3) {
                         index = rowIndex + colIndex;
-                        arr32Bit[dstIndex++] = arr[index+2];
-                        arr32Bit[dstIndex++] = arr[index+1];
+                        arr32Bit[dstIndex++] = arr[index + 2];
+                        arr32Bit[dstIndex++] = arr[index + 1];
                         arr32Bit[dstIndex++] = arr[index];
                         arr32Bit[dstIndex++] = (byte)255;
                     }
                 }
+                nUpdate(getNativeHandle(), null, arr32Bit,
+                        dstx, dsty, srcx, srcy, srcw, srch, srcw * 4);
+            }
 
-                nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), null, arr32Bit, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
-            } else if (format == PixelFormat.BYTE_GRAY) {
+            case PixelFormat.BYTE_GRAY -> {
                 // Suitable 8-bit native formats are MTLPixelFormatA8Unorm & MTLPixelFormatR8Unorm.
                 // These formats do not work well with our generated shader - Texture_RGB.
                 // hence `arr` data is converted to BGRA format here.
-                //
                 // In future, if needed for performance reason:
                 // Texture_RGB shader can be tweaked to fill up R,G,B fields from single byte grayscale value.
                 // Care must be taken not to break current behavior of this shader.
                 byte[] arr32Bit = new byte[srcw * srch * 4];
                 int dstIndex = 0;
                 int index = 0;
-
-                final int totalBytes = srch * srcw;
+                int totalBytes = srch * srcw;
 
                 for (int rowIndex = 0; rowIndex < totalBytes; rowIndex += srcw) {
                     for (int colIndex = 0; colIndex < srcw; colIndex++) {
@@ -183,47 +174,80 @@ public class MTLTexture<T extends MTLTextureData> extends BaseTexture<MTLTexture
                         arr32Bit[dstIndex++] = arr[index];
                         arr32Bit[dstIndex++] = arr[index];
                         arr32Bit[dstIndex++] = arr[index];
-                        arr32Bit[dstIndex++] = (byte)255;
+                        arr32Bit[dstIndex++] = (byte) 255;
                     }
                 }
-
-                nUpdate(this.context.getContextHandle(), /*MetalTexture*/this.getNativeHandle(), null, arr32Bit, dstx, dsty, srcx, srcy, srcw, srch, srcw*4);
-            } else if (format == PixelFormat.MULTI_YCbCr_420 || format == PixelFormat.BYTE_APPLE_422) {
-                throw new IllegalArgumentException("Format not yet supported by Metal pipeline :"+ format);
+                nUpdate(getNativeHandle(), null, arr32Bit,
+                        dstx, dsty, srcx, srcy, srcw, srch, srcw * 4);
             }
-        } else {
-            throw new IllegalArgumentException("Unsupported PixelFormat DataType : "+ format);
+
+            case PixelFormat.MULTI_YCbCr_420,
+                 PixelFormat.BYTE_APPLE_422 ->
+                throw new IllegalArgumentException("Unsupported PixelFormat " + format);
         }
     }
 
     @Override
+    public void update(Buffer buffer, PixelFormat format,
+                        int dstx, int dsty,
+                        int srcx, int srcy,
+                        int srcw, int srch,
+                        int srcscan, boolean skipFlush) {
+
+        switch (format.getDataType()) {
+            case PixelFormat.DataType.INT -> updateTextureInt(buffer, format,
+                dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+
+            case PixelFormat.DataType.FLOAT -> updateTextureFloat(buffer, format,
+                dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+
+            case PixelFormat.DataType.BYTE -> updateTextureByte(buffer, format,
+                dstx, dsty, srcx, srcy, srcw, srch, srcscan);
+        }
+    }
+
+
+    @Override
     public void update(MediaFrame frame, boolean skipFlush) {
-
-        MTLLog.Debug("MTLTexture - update for MediaFrame.");
-
-        // TODO: MTL: Check whether we need to implement MULTI_YCbCr_420 format
-        // using multi-texturing.
         if (frame.getPixelFormat() == PixelFormat.MULTI_YCbCr_420 ||
             frame.getPixelFormat() != PixelFormat.BYTE_APPLE_422) {
-            // shouldn't have gotten this far
-            throw new IllegalArgumentException("Unsupported format " + frame.getPixelFormat());
+            // Shouldn't have gotten this far
+            throw new IllegalArgumentException("Unsupported format: " + frame.getPixelFormat());
         }
 
         frame.holdFrame();
 
         ByteBuffer pixels = frame.getBufferForPlane(0);
-        byte[] arr = pixels.hasArray()? pixels.array(): null;
+        byte[] arr = pixels.hasArray() ? pixels.array() : null;
         if (arr == null) {
             arr = new byte[pixels.remaining()];
             pixels.get(arr);
         }
 
-        nUpdateYUV422(this.context.getContextHandle(),
-                      this.getNativeHandle(),
+        nUpdateYUV422(this.getNativeHandle(),
                       arr, 0, 0, 0, 0,
                       frame.getEncodedWidth(), frame.getEncodedHeight(),
                       frame.strideForPlane(0));
 
         frame.releaseFrame();
     }
+
+
+    // Native methods
+
+    private static native void nUpdate(long pResource, ByteBuffer buf, byte[] pixels,
+                                       int dstx, int dsty, int srcx, int srcy,
+                                       int w, int h, int stride);
+
+    private static native void nUpdateFloat(long pResource, FloatBuffer buf, float[] pixels,
+                                            int dstx, int dsty, int srcx, int srcy,
+                                            int w, int h, int stride);
+
+    private static native void nUpdateInt(long pResource, IntBuffer buf, int[] pixels,
+                                          int dstx, int dsty, int srcx, int srcy,
+                                          int w, int h, int stride);
+
+    private static native void nUpdateYUV422(long pResource, byte[] pixels,
+                                             int dstx, int dsty, int srcx, int srcy,
+                                             int w, int h, int stride);
 }

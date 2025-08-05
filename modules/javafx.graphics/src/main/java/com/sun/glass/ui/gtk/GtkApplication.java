@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -439,6 +439,11 @@ final class GtkApplication extends Application implements
     }
 
     @Override
+    protected boolean _supportsExtendedWindows() {
+        return true;
+    }
+
+    @Override
     protected native int _getKeyCodeForChar(char c, int hint);
 
     @Override
@@ -448,12 +453,14 @@ final class GtkApplication extends Application implements
     public native Map<String, Object> getPlatformPreferences();
 
     @Override
-    public Map<String, PreferenceMapping<?>> getPlatformKeyMappings() {
+    public Map<String, PreferenceMapping<?, ?>> getPlatformKeyMappings() {
         return Map.of(
             "GTK.theme_fg_color", new PreferenceMapping<>("foregroundColor", Color.class),
             "GTK.theme_bg_color", new PreferenceMapping<>("backgroundColor", Color.class),
             "GTK.theme_selected_bg_color", new PreferenceMapping<>("accentColor", Color.class),
-            "GTK.enable_animations", new PreferenceMapping<>("reducedMotion", Boolean.class, b -> !b)
+            "GTK.enable_animations", new PreferenceMapping<>("reducedMotion", Boolean.class, b -> !b),
+            "GTK.overlay_scrolling", new PreferenceMapping<>("persistentScrollBars", Boolean.class, b -> !b),
+            "GTK.network_metered", new PreferenceMapping<>("reducedData", Boolean.class)
         );
     }
 
@@ -480,7 +487,9 @@ final class GtkApplication extends Application implements
             Map.entry("GTK.warning_color", Color.class),
             Map.entry("GTK.error_color", Color.class),
             Map.entry("GTK.success_color", Color.class),
-            Map.entry("GTK.enable_animations", Boolean.class)
+            Map.entry("GTK.enable_animations", Boolean.class),
+            Map.entry("GTK.overlay_scrolling", Boolean.class),
+            Map.entry("GTK.network_metered", Boolean.class)
         );
     }
 }

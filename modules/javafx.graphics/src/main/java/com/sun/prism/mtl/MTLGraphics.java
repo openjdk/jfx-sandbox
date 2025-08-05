@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,38 +29,29 @@ import com.sun.prism.RenderTarget;
 import com.sun.prism.impl.ps.BaseShaderGraphics;
 import com.sun.prism.paint.Color;
 
-public class MTLGraphics extends BaseShaderGraphics {
+class MTLGraphics extends BaseShaderGraphics {
 
     private final MTLContext context;
 
     private MTLGraphics(MTLContext context, RenderTarget target) {
         super(context, target);
         this.context = context;
-        MTLLog.Debug("MTLGraphics(): context = " + context + ", target = " + target);
     }
 
     static MTLGraphics create(MTLContext context, RenderTarget target) {
-        if (target == null) {
-            return null;
-        }
-        MTLLog.Debug("MTLGraphics.create(): context = " + context + ", target = " + target);
-        return new MTLGraphics(context, target);
+        return target == null ? null : new MTLGraphics(context, target);
     }
 
     @Override
     public void clear(Color color) {
-        MTLLog.Debug("MTLGraphics.clear(): color = " + color);
-
         float r = color.getRedPremult();
         float g = color.getGreenPremult();
         float b = color.getBluePremult();
         float a = color.getAlpha();
-        MTLLog.Debug("MTLGraphics.clear(): r = " + r + ", g = " + g + ", b = " + b + ", a = " + a);
 
         context.validateClearOp(this);
         getRenderTarget().setOpaque(color.isOpaque());
-        int res = nClear(context.getContextHandle(), r, g, b, a, isDepthBuffer());
-        // TODO: MTL: verify the returned res value
+        nClear(context.getContextHandle(), r, g, b, a, isDepthBuffer());
     }
 
     @Override
@@ -69,5 +60,6 @@ public class MTLGraphics extends BaseShaderGraphics {
         context.commitCurrentCommandBuffer();
     }
 
-    private static native int nClear(long pContext, float red, float green, float blue, float alpha, boolean clearDepth);
+    // Native methods
+    private static native void nClear(long pContext, float red, float green, float blue, float alpha, boolean clearDepth);
 }

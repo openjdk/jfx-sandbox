@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,22 +26,31 @@
 package com.sun.prism.mtl;
 
 import com.sun.glass.ui.Screen;
-import com.sun.prism.*;
+import com.sun.prism.Graphics;
+import com.sun.prism.Image;
+import com.sun.prism.MediaFrame;
+import com.sun.prism.PixelFormat;
+import com.sun.prism.RTTexture;
 import com.sun.prism.ReadbackRenderTarget;
+import com.sun.prism.Texture;
+import com.sun.prism.mtl.MTLContext;
+import com.sun.prism.mtl.MTLTexture;
+import com.sun.prism.mtl.MTLTextureData;
+import com.sun.prism.mtl.MTLTextureResource;
 
 import java.nio.Buffer;
 import java.nio.IntBuffer;
 
 
-public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTexture, ReadbackRenderTarget {
-    private int[] pixels;
-    private int rttWidth;
-    private int rttHeight;
-    private long nTexPtr;
+class MTLRTTexture extends MTLTexture<MTLTextureData>
+                       implements RTTexture, ReadbackRenderTarget {
+    private final int[] pixels;
+    private final int  rttWidth;
+    private final int  rttHeight;
+    private final long nTexPtr;
 
     private boolean opaque;
-
-    private boolean MSAA;
+    private final boolean MSAA;
 
     private MTLRTTexture(MTLContext context, MTLTextureResource<MTLTextureData> resource,
                          WrapMode wrapMode,
@@ -55,20 +64,16 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
                 contentX, contentY,
                 contentWidth, contentHeight,
                 maxContentWidth, maxContentHeight, false);
-        rttWidth = contentWidth;
+        rttWidth  = contentWidth;
         rttHeight = contentHeight;
-        pixels = new int[rttWidth * rttHeight];
+        pixels  = new int[rttWidth * rttHeight];
         nTexPtr = resource.getResource().getResource();
-        opaque = false;
-        MSAA = msaa;
+        opaque  = false;
+        MSAA    = msaa;
 
-        MTLLog.Debug("MTLRTTexture(): context = " + context + ", resource = " + resource +
-                ", wrapMode = " + wrapMode +
-                ", physicalWidth = " + physicalWidth + ", physicalHeight = " + physicalHeight +
-                ", contentX = " + contentX + ", contentY = " + contentY +
-                ", contentWidth = " + contentWidth + ", contentHeight = " + contentHeight +
-                ", maxContentWidth = " + maxContentWidth + ", maxContentHeight = " + maxContentHeight);
-
+        // pixels array contains all 0s by default
+        // Initialize native texture to clear color (0,0,0,0) using pixels
+        nInitRTT(nTexPtr, pixels);
     }
 
     static MTLRTTexture create(MTLContext context,
@@ -76,16 +81,12 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
                                int contentWidth, int contentHeight,
                                WrapMode wrapMode, boolean msaa,
                                long size) {
-        // TODO: MTL: Implement support for MSAA texture
-        MTLLog.Debug("MTLRTTexture.create()  physicalWidth = " + physicalWidth +
-                ", physicalHeight = " + physicalHeight + ", contentWidth = " + contentWidth +
-                ", contentHeight = " + contentHeight + ", wrapMode = " + wrapMode + ", msaa = " + msaa);
         long nPtr = nCreateRT(context.getContextHandle(),
                 physicalWidth, physicalHeight,
                 contentWidth, contentHeight,
                 wrapMode, msaa);
         MTLTextureData textData = new MTLRTTextureData(context, nPtr, size);
-        MTLTextureResource resource = new MTLTextureResource(textData);
+        MTLTextureResource<MTLTextureData> resource = new MTLTextureResource<>(textData, true);
         return new MTLRTTexture(context, resource, wrapMode,
                 physicalWidth, physicalHeight,
                 0, 0,
@@ -96,9 +97,8 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     static MTLRTTexture create(MTLContext context, long pTex, int width, int height, long size) {
         long nPtr = nCreateRT2(context.getContextHandle(), pTex, width, height);
 
-        MTLTextureData textData = new MTLRTTextureData(context, nPtr, size);
-        MTLTextureResource resource = new MTLTextureResource(textData);
-        //return new MTLRTTexture(context, resource);
+        MTLTextureData textData = new MTLFBOTextureData(context, nPtr, size);
+        MTLTextureResource<MTLTextureData> resource = new MTLTextureResource<>(textData, false);
 
         return new MTLRTTexture(context, resource, WrapMode.CLAMP_NOT_NEEDED,
                 width, height,
@@ -107,6 +107,7 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
                 width, height, false);
     }
 
+    @Override
     public long getNativeHandle() {
         return nTexPtr;
     }
@@ -117,62 +118,23 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     }
 
     @Override
-    public void setContentWidth(int contentWidth) {
-        // TODO: MTL: Complete implementation or remove to use super method
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
-    @Override
-    public void setContentHeight(int contentHeight) {
-        // TODO: MTL: Complete implementation or remove to use super method
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
-    @Override
-    public boolean getUseMipmap() {
-        // TODO: MTL: Complete implementation or remove to use super method
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
-    @Override
-    public Texture getSharedTexture(WrapMode altMode) {
-        // TODO: MTL: Complete implementation or remove to use super method
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
-    native private static long nCreateRT(long context, int pw, int ph, int cw, int ch,
-                                         WrapMode wrapMode, boolean msaa);
-    native private static long nCreateRT2(long context, long pTex, int pw, int ph);
-    native private static void nReadPixels(long nativeHandle, int[] pixBuffer);
-    native private static void nReadPixelsFromContextRTT(long nativeHandle, IntBuffer pixBuffer);
-    native private static long nGetPixelDataPtr(long nativeHandle);
-
-    @Override
     public int[] getPixels() {
         // Flush the VB before reading the pixels.
         getContext().flushVertexBuffer();
-        //MTLLog.Debug("MTLRTTexture.getPixels()");
         nReadPixels(nTexPtr, pixels);
         return pixels;
     }
 
     @Override
     public boolean readPixels(Buffer pix) {
-        // TODO: MTL: The call from Canvas rendering expects IntBuffer, which is implemented here.
+        // The call from Canvas rendering expects IntBuffer, which is implemented here.
         // In future, if needed, need to implement pix as ByteBuffer
-        if (pix instanceof IntBuffer) {
-            //MTLLog.Debug("MTLRTTexture(): readPixels -- IntBuffer.");
-            nReadPixelsFromContextRTT(nTexPtr, (IntBuffer)pix);
-            //pix = IntBuffer.wrap(pixels);
+        if (pix instanceof IntBuffer pixBuf) {
+            nReadPixelsFromRTT(nTexPtr, pixBuf);
+            // pix = IntBuffer.wrap(pixels);
             return true;
         }
         return false;
-    }
-
-    @Override
-    public boolean readPixels(Buffer pixels, int x, int y, int width, int height) {
-        // TODO: MTL: Complete implementation or remove to use super method
-        throw new UnsupportedOperationException("Not implemented");
     }
 
     @Override
@@ -203,6 +165,44 @@ public class MTLRTTexture extends MTLTexture<MTLTextureData> implements RTTextur
     @Override
     public boolean isMSAA() {
         return MSAA;
+    }
+
+    // Native methods
+
+    private static native long nCreateRT(long context, int pw, int ph, int cw, int ch,
+                                         WrapMode wrapMode, boolean msaa);
+    private static native long nCreateRT2(long context, long pTex, int pw, int ph);
+    private static native void nReadPixels(long nativeHandle, int[] pixBuffer);
+    private static native void nReadPixelsFromRTT(long nativeHandle, IntBuffer pixBuffer);
+    private static native long nGetPixelDataPtr(long nativeHandle);
+    private static native void nInitRTT(long pTex, int[] pix);
+
+
+    // Unsupported Operation methods
+
+    @Override
+    public boolean readPixels(Buffer pixels, int x, int y, int width, int height) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    public void setContentWidth(int contentWidth) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    public void setContentHeight(int contentHeight) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    public boolean getUseMipmap() {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
+    public Texture getSharedTexture(WrapMode altMode) {
+        throw new UnsupportedOperationException("Not implemented");
     }
 
     @Override

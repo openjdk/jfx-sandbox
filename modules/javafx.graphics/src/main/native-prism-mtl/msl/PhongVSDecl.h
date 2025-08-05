@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,8 +34,8 @@ struct VS_PHONG_INPUT {
 struct VS_PHONG_UNIFORMS {
     simd_float4x4 mvp_matrix;
     simd_float4x4 world_matrix;
-    float4 cameraPos;
-    float lightsPosition[MAX_NUM_LIGHTS * 4];
-    float lightsNormDirection[MAX_NUM_LIGHTS * 4];
+    packed_float4 cameraPos;
+    packed_float3 lightsPosition[MAX_NUM_LIGHTS];
+    packed_float3 lightsNormDirection[MAX_NUM_LIGHTS];
     float numLights;
 };

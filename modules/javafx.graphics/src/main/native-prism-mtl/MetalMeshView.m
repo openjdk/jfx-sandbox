@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,12 +26,6 @@
 #import "MetalMeshView.h"
 #import "MetalPipelineManager.h"
 
-#ifdef MESH_VERBOSE
-#define MESH_LOG NSLog
-#else
-#define MESH_LOG(...)
-#endif
-
 @implementation MetalMeshView
 
 - (MetalMeshView*) createMeshView:(MetalContext*)ctx
@@ -39,10 +33,9 @@
 {
     self = [super init];
     if (self) {
-        MESH_LOG(@"MetalMeshView_createMeshView()");
         context = ctx;
         mesh = mtlMesh;
-        material = NULL;
+        material = nil;
         ambientLightColor.x = 0;
         ambientLightColor.y = 0;
         ambientLightColor.z = 0;
@@ -57,19 +50,16 @@
 
 - (void) setMaterial:(MetalPhongMaterial*)pMaterial
 {
-    MESH_LOG(@"MetalMeshView_setMaterial()");
     material = pMaterial;
 }
 
 - (void) setCullingMode:(int)cMode
 {
-    MESH_LOG(@"MetalMeshView_setCullingMode()");
     cullMode = cMode;
 }
 
 - (void) setWireframe:(bool)isWireFrame
 {
-    MESH_LOG(@"MetalMeshView_setWireframe()");
     wireframe = isWireFrame;
 }
 
@@ -77,7 +67,6 @@
                        g:(float)g
                        b:(float)b
 {
-    MESH_LOG(@"MetalMeshView_setAmbientLight()");
     ambientLightColor.x = r;
     ambientLightColor.y = g;
     ambientLightColor.z = b;
@@ -86,7 +75,6 @@
 
 - (void) computeNumLights
 {
-    MESH_LOG(@"MetalMeshView_scomputeNumLights()");
     if (!lightsDirty)
         return;
     lightsDirty = false;
@@ -106,9 +94,8 @@
         isA:(float)isAttenuated range:(float)range
         dirX:(float)dirX dirY:(float)dirY dirZ:(float)dirZ
         inA:(float)innerAngle outA:(float)outerAngle
-        falloff:(float)falloff
+        falloff:(float)fall_off
 {
-    MESH_LOG(@"MetalMeshView_setLight()");
     // NOTE: We only support up to 3 point lights at the present
     if (index >= 0 && index <= MAX_NUM_LIGHTS - 1) {
         if (lights[index] == nil) {
@@ -118,7 +105,7 @@
             isA:isAttenuated range:range
             dirX:dirX dirY:dirY dirZ:dirZ
             inA:innerAngle outA:outerAngle
-            falloff:falloff]);
+            falloff:fall_off]);
             lights[index] = light;
         } else {
             lights[index]->position[0] = x;
@@ -138,7 +125,7 @@
             lights[index]->direction[2] = dirZ;
             lights[index]->inAngle = innerAngle;
             lights[index]->outAngle = outerAngle;
-            lights[index]->foff = falloff;
+            lights[index]->falloff = fall_off;
         }
         lightsDirty = TRUE;
     }
@@ -156,22 +143,18 @@
 
 - (void) render
 {
-    MESH_LOG(@"MetalMeshView_render()");
     [self computeNumLights];
-    VS_PHONG_UNIFORMS vsUniforms;
-    PS_PHONG_UNIFORMS psUniforms;
-    for (int i = 0, d = 0, p = 0, c = 0, a = 0, r = 0, s = 0; i < MAX_NUM_LIGHTS; i++) {
+
+    for (int i = 0, d = 0, p = 0, c = 0, a = 0, r = 0, s = 0; i < numLights; i++) {
         MetalLight* light = lights[i];
 
         vsUniforms.lightsPosition[p++] = light->position[0];
         vsUniforms.lightsPosition[p++] = light->position[1];
         vsUniforms.lightsPosition[p++] = light->position[2];
-        vsUniforms.lightsPosition[p++] = 0;
 
         vsUniforms.lightsNormDirection[d++] = light->direction[0];
         vsUniforms.lightsNormDirection[d++] = light->direction[1];
         vsUniforms.lightsNormDirection[d++] = light->direction[2];
-        vsUniforms.lightsNormDirection[d++] = 0;
 
         psUniforms.lightsColor[c++] = light->color[0];
         psUniforms.lightsColor[c++] = light->color[1];
@@ -199,13 +182,13 @@
             float cosOuter = cos(light->outAngle * M_PI / 180);
             psUniforms.spotLightsFactors[s++] = cosOuter;
             psUniforms.spotLightsFactors[s++] = cosInner - cosOuter;
-            psUniforms.spotLightsFactors[s++] = light->foff;
+            psUniforms.spotLightsFactors[s++] = light->falloff;
             psUniforms.spotLightsFactors[s++] = 0;
         }
     }
 
     id<MTLRenderCommandEncoder> phongEncoder = [context getCurrentRenderEncoder];
-    [phongEncoder setRenderPipelineState:[context getPhongPipelineState]];
+    [phongEncoder setRenderPipelineState:[context getPhongPipelineStateWithNumLights:numLights]];
     id<MTLDepthStencilState> depthStencilState =
         [[context getPipelineManager] getDepthStencilState];
     [phongEncoder setDepthStencilState:depthStencilState];
@@ -213,9 +196,7 @@
     // we are getting is in CounterClockWise order, so we need to set
     // MTLWindingCounterClockwise explicitly
     [phongEncoder setFrontFacingWinding:MTLWindingCounterClockwise];
-    MESH_LOG(@"MetalMeshView_render() cullmode : %d", cullMode);
     [phongEncoder setCullMode:cullMode];
-    MESH_LOG(@"MetalMeshView_render() wireframe : %d", wireframe);
     if (wireframe) {
         [phongEncoder setTriangleFillMode:MTLTriangleFillModeLines];
     } else {
@@ -237,6 +218,7 @@
     psUniforms.ambientLightColor = ambientLightColor;
     psUniforms.specColor = [material getSpecularColor];
 
+    psUniforms.numLights = numLights;
     psUniforms.specType = [material getSpecType];
     psUniforms.isBumpMap = [material isBumpMap] ? true : false;
     psUniforms.isIlluminated = [material isSelfIllumMap] ? true : false;
@@ -258,7 +240,6 @@
         indexType:[mesh getIndexType]
         indexBuffer:[mesh getIndexBuffer]
         indexBufferOffset:0];
-    [context resetRenderPass];
 }
 
 - (void) release

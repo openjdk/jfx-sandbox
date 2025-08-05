@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,37 +26,48 @@
 #ifndef METAL_RTTEXTURE_H
 #define METAL_RTTEXTURE_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 #import "MetalContext.h"
 #import "MetalTexture.h"
 
-@interface MetalRTTexture: MetalTexture
+@interface MetalRTTexture : MetalTexture
 {
-    int cw;
-    int ch;
-    int pw;
-    int ph;
+    NSUInteger contentWidth;
+    NSUInteger contentHeight;
+    NSUInteger physicalWidth;
+    NSUInteger physicalHeight;
+
+    id<MTLTexture> depthTexture;
+    id<MTLTexture> depthMSAATexture;
+    id<MTLTexture> msaaTexture;
+    BOOL isMSAA;
+    BOOL lastDepthMSAA;
 }
 
 - (id<MTLTexture>) getTexture;
 - (id<MTLTexture>) getDepthTexture;
 - (id<MTLTexture>) getDepthMSAATexture;
 - (id<MTLTexture>) getMSAATexture;
-- (MetalRTTexture*) createTexture:(MetalContext*)ctx ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h msaa:(bool)msaa;
-- (MetalRTTexture*) createTexture : (MetalContext*) ctx
-                              tex : (long)pTex
-                          ofWidth : (NSUInteger) w
-                         ofHeight : (NSUInteger) h;
+- (BOOL) isMSAAEnabled;
+
+- (MetalRTTexture*) createTexture:(MetalContext*)ctx
+                  ofPhysicalWidth:(NSUInteger)pw
+                 ofPhysicalHeight:(NSUInteger)ph
+                   ofContentWidth:(NSUInteger)cw
+                  ofContentHeight:(NSUInteger)ch
+                           isMsaa:(BOOL)isMsaa;
+
+- (MetalRTTexture*) createTexture:(MetalContext*)ctx
+                  ofPhysicalWidth:(NSUInteger)pw
+                 ofPhysicalHeight:(NSUInteger)ph
+                           mtlTex:(long)pTex;
+
+- (void) initRTT:(int*)arr;
+- (void) readPixels:(int*)pDst;
+- (void) readPixelsFromRTT:(int*)pDst;
 
 - (void) createDepthTexture;
-- (void) setContentDimensions:(int)w height:(int)h;
-- (bool) isMSAAEnabled;
-- (int) getPw;
-- (int) getPh;
-- (int) getCw;
-- (int) getCh;
+- (void) dealloc;
+
 @end
 
 #endif

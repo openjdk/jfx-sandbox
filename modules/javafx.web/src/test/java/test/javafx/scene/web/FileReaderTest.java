@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,9 +46,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import netscape.javascript.JSObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Disabled;
 
-@Disabled("JDK-8344596")
 public class FileReaderTest extends TestBase {
     private final WebPage page = WebEngineShim.getPage(getEngine());
     private String[] fileList = { new File("src/test/resources/test/html/HelloWorld.txt").getAbsolutePath() };

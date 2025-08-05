@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,52 +26,62 @@
 #ifndef METAL_TEXTURE_H
 #define METAL_TEXTURE_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 #import "MetalContext.h"
 
-#ifdef TEX_VERBOSE
-#define TEX_LOG NSLog
-#else
-#define TEX_LOG(...)
-#endif
+enum PFormat {
+    PFORMAT_INT_ARGB_PRE  = 0,
+    PFORMAT_BYTE_RGBA_PRE = 1,
+    PFORMAT_BYTE_BGRA_PRE = 8,
+    PFORMAT_BYTE_RGB      = 2,
+    PFORMAT_BYTE_GRAY     = 3,
+    PFORMAT_BYTE_ALPHA    = 4,
+    PFORMAT_MULTI_YV_12   = 5,
+    PFORMAT_BYTE_APPL_422 = 6,
+    PFORMAT_FLOAT_XYZW    = 7,
+};
 
 @interface MetalTexture : NSObject
 {
     MetalContext *context;
 
     id<MTLTexture> texture;
-    id<MTLTexture> depthTexture;
-    id<MTLTexture> depthMSAATexture;
-    id<MTLTexture> msaaTexture;
+    MTLPixelFormat pixelFormat;
 
-    // Specifying Texture Attributes: https://developer.apple.com/documentation/metal/mtltexturedescriptor
     NSUInteger width;
     NSUInteger height;
-    MTLTextureType type;
-    MTLTextureUsage usage;
-    MTLPixelFormat pixelFormat;
-    MTLResourceOptions storageMode;
-    NSUInteger mipmapLevelCount;
-    bool mipmapped;
-    bool isMSAA;
-    bool lastDepthMSAA;
-}
-- (id<MTLTexture>) getTexture;
-- (id<MTLTexture>) getDepthTexture;
-- (id<MTLTexture>) getDepthMSAATexture;
-- (id<MTLTexture>) getMSAATexture;
-- (MetalTexture*) createTexture:(MetalContext*)context ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h pixelFormat:(NSUInteger) format useMipMap:(bool)useMipMap;
-- (MetalTexture*) createTexture:(MetalContext*)context ofUsage:(MTLTextureUsage)texUsage ofWidth:(NSUInteger)w ofHeight:(NSUInteger)h msaa:(bool)msaa;
-- (MetalTexture*) createTexture : (MetalContext*) ctx mtlTex:(long)pTex ofWidth : (NSUInteger)w ofHeight : (NSUInteger)h;
-- (void) createDepthTexture;
-- (id<MTLBuffer>) getPixelBuffer;
-- (bool) isMSAAEnabled;
-- (bool) isMipmapped;
-- (void)dealloc;
 
-//- (void) blitTo:(MetalTexture*) tex;
+    BOOL mipmapped;
+}
+- (BOOL) isMipmapped;
+
+- (MTLPixelFormat) getPixelFormat;
+- (id<MTLBuffer>)  getPixelBuffer;
+- (id<MTLTexture>) getTexture;
+- (MetalTexture*) createTexture:(MetalContext*)ctx
+                        ofWidth:(NSUInteger)w
+                       ofHeight:(NSUInteger)h
+                    pixelFormat:(NSUInteger)format
+                      useMipMap:(BOOL)useMipMap;
+
+- (void) updateTexture:(void*)pixels
+                  dstX:(int)dstX
+                  dstY:(int)dstY
+                  srcX:(int)srcX
+                  srcY:(int)srcY
+                 width:(int)w
+                height:(int)h
+            scanStride:(int)scanStride;
+
+- (void) updateTextureYUV422:(char*)pixels
+                        dstX:(int)dstX
+                        dstY:(int)dstY
+                        srcX:(int)srcX
+                        srcY:(int)srcY
+                       width:(int)w
+                      height:(int)h
+                  scanStride:(int)scanStride;
+
+- (void) dealloc;
 
 @end
 

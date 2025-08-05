@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package com.sun.javafx.application;
 
 import com.sun.javafx.PlatformUtil;
+import com.sun.javafx.PreviewFeature;
 import com.sun.javafx.SecurityUtil;
 import com.sun.javafx.application.preferences.PlatformPreferences;
 import com.sun.javafx.application.preferences.PreferenceMapping;
@@ -35,6 +36,7 @@ import com.sun.javafx.tk.TKStage;
 import com.sun.javafx.tk.Toolkit;
 import com.sun.javafx.util.Logging;
 import com.sun.javafx.util.ModuleHelper;
+import com.sun.javafx.util.Utils;
 
 import java.lang.module.ModuleDescriptor;
 import java.lang.reflect.InvocationTargetException;
@@ -62,6 +64,9 @@ public class PlatformImpl {
     static {
         // Check for security manager (throws exception if enabled)
         SecurityUtil.checkSecurityManager();
+
+        // Initialize the PreviewFeature class to ensure that the corresponding system property is read early.
+        Utils.forceInit(PreviewFeature.class);
     }
 
     private static AtomicBoolean initialized = new AtomicBoolean(false);
@@ -912,13 +917,9 @@ public class PlatformImpl {
         }
     }
 
-    private static PlatformPreferences platformPreferences;
+    private static final PlatformPreferences platformPreferences = new PlatformPreferences();
 
     public static PlatformPreferences getPlatformPreferences() {
-        if (platformPreferences == null) {
-            throw new IllegalStateException("Toolkit not initialized");
-        }
-
         return platformPreferences;
     }
 
@@ -929,9 +930,9 @@ public class PlatformImpl {
      * @param preferences the initial set of platform preferences
      */
     public static void initPreferences(Map<String, Class<?>> platformKeys,
-                                       Map<String, PreferenceMapping<?>> platformKeyMappings,
+                                       Map<String, PreferenceMapping<?, ?>> platformKeyMappings,
                                        Map<String, Object> preferences) {
-        platformPreferences = new PlatformPreferences(platformKeys, platformKeyMappings);
+        platformPreferences.initialize(platformKeys, platformKeyMappings);
         platformPreferences.update(preferences);
     }
 
@@ -977,4 +978,8 @@ public class PlatformImpl {
         }
     }
 
+    /**
+     * The maximum number of nested event loops.
+     */
+    public static final int MAX_NESTED_EVENT_LOOPS = 200;
 }

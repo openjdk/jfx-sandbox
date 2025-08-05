@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,17 +27,11 @@
 #define METAL_CONTEXT_H
 
 #import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
-
 #import "MetalRingBuffer.h"
 
-@class MetalTexture;
 @class MetalRTTexture;
 @class MetalPipelineManager;
 @class MetalShader;
-@class MetalPhongShader;
-@class MetalPhongMaterial;
 @class MetalMeshView;
 
 #define BUFFER_SIZE 1
@@ -48,39 +42,31 @@
 #define INDICES_PER_IB  (MAX_NUM_QUADS * 6) // (4096 * 6 * 2 ) = 48 kb IndexBuffer
 #define VERTICES_PER_IB (MAX_NUM_QUADS * 4)
 
-struct PrismSourceVertex {
+typedef struct PrismSourceVertex {
     float x, y, z;
     float tu1, tv1;
     float tu2, tv2;
-};
-
-typedef struct VS_INPUT {
-    vector_float2 position;
-    vector_float4 color;
-    vector_float2 texCoord0;
-    vector_float2 texCoord1;
-} VS_INPUT;
+} PrismSourceVertex;
 
 typedef struct CLEAR_VS_INPUT {
-    vector_float2 position;
+    packed_float2 position;
 } CLEAR_VS_INPUT;
 
 typedef enum VertexInputIndex {
     VertexInputIndexVertices = 0,
-    VertexInputMatrixMVP = 1,
-    VertexInputClearColor = 2
+    VertexInputMatrixMVP     = 1,
+    VertexInputClearColor    = 2,
+    VertexInputColors        = 2
 } VertexInputIndex;
 
 @interface MetalContext : NSObject
 {
-    float byteToFloatTable[256];
     simd_float4x4 mvpMatrix;
     simd_float4x4 worldMatrix;
 
     // clear rtt
     CLEAR_VS_INPUT clearScissorRectVertices[4];
     id<MTLBuffer> clearEntireRttVerticesBuf;
-    id<MTLBuffer> identityMatrixBuf;
     id<MTLBuffer> indexBuffer;
 
     id<MTLDevice> device;
@@ -94,6 +80,10 @@ typedef enum VertexInputIndex {
     NSMutableDictionary* nonLinearSamplerDict;
 
     bool commitOnDraw;
+    NSLock *ringBufferLock;
+    volatile bool isWaitingForBuffer;
+    dispatch_semaphore_t ringBufferSemaphore;
+    unsigned int currentRingBufferIndex;
     MetalRingBuffer* argsRingBuffer;
     MetalRingBuffer* dataRingBuffer;
     NSMutableArray*  transientBuffersForCB;
@@ -108,7 +98,6 @@ typedef enum VertexInputIndex {
     MTLRenderPassDescriptor* rttPassDesc;
 
     MetalPipelineManager* pipelineManager;
-    MetalPhongShader *phongShader;
     MTLRenderPassDescriptor* phongRPD;
     vector_float4 cPos;
     bool depthEnabled;
@@ -120,11 +109,11 @@ typedef enum VertexInputIndex {
     id<MTLBuffer> pixelBuffer;
 }
 
-- (void) setCompositeMode:(int) mode;
+- (void) setCompositeMode:(int)mode;
 - (int) getCompositeMode;
 - (MetalPipelineManager*) getPipelineManager;
 - (MetalShader*) getCurrentShader;
-- (void) setCurrentShader:(MetalShader*) shader;
+- (void) setCurrentShader:(MetalShader*)shader;
 
 - (MetalRingBuffer*) getArgsRingBuffer;
 - (MetalRingBuffer*) getDataRingBuffer;
@@ -138,10 +127,9 @@ typedef enum VertexInputIndex {
 - (id<MTLRenderCommandEncoder>) getCurrentRenderEncoder;
 - (void) endCurrentRenderEncoder;
 
-- (id<MTLRenderPipelineState>) getPhongPipelineState;
+- (id<MTLRenderPipelineState>) getPhongPipelineStateWithNumLights:(int)numLights;
 - (NSUInteger) getCurrentBufferIndex;
 
-- (void) resetRenderPass;
 - (void) updateDepthDetails:(bool)depthTest;
 - (void) verifyDepthTexture;
 
@@ -156,12 +144,7 @@ typedef enum VertexInputIndex {
 - (void) setClipRect:(int)x y:(int)y width:(int)width height:(int)height;
 - (void) resetClipRect;
 
-- (void) fillVB:(struct PrismSourceVertex const *)pSrcXYZUVs
-         colors:(char const *)pSrcColors
-    numVertices:(int)numVertices
-             vb:(void*)vb;
-
-- (NSInteger) drawIndexedQuads:(struct PrismSourceVertex const *)pSrcXYZUVs
+- (NSInteger) drawIndexedQuads:(PrismSourceVertex const *)pSrcXYZUVs
                       ofColors:(char const *)pSrcColors
                    vertexCount:(NSUInteger)numVertices;
 
@@ -187,17 +170,16 @@ typedef enum VertexInputIndex {
 
 - (void) setWorldTransformIdentityMatrix;
 
-- (NSInteger) setDeviceParametersFor2D;
-- (NSInteger) setDeviceParametersFor3D;
 - (MTLRenderPassDescriptor*) getPhongRPD;
 - (simd_float4x4) getMVPMatrix;
 - (simd_float4x4) getWorldMatrix;
-- (void) setCameraPosition:(float)x
-        y:(float)y z:(float)z;
+- (void) setCameraPosition:(float)x y:(float)y z:(float)z;
 - (vector_float4) getCameraPosition;
 - (MTLScissorRect) getScissorRect;
+- (bool) clearDepth;
 - (bool) isDepthEnabled;
 - (bool) isScissorEnabled;
+- (bool) isCurrentRTT:(MetalRTTexture*)rttPtr;
 - (void) dealloc;
 - (id<MTLSamplerState>) getSampler:(bool)isLinear wrapMode:(int)wrapMode;
 - (id<MTLSamplerState>) createSampler:(bool)isLinear wrapMode:(int)wrapMode;
@@ -207,6 +189,9 @@ typedef enum VertexInputIndex {
 - (id<MTLBuffer>) getPixelBuffer;
 - (id<MTLBuffer>) getTransientBufferWithLength:(NSUInteger)length;
 - (id<MTLBuffer>) getTransientBufferWithBytes:(const void *)pointer length:(NSUInteger)length;
+
+- (void) blit:(id<MTLTexture>)src srcX0:(int)srcX0 srcY0:(int)srcY0 srcX1:(int)srcX1 srcY1:(int)srcY1
+       dstTex:(id<MTLTexture>)dst dstX0:(int)dstX0 dstY0:(int)dstY0 dstX1:(int)dstX1 dstY1:(int)dstY1;
 
 @end
 

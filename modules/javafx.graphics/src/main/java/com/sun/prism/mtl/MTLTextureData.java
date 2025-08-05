@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,33 +26,21 @@
 package com.sun.prism.mtl;
 
 import com.sun.prism.impl.Disposer;
-
 import java.util.Objects;
 
-public class MTLTextureData implements Disposer.Record {
-    private final MTLContext mtlContext;
-    private long pTexture;
+class MTLTextureData implements Disposer.Record {
+    protected final MTLContext mtlContext;
+    protected long pTexture;
     private long size;
 
-    // MTLBuffer used to store the pixel data of this texture
-    // private long nTexPixelData;
-
-    private MTLTextureData() {
-        mtlContext = null;
-    }
-
     MTLTextureData(MTLContext context, long texPtr, long textureSize) {
-        Objects.requireNonNull(context);
-        if (texPtr <= 0) {
+        Objects.requireNonNull(context, "MTLContext must not be null");
+        if (texPtr == 0L) {
             throw new IllegalArgumentException("Texture cannot be null");
         }
         mtlContext = context;
         pTexture = texPtr;
         size = textureSize;
-    }
-
-    public void setResource(long resource) {
-        pTexture = resource;
     }
 
     public long getResource() {
@@ -65,8 +53,8 @@ public class MTLTextureData implements Disposer.Record {
 
     @Override
     public void dispose() {
-        if (pTexture != 0L) {
-            MTLResourceFactory.releaseTexture(mtlContext, pTexture);
+        if (pTexture != 0L && !mtlContext.isDisposed()) {
+            MTLResourceFactory.releaseTexture(pTexture);
             pTexture = 0L;
         }
     }

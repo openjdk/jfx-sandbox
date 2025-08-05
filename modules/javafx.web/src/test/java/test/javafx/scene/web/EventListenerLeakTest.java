@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,13 +47,11 @@ import org.w3c.dom.events.EventListener;
 import org.w3c.dom.events.EventTarget;
 import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
 // NOTE: We cannot use TestBase since we need multiple WebView instances, and
 // greater control over the lifecycle.
-@Disabled("JDK-8344596")
 public class EventListenerLeakTest {
 
     // List of WeakReferences to EventListener objects to count which are active

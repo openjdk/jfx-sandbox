@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,24 +24,34 @@
  */
 
 #import "MetalRingBuffer.h"
+#import "MetalContext.h"
 
 @implementation MetalRingBuffer
 
 static bool isBufferInUse[NUM_BUFFERS];
 static unsigned int currentBufferIndex;
 
-- (MetalRingBuffer*) init:(unsigned int)size {
+- (MetalRingBuffer*) init:(MetalContext*)ctx
+                   ofSize:(unsigned int)size {
+
     self = [super init];
     if (self) {
         bufferSize = size;
         currentOffset = 0;
         numReservedBytes = 0;
         currentBufferIndex = 0;
+        if (@available(macOS 13, *)) {
+            bufferOffsetAlignment = 32;
+        } else {
+            // MacOS 12 requires the offset aligment to be 256 bytes for the method
+            // MTLRenderCommandEncoder.setVertexBuffer.
+            bufferOffsetAlignment = 256;
+        }
 
         for (int i = 0; i < NUM_BUFFERS; i++) {
             isBufferInUse[i] = false;
-            buffer[i] = [MTLCreateSystemDefaultDevice() newBufferWithLength:bufferSize
-                                                                    options:MTLResourceStorageModeShared];
+            buffer[i] = [[ctx getDevice] newBufferWithLength:bufferSize
+                                                     options:MTLResourceStorageModeShared];
             buffer[i].label = [NSString stringWithFormat:@"JFX Ring Buffer"];
         }
     }
@@ -62,7 +72,7 @@ static unsigned int currentBufferIndex;
 // If there is no buffer available then the behavior is undefined and
 // should cause visual artefacts or Metal validation may fail or crash.
 
-+ (void) updateBufferInUse {
++ (unsigned int) updateBufferInUse {
     unsigned int prevBufferIndex = currentBufferIndex;
     for (int i = currentBufferIndex + 1; i < NUM_BUFFERS; i++) {
         if (!isBufferInUse[i]) {
@@ -77,6 +87,7 @@ static unsigned int currentBufferIndex;
         }
     }
     isBufferInUse[currentBufferIndex] = true;
+    return currentBufferIndex;
 }
 
 + (unsigned int) getCurrentBufferIndex {
@@ -104,9 +115,9 @@ static unsigned int currentBufferIndex;
 - (int) reserveBytes:(unsigned int)length {
     int prevOffset = currentOffset;
     currentOffset = numReservedBytes;
-    unsigned int remainder = currentOffset % BUFFER_OFFSET_ALIGNMENT;
+    unsigned int remainder = currentOffset % bufferOffsetAlignment;
     if (remainder != 0) {
-        currentOffset = currentOffset + BUFFER_OFFSET_ALIGNMENT - remainder;
+        currentOffset = currentOffset + bufferOffsetAlignment - remainder;
     }
 
     if (currentOffset > bufferSize || length > (bufferSize - currentOffset)) {
@@ -116,6 +127,10 @@ static unsigned int currentBufferIndex;
     }
     numReservedBytes = currentOffset + length;
     return currentOffset;
+}
+
+- (unsigned int) getNumReservedBytes {
+    return numReservedBytes;
 }
 
 - (void) dealloc {

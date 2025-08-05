@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,13 +26,14 @@
 #define MAX_NUM_LIGHTS 3
 
 struct PS_PHONG_UNIFORMS {
-    float4 diffuseColor;
-    float4 ambientLightColor;
-    float4 specColor;
+    packed_float4 diffuseColor;
+    packed_float4 ambientLightColor;
+    packed_float4 specColor;
     float lightsColor[MAX_NUM_LIGHTS * 4];
     float lightsAttenuation[MAX_NUM_LIGHTS * 4];
     float lightsRange[MAX_NUM_LIGHTS * 4];
     float spotLightsFactors[MAX_NUM_LIGHTS * 4];
+    int numLights;
     int specType;
     bool isBumpMap;
     bool isIlluminated;

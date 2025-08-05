@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,7 +53,8 @@ public class PlatformPreferencesTest {
 
     @BeforeEach
     void setup() {
-        prefs = new PlatformPreferences(
+        prefs = new PlatformPreferences();
+        prefs.initialize(
             // Well-known platform keys and their associated type
             Map.of(
                 "test.anInt", Integer.class,
@@ -70,7 +71,8 @@ public class PlatformPreferencesTest {
                 "test.backgroundColor", new PreferenceMapping<>("backgroundColor", Color.class),
                 "test.accentColor", new PreferenceMapping<>("accentColor", Color.class),
                 "test.reducedMotion", new PreferenceMapping<>("reducedMotion", Boolean.class),
-                "test.enableTransparency", new PreferenceMapping<>("reducedTransparency", Boolean.class, b -> !b)
+                "test.enableTransparency", new PreferenceMapping<>("reducedTransparency", Boolean.class, b -> !b),
+                "test.persistentScrollBars", new PreferenceMapping<>("persistentScrollBars", String.class, "yes"::equals)
             ));
     }
 
@@ -364,5 +366,23 @@ public class PlatformPreferencesTest {
         assertEquals(2, trace.size());
         assertEquals(Boolean.FALSE, trace.get(1));
         assertFalse(prefs.isReducedTransparency());
+    }
+
+    @Test
+    void testPersistentScrollBarsProperty() {
+        var trace = new ArrayList<Boolean>();
+        prefs.persistentScrollBarsProperty().addListener((observable, ov, nv) -> trace.add(nv));
+
+        assertFalse(prefs.isPersistentScrollBars());
+        prefs.update(Map.of("test.persistentScrollBars", "yes"));
+
+        assertEquals(1, trace.size());
+        assertEquals(Boolean.TRUE, trace.get(0));
+        assertTrue(prefs.isPersistentScrollBars());
+
+        prefs.update(new HashMap<>() {{ put("test.persistentScrollBars", "no"); }});
+        assertEquals(2, trace.size());
+        assertEquals(Boolean.FALSE, trace.get(1));
+        assertFalse(prefs.isPersistentScrollBars());
     }
 }

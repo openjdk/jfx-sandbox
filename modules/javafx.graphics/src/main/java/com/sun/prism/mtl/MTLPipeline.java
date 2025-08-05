@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,10 +31,9 @@ import com.sun.prism.GraphicsPipeline;
 import com.sun.prism.ResourceFactory;
 import com.sun.prism.impl.PrismSettings;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.List;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.List;
 
 public class MTLPipeline extends GraphicsPipeline {
 
@@ -42,32 +41,28 @@ public class MTLPipeline extends GraphicsPipeline {
     private static MTLResourceFactory mtlResourceFactory;
 
     static {
-        AccessController.doPrivileged((PrivilegedAction<Void>) () -> {
-            String libName = "prism_mtl";
+        String libName = "prism_mtl";
 
-            if (PrismSettings.verbose) {
-                MTLLog.Debug("Loading native metal library, named: " + libName);
-            }
-            NativeLibLoader.loadLibrary(libName);
-            if (PrismSettings.verbose) {
-                MTLLog.Debug("Succeeded: Loading native metal library.");
-            }
-            theInstance = new MTLPipeline();
-            return null;
-        });
+        if (PrismSettings.verbose) {
+            System.err.println("Loading native metal library, named: " + libName);
+        }
+        NativeLibLoader.loadLibrary(libName);
+        if (PrismSettings.verbose) {
+            System.err.println("Succeeded: Loading native metal library.");
+        }
+        theInstance = new MTLPipeline();
     }
 
-    private MTLPipeline() {
-    }
+    private MTLPipeline() {}
 
     public static MTLPipeline getInstance() {
-        MTLLog.Debug("MTLPipeline.getInstance()");
         return theInstance;
     }
 
     @Override
     public boolean init() {
-        MTLLog.Debug("MTLPipeline.init()");
+        Map<String, Long> devDetails = new HashMap<>();
+        setDeviceDetails(devDetails);
         return true;
     }
 
@@ -78,22 +73,23 @@ public class MTLPipeline extends GraphicsPipeline {
 
     @Override
     public ResourceFactory getDefaultResourceFactory(List<Screen> screens) {
-        // TODO: MTL: This creates only one resource factory for the main screen.
-        //  We need to create and maintain multiple Resource Factories, one for each screen.
+        // This creates only one resource factory, all the Metal resources like
+        // MTLBuffer, MTLTexture and created and handled in native Metal classes.
         return getResourceFactory(Screen.getMainScreen());
     }
 
     @Override
     public ResourceFactory getResourceFactory(Screen screen) {
-        // TODO: MTL: This method should return appropriate resource factory for the screen
-        //  and not just the member mtlResourceFactory
+        // All the Metal resources like MTLBuffer, MTLTexture are created
+        // and handled on native side of Metal impl.
+        // So, a common ResourceFactory instance across screens is sufficient.
         if (mtlResourceFactory == null) {
             mtlResourceFactory = new MTLResourceFactory(screen);
 
             // This enables sharing of MTLCommandQueue between PRISM and GLASS
-            HashMap devDetails = new HashMap();
-            devDetails.put("contextPtr", mtlResourceFactory.getContext().getMetalCommandQueue());
-            setDeviceDetails(devDetails);
+            Map<String, Long> devDetails = MTLPipeline.getInstance().getDeviceDetails();
+            devDetails.put("mtlCommandQueue",
+                                mtlResourceFactory.getContext().getMetalCommandQueue());
         }
         return mtlResourceFactory;
     }
@@ -104,7 +100,6 @@ public class MTLPipeline extends GraphicsPipeline {
             mtlResourceFactory.dispose();
             mtlResourceFactory = null;
         }
-
         super.dispose();
     }
 
@@ -125,21 +120,17 @@ public class MTLPipeline extends GraphicsPipeline {
 
     @Override
     public boolean supportsShaderType(ShaderType type) {
-        switch (type) {
-            case MSL: // Metal Shading Language
-                return true;
-            default:
-                return false;
-        }
+        return switch (type) {
+            case MSL -> true;
+            default -> false;
+        };
     }
 
     @Override
     public boolean supportsShaderModel(ShaderModel model) {
-        switch (model) {
-            case SM3:
-                return true;
-            default:
-                return false;
-        }
+        return switch (model) {
+            case SM3 -> true;
+            default -> false;
+        };
     }
 }

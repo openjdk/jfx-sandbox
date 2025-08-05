@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,9 +30,6 @@ import com.sun.prism.Material;
 import com.sun.prism.impl.BaseMeshView;
 import com.sun.prism.impl.Disposer;
 
-/**
- * TODO: MTL: 3D - Need documentation
- */
 class MTLMeshView extends BaseMeshView {
 
     static int count = 0;
@@ -83,7 +80,6 @@ class MTLMeshView extends BaseMeshView {
     public void setLight(int index, float x, float y, float z, float r, float g, float b, float w,
             float ca, float la, float qa, float isAttenuated, float maxRange, float dirX, float dirY, float dirZ,
             float innerAngle, float outerAngle, float falloff) {
-        // TODO: MTL: Check whether we need to support more than 3 lights
         if (index >= 0 && index <= 2) {
             context.setLight(nativeHandle, index, x, y, z, r, g, b, w, ca, la, qa, isAttenuated, maxRange,
                     dirX, dirY, dirZ, innerAngle, outerAngle, falloff);
@@ -104,7 +100,7 @@ class MTLMeshView extends BaseMeshView {
 
     @Override
     public void dispose() {
-        // TODO: MTL: 3D - Need a mechanism to "decRefCount" Mesh and Material
+        // TODO: 3D - Need a mechanism to "decRefCount" Mesh and Material
         material = null;
         disposerRecord.dispose();
         count--;
@@ -114,7 +110,7 @@ class MTLMeshView extends BaseMeshView {
         return count;
     }
 
-    static class MTLMeshViewDisposerRecord implements Disposer.Record {
+    private static class MTLMeshViewDisposerRecord implements Disposer.Record {
 
         private final MTLContext context;
         private long nativeHandle;
@@ -128,7 +124,7 @@ class MTLMeshView extends BaseMeshView {
 
         @Override
         public void dispose() {
-            if (nativeHandle != 0L) {
+            if (nativeHandle != 0L && !context.isDisposed()) {
                 traceDispose();
                 context.releaseMTLMeshView(nativeHandle);
                 nativeHandle = 0L;

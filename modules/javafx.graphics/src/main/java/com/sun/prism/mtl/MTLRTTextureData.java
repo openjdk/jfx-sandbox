@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,9 +25,19 @@
 
 package com.sun.prism.mtl;
 
-public class MTLRTTextureData extends MTLTextureData {
+class MTLRTTextureData extends MTLTextureData {
+
     MTLRTTextureData(MTLContext context, long texPtr, long size) {
         super(context, texPtr, size);
-        MTLLog.Debug("MTLRTTextureData(): context = " + context + ", texPtr = " + texPtr);
+    }
+
+    @Override
+    public void dispose() {
+        if (pTexture != 0L && !mtlContext.isDisposed()) {
+            if (mtlContext.isCurrentRTT(pTexture)) {
+                mtlContext.flushVertexBuffer();
+            }
+        }
+        super.dispose();
     }
 }

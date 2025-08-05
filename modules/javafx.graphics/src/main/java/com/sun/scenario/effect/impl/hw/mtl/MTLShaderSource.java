@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,19 +25,21 @@
 
 package com.sun.scenario.effect.impl.hw.mtl;
 
-import java.io.InputStream;
 import com.sun.scenario.effect.Effect.AccelType;
 import com.sun.scenario.effect.impl.hw.ShaderSource;
+import java.io.InputStream;
 
 public class MTLShaderSource implements ShaderSource {
 
+    @Override
     public InputStream loadSource(String name) {
-        // MSL shaders are compilend and linked into a MTLLibrary at build time.
+        // MSL shaders are compiled and linked into a MTLLibrary at build time.
         // At runtime, shaders get loaded from that library as needed.
         // throw new UnsupportedOperationException("Metal shader source is not available at runtime.");
         return null;
     }
 
+    @Override
     public AccelType getAccelType() {
         return AccelType.METAL;
     }

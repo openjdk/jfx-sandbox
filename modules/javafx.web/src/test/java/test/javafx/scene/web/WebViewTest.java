@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,10 +35,8 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.web.WebEngineShim;
 import javafx.scene.web.WebView;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-@Disabled("JDK-8344596")
 public class WebViewTest extends TestBase {
     final static float SCALE = 1.78f;
     final static float ZOOM = 2.71f;

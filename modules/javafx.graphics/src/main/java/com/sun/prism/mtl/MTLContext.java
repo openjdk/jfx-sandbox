@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,41 +33,46 @@ import com.sun.javafx.geom.transform.BaseTransform;
 import com.sun.javafx.geom.transform.GeneralTransform3D;
 import com.sun.javafx.sg.prism.NGCamera;
 import com.sun.javafx.sg.prism.NGDefaultCamera;
-import com.sun.prism.*;
+import com.sun.prism.CompositeMode;
+import com.sun.prism.Graphics;
+import com.sun.prism.MeshView;
+import com.sun.prism.RTTexture;
+import com.sun.prism.RenderTarget;
+import com.sun.prism.Texture;
 import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.impl.ps.BaseShaderContext;
 import com.sun.prism.ps.Shader;
+
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-public class MTLContext extends BaseShaderContext {
+class MTLContext extends BaseShaderContext {
 
     public static final int NUM_QUADS = PrismSettings.superShader ? 4096 : 256;
 
-    public static final int MTL_COMPMODE_CLEAR           = 0;
-    public static final int MTL_COMPMODE_SRC             = 1;
-    public static final int MTL_COMPMODE_SRCOVER         = 2;
-    public static final int MTL_COMPMODE_DSTOUT          = 3;
-    public static final int MTL_COMPMODE_ADD             = 4;
+    private static final int MTL_COMPMODE_CLEAR   = 0;
+    private static final int MTL_COMPMODE_SRC     = 1;
+    private static final int MTL_COMPMODE_SRCOVER = 2;
+    private static final int MTL_COMPMODE_DSTOUT  = 3;
+    private static final int MTL_COMPMODE_ADD     = 4;
 
-    public static final int MTL_SAMPLER_ADDR_MODE_NOP                    = -1;
+    private static final int MTL_SAMPLER_ADDR_MODE_NOP                   = -1;
     // CLAMP_TO_EDGE
-    public static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_EDGE          = 0; // MTLSamplerAddressModeClampToEdge
-    public static final int MTL_SAMPLER_ADDR_MODE_MIRR_CLAMP_TO_EDGE     = 1; // MTLSamplerAddressModeMirrorClampToEdge
+    private static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_EDGE         = 0; // MTLSamplerAddressModeClampToEdge
+    private static final int MTL_SAMPLER_ADDR_MODE_MIRR_CLAMP_TO_EDGE    = 1; // MTLSamplerAddressModeMirrorClampToEdge
     // REPEAT
-    public static final int MTL_SAMPLER_ADDR_MODE_REPEAT                 = 2; // MTLSamplerAddressModeRepeat
-    public static final int MTL_SAMPLER_ADDR_MODE_MIRR_REPEAT            = 3; // MTLSamplerAddressModeMirrorRepeat
+    private static final int MTL_SAMPLER_ADDR_MODE_REPEAT                = 2; // MTLSamplerAddressModeRepeat
+    private static final int MTL_SAMPLER_ADDR_MODE_MIRR_REPEAT           = 3; // MTLSamplerAddressModeMirrorRepeat
     // CLAMP_TO_ZERO
-    public static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_ZERO          = 4; // MTLSamplerAddressModeClampToZero
-    public static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_BORDER_COLOR  = 5; // MTLSamplerAddressModeClampToBorderColor
+    private static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_ZERO         = 4; // MTLSamplerAddressModeClampToZero
+    private static final int MTL_SAMPLER_ADDR_MODE_CLAMP_TO_BORDER_COLOR = 5; // MTLSamplerAddressModeClampToBorderColor
 
     private State state;
     private final long pContext;
     private MTLRTTexture renderTarget;
     private MTLResourceFactory resourceFactory;
     private MTLPipeline pipeline;
-    private MTLPipelineManager encoderManager;
 
     private int targetWidth;
     private int targetHeight;
@@ -83,18 +88,18 @@ public class MTLContext extends BaseShaderContext {
 
     private static final ByteBuffer shaderLibBuffer;
 
-    public final static int CULL_BACK                  = 110;
-    public final static int CULL_FRONT                 = 111;
-    public final static int CULL_NONE                  = 112;
+    public final static int CULL_BACK  = 110;
+    public final static int CULL_FRONT = 111;
+    public final static int CULL_NONE  = 112;
 
     static {
         final String shaderLibName = "msl/jfxshaders.metallib";
-        final Class clazz = MTLContext.class;
+        final Class<?> clazz = MTLContext.class;
 
-        // Get the native shader library as a stream resource and read it into
-        // an NIO ByteBuffer. This will be passed to the native MTLContext
-        // initialization, which will load the shader library for each device.
         try {
+            // Get the native shader library as a stream resource and read it into
+            // an NIO ByteBuffer. This will be passed to the native MetalContext
+            // initialization, which will load the shader library for each device.
             try (var in = new BufferedInputStream(clazz.getResourceAsStream(shaderLibName))) {
                 byte[] data = in.readAllBytes();
                 shaderLibBuffer = ByteBuffer.allocateDirect(data.length);
@@ -119,6 +124,7 @@ public class MTLContext extends BaseShaderContext {
         pContext = nInitialize(shaderLibBuffer);
     }
 
+    @Override
     public MTLResourceFactory getResourceFactory() {
         return resourceFactory;
     }
@@ -134,8 +140,9 @@ public class MTLContext extends BaseShaderContext {
     }
 
     /**
-     * OpenGL projection transform use z-range of [-1, 1] while Metal expects it
-     * to be [0, 1], so we need to adjust the matrix .(comment from D3DContext see RT-32880.)
+     * OpenGL projection transform use z-range of [-1, 1],
+     * while Metal expects it to be [0, 1], so we need to adjust the matrix.
+     * (comment from D3DContext, see JDK-8123305)
      */
     private GeneralTransform3D adjustClipSpace(GeneralTransform3D projViewTx) {
         double[] m = projViewTx.get(tempAdjustClipSpaceMat);
@@ -149,8 +156,6 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected State updateRenderTarget(RenderTarget target, NGCamera camera, boolean depthTest) {
-        MTLLog.Debug("MTLContext.updateRenderTarget() :target = " + target + ", camera = " + camera + ", depthTest = " + depthTest);
-        MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:1:-->\n" + projViewTx);
         renderTarget = (MTLRTTexture)target;
         int res = nUpdateRenderTarget(pContext, renderTarget.getNativeHandle(), depthTest);
 
@@ -161,11 +166,10 @@ public class MTLContext extends BaseShaderContext {
         targetWidth = target.getPhysicalWidth();
         targetHeight = target.getPhysicalHeight();
 
-        // Need to validate the camera before getting its computed data.
-        if (camera instanceof NGDefaultCamera) {
-            ((NGDefaultCamera) camera).validate(targetWidth, targetHeight);
+        // Validate the camera before getting its computed data
+        if (camera instanceof NGDefaultCamera ngDefCam) {
+            ngDefCam.validate(targetWidth, targetHeight);
             projViewTx = adjustClipSpace(camera.getProjViewTx(projViewTx));
-            MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:2:-->\n" + projViewTx);
         } else {
             projViewTx = adjustClipSpace(camera.getProjViewTx(projViewTx));
             double vw = camera.getViewWidth();
@@ -173,7 +177,6 @@ public class MTLContext extends BaseShaderContext {
             if (targetWidth != vw || targetHeight != vh) {
                 projViewTx.scale(vw / targetWidth, vh / targetHeight, 1.0);
             }
-            MTLLog.Debug("MTLContext.updateRenderTarget() projViewTx:3:-->\n" + projViewTx);
         }
 
         // Set projection view matrix
@@ -189,7 +192,6 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void setTexture(int texUnit, Texture tex) {
-        //MTLLog.Debug("MTLContext.setTexture() : texUnit = " + texUnit + ", tex = " + tex);
         if (checkDisposed()) return;
 
         if (tex != null) tex.assertLocked();
@@ -203,37 +205,28 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void updateTexture(int texUnit, Texture tex) {
-        //MTLLog.Debug("MTLContext.updateTexture() :texUnit = " + texUnit + ", tex = " + tex);
         boolean linear;
         int wrapMode;
         if (tex != null) {
             linear = tex.getLinearFiltering();
-            switch (tex.getWrapMode()) {
-                case CLAMP_NOT_NEEDED:
-                    wrapMode = MTL_SAMPLER_ADDR_MODE_NOP;
-                    break;
-                case CLAMP_TO_EDGE:
-                case CLAMP_TO_EDGE_SIMULATED:
-                case CLAMP_TO_ZERO_SIMULATED:
-                    wrapMode = MTL_SAMPLER_ADDR_MODE_CLAMP_TO_EDGE;
-                    break;
-                case CLAMP_TO_ZERO:
-                    wrapMode = MTL_SAMPLER_ADDR_MODE_CLAMP_TO_ZERO;
-                    break;
-                case REPEAT:
-                case REPEAT_SIMULATED:
-                    wrapMode = MTL_SAMPLER_ADDR_MODE_REPEAT;
-                    break;
-                default:
-                    throw new InternalError("Unrecognized wrap mode: " + tex.getWrapMode());
-            }
+            wrapMode = switch (tex.getWrapMode()) {
+                case CLAMP_NOT_NEEDED -> MTL_SAMPLER_ADDR_MODE_NOP;
+
+                case CLAMP_TO_EDGE,
+                     CLAMP_TO_EDGE_SIMULATED,
+                     CLAMP_TO_ZERO_SIMULATED -> MTL_SAMPLER_ADDR_MODE_CLAMP_TO_EDGE;
+
+                case CLAMP_TO_ZERO -> MTL_SAMPLER_ADDR_MODE_CLAMP_TO_ZERO;
+
+                case REPEAT,
+                     REPEAT_SIMULATED -> MTL_SAMPLER_ADDR_MODE_REPEAT;
+            };
             MTLShader.setTexture(texUnit, tex, linear, wrapMode);
         }
     }
 
     @Override
     protected void updateShaderTransform(Shader shader, BaseTransform xform) {
-        MTLLog.Debug("MTLContext.updateShaderTransform() :shader = " + shader + ", xform = " + xform);
         if (xform == null) {
             xform = BaseTransform.IDENTITY_TRANSFORM;
         }
@@ -263,60 +256,38 @@ public class MTLContext extends BaseShaderContext {
     @Override
     protected void updateClipRect(Rectangle clipRect) {
         if (clipRect == null || clipRect.isEmpty()) {
-            //MTLLog.Debug("MTLContext.updateClipRect() Disable ScissorTest: " + clipRect);
             nResetClipRect(pContext);
         } else {
             int x = clipRect.x;
             int y = clipRect.y;
             int width  = clipRect.width;
             int height = clipRect.height;
-            //MTLLog.Debug("MTLContext.updateClipRect() Enable ScissorTest: " + clipRect);
             nSetClipRect(pContext, x, y, width, height);
         }
     }
 
     @Override
     protected void updateCompositeMode(CompositeMode mode) {
-        //MTLLog.Debug("MTLContext.updateCompositeMode() :mode = " + mode);
-
-        int mtlCompMode;
-        switch (mode) {
-            case CLEAR:
-                mtlCompMode = MTL_COMPMODE_CLEAR;
-                break;
-
-            case SRC:
-                mtlCompMode = MTL_COMPMODE_SRC;
-                break;
-
-            case SRC_OVER:
-                mtlCompMode = MTL_COMPMODE_SRCOVER;
-                break;
-
-            case DST_OUT:
-                mtlCompMode = MTL_COMPMODE_DSTOUT;
-                break;
-
-            case ADD:
-                mtlCompMode = MTL_COMPMODE_ADD;
-                break;
-
-            default:
-                throw new InternalError("Unrecognized composite mode: " + mode);
-        }
+        int mtlCompMode = switch (mode) {
+            case CLEAR    -> MTL_COMPMODE_CLEAR;
+            case SRC      -> MTL_COMPMODE_SRC;
+            case SRC_OVER -> MTL_COMPMODE_SRCOVER;
+            case DST_OUT  -> MTL_COMPMODE_DSTOUT;
+            case ADD      -> MTL_COMPMODE_ADD;
+        };
         nSetCompositeMode(getContextHandle(), mtlCompMode);
     }
 
     @Override
-    public void blit(RTTexture srcRTT, RTTexture dstRTT, int srcX0, int srcY0, int srcX1, int srcY1, int dstX0, int dstY0, int dstX1, int dstY1) {
-        /*MTLLog.Debug("MTLContext.blit() :srcRTT = " + srcRTT + ", dstRTT = " + dstRTT + ", srcX0 = " +
-                srcX0 + ", srcY0 = " + srcY0 + ", srcX1 = " + srcX1 + ", srcY1 = " + srcY1 + ", dstX0 = " +
-                dstX0 + ", dstY0 = " + dstY0 + ", dstX1 = " + dstX1 + ", dstY1 = " + dstY1);*/
-        // TODO: MTL: Verify whether we can avoid this blit when we are trying
+    public void blit(RTTexture srcRTT, RTTexture dstRTT,
+                    int srcX0, int srcY0, int srcX1, int srcY1,
+                    int dstX0, int dstY0, int dstX1, int dstY1) {
+        // Verify whether we can avoid this blit when we are trying
         // to resolve MSAA texture into non-MSAA texture, because in case of Metal
-        // we resolve the texture while rendering itself
-        long dstNativeHandle = dstRTT == null ? 0L : ((MTLTexture)dstRTT).getNativeHandle();
-        long srcNativeHandle = ((MTLTexture)srcRTT).getNativeHandle();
+        // we resolve the texture while rendering itself,
+        // implement or change in future if necessary
+        long dstNativeHandle = (dstRTT instanceof MTLTexture mtl) ? mtl.getNativeHandle() : 0L;
+        long srcNativeHandle = (srcRTT instanceof MTLTexture mtl) ? mtl.getNativeHandle() : 0L;
         nBlit(pContext, srcNativeHandle, dstNativeHandle,
             srcX0, srcY0, srcX1, srcY1,
             dstX0, dstY0, dstX1, dstY1);
@@ -324,24 +295,6 @@ public class MTLContext extends BaseShaderContext {
 
     @Override
     protected void renderQuads(float[] coordArray, byte[] colorArray, int numVertices) {
-        MTLLog.Debug("numVertices = " + numVertices);
-        MTLLog.Debug("coordArray : length = " + coordArray.length);
-        MTLLog.Debug("colorArray : length = " + colorArray.length);
-
-        /*for (int i = 0; i < numVertices * 7; i += 7) {
-            MTLLog.Debug(
-                    "xyz: x: " + coordArray[i] + ", y: " + coordArray[i + 1] + ", z: " + coordArray[i + 2]
-                    + ",  uv1: u: " + coordArray[i + 3] + ", v: " + coordArray[i + 4]
-                    + ",  uv2: u: " + coordArray[i + 5] + ", v: " + coordArray[i + 6]);
-        }
-        for (int i = 0; i < numVertices * 4; i += 4) {
-            int r = colorArray[i] & 0xFF;
-            int g = colorArray[i + 1] & 0xFF;
-            int b = colorArray[i + 2] & 0xFF;
-            int a = colorArray[i + 3] & 0xFF;
-            MTLLog.Debug(r + ", " + g + ", " + b + ", " + a);
-        }*/
-
         nDrawIndexedQuads(getContextHandle(), coordArray, colorArray, numVertices);
     }
 
@@ -349,30 +302,214 @@ public class MTLContext extends BaseShaderContext {
         nCommitCurrentCommandBuffer(pContext);
     }
 
-    public long getMetalCommandQueue()
-    {
+    public long getMetalCommandQueue() {
         return nGetCommandQueue(pContext);
     }
 
-    native private static long nInitialize(ByteBuffer shaderLibPathStr);
-    native private static void nCommitCurrentCommandBuffer(long context);
-    native private static long nGetCommandQueue(long context);
-    native private static int  nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
-    native private static int  nUpdateRenderTarget(long context, long texPtr, boolean depthTest);
-    native private static int  nResetTransform(long context);
-    native private static int  nSetProjViewMatrix(long pContext, boolean isOrtho,
-        double m00, double m01, double m02, double m03,
-        double m10, double m11, double m12, double m13,
-        double m20, double m21, double m22, double m23,
-        double m30, double m31, double m32, double m33);
+    @Override
+    protected void setDeviceParametersFor2D() {
+        // There are no Metal rendering pipeline states changed as a
+        // result of this call, hence the method is no-op.
+        // But overriding the method here for any future reference.
+    }
 
-    native private static int  nSetTransform(long pContext,
+    @Override
+    protected void setDeviceParametersFor3D() {
+        // There are no Metal rendering pipeline states changed as a
+        // result of this call, hence the method is no-op.
+        // But overriding the method here for any future reference.
+    }
+
+    long createMTLMesh() {
+        if (checkDisposed()) return 0;
+        return nCreateMTLMesh(pContext);
+    }
+
+    void releaseMTLMesh(long nativeHandle) {
+        nReleaseMTLMesh(pContext, nativeHandle);
+    }
+
+    boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
+                                short[] indexBuffer, int indexBufferLength) {
+        return nBuildNativeGeometryShort(pContext, nativeHandle, vertexBuffer,
+            vertexBufferLength, indexBuffer, indexBufferLength);
+    }
+
+    boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
+                                int[] indexBuffer, int indexBufferLength) {
+        return nBuildNativeGeometryInt(pContext, nativeHandle, vertexBuffer,
+            vertexBufferLength, indexBuffer, indexBufferLength);
+    }
+
+    long createMTLPhongMaterial() {
+        return nCreateMTLPhongMaterial(pContext);
+    }
+
+    void releaseMTLPhongMaterial(long nativeHandle) {
+        nReleaseMTLPhongMaterial(pContext, nativeHandle);
+    }
+
+    void setDiffuseColor(long nativePhongMaterial, float r, float g, float b, float a) {
+        nSetDiffuseColor(pContext, nativePhongMaterial, r, g, b, a);
+    }
+
+    void setSpecularColor(long nativePhongMaterial, boolean set, float r, float g, float b, float a) {
+        nSetSpecularColor(pContext, nativePhongMaterial, set, r, g, b, a);
+    }
+
+    void setMap(long nativePhongMaterial, int mapType, long nativeTexture) {
+        nSetMap(pContext, nativePhongMaterial, mapType, nativeTexture);
+    }
+
+    long createMTLMeshView(long nativeMesh) {
+        return nCreateMTLMeshView(pContext, nativeMesh);
+    }
+
+    void releaseMTLMeshView(long nativeMeshView) {
+        nReleaseMTLMeshView(pContext, nativeMeshView);
+    }
+
+    void setCullingMode(long nativeMeshView, int cullMode) {
+        int cm;
+        if (cullMode == MeshView.CULL_NONE) {
+            cm = CULL_NONE;
+        } else if (cullMode == MeshView.CULL_BACK) {
+            cm = CULL_BACK;
+        } else if (cullMode == MeshView.CULL_FRONT) {
+            cm = CULL_FRONT;
+        } else {
+            throw new IllegalArgumentException("illegal value for CullMode: " + cullMode);
+        }
+        nSetCullingMode(pContext, nativeMeshView, cm);
+    }
+
+    void setMaterial(long nativeMeshView, long nativePhongMaterial) {
+        nSetMaterial(pContext, nativeMeshView, nativePhongMaterial);
+    }
+
+    void setWireframe(long nativeMeshView, boolean wireframe) {
+        nSetWireframe(pContext, nativeMeshView, wireframe);
+    }
+
+    void setAmbientLight(long nativeMeshView, float r, float g, float b) {
+        nSetAmbientLight(pContext, nativeMeshView, r, g, b);
+    }
+
+    void setLight(long nativeMeshView, int index, float x, float y, float z,
+                  float r, float g, float b, float w,
+                  float ca, float la, float qa, float isAttenuated, float maxRange,
+                  float dirX, float dirY, float dirZ,
+                  float innerAngle, float outerAngle, float falloff) {
+        nSetLight(pContext, nativeMeshView, index, x, y, z, r, g, b, w,
+                    ca, la, qa, isAttenuated, maxRange,
+                    dirX, dirY, dirZ, innerAngle, outerAngle, falloff);
+    }
+
+    void renderMeshView(long nativeMeshView, Graphics g) {
+        // Support retina display by scaling the projViewTx and pass it to the shader.
+        float pixelScaleFactorX = g.getPixelScaleFactorX();
+        float pixelScaleFactorY = g.getPixelScaleFactorY();
+        if (pixelScaleFactorX != 1.0 || pixelScaleFactorY != 1.0) {
+            scratchTx = scratchTx.set(projViewTx);
+            scratchTx.scale(pixelScaleFactorX, pixelScaleFactorY, 1.0);
+            updateRawMatrix(scratchTx);
+        } else {
+            updateRawMatrix(projViewTx);
+        }
+        // printRawMatrix("Projection");
+        // Set projection view matrix
+        nSetProjViewMatrix(pContext, g.isDepthTest(),
+            rawMatrix[0], rawMatrix[1], rawMatrix[2], rawMatrix[3],
+            rawMatrix[4], rawMatrix[5], rawMatrix[6], rawMatrix[7],
+            rawMatrix[8], rawMatrix[9], rawMatrix[10], rawMatrix[11],
+            rawMatrix[12], rawMatrix[13], rawMatrix[14], rawMatrix[15]);
+
+        nSetCameraPosition(pContext, cameraPos.x, cameraPos.y, cameraPos.z);
+
+        // Undo the SwapChain scaling done in createGraphics() because 3D needs
+        // this information in the shader (via projViewTx)
+        BaseTransform xform = g.getTransformNoClone();
+        if (pixelScaleFactorX != 1.0 || pixelScaleFactorY != 1.0) {
+            scratchAffine3DTx.setToIdentity();
+            scratchAffine3DTx.scale(1.0 / pixelScaleFactorX, 1.0 / pixelScaleFactorY);
+            scratchAffine3DTx.concatenate(xform);
+            updateWorldTransform(scratchAffine3DTx);
+        } else {
+            updateWorldTransform(xform);
+        }
+
+        updateRawMatrix(worldTx);
+        // printRawMatrix("World");
+        nSetWorldTransform(pContext,
+            rawMatrix[0], rawMatrix[1], rawMatrix[2], rawMatrix[3],
+            rawMatrix[4], rawMatrix[5], rawMatrix[6], rawMatrix[7],
+            rawMatrix[8], rawMatrix[9], rawMatrix[10], rawMatrix[11],
+            rawMatrix[12], rawMatrix[13], rawMatrix[14], rawMatrix[15]);
+        nRenderMeshView(pContext, nativeMeshView);
+    }
+
+    private void printRawMatrix(String mesg) {
+        System.err.println(mesg + " = ");
+        for (int i = 0; i < 4; i++) {
+            System.err.println(rawMatrix[i] + ", " + rawMatrix[i+4]
+                + ", " + rawMatrix[i+8] + ", " + rawMatrix[i+12]);
+        }
+    }
+
+    private void updateRawMatrix(GeneralTransform3D src) {
+        rawMatrix[0]  = (float)src.get(0); // Scale X
+        rawMatrix[1]  = (float)src.get(4); // Shear Y
+        rawMatrix[2]  = (float)src.get(8);
+        rawMatrix[3]  = (float)src.get(12);
+        rawMatrix[4]  = (float)src.get(1); // Shear X
+        rawMatrix[5]  = (float)src.get(5); // Scale Y
+        rawMatrix[6]  = (float)src.get(9);
+        rawMatrix[7]  = (float)src.get(13);
+        rawMatrix[8]  = (float)src.get(2);
+        rawMatrix[9]  = (float)src.get(6);
+        rawMatrix[10] = (float)src.get(10);
+        rawMatrix[11] = (float)src.get(14);
+        rawMatrix[12] = (float)src.get(3);  // Translate X
+        rawMatrix[13] = (float)src.get(7);  // Translate Y
+        rawMatrix[14] = (float)src.get(11);
+        rawMatrix[15] = (float)src.get(15);
+    }
+
+    public void disposeShader(long nMetalShaderRef) {
+        nDisposeShader(nMetalShaderRef);
+    }
+
+    public boolean isCurrentRTT(long texPtr) {
+        return nIsCurrentRTT(pContext, texPtr);
+    }
+
+    @Override
+    public void dispose() {
+        nRelease(pContext);
+        state = null;
+        super.dispose();
+    }
+
+    // Native methods
+
+    private static native long nInitialize(ByteBuffer shaderLibPathStr);
+    private static native void nCommitCurrentCommandBuffer(long context);
+    private static native long nGetCommandQueue(long context);
+    private static native void nDrawIndexedQuads(long context, float coords[], byte volors[], int numVertices);
+    private static native int  nUpdateRenderTarget(long context, long texPtr, boolean depthTest);
+
+    private static native void nSetProjViewMatrix(long pContext, boolean isOrtho,
+                                                    double m00, double m01, double m02, double m03,
+                                                    double m10, double m11, double m12, double m13,
+                                                    double m20, double m21, double m22, double m23,
+                                                    double m30, double m31, double m32, double m33);
+    private static native void nSetTransform(long pContext,
                                                   double m00, double m01, double m02, double m03,
                                                   double m10, double m11, double m12, double m13,
                                                   double m20, double m21, double m22, double m23,
                                                   double m30, double m31, double m32, double m33);
 
-    native private static void nSetCompositeMode(long context, int mode);
+    private static native void nSetCompositeMode(long context, int mode);
     private static native void nResetClipRect(long context);
     private static native void nSetClipRect(long context, int x, int y, int width, int height);
 
@@ -382,8 +519,6 @@ public class MTLContext extends BaseShaderContext {
                                                   double m10, double m11, double m12, double m13,
                                                   double m20, double m21, double m22, double m23,
                                                   double m30, double m31, double m32, double m33);
-    private static native int nSetDeviceParametersFor2D(long pContext);
-    private static native int nSetDeviceParametersFor3D(long pContext);
     private static native void nSetCameraPosition(long pContext, double x, double y, double z);
     private static native long nCreateMTLMesh(long pContext);
     private static native void nReleaseMTLMesh(long pContext, long nativeHandle);
@@ -409,10 +544,13 @@ public class MTLContext extends BaseShaderContext {
                                              boolean wireframe);
     private static native void nSetAmbientLight(long pContext, long nativeMeshView,
                                                 float r, float g, float b);
-    private static native void nSetLight(long pContext, long nativeMeshView,
-                                         int index, float x, float y, float z, float r, float g, float b, float w, float ca, float la, float qa,
-                                         float isAttenuated, float maxRange, float dirX, float dirY, float dirZ, float innerAngle, float outerAngle,
-                                         float falloff);
+    private static native void nSetLight(long pContext, long nativeMeshView, int index,
+                                         float x, float y, float z,
+                                         float r, float g, float b, float w,
+                                         float ca, float la, float qa,
+                                         float isAttenuated, float maxRange,
+                                         float dirX, float dirY, float dirZ,
+                                         float innerAngle, float outerAngle, float falloff);
     private static native void nRenderMeshView(long pContext, long nativeMeshView);
 
     private static native void nBlit(long pContext, long nSrcRTT, long nDstRTT,
@@ -421,221 +559,6 @@ public class MTLContext extends BaseShaderContext {
 
     private static native void nRelease(long pContext);
 
+    private static native boolean nIsCurrentRTT(long pContext, long texPtr);
     private static native void nDisposeShader(long nMetalShaderRef);
-
-    @Override
-    public void setDeviceParametersFor2D() {
-        if (checkDisposed()) return;
-        MTLLog.Debug("2D : MTLContext:setDeviceParametersFor2D()");
-        nSetDeviceParametersFor2D(pContext);
-    }
-
-    @Override
-    protected void setDeviceParametersFor3D() {
-        if (checkDisposed()) return;
-        MTLLog.Debug("3D : MTLContext:setDeviceParametersFor3D()");
-        nSetDeviceParametersFor3D(pContext);
-    }
-
-    long createMTLMesh() {
-        if (checkDisposed()) return 0;
-        MTLLog.Debug("3D : MTLContext:createMTLMesh()");
-        return nCreateMTLMesh(pContext);
-    }
-
-    void releaseMTLMesh(long nativeHandle) {
-        MTLLog.Debug("3D : MTLContext:releaseMTLMesh()");
-        nReleaseMTLMesh(pContext, nativeHandle);
-    }
-
-    boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
-                                short[] indexBuffer, int indexBufferLength) {
-        MTLLog.Debug("3D : MTLContext:buildNativeGeometryShort()");
-        // TODO: MTL: Remove printing of below logs in future
-        /*MTLLog.Debug("VertexBuffer");
-        int i = 0;
-        int index = 0;
-        while (i < vertexBuffer.length) {
-            MTLLog.Debug("Index " + index + " : " + vertexBuffer[i]
-                + " " + vertexBuffer[i + 1] + " " + vertexBuffer[i + 2]);
-            i = i + 9;
-            index++;
-        }
-        i = 0;
-        index = 0;
-        MTLLog.Debug("IndexBuffer");
-        while (i < indexBuffer.length) {
-            MTLLog.Debug("Triangle " + index + " : " + indexBuffer[i]
-                + " " + indexBuffer[i + 1] + " " + indexBuffer[i + 2]);
-            i = i + 3;
-            index++;
-        }*/
-        return nBuildNativeGeometryShort(pContext, nativeHandle, vertexBuffer,
-            vertexBufferLength, indexBuffer, indexBufferLength);
-    }
-
-    boolean buildNativeGeometry(long nativeHandle, float[] vertexBuffer, int vertexBufferLength,
-                                int[] indexBuffer, int indexBufferLength) {
-        MTLLog.Debug("3D : MTLContext:buildNativeGeometryInt()");
-        return nBuildNativeGeometryInt(pContext, nativeHandle, vertexBuffer,
-            vertexBufferLength, indexBuffer, indexBufferLength);
-    }
-
-    long createMTLPhongMaterial() {
-        MTLLog.Debug("3D : MTLContext:createMTLPhongMaterial()");
-        return nCreateMTLPhongMaterial(pContext);
-    }
-
-    void releaseMTLPhongMaterial(long nativeHandle) {
-        MTLLog.Debug("3D : MTLContext:createMTLPhongMaterial()");
-        nReleaseMTLPhongMaterial(pContext, nativeHandle);
-    }
-
-    void setDiffuseColor(long nativePhongMaterial, float r, float g, float b, float a) {
-        MTLLog.Debug("3D : MTLContext:setDiffuseColor()");
-        nSetDiffuseColor(pContext, nativePhongMaterial, r, g, b, a);
-    }
-
-    void setSpecularColor(long nativePhongMaterial, boolean set, float r, float g, float b, float a) {
-        MTLLog.Debug("3D : MTLContext:setSpecularColor()");
-        nSetSpecularColor(pContext, nativePhongMaterial, set, r, g, b, a);
-    }
-
-    void setMap(long nativePhongMaterial, int mapType, long nativeTexture) {
-        MTLLog.Debug("3D : MTLContext:setMap()");
-        nSetMap(pContext, nativePhongMaterial, mapType, nativeTexture);
-    }
-
-    long createMTLMeshView(long nativeMesh) {
-        MTLLog.Debug("3D : MTLContext:createMTLMeshView()");
-        return nCreateMTLMeshView(pContext, nativeMesh);
-    }
-
-    void releaseMTLMeshView(long nativeMeshView) {
-        MTLLog.Debug("3D : MTLContext:releaseMTLMeshView()");
-        nReleaseMTLMeshView(pContext, nativeMeshView);
-    }
-
-    void setCullingMode(long nativeMeshView, int cullMode) {
-        MTLLog.Debug("3D : MTLContext:setCullingMode()");
-        int cm;
-        if (cullMode == MeshView.CULL_NONE) {
-            cm = CULL_NONE;
-        } else if (cullMode == MeshView.CULL_BACK) {
-            cm = CULL_BACK;
-        } else if (cullMode == MeshView.CULL_FRONT) {
-            cm = CULL_FRONT;
-        } else {
-            throw new IllegalArgumentException("illegal value for CullMode: " + cullMode);
-        }
-        nSetCullingMode(pContext, nativeMeshView, cm);
-    }
-
-    void setMaterial(long nativeMeshView, long nativePhongMaterial) {
-        MTLLog.Debug("3D : MTLContext:setMaterial()");
-        nSetMaterial(pContext, nativeMeshView, nativePhongMaterial);
-    }
-
-    void setWireframe(long nativeMeshView, boolean wireframe) {
-        MTLLog.Debug("3D : MTLContext:setWireframe()");
-        nSetWireframe(pContext, nativeMeshView, wireframe);
-    }
-
-    void setAmbientLight(long nativeMeshView, float r, float g, float b) {
-        MTLLog.Debug("3D : MTLContext:setAmbientLight()");
-        nSetAmbientLight(pContext, nativeMeshView, r, g, b);
-    }
-
-    void setLight(long nativeMeshView, int index, float x, float y, float z, float r, float g, float b, float w,
-                  float ca, float la, float qa, float isAttenuated, float maxRange, float dirX, float dirY, float dirZ,
-                  float innerAngle, float outerAngle, float falloff) {
-        MTLLog.Debug("3D : MTLContext:setLight()");
-        nSetLight(pContext, nativeMeshView, index, x, y, z, r, g, b, w,  ca, la, qa, isAttenuated, maxRange,
-            dirX, dirY, dirZ, innerAngle, outerAngle, falloff);
-    }
-
-    void renderMeshView(long nativeMeshView, Graphics g) {
-        MTLLog.Debug("3D : MTLContext:renderMeshView()");
-        // Support retina display by scaling the projViewTx and pass it to the shader.
-        float pixelScaleFactorX = g.getPixelScaleFactorX();
-        float pixelScaleFactorY = g.getPixelScaleFactorY();
-        if (pixelScaleFactorX != 1.0 || pixelScaleFactorY != 1.0) {
-            scratchTx = scratchTx.set(projViewTx);
-            scratchTx.scale(pixelScaleFactorX, pixelScaleFactorY, 1.0);
-            updateRawMatrix(scratchTx);
-        } else {
-            updateRawMatrix(projViewTx);
-        }
-        printRawMatrix("Projection");
-        // Set projection view matrix
-        int res = nSetProjViewMatrix(pContext, g.isDepthTest(),
-            rawMatrix[0], rawMatrix[1], rawMatrix[2], rawMatrix[3],
-            rawMatrix[4], rawMatrix[5], rawMatrix[6], rawMatrix[7],
-            rawMatrix[8], rawMatrix[9], rawMatrix[10], rawMatrix[11],
-            rawMatrix[12], rawMatrix[13], rawMatrix[14], rawMatrix[15]);
-
-        nSetCameraPosition(pContext, cameraPos.x, cameraPos.y, cameraPos.z);
-
-        // Undo the SwapChain scaling done in createGraphics() because 3D needs
-        // this information in the shader (via projViewTx)
-        BaseTransform xform = g.getTransformNoClone();
-        if (pixelScaleFactorX != 1.0 || pixelScaleFactorY != 1.0) {
-            scratchAffine3DTx.setToIdentity();
-            scratchAffine3DTx.scale(1.0 / pixelScaleFactorX, 1.0 / pixelScaleFactorY);
-            scratchAffine3DTx.concatenate(xform);
-            updateWorldTransform(scratchAffine3DTx);
-        } else {
-            updateWorldTransform(xform);
-        }
-
-        updateRawMatrix(worldTx);
-        printRawMatrix("World");
-        nSetWorldTransform(pContext,
-            rawMatrix[0], rawMatrix[1], rawMatrix[2], rawMatrix[3],
-            rawMatrix[4], rawMatrix[5], rawMatrix[6], rawMatrix[7],
-            rawMatrix[8], rawMatrix[9], rawMatrix[10], rawMatrix[11],
-            rawMatrix[12], rawMatrix[13], rawMatrix[14], rawMatrix[15]);
-        nRenderMeshView(pContext, nativeMeshView);
-    }
-
-    void printRawMatrix(String mesg) {
-        MTLLog.Debug(mesg + " = ");
-        for (int i = 0; i < 4; i++) {
-            MTLLog.Debug(rawMatrix[i] + ", " + rawMatrix[i+4]
-                + ", " + rawMatrix[i+8] + ", " + rawMatrix[i+12]);
-        }
-    }
-    private void updateRawMatrix(GeneralTransform3D src) {
-        rawMatrix[0]  = (float)src.get(0); // Scale X
-        rawMatrix[1]  = (float)src.get(4); // Shear Y
-        rawMatrix[2]  = (float)src.get(8);
-        rawMatrix[3]  = (float)src.get(12);
-        rawMatrix[4]  = (float)src.get(1); // Shear X
-        rawMatrix[5]  = (float)src.get(5); // Scale Y
-        rawMatrix[6]  = (float)src.get(9);
-        rawMatrix[7]  = (float)src.get(13);
-        rawMatrix[8]  = (float)src.get(2);
-        rawMatrix[9]  = (float)src.get(6);
-        rawMatrix[10] = (float)src.get(10);
-        rawMatrix[11] = (float)src.get(14);
-        rawMatrix[12] = (float)src.get(3);  // Translate X
-        rawMatrix[13] = (float)src.get(7);  // Translate Y
-        rawMatrix[14] = (float)src.get(11);
-        rawMatrix[15] = (float)src.get(15);
-    }
-
-    public void disposeShader(long nMetalShaderRef) {
-        nDisposeShader(nMetalShaderRef);
-    }
-
-    @Override
-    public void dispose() {
-        MTLLog.Debug("(-) MTLContext Dispose is invoked");
-
-        nRelease(pContext);
-        // disposeLCDBuffer();
-        state = null;
-
-        super.dispose();
-    }
 }

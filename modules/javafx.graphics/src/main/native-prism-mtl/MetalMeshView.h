@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,6 @@
 #ifndef METAL_MESHVIEW_H
 #define METAL_MESHVIEW_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 #import "MetalContext.h"
 #import "MetalMesh.h"
 #import "MetalLight.h"
@@ -39,20 +36,21 @@
 typedef struct VS_PHONG_UNIFORMS {
     simd_float4x4 mvp_matrix;
     simd_float4x4 world_matrix;
-    vector_float4 cameraPos;
-    float lightsPosition[MAX_NUM_LIGHTS * 4];
-    float lightsNormDirection[MAX_NUM_LIGHTS * 4];
+    packed_float4 cameraPos;
+    float lightsPosition[MAX_NUM_LIGHTS * 3];
+    float lightsNormDirection[MAX_NUM_LIGHTS * 3];
     float numLights;
 } VS_PHONG_UNIFORMS;
 
 typedef struct PS_PHONG_UNIFORMS {
-    vector_float4 diffuseColor;
-    vector_float4 ambientLightColor;
-    vector_float4 specColor;
+    packed_float4 diffuseColor;
+    packed_float4 ambientLightColor;
+    packed_float4 specColor;
     float lightsColor[MAX_NUM_LIGHTS * 4];
     float lightsAttenuation[MAX_NUM_LIGHTS * 4];
     float lightsRange[MAX_NUM_LIGHTS * 4];
     float spotLightsFactors[MAX_NUM_LIGHTS * 4];
+    int numLights;
     int specType;
     bool isBumpMap;
     bool isIlluminated;
@@ -69,6 +67,9 @@ typedef struct PS_PHONG_UNIFORMS {
     bool lightsDirty;
     int cullMode;
     bool wireframe;
+
+    VS_PHONG_UNIFORMS vsUniforms;
+    PS_PHONG_UNIFORMS psUniforms;
 }
 
 - (MetalMeshView*) createMeshView:(MetalContext*)ctx
@@ -87,7 +88,7 @@ typedef struct PS_PHONG_UNIFORMS {
         isA:(float)isAttenuated range:(float)range
         dirX:(float)dirX dirY:(float)dirY dirZ:(float)dirZ
         inA:(float)innerAngle outA:(float)outerAngle
-        falloff:(float)falloff;
+        falloff:(float)fall_off;
 
 - (MetalMesh*) getMesh;
 - (int) getCullingMode;

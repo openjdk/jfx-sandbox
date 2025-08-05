@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,6 @@
 #ifndef METAL_PHONGMATERIAL_H
 #define METAL_PHONGMATERIAL_H
 
-#import "MetalCommon.h"
-#import <Metal/Metal.h>
-#import <Foundation/Foundation.h>
 #import "MetalContext.h"
 
 #define DIFFUSE 0
@@ -66,7 +63,7 @@
 - (bool) isSpecularMap;
 - (bool) isSpecularColor;
 - (bool) isBumpMap;
-- (int) getSpecType;
+- (int)  getSpecType;
 - (bool) isSelfIllumMap;
 - (void) setMap:(int)mapID
             map:(id<MTLTexture>)texMap;

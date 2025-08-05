@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,17 +28,14 @@ package com.sun.prism.mtl;
 import com.sun.glass.ui.Screen;
 import com.sun.javafx.geom.Rectangle;
 import com.sun.prism.Graphics;
+import com.sun.prism.GraphicsResource;
 import com.sun.prism.Presentable;
 import com.sun.prism.PresentableState;
-import com.sun.prism.CompositeMode;
-import com.sun.prism.GraphicsResource;
 import com.sun.prism.impl.PrismSettings;
 
+public class MTLSwapChain implements MTLRenderTarget, Presentable, GraphicsResource {
 
-public class MTLSwapChain
-        implements MTLRenderTarget, Presentable, GraphicsResource {
-
-    private PresentableState pState;
+    private final PresentableState pState;
     private final MTLContext pContext;
     private MTLRTTexture stableBackbuffer;
     private final float pixelScaleFactorX;
@@ -54,17 +51,13 @@ public class MTLSwapChain
 
         w = state.getRenderWidth();
         h = state.getRenderHeight();
-
-        // System.err.println("MTLSwapChain - constructor()");
     }
 
     @Override
     public boolean lockResources(PresentableState state) {
-
-        if (this.pState != state ||
+        if (pState != state ||
             pixelScaleFactorX != state.getRenderScaleX() ||
-            pixelScaleFactorY != state.getRenderScaleY())
-        {
+            pixelScaleFactorY != state.getRenderScaleY()) {
             return true;
         }
         needsResize = (w != state.getRenderWidth() || h != state.getRenderHeight());
@@ -87,25 +80,12 @@ public class MTLSwapChain
 
     @Override
     public boolean prepare(Rectangle dirtyregion) {
-
         MTLContext context = getContext();
         context.flushVertexBuffer();
-        MTLGraphics g = (MTLGraphics) MTLGraphics.create(context, stableBackbuffer);
+        MTLGraphics g = MTLGraphics.create(context, stableBackbuffer);
         if (g == null) {
             return false;
         }
-        /*int sw = stableBackbuffer.getContentWidth();
-        int sh = stableBackbuffer.getContentHeight();
-        int dw = this.getContentWidth();
-        int dh = this.getContentHeight();
-        if (isMSAA()) {
-            context.flushVertexBuffer();
-            g.blit(stableBackbuffer, null, 0, 0, sw, sh, 0, 0, dw, dh);
-        } else {
-            g.setCompositeMode(CompositeMode.SRC);
-            g.drawTexture(stableBackbuffer, 0, 0, dw, dh, 0, 0, sw, sh);
-        }
-        context.flushVertexBuffer();*/
         stableBackbuffer.unlock();
         return true;
     }
@@ -116,14 +96,11 @@ public class MTLSwapChain
 
     @Override
     public boolean present() {
-
         MTLContext context = getContext();
         if (context.isDisposed()) {
             return false;
         }
-
         context.commitCurrentCommandBuffer();
-
         return true;
     }
 
@@ -144,10 +121,8 @@ public class MTLSwapChain
 
     @Override
     public Graphics createGraphics() {
-
         if (pState.getNativeFrameBuffer() == 0) {
-            //TODO: MTL : handle error gracefully
-            //System.err.println("Native backbuffer texture from Glass is nil.");
+            System.err.println("Native backbuffer texture from Glass is nil.");
             return null;
         }
 
@@ -161,32 +136,23 @@ public class MTLSwapChain
                 getContext().flushVertexBuffer();
                 stableBackbuffer.dispose();
                 stableBackbuffer = null;
-            } /*else {
-                // RT-27554
-                // TODO: this implementation was done to make sure there is a
-                // context current for the hardware backbuffer before we start
-                // attempting to use the FBO associated with the
-                // RTTexture "backbuffer"...
-                ES2Graphics.create(context, this);
-            }*/
+            }
             w = pState.getRenderWidth();
             h = pState.getRenderHeight();
 
             long pTex = pState.getNativeFrameBuffer();
 
-            MTLVramPool pool = MTLVramPool.getInstance();
-            long size = pool.estimateRTTextureSize(w, h, false);
-            if (!pool.prepareForAllocation(size)) {
-                return null;
-            }
-            stableBackbuffer = (MTLRTTexture)MTLRTTexture.create(getContext(), pTex, w, h, size);
+            stableBackbuffer = MTLRTTexture.create(getContext(), pTex, w, h, 0);
             if (PrismSettings.dirtyOptsEnabled) {
                 stableBackbuffer.contentsUseful();
             }
-            //copyFullBuffer = true;
+            // copyFullBuffer = true;
         }
 
         Graphics g = MTLGraphics.create(getContext(), stableBackbuffer);
+        if (g == null) {
+            return null;
+        }
         g.scale(pixelScaleFactorX, pixelScaleFactorY);
         return g;
     }
@@ -198,7 +164,6 @@ public class MTLSwapChain
 
     @Override
     public void setOpaque(boolean opaque) {
-
     }
 
     @Override

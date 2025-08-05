@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,9 +32,9 @@
 #import "GlassKey.h"
 #import "GlassMacros.h"
 #import "GlassView3D.h"
-#import "GlassLayer3D.h"
+#import "GlassViewCGL.h"
+#import "GlassViewMTL.h"
 #import "GlassApplication.h"
-#import "GlassScreen.h"
 
 //#define VERBOSE
 #ifndef VERBOSE
@@ -79,146 +79,65 @@
 
 @implementation GlassView3D
 
-/*- (CGLPixelFormatObj)_createPixelFormatWithDepth:(CGLPixelFormatAttribute)depth
-{
-    CGLPixelFormatObj pix = NULL;
-    {
-        const CGLPixelFormatAttribute attributes[] =
-        {
-            kCGLPFAAccelerated,
-            kCGLPFAColorSize, 32,
-            kCGLPFAAlphaSize, 8,
-            kCGLPFADepthSize, depth,
-            kCGLPFAAllowOfflineRenderers, // lets OpenGL know this context is offline renderer aware
-            (CGLPixelFormatAttribute)0
-        };
-        GLint npix = 0;
-        CGLError err = CGLChoosePixelFormat(attributes, &pix, &npix);
-        if (pix == NULL)
-        {
-            NSLog(@"CGLChoosePixelFormat: No matching pixel format exists for the requested attributes, trying again with limited capabilities");
-            const CGLPixelFormatAttribute attributes2[] =
-            {
-                kCGLPFAAllowOfflineRenderers,
-                (CGLPixelFormatAttribute)0
-            };
-            err = CGLChoosePixelFormat(attributes2, &pix, &npix);
-        }
-        if (err != kCGLNoError)
-        {
-            NSLog(@"CGLChoosePixelFormat error: %d", err);
-        }
-    }
-    return pix;
-}
-*/
-
-/*
-- (CGLContextObj)_createContextWithShared:(CGLContextObj)share withFormat:(CGLPixelFormatObj)format
-{
-    CGLContextObj ctx = NULL;
-    {
-        CGLError err = CGLCreateContext(format, share, &ctx);
-        if (err != kCGLNoError)
-        {
-            NSLog(@"CGLCreateContext error: %d", err);
-        }
-    }
-    return ctx;
-}
-*/
-
-- (void)_initialize3dWithJproperties:(jobject)jproperties
-{
-    GET_MAIN_JENV;
-    long mtlCommandQueuePtr = 0l;
-
-    int depthBits = 0;
-    if (jproperties != NULL)
-    {
-        jobject k3dDepthKey = (*env)->NewObject(env, jIntegerClass, jIntegerInitMethod, com_sun_glass_ui_View_Capability_k3dDepthKeyValue);
-        GLASS_CHECK_EXCEPTION(env);
-        jobject k3dDepthKeyValue = (*env)->CallObjectMethod(env, jproperties, jMapGetMethod, k3dDepthKey);
-        GLASS_CHECK_EXCEPTION(env);
-        if (k3dDepthKeyValue != NULL)
-        {
-            depthBits = (*env)->CallIntMethod(env, k3dDepthKeyValue, jIntegerValueMethod);
-            GLASS_CHECK_EXCEPTION(env);
-        }
-    }
-
-    /*CGLContextObj sharedCGL = NULL;
-    if (jproperties != NULL)
-    {
-        jobject sharedContextPtrKey = (*env)->NewStringUTF(env, "shareContextPtr");
-        jobject sharedContextPtrValue = (*env)->CallObjectMethod(env, jproperties, jMapGetMethod, sharedContextPtrKey);
-        GLASS_CHECK_EXCEPTION(env);
-        if (sharedContextPtrValue != NULL)
-        {
-            jlong jsharedContextPtr = (*env)->CallLongMethod(env, sharedContextPtrValue, jLongValueMethod);
-            GLASS_CHECK_EXCEPTION(env);
-            if (jsharedContextPtr != 0)
-            {
-                NSOpenGLContext *sharedContextNS = (NSOpenGLContext*)jlong_to_ptr(jsharedContextPtr);
-                sharedCGL = [sharedContextNS CGLContextObj];
-            }
-        }
-    }*/
-
-    //CGLContextObj clientCGL = NULL;
-    //BOOL isSwPipe = NO;
-
-    if (jproperties != NULL)
-    {
-        jobject contextPtrKey = (*env)->NewStringUTF(env, "contextPtr");
-        jobject contextPtrValue = (*env)->CallObjectMethod(env, jproperties, jMapGetMethod, contextPtrKey);
-        //NSLog(@"---- contextPtrKey = %p", contextPtrKey);
-        //NSLog(@"---- contextPtrValue = %p", contextPtrValue);
-        GLASS_CHECK_EXCEPTION(env);
-        if (contextPtrValue != NULL)
-        {
-            jlong jcontextPtr = (*env)->CallLongMethod(env, contextPtrValue, jLongValueMethod);
-            GLASS_CHECK_EXCEPTION(env);
-            if (jcontextPtr != 0)
-            {
-                //NSLog(@"--- GLASS metal command queue ptr = %ld", jcontextPtr);
-
-                //TODO: MTL: This enables sharing of MTLCommandQueue between PRISM and GLASS, if needed.
-                //Note : Currently, PRISM and GLASS create their own dedicated MTLCommandQueue
-                mtlCommandQueuePtr = jcontextPtr;
-            }
-        }
-    }
-
-    GlassLayer3D *layer = [[GlassLayer3D alloc] init:mtlCommandQueuePtr];
-
-    // https://developer.apple.com/library/mac/documentation/Cocoa/Reference/ApplicationKit/Classes/nsview_Class/Reference/NSView.html#//apple_ref/occ/instm/NSView/setWantsLayer:
-    // the order of the following 2 calls is important: here we indicate we want a layer-hosting view
-    {
-        [self setLayerContentsRedrawPolicy: NSViewLayerContentsRedrawOnSetNeedsDisplay];
-        [self setLayer:layer];
-        [self setWantsLayer:YES];
-        //[self setWantsUpdateLayer:YES];
-    }
-}
-
-- (BOOL) wantsUpdateLayer {
-    return TRUE;
-}
-
 - (id)initWithFrame:(NSRect)frame withJview:(jobject)jView withJproperties:(jobject)jproperties
 {
     LOG("GlassView3D initWithFrame:withJview:withJproperties");
 
-    self = [super initWithFrame: frame];
-    if (self != nil)
+    GET_MAIN_JENV;
+    long mtlCommandQueuePtr = 0l;
+    if (jproperties != NULL)
     {
-        [self _initialize3dWithJproperties:jproperties];
+        jobject mtlCommandQueueKey = (*env)->NewStringUTF(env, "mtlCommandQueue");
+        jobject mtlCommandQueueValue = (*env)->CallObjectMethod(env, jproperties, jMapGetMethod, mtlCommandQueueKey);
+        // NSLog(@"---- mtlCommandQueueKey = %p", mtlCommandQueueKey);
+        // NSLog(@"---- mtlCommandQueueValue = %p", mtlCommandQueueValue);
+        GLASS_CHECK_EXCEPTION(env);
+        if (mtlCommandQueueValue != NULL)
+        {
+            jlong jmtlQueuePtr = (*env)->CallLongMethod(env, mtlCommandQueueValue, jLongValueMethod);
+            GLASS_CHECK_EXCEPTION(env);
+            if (jmtlQueuePtr != 0)
+            {
+                // NSLog(@"--- GLASS metal command queue ptr = %ld", jmtlQueuePtr);
 
+                // This enables sharing of MTLCommandQueue between PRISM and GLASS, if needed.
+                // Note : Currently, PRISM and GLASS create their own dedicated MTLCommandQueue
+                mtlCommandQueuePtr = jmtlQueuePtr;
+            }
+        }
+    }
+
+    // TODO : We again fetch isHiDPIAware in GlassViewCGL
+    // Try to merge it
+    self->isHiDPIAware = NO;
+    if (jproperties != NULL)
+    {
+        jobject kHiDPIAwareKey = (*env)->NewObject(env, jIntegerClass, jIntegerInitMethod, com_sun_glass_ui_View_Capability_kHiDPIAwareKeyValue);
+        GLASS_CHECK_EXCEPTION(env);
+        jobject kHiDPIAwareValue = (*env)->CallObjectMethod(env, jproperties, jMapGetMethod, kHiDPIAwareKey);
+        GLASS_CHECK_EXCEPTION(env);
+        if (kHiDPIAwareValue != NULL)
+        {
+            self->isHiDPIAware = (*env)->CallBooleanMethod(env, kHiDPIAwareValue, jBooleanValueMethod) ? YES : NO;
+            GLASS_CHECK_EXCEPTION(env);
+        }
+    }
+
+    self = [super initWithFrame:frame];
+    if (self != nil) {
+        if (mtlCommandQueuePtr != 0l) {
+            GlassViewMTL* mtlSubView;
+            subView = mtlSubView = [[GlassViewMTL alloc] initWithFrame:frame withJview:jView withJproperties:jproperties];
+            self->layer = [mtlSubView getLayer];
+            self->isHiDPIAware = YES;
+        } else {
+            GlassViewCGL* cglSubView;
+            subView = cglSubView = [[GlassViewCGL alloc] initWithFrame:frame withJview:jView withJproperties:jproperties];
+            self->layer = [cglSubView getLayer];
+        }
+        [subView setAutoresizingMask:(NSViewWidthSizable|NSViewHeightSizable)];
+        [self addSubview:subView];
         self->_delegate = [[GlassViewDelegate alloc] initWithView:self withJview:jView];
-        self->_drawCounter = 0;
-        self->_texture = 0;
-
         self->_trackingArea = [[NSTrackingArea alloc] initWithRect:frame
                                                            options:(NSTrackingMouseMoved | NSTrackingActiveAlways | NSTrackingInVisibleRect)
                                                              owner:self userInfo:nil];
@@ -227,38 +146,27 @@
         self->imEnabled = NO;
         self->handlingKeyEvent = NO;
         self->didCommitText = NO;
-
         lastKeyEvent = nil;
+
+        keymanActive = NO;
+        sendKeyEvent = NO;
+        insertTextChar = 0;
     }
+    //self->_delegate = [[GlassViewDelegate alloc] initWithView:view withJview:jView];
     return self;
 }
 
 - (void)dealloc
 {
-    /*if (self->_texture != 0)
-    {
-        GlassLayer3D *layer = (GlassLayer3D*)[self layer];
-        [[layer getPainterOffscreen] bindForWidth:(GLuint)[self bounds].size.width andHeight:(GLuint)[self bounds].size.height];
-        {
-            glDeleteTextures(1, &self->_texture);
-        }
-        [[layer getPainterOffscreen] unbind];
-    }*/
-
-    [[self layer] release];
-    [self->_delegate release];
-    self->_delegate = nil;
-
     [self removeTrackingArea: self->_trackingArea];
     [self->_trackingArea release];
     self->_trackingArea = nil;
-
+    [self->_delegate release];
+    self->_delegate = nil;
     [self->nsAttrBuffer release];
     self->nsAttrBuffer = nil;
-
     [lastKeyEvent release];
     lastKeyEvent = nil;
-
     [super dealloc];
 }
 
@@ -310,12 +218,7 @@
 // also called when closing window, when [self window] == nil
 - (void)viewDidMoveToWindow
 {
-    /*if ([self window] != nil)
-    {
-        GlassLayer3D *layer = (GlassLayer3D*)[self layer];
-        [[layer getPainterOffscreen] setBackgroundColor:[[[self window] backgroundColor] colorUsingColorSpace:NSColorSpace.sRGBColorSpace]];
-    }*/
-
+    [subView viewDidMoveToWindow];
     [self->_delegate viewDidMoveToWindow];
 }
 
@@ -329,8 +232,6 @@
 {
     [super setFrameSize:newSize];
     [self->_delegate setFrameSize:newSize];
-
-    //NSLog(@"newSize View frame width x height (%f, %f)", [self frame].size.width, [self frame].size.height);
 }
 
 - (void)setFrame:(NSRect)frameRect
@@ -449,11 +350,7 @@
 {
     KEYLOG("performKeyEquivalent");
 
-    // Crash if the FS window is released while performing a key equivalent
-    // Local copy of the id keeps the retain/release calls balanced.
-    id fsWindow = [self->_delegate->fullscreenWindow retain];
-
-    // RT-37093, RT-37399 Command-EQUALS and Command-DOT needs special casing on Mac
+    // JDK-8093711, JDK-8094601 Command-EQUALS and Command-DOT needs special casing on Mac
     // as it is passed through as two calls to performKeyEquivalent, which in turn
     // create extra KeyEvents.
     //
@@ -482,13 +379,11 @@
             (*env)->DeleteLocalRef(env, jKeyChars);
 
             GLASS_CHECK_EXCEPTION(env);
-            [fsWindow release];
             return YES;
         }
     }
 
     BOOL result = [self handleKeyDown: theEvent];
-    [fsWindow release];
     return result;
 }
 
@@ -501,6 +396,16 @@
 
     handlingKeyEvent = YES;
     didCommitText = NO;
+
+    // The Keyman input method expects us to ignore key events that don't lead
+    // to NSTextInputClient calls. For Keyman the NSEvent refers to some
+    // internal Roman layout and not the chosen Keyman layout. The correct
+    // Keyman character will be passed to insertText. We detect this input
+    // method using the same method as AWT.
+    keymanActive = [self.inputContext.selectedKeyboardInputSource containsString: @"keyman"];
+    sendKeyEvent = NO;
+    insertTextChar = 0;
+
     BOOL hadMarkedText = (nsAttrBuffer.length > 0);
     BOOL inputContextHandledEvent = (imEnabled && [self.inputContext handleEvent:theEvent]);
     handlingKeyEvent = NO;
@@ -518,10 +423,22 @@
         // (ESC can do that). In either case we don't want to generate a key
         // event.
         ;
+    }
+    else if (keymanActive) {
+        // We do not call registerKeyEvent: for keyman which means shortcuts
+        // based on symbols and punctuation (like Cmd++) will not work
+        // correctly. We don't see changes to the Keyman layout so
+        // registerKeyEvent: would accumulate stale information. Keyman does
+        // not set marked text so we don't need to check nsAttrBuffer.
+        if (sendKeyEvent) {
+            wasConsumed = [self->_delegate sendJavaKeyEvent:theEvent isDown:YES character:insertTextChar];
+        }
     } else if (!inputContextHandledEvent || (nsAttrBuffer.length == 0)) {
         [GlassApplication registerKeyEvent:theEvent];
-        wasConsumed = [self->_delegate sendJavaKeyEvent:theEvent isDown:YES];
+        wasConsumed = [self->_delegate sendJavaKeyEvent:theEvent isDown:YES character:0];
     }
+
+    keymanActive = NO;
 
     return wasConsumed;
 }
@@ -535,7 +452,7 @@
 - (void)keyUp:(NSEvent *)theEvent
 {
     KEYLOG("keyUp");
-    [self->_delegate sendJavaKeyEvent:theEvent isDown:NO];
+    [self->_delegate sendJavaKeyEvent:theEvent isDown:NO character:insertTextChar];
 }
 
 - (void)flagsChanged:(NSEvent *)theEvent
@@ -592,6 +509,11 @@
     [self->_delegate sendJavaDndEvent:sender type:com_sun_glass_events_DndEvent_EXIT];
 }
 
+- (void)drawRect:(NSRect)dirtyRect
+{
+    [self->_delegate drawRect:dirtyRect];
+}
+
 #pragma mark --- Callbacks
 
 - (void)enterFullscreenWithAnimate:(BOOL)animate withKeepRatio:(BOOL)keepRatio withHideCursor:(BOOL)hideCursor
@@ -607,62 +529,19 @@
 - (void)begin
 {
     LOG("begin");
-    //assert(self->_drawCounter >= 0);
-
-    //if (self->_drawCounter == 0)
-    {
-        GlassLayer3D *layer = (GlassLayer3D*)[self layer];
-
-        // TODO: MTL: implement isHiDPIAware similar to ES2 if needed, else remove it.
-        NSRect bounds = (/*self->isHiDPIAware &&*/ [self respondsToSelector:@selector(convertRectToBacking:)]) ?
-            [self convertRectToBacking:[self bounds]] : [self bounds];
-
-        [[layer getPainterOffscreen] bindForWidth:bounds.size.width andHeight:bounds.size.height];
-
-        CGSize s = {bounds.size.width, bounds.size.height};
-        [layer setDrawableSize:s];
-    }
-    //self->_drawCounter++;
+    NSRect bounds = (self->isHiDPIAware && [subView respondsToSelector:@selector(convertRectToBacking:)]) ?
+            [subView convertRectToBacking:[subView bounds]] : [subView bounds];
+    [self->layer bindForWidth:bounds.size.width andHeight:bounds.size.height];
 }
 
 - (void)end
 {
-    //assert(self->_drawCounter > 0);
-
-    //self->_drawCounter--;
-    //if (self->_drawCounter == 0)
-    {
-        GlassLayer3D *layer = (GlassLayer3D*)[self layer];
-        //[[layer getPainterOffscreen] unbind];
-        [layer flush];
-        //self.needsDisplay = YES;
-    }
-    LOG("end");
+    [self->layer end];
 }
 
-- (void)drawRect:(NSRect)dirtyRect
+- (void)pushPixels:(void*)pixels withWidth:(unsigned int)width withHeight:(unsigned int)height withScaleX:(float)scalex withScaleY:(float)scaley withEnv:(JNIEnv *)env
 {
-    //NSLog(@"GlassView3D ---------- drawRect! invoked!");
-
-    [self->_delegate drawRect:dirtyRect];
-}
-
-- (void)updateLayer
-{
-    //NSLog(@"GlassView3D ---------- updateLayer invoked!");
-}
-
-- (void)pushPixels:(void*)pixels withWidth:(GLuint)width withHeight:(GLuint)height withScaleX:(GLfloat)scalex withScaleY:(GLfloat)scaley withEnv:(JNIEnv *)env
-{
-    GlassLayer3D *layer = (GlassLayer3D*)[self layer];
-    [layer updateOffscreenTexture:pixels layerWidth: width layerHeight:height];
-
-    // The layer will be notified about redraw in _end()
-}
-
-- (GlassViewDelegate*)delegate
-{
-    return self->_delegate;
+    [self->layer pushPixels:pixels withWidth:width withHeight:height withScaleX:scalex withScaleY:scaley ofView:self];
 }
 
 - (void)setInputMethodEnabled:(BOOL)enabled
@@ -691,12 +570,17 @@
     }
 }
 
+- (void)notifyScaleFactorChanged:(CGFloat)scale
+{
+    [self->layer notifyScaleFactorChanged:scale];
+}
+
 /*
  NSTextInputClient protocol implementation follows here.
  */
 
 // Utility function, not part of protocol
-- (void)commitString:(NSString*)aString
+- (void)commitString:(id)aString
 {
     [self->_delegate notifyInputMethod:aString attr:4 length:(int)[aString length] cursor:(int)[aString length] selectedRange: NSMakeRange(NSNotFound, 0)];
 }
@@ -707,6 +591,9 @@
     // According to Apple an NSResponder will send this up the responder chain
     // but a text input client should not. So we ignore this which avoids an
     // annoying beep.
+    if (keymanActive) {
+        sendKeyEvent = YES;
+    }
 }
 
 - (void) insertText:(id)aString replacementRange:(NSRange)replacementRange
@@ -715,6 +602,18 @@
     if ([self->nsAttrBuffer length] > 0 || [aString length] > 1) {
         self->didCommitText = YES;
         [self commitString: aString];
+    }
+
+    if (keymanActive) {
+        if ([aString isKindOfClass: [NSString class]]) {
+            NSString* nsString = (NSString*)aString;
+            // A longer string would be sent out above as an InputMethod
+            // commit rather than a multi-unit KeyEvent.
+            if (nsString.length == 1) {
+                insertTextChar = [nsString characterAtIndex: 0];
+                sendKeyEvent = YES;
+            }
+        }
     }
 
     // If a user tries to enter an invalid character using a dead key
@@ -813,12 +712,6 @@
     return [NSArray array];
 }
 
-- (void)notifyScaleFactorChanged:(CGFloat)scale
-{
-    GlassLayer3D *layer = (GlassLayer3D*)[self layer];
-    [layer notifyScaleFactorChanged:scale];
-}
-
 /* Accessibility support */
 
 - (NSArray *)accessibilityAttributeNames
@@ -883,5 +776,14 @@
     return value;
 }
 
+- (GlassLayer*)getLayer
+{
+    return self->layer;
+}
+
+- (GlassViewDelegate*)delegate
+{
+    return self->_delegate;
+}
 
 @end

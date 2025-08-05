@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,10 +27,9 @@ package com.sun.prism.mtl;
 
 import com.sun.prism.impl.BaseMesh;
 import com.sun.prism.impl.Disposer;
-/**
- * TODO: MTL: 3D - Need documentation
- */
+
 class MTLMesh extends BaseMesh {
+
     static int count = 0;
 
     private final MTLContext context;
@@ -82,7 +81,7 @@ class MTLMesh extends BaseMesh {
                 vertexBufferLength, indexBufferShort, indexBufferLength);
     }
 
-    static class MTLMeshDisposerRecord implements Disposer.Record {
+    private static class MTLMeshDisposerRecord implements Disposer.Record {
 
         private final MTLContext context;
         private long nativeHandle;
@@ -96,7 +95,7 @@ class MTLMesh extends BaseMesh {
 
         @Override
         public void dispose() {
-            if (nativeHandle != 0L) {
+            if (nativeHandle != 0L && !context.isDisposed()) {
                 traceDispose();
                 context.releaseMTLMesh(nativeHandle);
                 nativeHandle = 0L;
@@ -104,4 +103,3 @@ class MTLMesh extends BaseMesh {
         }
     }
 }
-

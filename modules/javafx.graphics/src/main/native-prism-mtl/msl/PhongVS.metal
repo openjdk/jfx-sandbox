@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,20 +42,19 @@ void quatToMatrix(float4 q, float3 N[3]) {
     N[1] = float3(r2.x, t4.z, r1.y);
     N[2] = float3(r1.z, r2.y, t4.x);
 
-    N[2] *= (q.w >= 0) ? 1 : -1;   // ATI normal map generator compatibility
+    N[2] *= (q.w >= 0) ? 1.0f : -1.0f;   // ATI normal map generator compatibility
 }
 
 float3 getLocalVector(float3 global, float3 N[3]) {
     return float3(dot(global, N[1]), dot(global, N[2]), dot(global, N[0]));
 }
 
-vertex VS_PHONG_INOUT PhongVS(const uint v_id [[ vertex_id ]],
+[[vertex]] VS_PHONG_INOUT0 PhongVS0(const uint v_id [[ vertex_id ]],
                       constant VS_PHONG_INPUT * v_in [[ buffer(0) ]],
                       constant VS_PHONG_UNIFORMS & vsUniforms [[ buffer(1) ]])
 {
-    VS_PHONG_INOUT out;
+    VS_PHONG_INOUT0 out;
     out.texCoord = v_in[v_id].texCoord;
-    out.numLights = vsUniforms.numLights;
     float4 worldVertexPos = vsUniforms.world_matrix * (float4(v_in[v_id].position, 1.0));
 
     out.position = vsUniforms.mvp_matrix * worldVertexPos;
@@ -66,85 +65,110 @@ vertex VS_PHONG_INOUT PhongVS(const uint v_id [[ vertex_id ]],
                                      vsUniforms.world_matrix[1].xyz,
                                      vsUniforms.world_matrix[2].xyz);
     for (int i = 0; i != 3; ++i) {
-        n[i] = (sWorldMatrix) * n[i];
+        n[i] = sWorldMatrix * n[i];
     }
 
     float3 worldVecToEye = vsUniforms.cameraPos.xyz - worldVertexPos.xyz;
     out.worldVecToEye = getLocalVector(worldVecToEye, n);
 
-    // TODO: MTL: Implementation using array of scalars
-    // which is not working
-    /*for (int i = 0; i < vsUniforms.numLights; i++) {
-        float4 lightPos = float4(vsUniforms.lightsPosition[(i * 4)],
-                                 vsUniforms.lightsPosition[(i * 4) + 1],
-                                 vsUniforms.lightsPosition[(i * 4) + 2],
-                                 0.0);
-        float4 lightDir = float4(vsUniforms.lightsNormDirection[(i * 4)],
-                                 vsUniforms.lightsNormDirection[(i * 4) + 1],
-                                 vsUniforms.lightsNormDirection[(i * 4) + 2],
-                                 0.0);
-        float3 worldVecToLight = (lightPos).xyz - worldVertexPos.xyz;
-        float3 worldVecToLightLocal = getLocalVector(worldVecToLight, n);
-        out.worldVecsToLights[(i * 3)] = worldVecToLightLocal.x;
-        out.worldVecsToLights[(i * 3) + 1] = worldVecToLightLocal.y;
-        out.worldVecsToLights[(i * 3) + 2] = worldVecToLightLocal.z;
+    return out;
+}
 
-        float3 worldNormLightDir = (lightDir).xyz;
-        float3 worldNormLightDirsLocal = getLocalVector(worldNormLightDir, n);
-        out.worldNormLightDirs[(i * 3)] = worldNormLightDirsLocal.x;
-        out.worldNormLightDirs[(i * 3) + 1] = worldNormLightDirsLocal.y;
-        out.worldNormLightDirs[(i * 3) + 2] = worldNormLightDirsLocal.z;
-    }*/
-    float4 lightPos1 = float4(vsUniforms.lightsPosition[0],
-                              vsUniforms.lightsPosition[1],
-                              vsUniforms.lightsPosition[2],
-                              0.0);
-    float4 lightPos2 = float4(vsUniforms.lightsPosition[4],
-                              vsUniforms.lightsPosition[5],
-                              vsUniforms.lightsPosition[6],
-                              0.0);
-    float4 lightPos3 = float4(vsUniforms.lightsPosition[8],
-                              vsUniforms.lightsPosition[9],
-                              vsUniforms.lightsPosition[10],
-                              0.0);
-    float4 lightDir1 = float4(vsUniforms.lightsNormDirection[0],
-                              vsUniforms.lightsNormDirection[1],
-                              vsUniforms.lightsNormDirection[2],
-                              0.0);
-    float4 lightDir2 = float4(vsUniforms.lightsNormDirection[4],
-                              vsUniforms.lightsNormDirection[5],
-                              vsUniforms.lightsNormDirection[6],
-                              0.0);
-    float4 lightDir3 = float4(vsUniforms.lightsNormDirection[8],
-                              vsUniforms.lightsNormDirection[9],
-                              vsUniforms.lightsNormDirection[10],
-                              0.0);
-    float3 worldVecToLight = (lightPos1).xyz - worldVertexPos.xyz;
+[[vertex]] VS_PHONG_INOUT1 PhongVS1(const uint v_id [[ vertex_id ]],
+                      constant VS_PHONG_INPUT * v_in [[ buffer(0) ]],
+                      constant VS_PHONG_UNIFORMS & vsUniforms [[ buffer(1) ]])
+{
+    VS_PHONG_INOUT1 out;
+    out.texCoord = v_in[v_id].texCoord;
+    float4 worldVertexPos = vsUniforms.world_matrix * (float4(v_in[v_id].position, 1.0));
+
+    out.position = vsUniforms.mvp_matrix * worldVertexPos;
+
+    float3 n[3];
+    quatToMatrix(v_in[v_id].normal, n);
+    float3x3 sWorldMatrix = float3x3(vsUniforms.world_matrix[0].xyz,
+                                     vsUniforms.world_matrix[1].xyz,
+                                     vsUniforms.world_matrix[2].xyz);
+    for (int i = 0; i != 3; ++i) {
+        n[i] = sWorldMatrix * n[i];
+    }
+
+    float3 worldVecToEye = vsUniforms.cameraPos.xyz - worldVertexPos.xyz;
+    out.worldVecToEye = getLocalVector(worldVecToEye, n);
+
+    float3 worldVecToLight = vsUniforms.lightsPosition[0] - worldVertexPos.xyz;
     out.worldVecsToLights1 = getLocalVector(worldVecToLight, n);
-    float3 worldNormLightDir = (lightDir1).xyz;
-    out.worldNormLightDirs1 = getLocalVector(worldNormLightDir, n);
-
-    worldVecToLight = (lightPos2).xyz - worldVertexPos.xyz;
-    out.worldVecsToLights2 = getLocalVector(worldVecToLight, n);
-    worldNormLightDir = (lightDir2).xyz;
-    out.worldNormLightDirs2 = getLocalVector(worldNormLightDir, n);
-
-    worldVecToLight = (lightPos3).xyz - worldVertexPos.xyz;
-    out.worldVecsToLights3 = getLocalVector(worldVecToLight, n);
-    worldNormLightDir = (lightDir3).xyz;
-    out.worldNormLightDirs3 = getLocalVector(worldNormLightDir, n);
+    out.worldNormLightDirs1 = getLocalVector(vsUniforms.lightsNormDirection[0], n);
 
     return out;
 }
 
-// TODO : Vertex shader with vertexdescriptor, we may need to use this in future,
-// if not we can remove it
-/*vertex VS_PHONG_INOUT PhongVS(VS_PHONG_INPUT in [[stage_in]],
-                      constant float4x4 & mvp_matrix [[ buffer(1) ]],
-                      constant float4x4 & world_matrix [[ buffer(2) ]])
+[[vertex]] VS_PHONG_INOUT2 PhongVS2(const uint v_id [[ vertex_id ]],
+                      constant VS_PHONG_INPUT * v_in [[ buffer(0) ]],
+                      constant VS_PHONG_UNIFORMS & vsUniforms [[ buffer(1) ]])
 {
-    VS_PHONG_INOUT out;
-    float4x4 mvpMatrix = mvp_matrix * world_matrix;
-    out.position = mvpMatrix * in.position;
+    VS_PHONG_INOUT2 out;
+    out.texCoord = v_in[v_id].texCoord;
+    float4 worldVertexPos = vsUniforms.world_matrix * (float4(v_in[v_id].position, 1.0));
+
+    out.position = vsUniforms.mvp_matrix * worldVertexPos;
+
+    float3 n[3];
+    quatToMatrix(v_in[v_id].normal, n);
+    float3x3 sWorldMatrix = float3x3(vsUniforms.world_matrix[0].xyz,
+                                     vsUniforms.world_matrix[1].xyz,
+                                     vsUniforms.world_matrix[2].xyz);
+    for (int i = 0; i != 3; ++i) {
+        n[i] = sWorldMatrix * n[i];
+    }
+
+    float3 worldVecToEye = vsUniforms.cameraPos.xyz - worldVertexPos.xyz;
+    out.worldVecToEye = getLocalVector(worldVecToEye, n);
+
+    float3 worldVecToLight = vsUniforms.lightsPosition[0] - worldVertexPos.xyz;
+    out.worldVecsToLights1 = getLocalVector(worldVecToLight, n);
+    out.worldNormLightDirs1 = getLocalVector(vsUniforms.lightsNormDirection[0], n);
+
+    worldVecToLight = vsUniforms.lightsPosition[1] - worldVertexPos.xyz;
+    out.worldVecsToLights2 = getLocalVector(worldVecToLight, n);
+    out.worldNormLightDirs2 = getLocalVector(vsUniforms.lightsNormDirection[1], n);
+
     return out;
-}*/
+}
+
+[[vertex]] VS_PHONG_INOUT3 PhongVS3(const uint v_id [[ vertex_id ]],
+                      constant VS_PHONG_INPUT * v_in [[ buffer(0) ]],
+                      constant VS_PHONG_UNIFORMS & vsUniforms [[ buffer(1) ]])
+{
+    VS_PHONG_INOUT3 out;
+    out.texCoord = v_in[v_id].texCoord;
+    float4 worldVertexPos = vsUniforms.world_matrix * (float4(v_in[v_id].position, 1.0));
+
+    out.position = vsUniforms.mvp_matrix * worldVertexPos;
+
+    float3 n[3];
+    quatToMatrix(v_in[v_id].normal, n);
+    float3x3 sWorldMatrix = float3x3(vsUniforms.world_matrix[0].xyz,
+                                     vsUniforms.world_matrix[1].xyz,
+                                     vsUniforms.world_matrix[2].xyz);
+    for (int i = 0; i != 3; ++i) {
+        n[i] = sWorldMatrix * n[i];
+    }
+
+    float3 worldVecToEye = vsUniforms.cameraPos.xyz - worldVertexPos.xyz;
+    out.worldVecToEye = getLocalVector(worldVecToEye, n);
+
+    float3 worldVecToLight = vsUniforms.lightsPosition[0] - worldVertexPos.xyz;
+    out.worldVecsToLights1 = getLocalVector(worldVecToLight, n);
+    out.worldNormLightDirs1 = getLocalVector(vsUniforms.lightsNormDirection[0], n);
+
+    worldVecToLight = vsUniforms.lightsPosition[1] - worldVertexPos.xyz;
+    out.worldVecsToLights2 = getLocalVector(worldVecToLight, n);
+    out.worldNormLightDirs2 = getLocalVector(vsUniforms.lightsNormDirection[1], n);
+
+    worldVecToLight = vsUniforms.lightsPosition[2] - worldVertexPos.xyz;
+    out.worldVecsToLights3 = getLocalVector(worldVecToLight, n);
+    out.worldNormLightDirs3 = getLocalVector(vsUniforms.lightsNormDirection[2], n);
+
+    return out;
+}

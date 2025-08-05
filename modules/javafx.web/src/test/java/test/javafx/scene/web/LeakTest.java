@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,6 @@ import javafx.scene.web.WebEngineShim;
 import javafx.scene.web.WebView;
 import javafx.util.Duration;
 import netscape.javascript.JSObject;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -51,7 +50,6 @@ import org.w3c.dom.NodeList;
 import static org.junit.jupiter.api.Assertions.*;
 import test.util.memory.JMemoryBuddy;
 
-@Disabled("JDK-8344596")
 public class LeakTest extends TestBase {
 
     private static final int SLEEP_TIME = 1000;
