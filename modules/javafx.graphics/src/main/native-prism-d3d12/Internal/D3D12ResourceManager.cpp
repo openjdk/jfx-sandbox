@@ -92,8 +92,6 @@ bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader)
 
 bool ResourceManager::PrepareTextureViews(const NIPtr<Shader>& shader)
 {
-    if (!mTexturesDirty) return true;
-
     const Shader::ResourceData& resourceData = shader->GetResourceData();
     Shader::DescriptorData& descriptors = shader->GetDescriptorData();
 
@@ -185,7 +183,6 @@ ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
     , mDescriptorHeap(nativeDevice)
     , mSamplerHeap(nativeDevice)
     , mConstantRingBuffer(nativeDevice)
-    , mTexturesDirty(true)
     , mSamplersDirty(true)
 {
     mNativeDevice->RegisterWaitableOperation(this);
@@ -222,6 +219,7 @@ bool ResourceManager::Init()
     //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-support
     //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-feature-levels
     // TODO: This applies to Tier 2 hardware and above, Tier 1 limits Samplers to 16.
+    //       However, Tier 1 hardware is technically NOT D3D12-compliant but late D3D11.
     //       We could possibly restrict that by raising Feature Level to 12 in NativeDevice;
     //       verify if this should be done after all
     if (!mSamplerHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, 2048, 1536))
@@ -273,7 +271,6 @@ void ResourceManager::ClearTextureUnit(uint32_t slot)
     D3D12NI_ASSERT(slot < Constants::MAX_TEXTURE_UNITS, "Provided too high slot %u (max %u)", slot, Constants::MAX_TEXTURE_UNITS);
 
     mTextures[slot].reset();
-    mTexturesDirty = true;
 }
 
 void ResourceManager::EnsureStates(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES state)
@@ -323,7 +320,6 @@ void ResourceManager::SetTexture(uint32_t slot, const NIPtr<NativeTexture>& tex)
     }
 
     mTextures[slot] = tex;
-    mTexturesDirty = true;
 }
 
 void ResourceManager::StashParameters()
@@ -358,8 +354,7 @@ void ResourceManager::RestoreStashedParameters()
 void ResourceManager::OnQueueSignal(uint64_t)
 {
     // here we only have to mark the dirty flags so that we don't reuse descriptor data that's
-    // already consumed and marked free by Ring Containers
-    mTexturesDirty = true;
+    // potentially already consumed and marked free by Ring Containers
     mSamplersDirty = true;
 }
 

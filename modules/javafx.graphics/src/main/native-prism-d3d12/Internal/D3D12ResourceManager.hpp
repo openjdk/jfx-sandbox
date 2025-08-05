@@ -56,7 +56,6 @@ class ResourceManager: public IWaitableOperation
     RingDescriptorHeap mSamplerHeap;
     RingBuffer mConstantRingBuffer;
     Internal::DescriptorData mLastSamplerDescriptors;
-    bool mTexturesDirty;
     bool mSamplersDirty;
 
     // Compute Resources

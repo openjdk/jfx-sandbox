@@ -27,6 +27,7 @@
 
 #include "D3D12Config.hpp"
 #include "D3D12Debug.hpp"
+#include "D3D12Profiler.hpp"
 
 #include "../D3D12NativeDevice.hpp"
 
@@ -46,6 +47,7 @@ void CommandListPool::ResetCurrentCommandList()
 
 void CommandListPool::WaitForAvailableCommandList()
 {
+    Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Wait);
     mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ANY);
 }
 
@@ -57,6 +59,7 @@ CommandListPool::CommandListPool(const NIPtr<NativeDevice>& nativeDevice)
     , mCurrentCommandList(0)
 {
     mNativeDevice->RegisterWaitableOperation(this);
+    mProfilerSourceID = Profiler::Instance().RegisterSource("Command List Pool");
 }
 
 CommandListPool::~CommandListPool()

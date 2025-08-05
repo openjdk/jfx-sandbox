@@ -28,6 +28,7 @@
 #include "D3D12NativeDevice.hpp"
 #include "Internal/D3D12Config.hpp"
 #include "Internal/D3D12Debug.hpp"
+#include "Internal/D3D12Profiler.hpp"
 
 #include <com_sun_prism_d3d12_ni_D3D12NativeSwapChain.h>
 #include <string>
@@ -105,6 +106,7 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
     , mNullResource()
 {
     mNativeDevice->RegisterWaitableOperation(this);
+    mProfilerSourceID = Internal::Profiler::Instance().RegisterSource("SwapChain");
 }
 
 NativeSwapChain::~NativeSwapChain()
@@ -235,6 +237,7 @@ bool NativeSwapChain::Present()
     // scenario. Each Stage has its own SwapChain and each SwapChain must know when it was
     // actually signaling the Queue. We have no way of knowing that from OnQueueSignal().
     // CloseWindowTest system test is a good confidence check for that case.
+    Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Internal::Profiler::Event::Signal);
     uint64_t fenceValue = mNativeDevice->Signal(CheckpointType::ENDFRAME);
     if (fenceValue == 0)
     {
@@ -248,6 +251,7 @@ bool NativeSwapChain::Present()
     // await older frames
     while (mSubmittedFrameCount >= mBufferCount)
     {
+        Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Internal::Profiler::Event::Wait);
         if (!mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ENDFRAME))
         {
             D3D12NI_LOG_ERROR("Failed to wait for old frame to complete");

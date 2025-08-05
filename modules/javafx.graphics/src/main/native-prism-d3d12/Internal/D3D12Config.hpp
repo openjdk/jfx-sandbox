@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,8 +51,9 @@ class Config
         bool fileLog;
         bool apiOpts;
         bool dred;
+        bool profilerSummary;
         bool midframeWait; // see RingContainer::FlushCommandList() for explanation
-                           // this field/property will be removed
+                           // TODO: this field/property is unused and should be removed
     } mSettings;
 
     Config();
@@ -134,6 +135,11 @@ public:
     inline bool IsDREDEnabled()
     {
         return mSettings.dred;
+    }
+
+    inline bool IsProfilerSummaryEnabled()
+    {
+        return mSettings.profilerSummary;
     }
 
     inline bool IsMidframeWaitEnabled()

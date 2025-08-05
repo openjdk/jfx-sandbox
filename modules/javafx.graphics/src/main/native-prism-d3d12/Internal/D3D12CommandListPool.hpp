@@ -57,6 +57,7 @@ class CommandListPool: public IWaitableOperation
     };
 
     NIPtr<NativeDevice> mNativeDevice;
+    uint32_t mProfilerSourceID;
     std::vector<CommandAllocatorData> mCommandAllocators;
     size_t mCurrentCommandAllocator;
     std::vector<CommandListData> mCommandLists;

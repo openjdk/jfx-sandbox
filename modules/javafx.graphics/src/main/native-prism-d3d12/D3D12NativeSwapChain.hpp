@@ -44,7 +44,8 @@ class NativeSwapChain: public Internal::IRenderTarget, Internal::IWaitableOperat
     std::vector<D3D12_RESOURCE_STATES> mStates;
     std::vector<Internal::DescriptorData> mRTVs;
     std::vector<uint64_t> mWaitFenceValues;
-    UINT mSubmittedFrameCount;
+    uint32_t mSubmittedFrameCount;
+    uint32_t mProfilerSourceID;
     UINT mBufferCount;
     UINT mCurrentBufferIdx;
     RECT mDirtyRegion;

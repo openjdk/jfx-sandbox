@@ -66,8 +66,9 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     D3D12DevicePtr mDevice;
     D3D12CommandQueuePtr mCommandQueue;
     D3D12FencePtr mFence;
-    unsigned int mFenceValue;
-    unsigned int mFrameCounter; // for debugging ex. triggering a breakpoint after X frames
+    uint32_t mFenceValue;
+    uint32_t mFrameCounter; // for debugging ex. triggering a breakpoint after X frames
+    uint32_t mProfilerTransferWaitSourceID;
     bool mMidframeFlushNeeded;
     std::vector<Internal::IWaitableOperation*> mWaitableOps;
 

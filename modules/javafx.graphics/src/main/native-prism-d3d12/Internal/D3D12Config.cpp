@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,8 +93,7 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
     mSettings.apiOpts = true;
     mSettings.midframeWait = true;
 
-    // fetch debug configuration (these settings should only be acquired when
-    // JFX is build in DebugNative configuration
+    // fetch configuration
     mSettings.verbose = GetBool("verbose");
     mSettings.debug = GetBool("debug");
     mSettings.trace = GetBoolProperty("prism.d3d12.trace");
@@ -104,6 +103,7 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
     mSettings.colorLogs = GetBoolProperty("prism.d3d12.colorLogs");
     mSettings.fileLog = GetBoolProperty("prism.d3d12.fileLog");
     mSettings.dred = GetBoolProperty("prism.d3d12.dred");
+    mSettings.profilerSummary = GetBoolProperty("prism.d3d12.profilerSummary");
 
     bool midframeWait;
     if (TryGetBoolProperty("prism.d3d12.midframeWait", midframeWait)) mSettings.midframeWait = midframeWait;

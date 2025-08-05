@@ -30,6 +30,7 @@
 #include "Internal/D3D12Debug.hpp"
 #include "Internal/D3D12Logger.hpp"
 #include "Internal/D3D12MipmapGenComputeShader.hpp"
+#include "Internal/D3D12Profiler.hpp"
 #include "Internal/D3D12TextureUploader.hpp"
 #include "Internal/D3D12Utils.hpp"
 #include "Internal/JNIString.hpp"
@@ -245,6 +246,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
 
     // we're asking for FL 11_0 for highest compatibility
     // we probably won't need anything higher than that
+    // TODO: See ResourceManager::Init() for more details why we might raise FL to 12_0
     HRESULT hr = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&mDevice));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create D3D12 Device");
     mDevice->SetName(L"Main D3D12 Device");
@@ -347,6 +349,8 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     mPassthroughVS = GetInternalShader(Constants::PASSTHROUGH_VS_NAME);
     mPhongVS = GetInternalShader(Constants::PHONG_VS_NAME);
 
+    mProfilerTransferWaitSourceID = Internal::Profiler::Instance().RegisterSource("NativeDevice Transfer Wait");
+
     return true;
 }
 
@@ -356,6 +360,7 @@ void NativeDevice::Release()
 
     // ensures the pipeline is purged
     mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
+    Internal::Profiler::Instance().PrintSummary();
 
     mWaitableOps.clear();
 
@@ -889,6 +894,7 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
     GetCurrentCommandList()->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, &srcBox);
 
     // Flush the Command Queue to ensure data was read and wait for it
+    Internal::Profiler::Instance().MarkEvent(mProfilerTransferWaitSourceID, Internal::Profiler::Event::Wait);
     FlushCommandList();
     Signal(CheckpointType::TRANSFER);
     mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::TRANSFER);
@@ -1100,6 +1106,7 @@ void NativeDevice::FinishFrame()
 {
     FlushCommandList();
     mFrameCounter++;
+    Internal::Profiler::Instance().MarkFrameEnd();
 }
 
 void NativeDevice::Execute(const std::vector<ID3D12CommandList*>& commandLists)

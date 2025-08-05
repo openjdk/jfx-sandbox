@@ -27,6 +27,7 @@
 
 #include "../D3D12NativeDevice.hpp"
 
+#include "D3D12Profiler.hpp"
 #include "D3D12Utils.hpp"
 
 
@@ -37,9 +38,7 @@ void RingContainer::CheckThreshold()
 {
     if (mUncommitted > mFlushThreshold)
     {
-        D3D12NI_LOG_TRACE("%s: Notifying mid-frame flush needed (used %d uncommitted %d threshold %d size %d)",
-            mDebugName.c_str(), mUsed, mUncommitted, mFlushThreshold, mSize
-        );
+        Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Signal);
         mNativeDevice->NotifyMidframeFlushNeeded();
     }
 }
@@ -67,6 +66,7 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
         D3D12NI_LOG_TRACE("%s: must wait! (used %d uncommitted %d threshold %d size %d)",
             mDebugName.c_str(), mUsed, mUncommitted, mFlushThreshold, mSize
         );
+        Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Wait);
         bool waitSuccess = mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ANY);
         if (!waitSuccess)
         {
@@ -81,6 +81,7 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
 RingContainer::RingContainer(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mSize(0)
+    , mProfilerSourceID(0)
     , mFlushThreshold(0)
     , mUsed(0)
     , mUncommitted(0)
@@ -89,6 +90,8 @@ RingContainer::RingContainer(const NIPtr<NativeDevice>& nativeDevice)
 {
     mNativeDevice->RegisterWaitableOperation(this);
     mDebugName = "Ring Container";
+
+    mProfilerSourceID = Profiler::Instance().RegisterSource(mDebugName);
 }
 
 RingContainer::~RingContainer()
@@ -265,6 +268,12 @@ void RingContainer::OnFenceSignaled(uint64_t fenceValue)
         mHead = frameTail;
         mCheckpoints.pop_front();
     }
+}
+
+void RingContainer::SetDebugName(const std::string& name)
+{
+    mDebugName = "Ring Container '" + name + '\'';
+    Profiler::Instance().RenameSource(mProfilerSourceID, mDebugName);
 }
 
 } // namespace Internal
