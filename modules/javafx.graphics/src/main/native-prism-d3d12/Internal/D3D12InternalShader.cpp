@@ -158,8 +158,6 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
         }
     }
 
-    mResourceData.samplerCount = mResourceData.textureCount;
-
     // debug info
     D3D12NI_LOG_DEBUG("Internal Shader %s resource assignments (needs %d texture/sampler descriptors + %d cbv descriptors):", mName.c_str(), mResourceData.textureCount, mResourceData.cbufferDTableCount);
     for (const auto& r: mShaderResourceAssignments)

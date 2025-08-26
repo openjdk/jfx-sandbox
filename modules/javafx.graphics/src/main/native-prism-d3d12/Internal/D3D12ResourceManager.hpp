@@ -35,6 +35,49 @@
 #include "D3D12RingDescriptorHeap.hpp"
 #include "D3D12IWaitableOperation.hpp"
 
+#include <unordered_map>
+
+
+namespace D3D12 {
+namespace Internal {
+
+struct SamplerBindingIdentifier
+{
+    std::array<D3D12::Internal::SamplerDesc, Constants::MAX_TEXTURE_UNITS> descs;
+
+    inline bool operator==(const SamplerBindingIdentifier& other) const
+    {
+        for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
+        {
+            if (descs[i] != other.descs[i]) return false;
+        }
+        return true;
+    }
+};
+
+} // namespace Internal
+} // namespace D3D12
+
+template<>
+struct std::hash<D3D12::Internal::SamplerBindingIdentifier>
+{
+    std::size_t operator()(const D3D12::Internal::SamplerBindingIdentifier& k) const
+    {
+        static_assert(
+            (D3D12::Internal::SamplerDesc::TOTAL_BITS * D3D12::Constants::MAX_TEXTURE_UNITS) <= (sizeof(std::size_t) * 8),
+            "Too many sampler settings used or too many texture units could potentially be used. "
+            "Consider lowering those or rewriting the hashing functions"
+        );
+
+        std::size_t result = 0;
+        for (uint32_t i = 0; i < D3D12::Constants::MAX_TEXTURE_UNITS; ++i)
+        {
+            result <<= D3D12::Internal::SamplerDesc::TOTAL_BITS;
+            result |= std::hash<D3D12::Internal::SamplerDesc>()(k.descs[i]);
+        }
+        return result;
+    }
+};
 
 namespace D3D12 {
 namespace Internal {
@@ -55,8 +98,9 @@ class ResourceManager: public IWaitableOperation
     RingDescriptorHeap mDescriptorHeap;
     RingDescriptorHeap mSamplerHeap;
     RingBuffer mConstantRingBuffer;
-    Internal::DescriptorData mLastSamplerDescriptors;
-    bool mSamplersDirty;
+    SamplerBindingIdentifier mCurrentSamplerBinding;
+    std::unordered_map<SamplerBindingIdentifier, Internal::DescriptorData> mLastSamplerDescriptors;
+    uint32_t mSamplerRegionReserveProfilerID;
 
     // Compute Resources
     NIPtr<Shader> mComputeShader;

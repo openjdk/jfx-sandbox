@@ -61,7 +61,6 @@ bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mo
     AddShaderResource("gData", ResourceAssignment(ResourceAssignmentType::DESCRIPTOR, 0, 0, sizeof(CBuffer), 0));
 
     mResourceData.textureCount = 1;
-    mResourceData.samplerCount = 0; // Compute shaders embed a static sampler via Root Signature
     mResourceData.uavCount = 4;
     mResourceData.cbufferDirectSize = sizeof(CBuffer);
 

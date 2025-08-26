@@ -53,7 +53,6 @@ public:
     struct ResourceData
     {
         uint32_t textureCount = 0;
-        uint32_t samplerCount = 0;
         uint32_t uavCount = 0;
         uint32_t cbufferDTableCount = 0;    // amount of constant buffers that are accessed via a DTable
                                             // Directly-written descriptrors should NOT count towards this number
@@ -65,7 +64,7 @@ public:
     {
         Internal::DescriptorData SRVDescriptors;                // Descirptor Table for SRVs
         Internal::DescriptorData UAVDescriptors;                // Descriptor Table for UAVs
-        Internal::DescriptorData SamplerDescriptors;            // Descriptor Table for Samplers (allocated on Sampler heap)
+        Internal::DescriptorData SamplerDescriptors;            // Descriptor Table for Samplers (allocated separately on Sampler heap)
         Internal::DescriptorData CBufferTableDescriptors;       // Descriptor Table for constants, if requested
         Internal::RingBuffer::Region ConstantDataDTableRegions; // Region for all DTable constant data, which is as big as:
                                                                 //   align(cbufferDTableSingleSize, CONSTANT_BUFFER_DATA_ALIGNMENT) * cbufferDTableCount

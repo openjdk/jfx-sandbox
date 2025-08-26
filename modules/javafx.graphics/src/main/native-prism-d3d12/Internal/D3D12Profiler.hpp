@@ -39,8 +39,9 @@ class Profiler
 public:
     enum class Event: uint32_t
     {
-        Signal = 0,
-        Wait,
+        Event = 0, // generic event for any situations we might want to profile
+        Signal, // event for signalling command queue
+        Wait, // event for waiting for command queue to finish a batch
         Count
     };
 

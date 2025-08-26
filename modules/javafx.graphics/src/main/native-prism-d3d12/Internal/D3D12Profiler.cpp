@@ -29,6 +29,18 @@
 #include "D3D12Config.hpp"
 
 
+namespace {
+
+inline void PrintEventCounter(const char* name, uint64_t hits, uint64_t frameCount)
+{
+    if (hits)
+    {
+        D3D12NI_LOG_WARN("   - %d %s hits (avg %.2f per frame)", hits, name, static_cast<float>(hits) / static_cast<float>(frameCount));
+    }
+}
+
+} // namespace
+
 namespace D3D12 {
 namespace Internal {
 
@@ -81,12 +93,13 @@ void Profiler::PrintSummary()
     if (mFrameCount == 0) mFrameCount = 1;
 
     D3D12NI_LOG_WARN("===   Profiler summary   ===");
-    D3D12NI_LOG_WARN("D3D12 Profiler registered hits from %d sources across %d frames:", mSourceCount, mFrameCount);
+    D3D12NI_LOG_WARN("D3D12 Profiler registered hits from %d sources across %d frames (not-hit events are skipped):", mSourceCount, mFrameCount);
     for (const EventSource& source: mEventSources)
     {
         D3D12NI_LOG_WARN("%d. %s - %d hits (avg %.2f per frame)", source.id, source.name.c_str(), source.totalHits, static_cast<float>(source.totalHits) / static_cast<float>(mFrameCount));
-        D3D12NI_LOG_WARN("   - %d Signal hits (avg %.2f per frame)", source.hits[static_cast<uint32_t>(Event::Signal)], static_cast<float>(source.hits[static_cast<uint32_t>(Event::Signal)]) / static_cast<float>(mFrameCount));
-        D3D12NI_LOG_WARN("   - %d Wait hits   (avg %.2f per frame)", source.hits[static_cast<uint32_t>(Event::Wait)],   static_cast<float>(source.hits[static_cast<uint32_t>(Event::Wait)]) / static_cast<float>(mFrameCount));
+        PrintEventCounter("Event", source.hits[static_cast<uint32_t>(Event::Event)], mFrameCount);
+        PrintEventCounter("Signal", source.hits[static_cast<uint32_t>(Event::Signal)], mFrameCount);
+        PrintEventCounter("Wait", source.hits[static_cast<uint32_t>(Event::Wait)], mFrameCount);
     }
     D3D12NI_LOG_WARN("=== Profiler summary end ===");
 }

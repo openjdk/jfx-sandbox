@@ -241,15 +241,6 @@ void NativeTexture::WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& desc
     mNativeDevice->GetDevice()->CreateUnorderedAccessView(mTextureResource.Get(), nullptr, &uavDesc, descriptorCpu);
 }
 
-void NativeTexture::WriteSamplerToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& samplerDescriptorCpu)
-{
-    const Internal::DescriptorData& sampler = mNativeDevice->GetSamplerStorage()->GetSampler(mSamplerDesc);
-
-    mNativeDevice->GetDevice()->CopyDescriptorsSimple(
-        1, samplerDescriptorCpu, sampler.CPU(0), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
-    );
-}
-
 void NativeTexture::EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState,
                                 UINT subresource)
 {

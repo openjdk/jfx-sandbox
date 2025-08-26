@@ -27,6 +27,7 @@
 
 #include "../D3D12NativeDevice.hpp"
 
+#include "D3D12Profiler.hpp"
 #include "D3D12Utils.hpp"
 
 
@@ -130,21 +131,30 @@ bool ResourceManager::PrepareSamplers(const NIPtr<Shader>& shader)
     Shader::DescriptorData& descriptors = shader->GetDescriptorData();
 
     // Reserve samplers and write them if needed
-    if (resourceData.samplerCount > 0)
+    if (resourceData.textureCount > 0)
     {
-        if (mSamplersDirty)
+        const auto& it = mLastSamplerDescriptors.find(mCurrentSamplerBinding);
+        if (it == mLastSamplerDescriptors.cend())
         {
-            mLastSamplerDescriptors = mSamplerHeap.Reserve(resourceData.textureCount);
+            Profiler::Instance().MarkEvent(mSamplerRegionReserveProfilerID, Profiler::Event::Event);
+            Internal::DescriptorData descs = mSamplerHeap.Reserve(Constants::MAX_TEXTURE_UNITS);
 
-            for (uint32_t i = 0; i < resourceData.samplerCount; ++i)
+            for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
             {
-                mTextures[i]->WriteSamplerToDescriptor(mLastSamplerDescriptors.CPU(i));
+                const Internal::DescriptorData& sampler = mNativeDevice->GetSamplerStorage()->GetSampler(mCurrentSamplerBinding.descs[i]);
+
+                mNativeDevice->GetDevice()->CopyDescriptorsSimple(
+                    1, descs.CPU(i), sampler.CPU(0), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
+                );
             }
 
-            mSamplersDirty = false;
+            mLastSamplerDescriptors.emplace(std::make_pair(mCurrentSamplerBinding, descs));
+            descriptors.SamplerDescriptors = descs;
         }
-
-        descriptors.SamplerDescriptors = mLastSamplerDescriptors;
+        else
+        {
+            descriptors.SamplerDescriptors = it->second;
+        }
     }
 
     return true;
@@ -183,9 +193,9 @@ ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
     , mDescriptorHeap(nativeDevice)
     , mSamplerHeap(nativeDevice)
     , mConstantRingBuffer(nativeDevice)
-    , mSamplersDirty(true)
 {
     mNativeDevice->RegisterWaitableOperation(this);
+    mSamplerRegionReserveProfilerID = Profiler::Instance().RegisterSource("ResourceManager Sampler Region Reserve");
 }
 
 ResourceManager::~ResourceManager()
@@ -314,12 +324,8 @@ void ResourceManager::SetTexture(uint32_t slot, const NIPtr<NativeTexture>& tex)
 
     if (mTextures[slot] == tex) return;
 
-    if (!mTextures[slot] || (mTextures[slot]->GetSamplerDesc() != tex->GetSamplerDesc()))
-    {
-        mSamplersDirty = true;
-    }
-
     mTextures[slot] = tex;
+    mCurrentSamplerBinding.descs[slot] = mTextures[slot]->GetSamplerDesc();
 }
 
 void ResourceManager::StashParameters()
@@ -353,9 +359,9 @@ void ResourceManager::RestoreStashedParameters()
 
 void ResourceManager::OnQueueSignal(uint64_t)
 {
-    // here we only have to mark the dirty flags so that we don't reuse descriptor data that's
-    // potentially already consumed and marked free by Ring Containers
-    mSamplersDirty = true;
+    // here we have to clear last used sampler descriptor regions
+    // those belong to the previous command list now and should not be reused by us anymore
+    mLastSamplerDescriptors.clear();
 }
 
 void ResourceManager::OnFenceSignaled(uint64_t)

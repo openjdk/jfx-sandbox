@@ -186,8 +186,6 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
         }
     }
 
-    mResourceData.samplerCount = mResourceData.textureCount;
-
     D3D12NI_LOG_DEBUG("Shader %s resource assignments:", mName.c_str());
     for (const auto& r: mShaderResourceAssignments)
     {

@@ -57,7 +57,7 @@ bool BlitPixelShader::Init(const std::string& name, ShaderPipelineMode mode, D3D
         return false;
     }
 
-    mResourceData.textureCount = mResourceData.samplerCount = 1;
+    mResourceData.textureCount = 1;
 
     return true;
 }

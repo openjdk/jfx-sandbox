@@ -36,8 +36,10 @@ namespace Internal {
 
 struct SamplerDesc
 {
-    TextureWrapMode wrapMode;
-    bool isLinear;
+    TextureWrapMode wrapMode = TextureWrapMode::CLAMP_NOT_NEEDED;
+    bool isLinear = false;
+
+    static constexpr uint32_t TOTAL_BITS = 3;
 
     std::string ToString() const
     {
@@ -74,7 +76,11 @@ struct std::hash<D3D12::Internal::SamplerDesc>
 {
     std::size_t operator()(const D3D12::Internal::SamplerDesc& k) const
     {
-        return std::hash<unsigned int>()(static_cast<unsigned int>(k.wrapMode)) ^
-               std::hash<bool>()(k.isLinear);
+        // NOTE: When adding fields to SamplerDesc also check ResourceManager
+        // We combine those there into SamplerBindingIdentifier which relies
+        // on bit count assumed here.
+        return
+            (static_cast<uint32_t>(k.isLinear) << 2) |
+            (static_cast<uint32_t>(k.wrapMode));
     }
 };
