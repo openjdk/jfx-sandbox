@@ -112,7 +112,7 @@ public:
     void SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView);
     void SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget);
     void SetScissor(bool enabled, const D3D12_RECT& scissor);
-    void SetTexture(uint32_t unit, const NIPtr<NativeTexture>& texture);
+    void SetTexture(uint32_t unit, const NIPtr<TextureBase>& texture);
 
     void SetCompositeMode(CompositeMode mode);
     void SetCullMode(D3D12_CULL_MODE mode);

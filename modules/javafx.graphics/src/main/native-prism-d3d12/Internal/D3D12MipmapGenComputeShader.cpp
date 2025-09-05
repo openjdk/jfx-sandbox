@@ -67,7 +67,7 @@ bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mo
     return true;
 }
 
-bool MipmapGenComputeShader::PrepareDescriptors(const NativeTextureBank& textures)
+bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures)
 {
     if (mConstantBufferStorage.size() != sizeof(CBuffer))
     {

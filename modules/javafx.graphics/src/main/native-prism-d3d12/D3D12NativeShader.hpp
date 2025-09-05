@@ -30,6 +30,7 @@
 #include "Internal/D3D12DescriptorData.hpp"
 #include "Internal/D3D12RingBuffer.hpp"
 #include "Internal/D3D12Shader.hpp"
+#include "Internal/D3D12TextureBase.hpp"
 
 #include <string>
 #include <vector>
@@ -56,7 +57,7 @@ private:
 
     bool Init(const std::string& name, void* code, size_t size);
 
-    virtual bool PrepareDescriptors(const NativeTextureBank& textures) override;
+    virtual bool PrepareDescriptors(const Internal::TextureBank& textures) override;
     virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const override;
 };
 

@@ -62,7 +62,7 @@ bool BlitPixelShader::Init(const std::string& name, ShaderPipelineMode mode, D3D
     return true;
 }
 
-bool BlitPixelShader::PrepareDescriptors(const NativeTextureBank& textures)
+bool BlitPixelShader::PrepareDescriptors(const TextureBank& textures)
 {
     if (!textures[0])
     {

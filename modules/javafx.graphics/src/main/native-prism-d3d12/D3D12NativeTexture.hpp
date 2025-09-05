@@ -29,26 +29,21 @@
 #include "D3D12Constants.hpp"
 
 #include "Internal/D3D12DescriptorData.hpp"
-#include "Internal/D3D12SamplerDesc.hpp"
-
-#include <array>
+#include "Internal/D3D12TextureBase.hpp"
 
 
 namespace D3D12 {
 
-class NativeTexture
+class NativeTexture: public Internal::TextureBase
 {
     static uint64_t textureCounter;
     static uint64_t depthTextureCounter;
     static uint64_t rttextureCounter;
 
     NIPtr<NativeDevice> mNativeDevice;
-    D3D12ResourcePtr mTextureResource;
     D3D12_RESOURCE_DESC mResourceDesc;
-    std::vector<D3D12_RESOURCE_STATES> mStates; // one state per subresource
     std::wstring mDebugName;
     UINT mMipLevels;
-    Internal::SamplerDesc mSamplerDesc;
     Internal::DescriptorData mSRVDescriptor;
 
     bool InitInternal(const D3D12_RESOURCE_DESC& desc);
@@ -63,9 +58,8 @@ public:
     bool Resize(UINT width, UINT height);
     void SetSamplerParameters(TextureWrapMode wrapMode, bool isLinear);
 
-    void EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState, UINT subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-    void WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipLevels = 0, UINT mostDetailedMip = 0);
-    void WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipSlice);
+    virtual void WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipLevels = 0, UINT mostDetailedMip = 0) override;
+    virtual void WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipSlice) override;
 
     inline UINT64 GetWidth() const
     {
@@ -80,11 +74,6 @@ public:
     inline DXGI_FORMAT GetFormat() const
     {
         return mResourceDesc.Format;
-    }
-
-    inline const D3D12ResourcePtr& GetResource() const
-    {
-        return mTextureResource;
     }
 
     inline const std::wstring& GetDebugName() const
@@ -102,18 +91,10 @@ public:
         return mMipLevels;
     }
 
-    inline const Internal::SamplerDesc& GetSamplerDesc() const
-    {
-        return mSamplerDesc;
-    }
-
     inline bool HasMipmaps() const
     {
         return (mMipLevels > 1);
     }
 };
-
-// Collection of Textures used by the backend during rendering
-using NativeTextureBank = std::array<NIPtr<NativeTexture>, Constants::MAX_TEXTURE_UNITS>;
 
 } // namespace D3D12

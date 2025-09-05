@@ -32,6 +32,7 @@
 
 #include "Internal/D3D12DescriptorData.hpp"
 #include "Internal/D3D12IRenderTarget.hpp"
+#include "Internal/D3D12TextureBase.hpp"
 
 
 namespace D3D12 {
@@ -41,6 +42,8 @@ class NativeRenderTarget: public Internal::IRenderTarget
     NIPtr<NativeDevice> mNativeDevice;
     NIPtr<NativeTexture> mTexture;
     NIPtr<NativeTexture> mDepthTexture;
+    NIPtr<Internal::TextureBase> mTextureBase;
+    NIPtr<Internal::TextureBase> mDepthTextureBase;
     Internal::DescriptorData mDescriptors;
     Internal::DescriptorData mDSVDescriptor;
     uint64_t mWidth;
@@ -56,24 +59,17 @@ public:
     bool Refresh();
     void SetDepthTestEnabled(bool enabled);
 
-    inline const NIPtr<NativeTexture>& GetTexture() const
-    {
-        return mTexture;
-    }
-
 
     // IRenderTarget overrides
-    virtual void EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState) override;
-    virtual void EnsureDepthState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState) override;
 
-    inline const D3D12ResourcePtr& GetResource() const
+    inline const NIPtr<Internal::TextureBase>& GetTexture() const override
     {
-        return mTexture->GetResource();
+        return mTextureBase;
     }
 
-    inline const D3D12ResourcePtr& GetDepthResource() const
+    inline const NIPtr<Internal::TextureBase>& GetDepthTexture() const override
     {
-        return mDepthTexture->GetResource();
+        return mDepthTextureBase;
     }
 
     inline DXGI_FORMAT GetFormat() const override

@@ -288,9 +288,6 @@ class RenderTargetRenderingParameter: public RenderingParameter<NIPtr<IRenderTar
     {
         if (!mParameter) return;
 
-        mParameter->EnsureState(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        mParameter->EnsureDepthState(commandList, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
         const Internal::DescriptorData& rtData = mParameter->GetRTVDescriptorData();
         commandList->OMSetRenderTargets(
             rtData.count, &rtData.cpu, true, mParameter->IsDepthTestEnabled() ? &mParameter->GetDSVDescriptorData().cpu : nullptr

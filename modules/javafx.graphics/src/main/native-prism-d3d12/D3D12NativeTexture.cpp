@@ -47,8 +47,9 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
     // Texture resources require DEFAULT heap type
     heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
 
+    D3D12ResourcePtr resource;
     HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
-        &mResourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&mTextureResource));
+        &mResourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Texture's Committed Resource");
 
     if (!IsDepthFormat(mResourceDesc.Format))
@@ -72,34 +73,31 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
             return false;
         }
 
-        mNativeDevice->GetDevice()->CreateShaderResourceView(mTextureResource.Get(), &srvDesc, mSRVDescriptor.CPU(0));
+        mNativeDevice->GetDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, mSRVDescriptor.CPU(0));
     }
 
     // Texture will be separately loaded with data via Java's Texture.update() calls
     // Fill in remaining members and leave
-    for (auto& state: mStates)
-    {
-        state = D3D12_RESOURCE_STATE_COMMON;
-    }
-
     if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
     {
         mDebugName = L"RTTexture_#";
         mDebugName += std::to_wstring(rttextureCounter++);
-        mTextureResource->SetName(mDebugName.c_str());
+        resource->SetName(mDebugName.c_str());
     }
     else if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
     {
         mDebugName = L"DepthTexture_#";
         mDebugName += std::to_wstring(depthTextureCounter++);
-        mTextureResource->SetName(mDebugName.c_str());
+        resource->SetName(mDebugName.c_str());
     }
     else
     {
         mDebugName = L"Texture_#";
         mDebugName += std::to_wstring(textureCounter++);
-        mTextureResource->SetName(mDebugName.c_str());
+        resource->SetName(mDebugName.c_str());
     }
+
+    TextureBase::Init(resource, mResourceDesc.MipLevels, D3D12_RESOURCE_STATE_COMMON);
 
     D3D12NI_LOG_TRACE("--- Texture %S created (%ux%u %s %uxMSAA %s) ---",
         mDebugName.c_str(), mResourceDesc.Width, mResourceDesc.Height, Internal::DXGIFormatToString(mResourceDesc.Format),
@@ -109,18 +107,20 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
 }
 
 NativeTexture::NativeTexture(const NIPtr<NativeDevice>& nativeDevice)
-    : mNativeDevice(nativeDevice)
-    , mTextureResource(nullptr)
+    : TextureBase()
+    , mNativeDevice(nativeDevice)
     , mResourceDesc()
-    , mStates()
+    , mDebugName()
+    , mMipLevels()
+    , mSRVDescriptor()
 {
 }
 
 NativeTexture::~NativeTexture()
 {
-    if (mTextureResource)
+    if (mResource)
     {
-        mNativeDevice->MarkResourceDisposed(mTextureResource);
+        mNativeDevice->MarkResourceDisposed(mResource);
     }
 
     if (mSRVDescriptor)
@@ -130,7 +130,7 @@ NativeTexture::~NativeTexture()
 
     mNativeDevice.reset();
 
-    if (mTextureResource)
+    if (mResource)
     {
         // Trace log only if we actually allocated the resource
         // with mBufferResource being null we never called Init (or it failed)
@@ -180,10 +180,10 @@ bool NativeTexture::Init(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESO
 
 UINT64 NativeTexture::GetSize()
 {
-    if (!mTextureResource) return -1;
+    if (!GetResource()) return -1;
 
     D3D12_RESOURCE_DESC resDesc;
-    resDesc = mTextureResource->GetDesc();
+    resDesc = GetResource()->GetDesc();
 
     return resDesc.Width * resDesc.Height * resDesc.DepthOrArraySize * GetDXGIFormatBPP(resDesc.Format);
 }
@@ -195,7 +195,7 @@ bool NativeTexture::Resize(UINT width, UINT height)
     mResourceDesc.Width = width;
     mResourceDesc.Height = height;
 
-    mNativeDevice->MarkResourceDisposed(mTextureResource);
+    mNativeDevice->MarkResourceDisposed(GetResource());
 
     return InitInternal(mResourceDesc);
 }
@@ -226,7 +226,7 @@ void NativeTexture::WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& desc
         srvDesc.Texture2D.PlaneSlice = 0;
         srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-        mNativeDevice->GetDevice()->CreateShaderResourceView(mTextureResource.Get(), &srvDesc, descriptorCpu);
+        mNativeDevice->GetDevice()->CreateShaderResourceView(GetResource().Get(), &srvDesc, descriptorCpu);
     }
 }
 
@@ -238,35 +238,7 @@ void NativeTexture::WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& desc
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
     uavDesc.Texture2D.MipSlice = mipSlice;
 
-    mNativeDevice->GetDevice()->CreateUnorderedAccessView(mTextureResource.Get(), nullptr, &uavDesc, descriptorCpu);
-}
-
-void NativeTexture::EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState,
-                                UINT subresource)
-{
-    D3D12_RESOURCE_STATES state = (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) ? mStates[0] : mStates[subresource];
-    if (newState == state) return;
-
-    D3D12_RESOURCE_BARRIER barrier;
-    D3D12NI_ZERO_STRUCT(barrier);
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource = mTextureResource.Get();
-    barrier.Transition.StateBefore = state;
-    barrier.Transition.StateAfter = newState;
-    barrier.Transition.Subresource = subresource;
-    commandList->ResourceBarrier(1, &barrier);
-
-    if (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
-    {
-        for (auto& s: mStates)
-        {
-            s = newState;
-        }
-    }
-    else
-    {
-        mStates[subresource] = newState;
-    }
+    mNativeDevice->GetDevice()->CreateUnorderedAccessView(GetResource().Get(), nullptr, &uavDesc, descriptorCpu);
 }
 
 } // namespace D3D12

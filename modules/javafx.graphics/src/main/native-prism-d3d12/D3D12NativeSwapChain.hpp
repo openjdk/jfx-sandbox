@@ -29,6 +29,7 @@
 
 #include "Internal/D3D12IRenderTarget.hpp"
 #include "Internal/D3D12IWaitableOperation.hpp"
+#include "Internal/D3D12TextureBase.hpp"
 
 #include <vector>
 #include <deque>
@@ -40,8 +41,7 @@ class NativeSwapChain: public Internal::IRenderTarget, Internal::IWaitableOperat
 {
     NIPtr<NativeDevice> mNativeDevice;
     DXGISwapChainPtr mSwapChain;
-    std::vector<D3D12ResourcePtr> mBuffers;
-    std::vector<D3D12_RESOURCE_STATES> mStates;
+    std::vector<NIPtr<Internal::TextureBase>> mTextureBuffers;
     std::vector<Internal::DescriptorData> mRTVs;
     std::vector<uint64_t> mWaitFenceValues;
     uint32_t mSubmittedFrameCount;
@@ -58,7 +58,7 @@ class NativeSwapChain: public Internal::IRenderTarget, Internal::IWaitableOperat
     UINT mHeight;
 
     // for GetDepthResource()
-    D3D12ResourcePtr mNullResource;
+    NIPtr<Internal::TextureBase> mNullTexture;
 
     bool GetSwapChainBuffers(UINT count);
 
@@ -73,7 +73,7 @@ public:
 
     inline const D3D12ResourcePtr& GetBuffer(int index) const
     {
-        return mBuffers[index];
+        return mTextureBuffers[index]->GetResource();
     }
 
     inline UINT GetBufferCount() const
@@ -100,21 +100,15 @@ public:
 
     // IRenderTarget overrides
 
-    virtual void EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState) override;
-    virtual void EnsureDepthState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState) override
+    inline const NIPtr<Internal::TextureBase>& GetTexture() const override
     {
-        // noop, SwapChain has no depth buffer
+        return mTextureBuffers[GetCurrentBufferIndex()];
     }
 
-    inline const D3D12ResourcePtr& GetResource() const override
+    inline const NIPtr<Internal::TextureBase>& GetDepthTexture() const override
     {
-        return GetCurrentBuffer();
-    }
-
-    inline const D3D12ResourcePtr& GetDepthResource() const override
-    {
-        D3D12NI_ASSERT(false, "NativeSwapChain has no depth resource. This should not happen.");
-        return mNullResource;
+        D3D12NI_ASSERT(false, "NativeSwapChain has no depth texture. This should not happen.");
+        return mNullTexture;
     }
 
     inline DXGI_FORMAT GetFormat() const

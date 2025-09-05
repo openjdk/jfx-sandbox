@@ -101,6 +101,11 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
     mRenderTarget.Apply(mNativeDevice->GetCurrentCommandList(), mState);
     DescriptorData rtData = mRenderTarget.Get()->GetRTVDescriptorData();
 
+    mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    if (mRenderTarget.Get()->HasDepthTexture())
+        mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    mNativeDevice->SubmitTextureTransitions();
+
     float rgba[4] = { r, g, b, a };
     mNativeDevice->GetCurrentCommandList()->ClearRenderTargetView(rtData.CPU(0), rgba, 1, &GetScissor().Get());
     // NOTE: Here we check by NativeRenderTarget::HasDepthTexture() and not IsDepthTestEnabled()
@@ -109,7 +114,6 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
     // depth testing. So we have to disregard the depth test flag, otherwise we would miss this DSV clear.
     if (clearDepth && mRenderTarget.Get()->HasDepthTexture())
     {
-        mRenderTarget.Get()->EnsureDepthState(mNativeDevice->GetCurrentCommandList(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
         mNativeDevice->GetCurrentCommandList()->ClearDepthStencilView(mRenderTarget.Get()->GetDSVDescriptorData().cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
     }
 }
@@ -166,7 +170,7 @@ void RenderingContext::SetScissor(bool enabled, const D3D12_RECT& scissor)
     else mScissor.Set(scissor);
 }
 
-void RenderingContext::SetTexture(uint32_t unit, const NIPtr<NativeTexture>& texture)
+void RenderingContext::SetTexture(uint32_t unit, const NIPtr<TextureBase>& texture)
 {
     mState.resourceManager.SetTexture(unit, texture);
     ClearResourcesApplied();
@@ -260,9 +264,15 @@ bool RenderingContext::Apply()
     mComputePipelineState.ClearApplied();
 
     // Apply changes on current Command List. Below calls must NOT do any operations
-    // which might submit the Command List (ex. Ring Container allocations).
+    // which might submit the Command List (ex. Ring Container allocations)
+
     const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
     if (!commandList) return false;
+
+    mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    if (mRenderTarget.Get()->HasDepthTexture())
+        mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    mNativeDevice->SubmitTextureTransitions();
 
     mRenderTarget.Apply(commandList, mState);
     mViewport.Apply(commandList, mState);

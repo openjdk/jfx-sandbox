@@ -45,10 +45,9 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
 
     mBufferCount = count;
 
-    if (mBufferCount != mBuffers.size())
+    if (mBufferCount != mTextureBuffers.size())
     {
-        mBuffers.resize(mBufferCount);
-        mStates.resize(mBufferCount);
+        mTextureBuffers.resize(mBufferCount);
         mRTVs.resize(mBufferCount);
         mWaitFenceValues.resize(mBufferCount);
     }
@@ -63,11 +62,12 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
     std::wstring namePrefix(L"SwapChain Buffer #");
     for (UINT i = 0; i < mBufferCount; ++i)
     {
-        HRESULT hr = mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mBuffers[i]));
+        D3D12ResourcePtr buffer;
+        HRESULT hr = mSwapChain->GetBuffer(i, IID_PPV_ARGS(&buffer));
         D3D12NI_RET_IF_FAILED(hr, false, "Failed to get SwapChain buffer");
 
         std::wstring name = namePrefix + std::to_wstring(i);
-        hr = mBuffers[i]->SetName(name.c_str());
+        hr = buffer->SetName(name.c_str());
         D3D12NI_RET_IF_FAILED(hr, false, "Failed to name SwapChain buffer");
 
         mRTVs[i] = mNativeDevice->GetRTVDescriptorAllocator()->Allocate(1);
@@ -77,9 +77,12 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
             return false;
         }
 
-        mNativeDevice->GetDevice()->CreateRenderTargetView(mBuffers[i].Get(), &rtvDesc, mRTVs[i].CPU(0));
+        mNativeDevice->GetDevice()->CreateRenderTargetView(buffer.Get(), &rtvDesc, mRTVs[i].CPU(0));
 
         mWaitFenceValues[i] = 0;
+
+        mTextureBuffers[i] = (std::make_shared<Internal::TextureBase>());
+        mTextureBuffers[i]->Init(buffer, 1, D3D12_RESOURCE_STATE_COMMON);
     }
 
     return true;
@@ -88,8 +91,7 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
 NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mSwapChain()
-    , mBuffers()
-    , mStates()
+    , mTextureBuffers()
     , mRTVs()
     , mWaitFenceValues()
     , mSubmittedFrameCount(0)
@@ -103,7 +105,7 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
     , mPresentFlags(0)
     , mWidth(0)
     , mHeight(0)
-    , mNullResource()
+    , mNullTexture()
 {
     mNativeDevice->RegisterWaitableOperation(this);
     mProfilerSourceID = Internal::Profiler::Instance().RegisterSource("SwapChain");
@@ -119,13 +121,13 @@ NativeSwapChain::~NativeSwapChain()
 
     mNativeDevice->UnregisterWaitableOperation(this);
 
-    for (size_t i = 0; i < mBuffers.size(); ++i)
+    for (size_t i = 0; i < mTextureBuffers.size(); ++i)
     {
-        mBuffers[i].Reset();
+        mTextureBuffers[i].reset();
         mNativeDevice->GetRTVDescriptorAllocator()->Free(mRTVs[i]);
     }
 
-    mBuffers.clear();
+    mTextureBuffers.clear();
 
     mSwapChain.Reset();
     mNativeDevice.reset();
@@ -183,27 +185,11 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
     // TODO: D3D12: Also note fullscreen related requirements
     mPresentFlags = mVSyncEnabled ? 0 : DXGI_PRESENT_ALLOW_TEARING;
 
-    D3D12_RESOURCE_DESC bufDesc = mBuffers[0]->GetDesc();
+    D3D12_RESOURCE_DESC bufDesc = mTextureBuffers[0]->GetResource()->GetDesc();
     mWidth = static_cast<UINT>(bufDesc.Width);
     mHeight = static_cast<UINT>(bufDesc.Height);
 
     return true;
-}
-
-void NativeSwapChain::EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState)
-{
-    if (newState == mStates[mCurrentBufferIdx]) return;
-
-    D3D12_RESOURCE_BARRIER barrier;
-    D3D12NI_ZERO_STRUCT(barrier);
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource = mBuffers[mCurrentBufferIdx].Get();
-    barrier.Transition.StateBefore = mStates[mCurrentBufferIdx];
-    barrier.Transition.StateAfter = newState;
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    commandList->ResourceBarrier(1, &barrier);
-
-    mStates[mCurrentBufferIdx] = newState;
 }
 
 bool NativeSwapChain::Prepare(LONG left, LONG top, LONG right, LONG bottom)
@@ -213,7 +199,8 @@ bool NativeSwapChain::Prepare(LONG left, LONG top, LONG right, LONG bottom)
     mDirtyRegion.right = right;
     mDirtyRegion.bottom = bottom;
 
-    EnsureState(mNativeDevice->GetCurrentCommandList(), D3D12_RESOURCE_STATE_PRESENT);
+    mNativeDevice->QueueTextureTransition(GetTexture(), D3D12_RESOURCE_STATE_PRESENT);
+    mNativeDevice->SubmitTextureTransitions();
 
     return true;
 }
@@ -271,9 +258,9 @@ bool NativeSwapChain::Resize(UINT width, UINT height)
     mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ALL);
 
     // since all frames were completed, reset all Buffer references before resizing
-    for (size_t i = 0; i < mBuffers.size(); ++i)
+    for (size_t i = 0; i < mTextureBuffers.size(); ++i)
     {
-        mBuffers[i].Reset();
+        mTextureBuffers[i].reset();
     }
 
     HRESULT hr = mSwapChain->ResizeBuffers(mBufferCount, width, height, DXGI_FORMAT_UNKNOWN, mSwapChainFlags);
@@ -286,7 +273,7 @@ bool NativeSwapChain::Resize(UINT width, UINT height)
 
     mCurrentBufferIdx = mSwapChain->GetCurrentBackBufferIndex();
 
-    D3D12_RESOURCE_DESC desc = mBuffers[0]->GetDesc();
+    D3D12_RESOURCE_DESC desc = mTextureBuffers[0]->GetResource()->GetDesc();
     mWidth = static_cast<UINT>(desc.Width);
     mHeight = static_cast<UINT>(desc.Height);
 

@@ -289,9 +289,11 @@ void ResourceManager::EnsureStates(const D3D12GraphicsCommandListPtr& commandLis
     {
         if (mTextures[i])
         {
-            mTextures[i]->EnsureState(commandList, state);
+            mNativeDevice->QueueTextureTransition(mTextures[i], state);
         }
     }
+
+    mNativeDevice->SubmitTextureTransitions();
 }
 
 void ResourceManager::SetVertexShader(const NIPtr<Shader>& shader)
@@ -318,7 +320,7 @@ void ResourceManager::SetComputeShader(const NIPtr<Shader>& shader)
     mComputeShader->SetConstantsDirty(true);
 }
 
-void ResourceManager::SetTexture(uint32_t slot, const NIPtr<NativeTexture>& tex)
+void ResourceManager::SetTexture(uint32_t slot, const NIPtr<TextureBase>& tex)
 {
     D3D12NI_ASSERT(slot < Constants::MAX_TEXTURE_UNITS, "Provided too high slot %u (max %u)", slot, Constants::MAX_TEXTURE_UNITS);
 

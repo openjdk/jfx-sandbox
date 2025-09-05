@@ -169,7 +169,7 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
     return true;
 }
 
-bool InternalShader::PrepareDescriptors(const NativeTextureBank& textures)
+bool InternalShader::PrepareDescriptors(const TextureBank& textures)
 {
     // populate the CBuffer regions reserved by ResourceManager
     size_t singleCBVSizeAligned = Utils::Align<size_t>(mResourceData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);

@@ -71,6 +71,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     uint32_t mProfilerTransferWaitSourceID;
     bool mMidframeFlushNeeded;
     std::vector<Internal::IWaitableOperation*> mWaitableOps;
+    std::vector<D3D12_RESOURCE_BARRIER> mBarrierQueue;
 
     Internal::CheckpointQueue mCheckpointQueue;
     NIPtr<Internal::RootSignatureManager> mRootSignatureManager;
@@ -155,6 +156,8 @@ public:
     void AdvanceCommandAllocator();
     void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
+    void QueueTextureTransition(const NIPtr<Internal::TextureBase>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+    void SubmitTextureTransitions();
 
     const D3D12DevicePtr& GetDevice()
     {

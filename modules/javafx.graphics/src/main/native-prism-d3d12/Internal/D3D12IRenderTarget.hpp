@@ -28,6 +28,7 @@
 #include "../D3D12Common.hpp"
 
 #include "D3D12DescriptorData.hpp"
+#include "D3D12TextureBase.hpp"
 
 
 namespace D3D12 {
@@ -36,11 +37,8 @@ namespace Internal {
 class IRenderTarget
 {
 public:
-    virtual void EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState) = 0;
-    virtual void EnsureDepthState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState) = 0;
-
-    virtual const D3D12ResourcePtr& GetResource() const = 0;
-    virtual const D3D12ResourcePtr& GetDepthResource() const = 0;
+    virtual const NIPtr<TextureBase>& GetTexture() const = 0;
+    virtual const NIPtr<TextureBase>& GetDepthTexture() const = 0;
     virtual DXGI_FORMAT GetFormat() const = 0;
     virtual uint64_t GetWidth() const = 0;
     virtual uint64_t GetHeight() const = 0;

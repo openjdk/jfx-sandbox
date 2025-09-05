@@ -201,7 +201,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     return true;
 }
 
-bool NativeShader::PrepareDescriptors(const NativeTextureBank& textures)
+bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures)
 {
     for (uint32_t i = 0; i < mResourceData.textureCount; ++i)
     {

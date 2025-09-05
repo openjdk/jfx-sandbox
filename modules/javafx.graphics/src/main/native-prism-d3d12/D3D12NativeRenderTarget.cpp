@@ -63,6 +63,7 @@ NativeRenderTarget::~NativeRenderTarget()
 bool NativeRenderTarget::Init(const NIPtr<NativeTexture>& texture)
 {
     mTexture = texture;
+    mTextureBase = mTexture;
     mDescriptors = mNativeDevice->GetRTVDescriptorAllocator()->Allocate(1);
 
     return Refresh();
@@ -82,6 +83,8 @@ bool NativeRenderTarget::EnsureHasDepthBuffer()
         return false;
     }
 
+    mDepthTextureBase = mDepthTexture;
+
     mDSVDescriptor = mNativeDevice->GetDSVDescriptorAllocator()->Allocate(1);
     if (!mDSVDescriptor)
     {
@@ -92,7 +95,8 @@ bool NativeRenderTarget::EnsureHasDepthBuffer()
     Refresh();
 
     // Schedule a clear to initialize this Depth Buffer so it doesn't contain garbage
-    EnsureDepthState(mNativeDevice->GetCurrentCommandList(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    mNativeDevice->QueueTextureTransition(mDepthTexture, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    mNativeDevice->SubmitTextureTransitions();
     mNativeDevice->GetCurrentCommandList()->ClearDepthStencilView(mDSVDescriptor.cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
     D3D12NI_LOG_TRACE("--- RenderTarget %S uses depth texture %S ---", mTexture->GetDebugName().c_str(), mDepthTexture->GetDebugName().c_str());
@@ -128,19 +132,6 @@ bool NativeRenderTarget::Refresh()
     }
 
     return true;
-}
-
-void NativeRenderTarget::EnsureState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState)
-{
-    mTexture->EnsureState(commandList, newState);
-}
-
-void NativeRenderTarget::EnsureDepthState(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES newState)
-{
-    if (mDepthTexture && mDepthTestEnabled)
-    {
-        mDepthTexture->EnsureState(commandList, newState);
-    }
 }
 
 void NativeRenderTarget::SetDepthTestEnabled(bool enabled)

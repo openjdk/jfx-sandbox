@@ -715,7 +715,7 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
             D3D12_TEXTURE_COPY_LOCATION srcLoc;
             D3D12NI_ZERO_STRUCT(srcLoc);
             srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-            srcLoc.pResource = srcRT->GetResource().Get();
+            srcLoc.pResource = srcRT->GetTexture()->GetResource().Get();
             srcLoc.SubresourceIndex = 0;
 
             D3D12_BOX srcBox;
@@ -730,11 +730,12 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
             D3D12_TEXTURE_COPY_LOCATION dstLoc;
             D3D12NI_ZERO_STRUCT(dstLoc);
             dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-            dstLoc.pResource = dstRT->GetResource().Get();
+            dstLoc.pResource = dstRT->GetTexture()->GetResource().Get();
             dstLoc.SubresourceIndex = 0;
 
-            srcRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_COPY_SOURCE);
-            dstRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_COPY_DEST);
+            QueueTextureTransition(srcRT->GetTexture(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+            QueueTextureTransition(dstRT->GetTexture(), D3D12_RESOURCE_STATE_COPY_DEST);
+            SubmitTextureTransitions();
 
             GetCurrentCommandList()->CopyTextureRegion(&dstLoc, dst.x0, dst.y0, 0, &srcLoc, &srcBox);
         }
@@ -747,19 +748,20 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
             srcRect.right = src.x1;
             srcRect.bottom = src.y1;
 
-            srcRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
-            dstRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_DEST);
+            QueueTextureTransition(srcRT->GetTexture(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+            QueueTextureTransition(dstRT->GetTexture(), D3D12_RESOURCE_STATE_RESOLVE_DEST);
+            SubmitTextureTransitions();
 
             GetCurrentCommandList()->ResolveSubresourceRegion(
-                dstRT->GetResource().Get(), 0, dst.x0, dst.y0,
-                srcRT->GetResource().Get(), 0, &srcRect,
+                dstRT->GetTexture()->GetResource().Get(), 0, dst.x0, dst.y0,
+                srcRT->GetTexture()->GetResource().Get(), 0, &srcRect,
                 dstRT->GetFormat(), D3D12_RESOLVE_MODE_AVERAGE
             );
         }
     }
     else
     {
-        NIPtr<NativeTexture> sourceTexture;
+        NIPtr<Internal::TextureBase> sourceTexture;
         NIPtr<NativeTexture> intermediateTexture;
 
         // prepare quad vertices for blitting
@@ -786,12 +788,13 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
                 return false;
             }
 
-            srcRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
-            intermediateTexture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RESOLVE_DEST);
+            QueueTextureTransition(srcRT->GetTexture(), D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+            QueueTextureTransition(intermediateTexture, D3D12_RESOURCE_STATE_RESOLVE_DEST);
+            SubmitTextureTransitions();
 
             GetCurrentCommandList()->ResolveSubresource(
                 intermediateTexture->GetResource().Get(), 0,
-                srcRT->GetResource().Get(), 0, srcRT->GetFormat()
+                srcRT->GetTexture()->GetResource().Get(), 0, srcRT->GetFormat()
             );
 
             sourceTexture = intermediateTexture;
@@ -832,8 +835,9 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
 
         mRenderingContext->Apply();
 
-        sourceTexture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-        dstRT->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        QueueTextureTransition(sourceTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        QueueTextureTransition(dstRT->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        SubmitTextureTransitions();
 
         GetCurrentCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
 
@@ -889,7 +893,8 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
     dstLoc.PlacedFootprint.Footprint.Format = format;
     dstLoc.PlacedFootprint.Offset = 0;
 
-    texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_COPY_SOURCE);
+    QueueTextureTransition(texture, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    SubmitTextureTransitions();
 
     GetCurrentCommandList()->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, &srcBox);
 
@@ -952,7 +957,8 @@ bool NativeDevice::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
     uint32_t srcHeight = static_cast<uint32_t>(texture->GetHeight());
 
     // transition entire texture with mips to UAV state
-    texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    QueueTextureTransition(texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    SubmitTextureTransitions();
 
     // starting from 1, level 0 is our base mip level
     // also note, we're divinding by 2 a lot, so to make it faster we'll bit-shift instead
@@ -988,16 +994,17 @@ bool NativeDevice::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
         }
 
         // transition base level to non-PS-resource
-        texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                             Internal::Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
+        QueueTextureTransition(texture, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                               Internal::Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
 
         // each thread group manages an 8x8 square, so we need to dispatch (width/8) X groups and (height/8) Y groups
+        SubmitTextureTransitions();
         GetCurrentCommandList()->Dispatch(std::max<UINT>(srcWidth >> 3, 1), std::max<UINT>(srcHeight >> 3, 1), 1);
 
         // transition base level back to UAV
         // this should make all subresources have the same state again
-        texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                             Internal::Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
+        QueueTextureTransition(texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                               Internal::Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
 
         srcWidth >>= constants.numLevels;
         srcHeight >>= constants.numLevels;
@@ -1087,7 +1094,8 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
 
     // Ensure we are in COPY_DEST state. Texture can be now bound to RenderingContext
     // and exist in a different state.
-    texture->EnsureState(GetCurrentCommandList(), D3D12_RESOURCE_STATE_COPY_DEST);
+    QueueTextureTransition(texture, D3D12_RESOURCE_STATE_COPY_DEST);
+    SubmitTextureTransitions();
 
     GetCurrentCommandList()->CopyTextureRegion(&dstLoc, dstx, dsty, 0, &srcLoc, nullptr);
 
@@ -1133,6 +1141,30 @@ void NativeDevice::UnregisterWaitableOperation(Internal::IWaitableOperation* wai
             mWaitableOps.pop_back();
         }
     }
+}
+
+void NativeDevice::QueueTextureTransition(const NIPtr<Internal::TextureBase>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+{
+    if (tex->GetResourceState() == newState) return;
+
+    D3D12_RESOURCE_BARRIER barrier;
+    D3D12NI_ZERO_STRUCT(barrier);
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = tex->GetResource().Get();
+    barrier.Transition.StateBefore = tex->GetResourceState();
+    barrier.Transition.StateAfter = newState;
+    barrier.Transition.Subresource = subresource;
+    mBarrierQueue.emplace_back(barrier);
+
+    tex->SetResourceState(newState, subresource);
+}
+
+void NativeDevice::SubmitTextureTransitions()
+{
+    if (mBarrierQueue.size() == 0) return;
+
+    GetCurrentCommandList()->ResourceBarrier(mBarrierQueue.size(), mBarrierQueue.data());
+    mBarrierQueue.clear();
 }
 
 // Signal() is separate and not called everytime Execute() is called
