@@ -46,32 +46,29 @@ class CommandListPool: public IWaitableOperation
     struct CommandListData
     {
         D3D12GraphicsCommandListPtr commandList;
+        D3D12CommandAllocatorPtr commandAllocator;
         CommandListState state;
         uint64_t closedFenceValue;
     };
 
-    struct CommandAllocatorData
-    {
-        D3D12CommandAllocatorPtr commandAllocator;
-        uint64_t usedFenceValue;
-    };
-
     NIPtr<NativeDevice> mNativeDevice;
     uint32_t mProfilerSourceID;
-    std::vector<CommandAllocatorData> mCommandAllocators;
-    size_t mCurrentCommandAllocator;
     std::vector<CommandListData> mCommandLists;
     size_t mCurrentCommandList;
 
     void ResetCurrentCommandList();
     void WaitForAvailableCommandList();
 
+    inline CommandListData& CurrentCommandListData()
+    {
+        return mCommandLists[mCurrentCommandList];
+    }
+
 public:
     CommandListPool(const NIPtr<NativeDevice>& nativeDevice);
     ~CommandListPool();
 
-    bool Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount, size_t commandAllocatorCount);
-    void AdvanceCommandAllocator(uint64_t fenceValue);
+    bool Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount);
     void OnQueueSignal(uint64_t fenceValue) override;
     void OnFenceSignaled(uint64_t fenceValue) override;
     bool SubmitCurrentCommandList();

@@ -47,9 +47,22 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
     // Texture resources require DEFAULT heap type
     heapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
 
+    D3D12_CLEAR_VALUE clearValue;
+    clearValue.Color[0] = 0.0f;
+    clearValue.Color[1] = 0.0f;
+    clearValue.Color[2] = 0.0f;
+    clearValue.Color[3] = 0.0f;
+    clearValue.DepthStencil.Depth = 0.0f;
+    clearValue.DepthStencil.Stencil = 0;
+    clearValue.Format = desc.Format;
+
     D3D12ResourcePtr resource;
-    HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
-        &mResourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&resource));
+    HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(
+        &heapProps, D3D12_HEAP_FLAG_NONE,
+        &mResourceDesc, D3D12_RESOURCE_STATE_COMMON,
+        (mResourceDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) ? &clearValue : nullptr,
+        IID_PPV_ARGS(&resource)
+    );
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Texture's Committed Resource");
 
     if (!IsDepthFormat(mResourceDesc.Format))
@@ -80,26 +93,26 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
     // Fill in remaining members and leave
     if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
     {
-        mDebugName = L"RTTexture_#";
-        mDebugName += std::to_wstring(rttextureCounter++);
-        resource->SetName(mDebugName.c_str());
+        mDebugName = "RTTexture_#";
+        mDebugName += std::to_string(rttextureCounter++);
+        resource->SetName(Internal::Utils::ToWString(mDebugName).c_str());
     }
     else if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
     {
-        mDebugName = L"DepthTexture_#";
-        mDebugName += std::to_wstring(depthTextureCounter++);
-        resource->SetName(mDebugName.c_str());
+        mDebugName = "DepthTexture_#";
+        mDebugName += std::to_string(depthTextureCounter++);
+        resource->SetName(Internal::Utils::ToWString(mDebugName).c_str());
     }
     else
     {
-        mDebugName = L"Texture_#";
-        mDebugName += std::to_wstring(textureCounter++);
-        resource->SetName(mDebugName.c_str());
+        mDebugName = "Texture_#";
+        mDebugName += std::to_string(textureCounter++);
+        resource->SetName(Internal::Utils::ToWString(mDebugName).c_str());
     }
 
     TextureBase::Init(resource, mResourceDesc.MipLevels, D3D12_RESOURCE_STATE_COMMON);
 
-    D3D12NI_LOG_TRACE("--- Texture %S created (%ux%u %s %uxMSAA %s) ---",
+    D3D12NI_LOG_TRACE("--- Texture %s created (%ux%u %s %uxMSAA %s) ---",
         mDebugName.c_str(), mResourceDesc.Width, mResourceDesc.Height, Internal::DXGIFormatToString(mResourceDesc.Format),
         mResourceDesc.SampleDesc.Count, HasMipmaps() ? "Mip" : "NoMip");
 
@@ -110,7 +123,6 @@ NativeTexture::NativeTexture(const NIPtr<NativeDevice>& nativeDevice)
     : TextureBase()
     , mNativeDevice(nativeDevice)
     , mResourceDesc()
-    , mDebugName()
     , mMipLevels()
     , mSRVDescriptor()
 {

@@ -69,6 +69,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     uint32_t mFenceValue;
     uint32_t mFrameCounter; // for debugging ex. triggering a breakpoint after X frames
     uint32_t mProfilerTransferWaitSourceID;
+    uint32_t mProfilerFrameTimeID;
     bool mMidframeFlushNeeded;
     std::vector<Internal::IWaitableOperation*> mWaitableOps;
     std::vector<D3D12_RESOURCE_BARRIER> mBarrierQueue;

@@ -246,7 +246,6 @@ bool NativeSwapChain::Present()
         }
     }
 
-    mNativeDevice->AdvanceCommandAllocator();
     mCurrentBufferIdx = mSwapChain->GetCurrentBackBufferIndex();
 
     return true;

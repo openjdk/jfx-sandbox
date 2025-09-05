@@ -39,6 +39,18 @@ inline void PrintEventCounter(const char* name, uint64_t hits, uint64_t frameCou
     }
 }
 
+inline void PrintTimingCounter(uint64_t totalTime, uint64_t timerHits, uint64_t timerFreq)
+{
+    if (totalTime)
+    {
+        D3D12NI_LOG_WARN("   - Timer hit %ld times, spent %.2f ms total (%.2f ms avg per hit)",
+            timerHits,
+            static_cast<float>(totalTime) / static_cast<float>(timerFreq),
+            static_cast<float>(totalTime) / static_cast<float>(timerHits * timerFreq)
+        );
+    }
+}
+
 } // namespace
 
 namespace D3D12 {
@@ -48,7 +60,11 @@ Profiler::Profiler()
     : mEventSources()
     , mSourceCount(0)
     , mFrameCount(0)
+    , mTimerFreq()
 {
+    LARGE_INTEGER freq;
+    ::QueryPerformanceFrequency(&freq);
+    mTimerFreq = freq.QuadPart / 1000; // results will be in ms instead of s
 }
 
 Profiler::~Profiler()
@@ -86,6 +102,27 @@ void Profiler::MarkFrameEnd()
     mFrameCount++;
 }
 
+void Profiler::TimingStart(uint32_t sourceID)
+{
+    D3D12NI_ASSERT(sourceID < mSourceCount, "Invalid source ID provided");
+
+    LARGE_INTEGER timer;
+    ::QueryPerformanceCounter(&timer);
+    mEventSources[sourceID].timerStart = timer.QuadPart;
+}
+
+void Profiler::TimingEnd(uint32_t sourceID)
+{
+    D3D12NI_ASSERT(sourceID < mSourceCount, "Invalid source ID provided");
+    if (mEventSources[sourceID].timerStart == 0) return;
+
+    LARGE_INTEGER timer;
+    ::QueryPerformanceCounter(&timer);
+    mEventSources[sourceID].totalTime += (timer.QuadPart - mEventSources[sourceID].timerStart);
+    mEventSources[sourceID].timingCount++;
+    mEventSources[sourceID].timerStart = 0;
+}
+
 void Profiler::PrintSummary()
 {
     if (!Config::Instance().IsProfilerSummaryEnabled()) return;
@@ -100,6 +137,7 @@ void Profiler::PrintSummary()
         PrintEventCounter("Event", source.hits[static_cast<uint32_t>(Event::Event)], mFrameCount);
         PrintEventCounter("Signal", source.hits[static_cast<uint32_t>(Event::Signal)], mFrameCount);
         PrintEventCounter("Wait", source.hits[static_cast<uint32_t>(Event::Wait)], mFrameCount);
+        PrintTimingCounter(source.totalTime, source.timingCount, mTimerFreq);
     }
     D3D12NI_LOG_WARN("=== Profiler summary end ===");
 }

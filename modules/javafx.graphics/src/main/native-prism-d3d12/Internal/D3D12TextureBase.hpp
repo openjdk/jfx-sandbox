@@ -45,12 +45,14 @@ protected:
     D3D12ResourcePtr mResource;
     std::vector<D3D12_RESOURCE_STATES> mStates;
     SamplerDesc mSamplerDesc;
+    std::string mDebugName;
 
 public:
     TextureBase()
         : mResource()
         , mStates()
         , mSamplerDesc()
+        , mDebugName()
     {}
 
     void Init(const D3D12ResourcePtr& resource, uint32_t subresourceCount, D3D12_RESOURCE_STATES initialState)
@@ -68,9 +70,10 @@ public:
         return mResource;
     }
 
-    inline D3D12_RESOURCE_STATES GetResourceState(uint32_t subresource = 0)
+    inline D3D12_RESOURCE_STATES GetResourceState(uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
     {
-        return mStates[subresource];
+        if (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) return mStates[0];
+        else return mStates[subresource];
     }
 
     inline void SetResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
@@ -91,6 +94,11 @@ public:
     inline const SamplerDesc& GetSamplerDesc() const
     {
         return mSamplerDesc;
+    }
+
+    inline const std::string& GetName() const
+    {
+        return mDebugName;
     }
 };
 

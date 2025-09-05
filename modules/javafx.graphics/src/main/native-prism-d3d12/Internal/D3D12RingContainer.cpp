@@ -63,9 +63,9 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
 
         // await for any waitable set by FlushCommandList()
         // if it's not enough we will loop around
-        D3D12NI_LOG_TRACE("%s: must wait! (used %d uncommitted %d threshold %d size %d)",
-            mDebugName.c_str(), mUsed, mUncommitted, mFlushThreshold, mSize
-        );
+        //D3D12NI_LOG_TRACE("%s: must wait! (used %d uncommitted %d threshold %d size %d)",
+        //    mDebugName.c_str(), mUsed, mUncommitted, mFlushThreshold, mSize
+        //);
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Wait);
         bool waitSuccess = mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ANY);
         if (!waitSuccess)

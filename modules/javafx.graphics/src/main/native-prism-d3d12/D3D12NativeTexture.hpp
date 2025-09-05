@@ -42,7 +42,6 @@ class NativeTexture: public Internal::TextureBase
 
     NIPtr<NativeDevice> mNativeDevice;
     D3D12_RESOURCE_DESC mResourceDesc;
-    std::wstring mDebugName;
     UINT mMipLevels;
     Internal::DescriptorData mSRVDescriptor;
 
@@ -74,11 +73,6 @@ public:
     inline DXGI_FORMAT GetFormat() const
     {
         return mResourceDesc.Format;
-    }
-
-    inline const std::wstring& GetDebugName() const
-    {
-        return mDebugName;
     }
 
     inline UINT GetMSAASamples() const

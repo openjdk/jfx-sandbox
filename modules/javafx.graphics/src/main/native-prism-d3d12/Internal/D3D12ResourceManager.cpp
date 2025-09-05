@@ -218,7 +218,6 @@ ResourceManager::~ResourceManager()
 
 bool ResourceManager::Init()
 {
-        // TODO: D3D12: PERF fine-tune ring descriptor heap parameters
     if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 30 * 1024, 10 * 1024))
     {
         D3D12NI_LOG_ERROR("Failed to initialize main Ring Descriptor Heap");
@@ -327,7 +326,11 @@ void ResourceManager::SetTexture(uint32_t slot, const NIPtr<TextureBase>& tex)
     if (mTextures[slot] == tex) return;
 
     mTextures[slot] = tex;
-    mCurrentSamplerBinding.descs[slot] = mTextures[slot]->GetSamplerDesc();
+
+    if (tex)
+    {
+        mCurrentSamplerBinding.descs[slot] = tex->GetSamplerDesc();
+    }
 }
 
 void ResourceManager::StashParameters()

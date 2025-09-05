@@ -128,16 +128,28 @@ void RenderingContext::ClearTextureUnit(uint32_t unit)
 
 void RenderingContext::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView)
 {
+    if (mIndexBuffer.Get().BufferLocation == ibView.BufferLocation &&
+        mIndexBuffer.Get().Format == ibView.Format &&
+        mIndexBuffer.Get().SizeInBytes == ibView.SizeInBytes)
+        return;
+
     mIndexBuffer.Set(ibView);
 }
 
 void RenderingContext::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView)
 {
+    if (mVertexBuffer.Get().BufferLocation == vbView.BufferLocation &&
+        mVertexBuffer.Get().SizeInBytes == vbView.SizeInBytes &&
+        mVertexBuffer.Get().StrideInBytes == vbView.StrideInBytes)
+        return;
+
     mVertexBuffer.Set(vbView);
 }
 
 void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
 {
+    if (renderTarget == mRenderTarget.Get()) return;
+
     mRenderTarget.Set(renderTarget);
     if (!renderTarget) return;
 
@@ -226,6 +238,8 @@ void RenderingContext::SetPixelShader(const NIPtr<Shader>& pixelShader)
 
 void RenderingContext::SetComputeShader(const NIPtr<Shader>& computeShader)
 {
+    if (mComputePipelineState.Get().shader == computeShader) return;
+
     mComputePipelineState.SetComputeShader(computeShader);
     mState.resourceManager.SetComputeShader(computeShader);
 
@@ -272,7 +286,6 @@ bool RenderingContext::Apply()
     mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
     if (mRenderTarget.Get()->HasDepthTexture())
         mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    mNativeDevice->SubmitTextureTransitions();
 
     mRenderTarget.Apply(commandList, mState);
     mViewport.Apply(commandList, mState);

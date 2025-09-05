@@ -99,7 +99,7 @@ bool NativeRenderTarget::EnsureHasDepthBuffer()
     mNativeDevice->SubmitTextureTransitions();
     mNativeDevice->GetCurrentCommandList()->ClearDepthStencilView(mDSVDescriptor.cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-    D3D12NI_LOG_TRACE("--- RenderTarget %S uses depth texture %S ---", mTexture->GetDebugName().c_str(), mDepthTexture->GetDebugName().c_str());
+    D3D12NI_LOG_TRACE("--- RenderTarget %s uses depth texture %s ---", mTexture->GetName().c_str(), mDepthTexture->GetName().c_str());
     return true;
 }
 

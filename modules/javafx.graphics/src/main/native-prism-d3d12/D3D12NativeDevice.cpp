@@ -199,6 +199,8 @@ NativeDevice::NativeDevice()
     , mFence()
     , mFenceValue(0)
     , mFrameCounter(0)
+    , mProfilerTransferWaitSourceID(0)
+    , mProfilerFrameTimeID(0)
     , mMidframeFlushNeeded(false)
     , mWaitableOps()
     , mCheckpointQueue()
@@ -265,6 +267,8 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     cqDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
     cqDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 
+    // TODO Command Queue should probably reside in Command List Pool
+    //      Same with all Execute/Signal logic & checkpoints
     hr = mDevice->CreateCommandQueue(&cqDesc, IID_PPV_ARGS(&mCommandQueue));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Direct Command Queue");
 
@@ -276,7 +280,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create in-device Fence");
 
     mCommandListPool = std::make_shared<Internal::CommandListPool>(shared_from_this());
-    if (!mCommandListPool->Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 8, 4))
+    if (!mCommandListPool->Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 8))
     {
         D3D12NI_LOG_ERROR("Failed to initialize Command List Pool");
         return false;
@@ -303,7 +307,6 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
         return false;
     }
 
-    // TODO: D3D12: PERF these parameters need fine-tuning once the backend is feature complete
     mRingBuffer = std::make_shared<Internal::RingBuffer>(shared_from_this());
     if (!mRingBuffer->Init(60 * 1024 * Constants::MAX_BATCH_QUADS, 20 * 1024 * Constants::MAX_BATCH_QUADS))
     {
@@ -350,6 +353,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     mPhongVS = GetInternalShader(Constants::PHONG_VS_NAME);
 
     mProfilerTransferWaitSourceID = Internal::Profiler::Instance().RegisterSource("NativeDevice Transfer Wait");
+    mProfilerFrameTimeID = Internal::Profiler::Instance().RegisterSource("Frame Time");
 
     return true;
 }
@@ -544,6 +548,10 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     // via updateTexture(). Its state will have to be re-set back to PIXEL_SHADER_RESOURCE
     // before the draw call.
     mRenderingContext->EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    // Clear if needed - check bbox from AssembleVertexData
+    // if rendered bbox takes up entire RT (from 0.0 to 1.0) AND we don't blend
+    // then discard the clear
 
     // draw the quads
     GetCurrentCommandList()->DrawIndexedInstanced((elementCount / 4) * 6, 1, 0, 0, 0);
@@ -1115,6 +1123,8 @@ void NativeDevice::FinishFrame()
     FlushCommandList();
     mFrameCounter++;
     Internal::Profiler::Instance().MarkFrameEnd();
+    Internal::Profiler::Instance().TimingEnd(mProfilerFrameTimeID);
+    Internal::Profiler::Instance().TimingStart(mProfilerFrameTimeID);
 }
 
 void NativeDevice::Execute(const std::vector<ID3D12CommandList*>& commandLists)
@@ -1145,13 +1155,13 @@ void NativeDevice::UnregisterWaitableOperation(Internal::IWaitableOperation* wai
 
 void NativeDevice::QueueTextureTransition(const NIPtr<Internal::TextureBase>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource)
 {
-    if (tex->GetResourceState() == newState) return;
+    if (tex->GetResourceState(subresource) == newState) return;
 
     D3D12_RESOURCE_BARRIER barrier;
     D3D12NI_ZERO_STRUCT(barrier);
     barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
     barrier.Transition.pResource = tex->GetResource().Get();
-    barrier.Transition.StateBefore = tex->GetResourceState();
+    barrier.Transition.StateBefore = tex->GetResourceState(subresource);
     barrier.Transition.StateAfter = newState;
     barrier.Transition.Subresource = subresource;
     mBarrierQueue.emplace_back(barrier);
@@ -1163,7 +1173,7 @@ void NativeDevice::SubmitTextureTransitions()
 {
     if (mBarrierQueue.size() == 0) return;
 
-    GetCurrentCommandList()->ResourceBarrier(mBarrierQueue.size(), mBarrierQueue.data());
+    GetCurrentCommandList()->ResourceBarrier(static_cast<UINT>(mBarrierQueue.size()), mBarrierQueue.data());
     mBarrierQueue.clear();
 }
 
@@ -1198,11 +1208,6 @@ uint64_t NativeDevice::Signal(CheckpointType type)
 
     mCheckpointQueue.AddCheckpoint(type, std::move(waitable));
     return mFenceValue;
-}
-
-void NativeDevice::AdvanceCommandAllocator()
-{
-    mCommandListPool->AdvanceCommandAllocator(mFenceValue);
 }
 
 } // namespace D3D12

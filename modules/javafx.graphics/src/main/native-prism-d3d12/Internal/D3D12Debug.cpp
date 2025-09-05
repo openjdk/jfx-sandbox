@@ -289,11 +289,11 @@ bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
         // D3D12 provides a very minor and not even guaranteed perf boost when CreateCommittedResource
         // is called with "initial clear value" when creating a RenderTarget or DepthStencil resource.
         // That clear value then has to be provided to ClearRenderTargetView and if it ever differs,
-        // it will still work but might be ever-so-slightly slower and produces a warning in debug
-        // layers.
+        // it will still work but might be ever-so-slightly (potentially) slower and produces a warning
+        // in debug layers.
         // In case of JFX it is VERY difficult to guesstimate which color would be the most frequently
-        // used as clear color, so we just don't provide it when creating RTTs. Warning still exists
-        // regardless (debug layer bug?), so we silence it by default.
+        // used as clear color, so we provide zeros when creating RTTs hoping it will speed things up
+        // in some cases. To reduce the noise in cases we don't clear to zeros we silence the warning.
         D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
         D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
     };

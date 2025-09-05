@@ -54,12 +54,18 @@ private:
         std::string name;
         uint64_t totalHits;
         std::array<uint64_t, EVENT_COUNT> hits;
+        uint64_t totalTime;
+        uint64_t timingCount;
+        uint64_t timerStart;
 
         EventSource(uint32_t id, const std::string& name)
             : id(id)
             , name(name)
             , totalHits(0)
             , hits()
+            , totalTime(0)
+            , timingCount(0)
+            , timerStart(0)
         {
             for (uint64_t& h: hits)
             {
@@ -71,6 +77,7 @@ private:
     std::vector<EventSource> mEventSources;
     uint32_t mSourceCount;
     uint64_t mFrameCount;
+    uint64_t mTimerFreq;
 
     Profiler();
     ~Profiler();
@@ -87,6 +94,8 @@ public:
     void RenameSource(uint32_t sourceID, const std::string& sourceName);
     void MarkEvent(uint32_t sourceID, Event event);
     void MarkFrameEnd();
+    void TimingStart(uint32_t sourceID);
+    void TimingEnd(uint32_t sourceID);
 
     void PrintSummary();
 };
