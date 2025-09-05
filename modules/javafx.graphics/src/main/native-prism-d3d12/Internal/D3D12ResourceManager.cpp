@@ -218,7 +218,7 @@ ResourceManager::~ResourceManager()
 
 bool ResourceManager::Init()
 {
-    if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 30 * 1024, 10 * 1024))
+    if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 10 * 1024))
     {
         D3D12NI_LOG_ERROR("Failed to initialize main Ring Descriptor Heap");
         return false;
@@ -227,17 +227,23 @@ bool ResourceManager::Init()
     // Maximum limit of Samplers is 2048
     //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-support
     //    https://learn.microsoft.com/en-us/windows/win32/direct3d12/hardware-feature-levels
+    // We use the max limit and raise the flush threshold to 3/4th of 2048 in order to
+    // potentially never hit it (but to still have it as a backup - better to finish drawing
+    // a frame slower than to completely fail).
+    // If Profiler shows Sampler Heap is causing Command List flushing, there must be
+    // more optimization work done to avoid it.
+    //
     // TODO: This applies to Tier 2 hardware and above, Tier 1 limits Samplers to 16.
     //       However, Tier 1 hardware is technically NOT D3D12-compliant but late D3D11.
     //       We could possibly restrict that by raising Feature Level to 12 in NativeDevice;
     //       verify if this should be done after all
-    if (!mSamplerHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, 2048, 1536))
+    if (!mSamplerHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, 1536, 2048))
     {
         D3D12NI_LOG_ERROR("Failed to initialize Sampler Ring Descriptor Heap");
         return false;
     }
 
-    if (!mConstantRingBuffer.Init(9 * 1024 * 1024, 3 * 1024 * 1024))
+    if (!mConstantRingBuffer.Init(3 * 1024 * 1024))
     {
         D3D12NI_LOG_ERROR("Failed to initialize constant data Ring Buffer");
         return false;

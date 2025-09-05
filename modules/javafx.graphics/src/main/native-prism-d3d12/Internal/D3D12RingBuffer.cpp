@@ -51,15 +51,15 @@ RingBuffer::~RingBuffer()
     }
 }
 
-bool RingBuffer::Init(size_t size, size_t flushThreshold)
+bool RingBuffer::Init(size_t flushThreshold, size_t size)
 {
-    if (!InitInternal(size, flushThreshold)) return false;
+    if (!InitInternal(flushThreshold, size)) return false;
 
     // create the Resource which will represent our Ring Buffer
     D3D12_RESOURCE_DESC resourceDesc;
     D3D12NI_ZERO_STRUCT(resourceDesc);
     resourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    resourceDesc.Width = static_cast<UINT64>(size);
+    resourceDesc.Width = static_cast<UINT64>(mSize);
     resourceDesc.Height = 1;
     resourceDesc.DepthOrArraySize = 1;
     resourceDesc.MipLevels = 1;

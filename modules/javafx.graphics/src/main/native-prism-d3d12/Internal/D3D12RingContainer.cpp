@@ -102,10 +102,13 @@ RingContainer::~RingContainer()
     D3D12NI_LOG_TRACE("%s destroyed", mDebugName.c_str());
 }
 
-bool RingContainer::InitInternal(size_t size, size_t flushThreshold)
+bool RingContainer::InitInternal(size_t flushThreshold, size_t totalSize)
 {
-    mSize = size;
-    mFlushThreshold = (flushThreshold > size) ? size : flushThreshold;
+    // Default Ring Container size is 3 times the flush threshold, which causes
+    // mid-frame resources to triple-buffer. This should be the case in most
+    // situations with Sampler Heap being the only exception.
+    mSize = (totalSize > 0) ? totalSize : 3 * flushThreshold;
+    mFlushThreshold = (flushThreshold > totalSize) ? totalSize : flushThreshold;
     mUsed = mUncommitted = mHead = mTail = 0;
     return true;
 }

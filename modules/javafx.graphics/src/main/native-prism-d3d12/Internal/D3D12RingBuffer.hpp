@@ -78,13 +78,20 @@ public:
     ~RingBuffer();
 
     /**
-     * Initializes Ring Buffer with predefined @p size in bytes.
+     * Initializes Ring Buffer with predefined @p size in bytes and preset
+     * @p flushThreshold
      *
      * @p flushThreshold determines when Ring Buffer will trigger a Command List
      * flush on the attached device. Threshold is determined in bytes. If provided
      * threshold is larger than @p size it will be forced to @p size.
+     *
+     * If @p size is 0 bytes (aka. its default value) the size will be calculated
+     * to 3 times the size of @p flushThreshold to implement "triple-buffering" of
+     * mid-frame data, which seemed to provide the best results. Realistically,
+     * the only RingContainer-based class that needs a custom size should be the
+     * Sampler Heap.
      */
-    bool Init(size_t size, size_t flushThreshold);
+    bool Init(size_t flushThreshold, size_t size = 0);
 
     /**
      * Requests @p size bytes of space from the Ring Buffer which should

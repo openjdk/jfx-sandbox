@@ -58,11 +58,17 @@ public:
     RingDescriptorHeap(const NIPtr<NativeDevice>& device);
     ~RingDescriptorHeap() = default;
 
-    /*
-     * Initializes Ring Descriptor Heap of given type and with given shader visibility. Size and
-     * flushThreshold should be in amounts of Descriptors.
+    /**
+     * Initializes Ring Descriptor Heap of given type and with given shader visibility.
+     * @p size and @p flushThreshold should be measured in descriptor count.
+     *
+     * If @p size is set to 0 (aka. its default value) the total Container size will be
+     * calculated to 3 times the @p flushThreshold to imitate "triple-buffering" of
+     * mid-frame Descriptors which proved to be the most efficient. A different @p size
+     * should realistically only be necessary when initializing the Sampler Heap which
+     * has a hard-limited size by D3D12 API.
      */
-    bool Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible, UINT size, UINT flushThreshold);
+    bool Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible, UINT flushThreshold, UINT size = 0);
 
     /*
      * Reserve @p count amount of Descriptors on the heap and get back the Data structure

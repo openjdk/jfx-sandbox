@@ -97,7 +97,7 @@ protected:
 
     // Initializes some internal common fields. Should be called at
     // the dedicated Init() call
-    bool InitInternal(size_t size, size_t flushThreshold);
+    bool InitInternal(size_t flushThreshold, size_t totalSize);
 
     // Internal offset-pointer calculation function which updates head/tail
     // offsets and reserves some space on the Ring container. It is up to the

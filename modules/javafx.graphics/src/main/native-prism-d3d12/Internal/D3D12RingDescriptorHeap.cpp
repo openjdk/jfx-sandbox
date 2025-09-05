@@ -58,14 +58,14 @@ RingDescriptorHeap::RingDescriptorHeap(const NIPtr<NativeDevice>& device)
 {
 }
 
-bool RingDescriptorHeap::Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible, UINT size, UINT flushThreshold)
+bool RingDescriptorHeap::Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible, UINT flushThreshold, UINT size)
 {
-    if (!InitInternal(size, flushThreshold)) return false;
+    if (!InitInternal(flushThreshold, size)) return false;
 
     D3D12_DESCRIPTOR_HEAP_DESC desc;
     D3D12NI_ZERO_STRUCT(desc);
     desc.Type = type;
-    desc.NumDescriptors = size;
+    desc.NumDescriptors = mSize;
     desc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     // TODO: D3D12: for multi-adapters, we need to set below to non-zero.
     // See: https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_descriptor_heap_desc
