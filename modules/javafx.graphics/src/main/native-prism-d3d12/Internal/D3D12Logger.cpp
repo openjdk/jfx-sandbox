@@ -49,10 +49,10 @@ namespace Internal {
 void Log(LogLevel level, const char* file, int line, const char* fmt, ...)
 {
     // Skip logs when prism.verbose is false.
-    if (!Config::Instance().IsVerbose()) return;
+    if (!Config::IsVerbose()) return;
     // Also, debug/trace logs should be skipped if they are not explicitly enabled
-    if (level == LogLevel::Debug && !Config::Instance().IsDebug()) return;
-    if (level == LogLevel::Trace && !Config::Instance().IsTrace()) return;
+    if (level == LogLevel::Debug && !Config::IsDebug()) return;
+    if (level == LogLevel::Trace && !Config::IsTrace()) return;
 
     va_list varargs;
     char logMsg[1024];
@@ -102,7 +102,7 @@ void Log(LogLevel level, const char* file, int line, const char* fmt, ...)
     }
 
     std::string actualFileStr = (fileTrimIdx != std::string::npos) ? fileStr.substr(fileTrimIdx) : fileStr;
-    if (Config::Instance().IsFileLogEnabled() && !logFile.is_open())
+    if (Config::IsFileLogEnabled() && !logFile.is_open())
     {
         std::time_t now = std::time(0);
         std::tm timeStruct;
@@ -119,7 +119,7 @@ void Log(LogLevel level, const char* file, int line, const char* fmt, ...)
         // TODO: D3D12: On Release builds this causes access violation
         //const std::lock_guard<std::mutex> printLock(writeMutex);
 
-        if (Config::Instance().IsColorLogsEnabled())
+        if (Config::IsColorLogsEnabled())
         {
             GetConsoleScreenBufferInfo(stdOutHandle, &consoleInfo);
             SetConsoleTextAttribute(stdOutHandle, consoleColor);
@@ -129,7 +129,7 @@ void Log(LogLevel level, const char* file, int line, const char* fmt, ...)
         fprintf(stderr, logLine);
         if (logFile.is_open()) logFile << logLine;
 
-        if (Config::Instance().IsColorLogsEnabled())
+        if (Config::IsColorLogsEnabled())
         {
             SetConsoleTextAttribute(stdOutHandle, consoleInfo.wAttributes);
         }

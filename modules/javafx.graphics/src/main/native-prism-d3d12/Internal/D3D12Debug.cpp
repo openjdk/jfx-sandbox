@@ -212,7 +212,7 @@ bool Debug::Init()
 {
     // first, conditionally enable DRED - this will be useful even with debug layers disabled
     // we must change those settings _before_ D3D12 device is created
-    if (Config::Instance().IsDREDEnabled())
+    if (Config::IsDREDEnabled())
     {
         D3D12DeviceRemovedExtendedDataSettings dredSettings;
         HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings));
@@ -224,7 +224,7 @@ bool Debug::Init()
         D3D12NI_LOG_INFO("Enabled DRED analysis");
     }
 
-    mIsEnabled = Config::Instance().IsDebugLayerEnabled();
+    mIsEnabled = Config::IsDebugLayerEnabled();
     if (!mIsEnabled)
     {
         D3D12NI_LOG_INFO("Debug facilities disabled");
@@ -238,7 +238,7 @@ bool Debug::Init()
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to get Debug Layers interface");
 
     mD3D12Debug->EnableDebugLayer();
-    mD3D12Debug->SetEnableGPUBasedValidation(Config::Instance().IsGpuDebugEnabled());
+    mD3D12Debug->SetEnableGPUBasedValidation(Config::IsGpuDebugEnabled());
     // NOTE: here we can potentially disable state-tracking for GPU-based valiadtion.
     // This saves a lot of performance but shuts down resource state validation.
     // Use: mDebugLayer->SetGPUBasedValidationFlags(...);
@@ -249,7 +249,7 @@ bool Debug::Init()
     hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&mDXGIInfoQueue));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to get DXGI Info Queue interface");
 
-    if (Config::Instance().IsBreakOnErrorEnabled())
+    if (Config::IsBreakOnErrorEnabled())
     {
         hr = mDXGIInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
         D3D12NI_RET_IF_FAILED(hr, false, "Failed to set break on DXGI errors");
@@ -316,7 +316,7 @@ bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
         return false;
     }
 
-    if (Config::Instance().IsBreakOnErrorEnabled())
+    if (Config::IsBreakOnErrorEnabled())
     {
         hr = mD3D12InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
         D3D12NI_RET_IF_FAILED(hr, false, "Failed to set break on D3D12 errors");

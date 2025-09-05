@@ -52,6 +52,9 @@ class Config
         bool apiOpts;
         bool dred;
         bool profilerSummary;
+        uint32_t mainRingBufferThreshold;
+        uint32_t constantRingBufferThreshold;
+        uint32_t srvRingHeapThreshold;
     } mSettings;
 
     Config();
@@ -80,64 +83,79 @@ public:
     bool LoadConfiguration(JNIEnv* env, jclass psClass);
 
     //pre-fetched properties and settings
-    inline bool IsVerbose()
+    inline static bool IsVerbose()
     {
-        return mSettings.verbose;
+        return Instance().mSettings.verbose;
     }
 
-    inline bool IsDebug()
+    inline static bool IsDebug()
     {
-        return mSettings.debug;
+        return Instance().mSettings.debug;
     }
 
-    inline bool IsTrace()
+    inline static bool IsTrace()
     {
-        return mSettings.trace;
+        return Instance().mSettings.trace;
     }
 
-    inline bool IsDebugLayerEnabled()
+    inline static bool IsDebugLayerEnabled()
     {
-        return mSettings.debugLayers;
+        return Instance().mSettings.debugLayers;
     }
 
-    inline bool IsGpuDebugEnabled()
+    inline static bool IsGpuDebugEnabled()
     {
-        return mSettings.gpuDebug;
+        return Instance().mSettings.gpuDebug;
     }
 
-    inline bool IsBreakOnErrorEnabled()
+    inline static bool IsBreakOnErrorEnabled()
     {
-        return mSettings.breakOnError;
+        return Instance().mSettings.breakOnError;
     }
 
-    inline bool IsColorLogsEnabled()
+    inline static bool IsColorLogsEnabled()
     {
-        return mSettings.colorLogs;
+        return Instance().mSettings.colorLogs;
     }
 
-    inline bool IsFileLogEnabled()
+    inline static bool IsFileLogEnabled()
     {
-        return mSettings.fileLog;
+        return Instance().mSettings.fileLog;
     }
 
-    inline bool IsVsyncEnabled()
+    inline static bool IsVsyncEnabled()
     {
-        return mSettings.vsync;
+        return Instance().mSettings.vsync;
     }
 
-    inline bool IsApiOptsEnabled()
+    inline static bool IsApiOptsEnabled()
     {
-        return mSettings.apiOpts;
+        return Instance().mSettings.apiOpts;
     }
 
-    inline bool IsDREDEnabled()
+    inline static bool IsDREDEnabled()
     {
-        return mSettings.dred;
+        return Instance().mSettings.dred;
     }
 
-    inline bool IsProfilerSummaryEnabled()
+    inline static bool IsProfilerSummaryEnabled()
     {
-        return mSettings.profilerSummary;
+        return Instance().mSettings.profilerSummary;
+    }
+
+    inline static uint32_t MainRingBufferThreshold()
+    {
+        return Instance().mSettings.mainRingBufferThreshold;
+    }
+
+    inline static uint32_t ConstantRingBufferThreshold()
+    {
+        return Instance().mSettings.constantRingBufferThreshold;
+    }
+
+    inline static uint32_t SRVRingHeapThreshold()
+    {
+        return Instance().mSettings.srvRingHeapThreshold;
     }
 };
 

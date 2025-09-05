@@ -46,7 +46,7 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     , mResources()
     , mViewport()
 {
-    D3D12NI_LOG_DEBUG("RenderingContext: D3D12 API opts are %s", Config::Instance().IsApiOptsEnabled() ? "enabled" : "disabled");
+    D3D12NI_LOG_DEBUG("RenderingContext: D3D12 API opts are %s", Config::IsApiOptsEnabled() ? "enabled" : "disabled");
 
     mPrimitiveTopology.Set(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 

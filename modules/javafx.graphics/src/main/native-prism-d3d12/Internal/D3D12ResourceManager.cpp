@@ -27,6 +27,7 @@
 
 #include "../D3D12NativeDevice.hpp"
 
+#include "D3D12Config.hpp"
 #include "D3D12Profiler.hpp"
 #include "D3D12Utils.hpp"
 
@@ -212,13 +213,18 @@ ResourceManager::~ResourceManager()
     mPixelShader.reset();
     mRuntimeParametersStash.vertexShader.reset();
     mRuntimeParametersStash.pixelShader.reset();
+    mNativeDevice.reset();
 
     D3D12NI_LOG_DEBUG("ResourceManager destroyed");
 }
 
 bool ResourceManager::Init()
 {
-    if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, 10 * 1024))
+    mDescriptorHeap.SetDebugName("CBV/SRV/UAV Descriptor Heap");
+    mSamplerHeap.SetDebugName("Sampler Heap");
+    mConstantRingBuffer.SetDebugName("Constant Ring Buffer");
+
+    if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, Config::SRVRingHeapThreshold()))
     {
         D3D12NI_LOG_ERROR("Failed to initialize main Ring Descriptor Heap");
         return false;
@@ -243,15 +249,11 @@ bool ResourceManager::Init()
         return false;
     }
 
-    if (!mConstantRingBuffer.Init(3 * 1024 * 1024))
+    if (!mConstantRingBuffer.Init(Config::ConstantRingBufferThreshold()))
     {
         D3D12NI_LOG_ERROR("Failed to initialize constant data Ring Buffer");
         return false;
     }
-
-    mDescriptorHeap.SetDebugName("CBV/SRV/UAV Descriptor Heap");
-    mSamplerHeap.SetDebugName("Sampler Heap");
-    mConstantRingBuffer.SetDebugName("Constant Ring Buffer");
 
     return true;
 }

@@ -308,12 +308,12 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     }
 
     mRingBuffer = std::make_shared<Internal::RingBuffer>(shared_from_this());
-    if (!mRingBuffer->Init(20 * 1024 * Constants::MAX_BATCH_QUADS))
+    mRingBuffer->SetDebugName("Main Ring Buffer");
+    if (!mRingBuffer->Init(Internal::Config::MainRingBufferThreshold()))
     {
         D3D12NI_LOG_ERROR("Failed to initialize main Ring Buffer");
         return false;
     }
-    mRingBuffer->SetDebugName("Main Ring Buffer");
 
     mRTVAllocator = std::make_shared<Internal::DescriptorAllocator>(shared_from_this());
     if (!mRTVAllocator->Init(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false))
@@ -1032,8 +1032,7 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
     Internal::TextureUploader uploader;
     uploader.SetSource(data, dataSizeBytes, srcFormat, srcx, srcy, srcw, srch, srcstride);
 
-    // TODO: D3D12: this threshold might be another optimization point
-    size_t copyThreshold = mRingBuffer->Size() / 2;
+    size_t copyThreshold = mRingBuffer->FlushThreshold();
     bool useStagingBuffer = targetSize > copyThreshold;
 
     Internal::RingBuffer::Region ringRegion;

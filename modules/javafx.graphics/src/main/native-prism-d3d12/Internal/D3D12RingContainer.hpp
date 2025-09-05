@@ -66,6 +66,7 @@ class RingContainer: public IWaitableOperation
     void FlushCommandList();
     void CheckThreshold();
     bool AwaitNextCheckpoint(size_t needed);
+    void PrintHumanReadableSize();
 
 protected:
     /*
@@ -126,6 +127,11 @@ public:
     inline size_t Size() const
     {
         return mSize;
+    }
+
+    inline size_t FlushThreshold() const
+    {
+        return mFlushThreshold;
     }
 };
 

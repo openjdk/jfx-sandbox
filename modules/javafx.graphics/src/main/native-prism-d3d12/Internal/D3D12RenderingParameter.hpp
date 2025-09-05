@@ -73,7 +73,7 @@ protected:
 public:
     RenderingStep()
         : mIsApplied(false)
-        , mOptimizeApply(Config::Instance().IsApiOptsEnabled())
+        , mOptimizeApply(Config::IsApiOptsEnabled())
         , mDependency()
     {}
 

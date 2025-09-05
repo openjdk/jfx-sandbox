@@ -65,7 +65,7 @@ bool RingDescriptorHeap::Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisibl
     D3D12_DESCRIPTOR_HEAP_DESC desc;
     D3D12NI_ZERO_STRUCT(desc);
     desc.Type = type;
-    desc.NumDescriptors = mSize;
+    desc.NumDescriptors = static_cast<UINT>(mSize);
     desc.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
     // TODO: D3D12: for multi-adapters, we need to set below to non-zero.
     // See: https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_descriptor_heap_desc

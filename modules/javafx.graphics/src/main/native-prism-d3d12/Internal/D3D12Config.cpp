@@ -26,6 +26,17 @@
 #include "D3D12Config.hpp"
 
 #include "D3D12Common.hpp"
+#include "D3D12Constants.hpp"
+
+#define TRY_GET_BOOL_PROP(x) do { \
+    bool x; \
+    if (TryGetBoolProperty("prism.d3d12." #x, x)) mSettings.x = x; \
+} while(0)
+
+#define TRY_GET_UINT_PROP(x) do { \
+    int x; \
+    if (TryGetIntProperty("prism.d3d12." #x, x)) mSettings.x = static_cast<uint32_t>(x); \
+} while(0)
 
 
 namespace D3D12 {
@@ -91,6 +102,9 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
 
     // default settings
     mSettings.apiOpts = true;
+    mSettings.mainRingBufferThreshold = 24 * 1024 * Constants::MAX_BATCH_QUADS;
+    mSettings.constantRingBufferThreshold = 4 * 1024 * 1024;
+    mSettings.srvRingHeapThreshold = 10 * 1024;
 
     // fetch configuration
     mSettings.verbose = GetBool("verbose");
@@ -104,8 +118,10 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
     mSettings.dred = GetBoolProperty("prism.d3d12.dred");
     mSettings.profilerSummary = GetBoolProperty("prism.d3d12.profilerSummary");
 
-    bool apiOpts;
-    if (TryGetBoolProperty("prism.d3d12.apiOpts", apiOpts)) mSettings.apiOpts = apiOpts;
+    TRY_GET_BOOL_PROP(apiOpts);
+    TRY_GET_UINT_PROP(mainRingBufferThreshold);
+    TRY_GET_UINT_PROP(constantRingBufferThreshold);
+    TRY_GET_UINT_PROP(srvRingHeapThreshold);
 
     mSettings.vsync = GetBool("isVsyncEnabled");
 

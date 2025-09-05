@@ -78,6 +78,40 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
     return true;
 }
 
+void RingContainer::PrintHumanReadableSize()
+{
+    auto SizeReducer = [](size_t size, char& unit) -> size_t
+    {
+        uint32_t reductions = 0;
+        while (size > 1024 && reductions < 3)
+        {
+            size /= 1024;
+            reductions++;
+        }
+
+        switch (reductions)
+        {
+        case 0: unit = ' '; break;
+        case 1: unit = 'K'; break;
+        case 2: unit = 'M'; break;
+        case 3: unit = 'G'; break;
+        default: unit = '?'; break;
+        }
+
+        return size;
+    };
+
+    char unitSize, unitThreshold;
+    size_t printedSize = SizeReducer(mSize, unitSize);
+    size_t printedThreshold = SizeReducer(mFlushThreshold, unitThreshold);
+
+    D3D12NI_LOG_INFO("%s - %d%c (%d) size, %d%c (%d) flush threshold",
+        mDebugName.c_str(),
+        printedSize, unitSize, mSize,
+        printedThreshold, unitThreshold, mFlushThreshold
+    );
+}
+
 RingContainer::RingContainer(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mSize(0)
@@ -107,9 +141,11 @@ bool RingContainer::InitInternal(size_t flushThreshold, size_t totalSize)
     // Default Ring Container size is 3 times the flush threshold, which causes
     // mid-frame resources to triple-buffer. This should be the case in most
     // situations with Sampler Heap being the only exception.
-    mSize = (totalSize > 0) ? totalSize : 3 * flushThreshold;
-    mFlushThreshold = (flushThreshold > totalSize) ? totalSize : flushThreshold;
+    mSize = (totalSize > 0) ? totalSize : (3 * flushThreshold);
+    mFlushThreshold = (flushThreshold > mSize) ? mSize : flushThreshold;
     mUsed = mUncommitted = mHead = mTail = 0;
+
+    PrintHumanReadableSize();
     return true;
 }
 

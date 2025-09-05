@@ -125,7 +125,7 @@ void Profiler::TimingEnd(uint32_t sourceID)
 
 void Profiler::PrintSummary()
 {
-    if (!Config::Instance().IsProfilerSummaryEnabled()) return;
+    if (!Config::IsProfilerSummaryEnabled()) return;
 
     if (mFrameCount == 0) mFrameCount = 1;
 

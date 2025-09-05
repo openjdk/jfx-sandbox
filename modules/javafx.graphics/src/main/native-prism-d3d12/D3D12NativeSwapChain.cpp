@@ -137,7 +137,7 @@ NativeSwapChain::~NativeSwapChain()
 
 bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
 {
-    mVSyncEnabled = Internal::Config::Instance().IsVsyncEnabled();
+    mVSyncEnabled = Internal::Config::IsVsyncEnabled();
     mSwapChainFlags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
 
     DXGI_SWAP_CHAIN_DESC1 desc;
