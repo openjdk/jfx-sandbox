@@ -102,7 +102,7 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
 
     // default settings
     mSettings.apiOpts = true;
-    mSettings.mainRingBufferThreshold = 24 * 1024 * Constants::MAX_BATCH_QUADS;
+    mSettings.mainRingBufferThreshold = 20 * 1024 * 1024;
     mSettings.constantRingBufferThreshold = 4 * 1024 * 1024;
     mSettings.srvRingHeapThreshold = 10 * 1024;
 
