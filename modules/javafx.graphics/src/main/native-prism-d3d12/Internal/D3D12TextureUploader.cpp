@@ -38,7 +38,7 @@ void TextureUploader::TransferDirect()
 
     for (size_t y = 0; y < mSource.h; ++y)
     {
-        const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(mSource.ptr) + (y * mSource.stride);
+        const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(mSource.ptr) + ((y + mSource.y) * mSource.stride) + (mSource.x * bpp);
         uint8_t* dstPtr = reinterpret_cast<uint8_t*>(mTarget.ptr) + (y * mTarget.stride);
 
         memcpy(dstPtr, srcPtr, mSource.w * bpp);
@@ -47,12 +47,13 @@ void TextureUploader::TransferDirect()
 
 void TextureUploader::TransferA8ToB8G8R8A8()
 {
-    size_t srcStrideElems = mSource.stride / GetPixelFormatBPP(mSource.format);
+    size_t srcBpp = GetPixelFormatBPP(mSource.format);
+    size_t srcStrideElems = mSource.stride / srcBpp;
     size_t dstStrideElems = mTarget.stride / GetDXGIFormatBPP(mTarget.format);
 
     for (size_t y = 0; y < mSource.h; ++y)
     {
-        const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(mSource.ptr) + (y * srcStrideElems);
+        const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(mSource.ptr) + ((y + mSource.y) * srcStrideElems) + (mSource.x * srcBpp);
         Pixel_RGBA8_UNORM* dstPtr = reinterpret_cast<Pixel_RGBA8_UNORM*>(mTarget.ptr) + (y * dstStrideElems);
         for (size_t x = 0; x < mSource.w; ++x)
         {
@@ -64,12 +65,13 @@ void TextureUploader::TransferA8ToB8G8R8A8()
 
 void TextureUploader::TransferRGBToB8G8R8A8()
 {
-    size_t srcStrideElems = mSource.stride / GetPixelFormatBPP(mSource.format);
+    size_t srcBpp = GetPixelFormatBPP(mSource.format);
+    size_t srcStrideElems = mSource.stride / srcBpp;
     size_t dstStrideElems = mTarget.stride / GetDXGIFormatBPP(mTarget.format);
 
     for (size_t y = 0; y < mSource.h; ++y)
     {
-        const Pixel_RGB8_UNORM* srcPtr = reinterpret_cast<const Pixel_RGB8_UNORM*>(mSource.ptr) + (y * srcStrideElems);
+        const Pixel_RGB8_UNORM* srcPtr = reinterpret_cast<const Pixel_RGB8_UNORM*>(mSource.ptr) + ((y + mSource.y) * srcStrideElems) + (mSource.x * srcBpp);
         Pixel_BGRA8_UNORM* dstPtr = reinterpret_cast<Pixel_BGRA8_UNORM*>(mTarget.ptr) + (y * dstStrideElems);
         for (size_t x = 0; x < mSource.w; ++x)
         {
