@@ -45,7 +45,7 @@ bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader)
 
     if (resourceData.cbufferDirectSize > 0)
     {
-        descriptors.ConstantDataDirectRegion = mConstantRingBuffer.Reserve(resourceData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+        descriptors.ConstantDataDirectRegion = mConstantRingBuffer.Reserve(resourceData.cbufferDirectSize);
         if (!descriptors.ConstantDataDirectRegion)
         {
             D3D12NI_LOG_ERROR("Failed to reserve Constant Ring Buffer space for direct constant data");
@@ -61,7 +61,7 @@ bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader)
         D3D12NI_ASSERT(resourceData.cbufferDTableSingleSize > 0, "Requested CBV DTable allocation, yet single size is zero");
 
         size_t singleCBufferSizeAligned = Utils::Align<size_t>(resourceData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-        descriptors.ConstantDataDTableRegions = mConstantRingBuffer.Reserve(singleCBufferSizeAligned * resourceData.cbufferDTableCount, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+        descriptors.ConstantDataDTableRegions = mConstantRingBuffer.Reserve(singleCBufferSizeAligned * resourceData.cbufferDTableCount);
         if (!descriptors.ConstantDataDTableRegions)
         {
             D3D12NI_LOG_ERROR("Failed to reserve Constant Ring Buffer space for descriptor table constant data of size %zd", singleCBufferSizeAligned * resourceData.cbufferDTableCount);
@@ -249,7 +249,7 @@ bool ResourceManager::Init()
         return false;
     }
 
-    if (!mConstantRingBuffer.Init(Config::ConstantRingBufferThreshold()))
+    if (!mConstantRingBuffer.Init(Config::ConstantRingBufferThreshold(), D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT))
     {
         D3D12NI_LOG_ERROR("Failed to initialize constant data Ring Buffer");
         return false;
@@ -258,9 +258,35 @@ bool ResourceManager::Init()
     return true;
 }
 
+void ResourceManager::DeclareRingResources()
+{
+    Shader::ResourceData vsData = mVertexShader->GetResourceData();
+    Shader::ResourceData psData = mPixelShader->GetResourceData();
+
+    // constant data vs
+    size_t totalConstantDataSize =
+        Utils::Align<size_t>(vsData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) +
+        Utils::Align<size_t>(vsData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) * vsData.cbufferDTableCount;
+
+    // constant data ps
+    totalConstantDataSize +=
+        Utils::Align<size_t>(psData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) +
+        Utils::Align<size_t>(psData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) * psData.cbufferDTableCount;
+
+    mConstantRingBuffer.DeclareRequired(totalConstantDataSize);
+
+    // descriptors
+    size_t totalDescriptorCount = vsData.textureCount + vsData.uavCount + psData.textureCount + psData.uavCount;
+    mDescriptorHeap.DeclareRequired(totalDescriptorCount);
+
+    // samplers should never cross the threshold
+    // if they do we need to figure out some optimization for them instead
+}
+
 // Assumes it is called only if attached shader resources change or we switch to a new Command List
 bool ResourceManager::PrepareResources()
 {
+    // collect how many slots of each Ring Container we will need and
     if (!PrepareShaderResources(mVertexShader)) return false;
     if (!PrepareShaderResources(mPixelShader)) return false;
 
@@ -271,6 +297,22 @@ void ResourceManager::ApplyResources(const D3D12GraphicsCommandListPtr& commandL
 {
     mVertexShader->ApplyDescriptors(commandList);
     mPixelShader->ApplyDescriptors(commandList);
+}
+
+void ResourceManager::DeclareComputeRingResources()
+{
+    Shader::ResourceData csData = mComputeShader->GetResourceData();
+
+    // constant data
+    size_t totalConstantDataSize =
+        Utils::Align<size_t>(csData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) +
+        Utils::Align<size_t>(csData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) * csData.cbufferDTableCount;
+
+    mConstantRingBuffer.DeclareRequired(totalConstantDataSize);
+
+    // descriptors
+    size_t totalDescriptorCount = csData.textureCount + csData.uavCount;
+    mDescriptorHeap.DeclareRequired(totalDescriptorCount);
 }
 
 bool ResourceManager::PrepareComputeResources()

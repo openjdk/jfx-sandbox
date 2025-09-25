@@ -91,7 +91,7 @@ public:
      * the only RingContainer-based class that needs a custom size should be the
      * Sampler Heap.
      */
-    bool Init(size_t flushThreshold, size_t size = 0);
+    bool Init(size_t flushThreshold, size_t alignment, size_t size = 0);
 
     /**
      * Requests @p size bytes of space from the Ring Buffer which should
@@ -116,7 +116,7 @@ public:
      * For more info on alignment and what "small Textures" are see:
      *    https://learn.microsoft.com/en-us/windows/win32/api/d3d12/ns-d3d12-d3d12_resource_desc#alignment
      */
-    Region Reserve(size_t size, size_t alignment);
+    Region Reserve(size_t size);
 
     void SetDebugName(const std::string& name);
 

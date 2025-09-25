@@ -94,20 +94,28 @@ protected:
 
     NIPtr<NativeDevice> mNativeDevice;
     size_t mSize;
+    size_t mAlignment;
     uint32_t mProfilerSourceID;
 
     // Initializes some internal common fields. Should be called at
     // the dedicated Init() call
-    bool InitInternal(size_t flushThreshold, size_t totalSize);
+    bool InitInternal(size_t flushThreshold, size_t alignment, size_t totalSize);
 
     // Internal offset-pointer calculation function which updates head/tail
     // offsets and reserves some space on the Ring container. It is up to the
     // derived class to interpret these offsets onto its resource.
-    Region ReserveInternal(size_t size, size_t alignment);
+    Region ReserveInternal(size_t size);
 
 public:
     RingContainer(const NIPtr<NativeDevice>& nativeDevice);
     virtual ~RingContainer() = 0;
+
+    /**
+     * Informs Ring Container that we will require @p size bytes/slots of data in order to
+     * successfully submit the next Draw call. Ring Container will then ensure that allocation
+     * of next @p size data will not be interrupted by a mid-frame flush.
+     */
+    void DeclareRequired(size_t size);
 
     /**
      * Set a checkpoint in the ring resource. This will register the block of memory that was

@@ -115,6 +115,8 @@ public:
     ~ResourceManager();
 
     bool Init();
+    void DeclareRingResources();
+    void DeclareComputeRingResources();
     bool PrepareResources();
     bool PrepareComputeResources();
     void ApplyResources(const D3D12GraphicsCommandListPtr& commandList) const;

@@ -115,6 +115,7 @@ void RingContainer::PrintHumanReadableSize()
 RingContainer::RingContainer(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mSize(0)
+    , mAlignment(0)
     , mProfilerSourceID(0)
     , mFlushThreshold(0)
     , mUsed(0)
@@ -136,36 +137,39 @@ RingContainer::~RingContainer()
     D3D12NI_LOG_TRACE("%s destroyed", mDebugName.c_str());
 }
 
-bool RingContainer::InitInternal(size_t flushThreshold, size_t totalSize)
+bool RingContainer::InitInternal(size_t flushThreshold, size_t alignment, size_t totalSize)
 {
+    // alignment has to be a power of two
+    if ((alignment == 0) || (alignment & (alignment - 1)) != 0)
+    {
+        D3D12NI_LOG_ERROR("%s allocation alignment must be a power of two; was %ld", mDebugName.c_str(), alignment);
+        return false;
+    }
+
+    totalSize = Utils::Align(totalSize, alignment);
+
     // Default Ring Container size is 3 times the flush threshold, which causes
     // mid-frame resources to triple-buffer. This should be the case in most
     // situations with Sampler Heap being the only exception.
     mSize = (totalSize > 0) ? totalSize : (3 * flushThreshold);
     mFlushThreshold = (flushThreshold > mSize) ? mSize : flushThreshold;
+    mAlignment = alignment;
     mUsed = mUncommitted = mHead = mTail = 0;
 
     PrintHumanReadableSize();
     return true;
 }
 
-RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignment)
+RingContainer::Region RingContainer::ReserveInternal(size_t size)
 {
-    // alignment has to be a power of two
-    if ((alignment == 0) || (alignment & (alignment - 1)) != 0)
-    {
-        D3D12NI_LOG_ERROR("%s allocation alignment must be a power of two; was %ld", mDebugName.c_str(), alignment);
-        return Region();
-    }
-
     if (size == 0)
     {
         D3D12NI_LOG_ERROR("%s: Attempted to allocate 0 ring container slots", mDebugName.c_str());
         return Region();
     }
 
-    size_t alignedTail = Utils::Align(mTail, alignment);
-    size = Utils::Align(size, alignment);
+    size_t alignedTail = Utils::Align(mTail, mAlignment);
+    size = Utils::Align(size, mAlignment);
 
     if (size > mSize)
     {
@@ -256,6 +260,19 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size, size_t alignme
     // Another confidence check, but we should never end up here
     D3D12NI_LOG_ERROR("%s: overflow - tried to allocate past head (h: %ld, t: %ld, size: %ld)", mDebugName.c_str(), mHead, mTail, size);
     return Region();
+}
+
+void RingContainer::DeclareRequired(size_t size)
+{
+    size_t tailAligned = Utils::Align(mTail, mAlignment);
+    size_t realSizeNeeded = Utils::Align(size, mAlignment) + (tailAligned - mTail);
+
+    // if requested data will be more than the flush threshold we should flush the Command List
+    if ((mUncommitted > 0) && (mUncommitted + realSizeNeeded > mFlushThreshold))
+    {
+        Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Signal);
+        mNativeDevice->FlushCommandList();
+    }
 }
 
 void RingContainer::OnQueueSignal(uint64_t fenceValue)

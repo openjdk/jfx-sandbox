@@ -309,7 +309,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
 
     mRingBuffer = std::make_shared<Internal::RingBuffer>(shared_from_this());
     mRingBuffer->SetDebugName("Main Ring Buffer");
-    if (!mRingBuffer->Init(Internal::Config::MainRingBufferThreshold()))
+    if (!mRingBuffer->Init(Internal::Config::MainRingBufferThreshold(), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT))
     {
         D3D12NI_LOG_ERROR("Failed to initialize main Ring Buffer");
         return false;
@@ -355,6 +355,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     mProfilerTransferWaitSourceID = Internal::Profiler::Instance().RegisterSource("NativeDevice Transfer Wait");
     mProfilerFrameTimeID = Internal::Profiler::Instance().RegisterSource("Frame Time");
 
+    Internal::Profiler::Instance().TimingStart(mProfilerFrameTimeID);
     return true;
 }
 
@@ -501,24 +502,8 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
         return;
     }
 
-    // reserve space on Ring Buffer
-    // This can cause a command list flush, so better do it early
-    Internal::RingBuffer::Region vertexRegion = mRingBuffer->Reserve(elementCount * 8 * sizeof(float), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
-    if (!vertexRegion)
-    {
-        D3D12NI_LOG_ERROR("Ring Buffer allocation failed");
-        return;
-    }
-
-    // move data to our Ring Buffer
-    AssembleVertexData(vertexRegion.cpu, vertices, colors, elementCount);
-
-    D3D12_VERTEX_BUFFER_VIEW vbView;
-    vbView.BufferLocation = vertexRegion.gpu;
-    vbView.SizeInBytes = static_cast<UINT>(vertexRegion.size);
-    vbView.StrideInBytes = 8 * sizeof(float); // 3x pos, 1x uint32 color, 2x uv, 2x uv
-    mRenderingContext->SetVertexBuffer(vbView);
-
+    // set up common parameters
+    // whatever is already set will be filtered out by RenderingContext
     D3D12_INDEX_BUFFER_VIEW ibView;
     ibView.BufferLocation = m2DIndexBuffer->GetGPUPtr();
     ibView.SizeInBytes = static_cast<UINT>(m2DIndexBuffer->Size());
@@ -535,6 +520,28 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     mRenderingContext->SetPixelShader(mCurrent2DShader);
     mRenderingContext->SetCullMode(D3D12_CULL_MODE_NONE);
     mRenderingContext->SetFillMode(D3D12_FILL_MODE_SOLID);
+
+    // declare Ring Container spaces so that we can potentially flush the Command List early
+    // and prevent mid-write flushes
+    mRingBuffer->DeclareRequired(elementCount * 8 * sizeof(float));
+    mRenderingContext->DeclareRingResources();
+
+    // reserve space on Ring Buffer
+    Internal::RingBuffer::Region vertexRegion = mRingBuffer->Reserve(elementCount * 8 * sizeof(float));
+    if (!vertexRegion)
+    {
+        D3D12NI_LOG_ERROR("Ring Buffer allocation failed");
+        return;
+    }
+
+    // move data to our Ring Buffer
+    AssembleVertexData(vertexRegion.cpu, vertices, colors, elementCount);
+
+    D3D12_VERTEX_BUFFER_VIEW vbView;
+    vbView.BufferLocation = vertexRegion.gpu;
+    vbView.SizeInBytes = static_cast<UINT>(vertexRegion.size);
+    vbView.StrideInBytes = 8 * sizeof(float); // 3x pos, 1x uint32 color, 2x uv, 2x uv
+    mRenderingContext->SetVertexBuffer(vbView);
 
     // apply Rendering Context details
     if (!mRenderingContext->Apply())
@@ -776,7 +783,7 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
         // we do this early to make potential ring buffer flush happen before a batch of GPU commands
         QuadVertices fsQuad = AssembleVertexQuadForBlit(src, dst);
 
-        Internal::RingBuffer::Region vertexRegion = mRingBuffer->Reserve(fsQuad.size() * sizeof(Vertex_2D), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+        Internal::RingBuffer::Region vertexRegion = mRingBuffer->Reserve(fsQuad.size() * sizeof(Vertex_2D));
         if (vertexRegion.cpu == 0)
         {
             D3D12NI_LOG_ERROR("BlitTexture: Ring Buffer allocation failed");
@@ -906,7 +913,7 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
 
     GetCurrentCommandList()->CopyTextureRegion(&dstLoc, 0, 0, 0, &srcLoc, &srcBox);
 
-    // Flush the Command Queue to ensure data was read and wait for it
+    // Flush the Command Queue to ensure data was read and wait for itF
     Internal::Profiler::Instance().MarkEvent(mProfilerTransferWaitSourceID, Internal::Profiler::Event::Wait);
     FlushCommandList();
     Signal(CheckpointType::TRANSFER);
@@ -995,6 +1002,7 @@ bool NativeDevice::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
 
         mRenderingContext->ClearComputeResourcesApplied();
 
+        mRenderingContext->DeclareComputeRingResources();
         if (!mRenderingContext->ApplyCompute())
         {
             D3D12NI_LOG_ERROR("Failed to apply Rendering Context Compute settings");
@@ -1051,16 +1059,9 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
     }
     else
     {
-        // Alignment can be reduced if we update a "small" texture.
-        // There's plenty of requirements which really boil down to target size being
-        // lower than default alignment, which is 64K.
-        // This optimizes memory consumption a bit in the Ring Buffer.
-        size_t alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
-        if (targetSize < D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT)
-            alignment = D3D12_SMALL_RESOURCE_PLACEMENT_ALIGNMENT;
-
         // copying smaller textures will go via the Ring Buffer to prevent unnecessary allocation
-        ringRegion = mRingBuffer->Reserve(targetSize, alignment);
+        mRingBuffer->DeclareRequired(targetSize);
+        ringRegion = mRingBuffer->Reserve(targetSize);
         if (ringRegion.cpu == nullptr)
         {
             D3D12NI_LOG_ERROR("Failed to reserve space in the Ring Buffer (full?)");

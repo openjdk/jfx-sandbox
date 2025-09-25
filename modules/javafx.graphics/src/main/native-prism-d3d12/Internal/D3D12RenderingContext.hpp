@@ -102,6 +102,8 @@ public:
 
     bool Init();
 
+    void DeclareRingResources();
+    void DeclareComputeRingResources();
     bool Apply();
     bool ApplyCompute();
     void EnsureBoundTextureStates(D3D12_RESOURCE_STATES state);

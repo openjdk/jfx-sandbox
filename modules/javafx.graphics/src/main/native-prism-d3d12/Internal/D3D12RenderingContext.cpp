@@ -267,6 +267,16 @@ void RenderingContext::RestoreStashedParameters()
     ClearResourcesApplied();
 }
 
+void RenderingContext::DeclareRingResources()
+{
+    mState.resourceManager.DeclareRingResources();
+}
+
+void RenderingContext::DeclareComputeRingResources()
+{
+    mState.resourceManager.DeclareComputeRingResources();
+}
+
 bool RenderingContext::Apply()
 {
     // Prepare rendering steps. These should do all necessary allocations.

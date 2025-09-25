@@ -60,7 +60,7 @@ RingDescriptorHeap::RingDescriptorHeap(const NIPtr<NativeDevice>& device)
 
 bool RingDescriptorHeap::Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible, UINT flushThreshold, UINT size)
 {
-    if (!InitInternal(flushThreshold, size)) return false;
+    if (!InitInternal(flushThreshold, 1, size)) return false;
 
     D3D12_DESCRIPTOR_HEAP_DESC desc;
     D3D12NI_ZERO_STRUCT(desc);
@@ -99,7 +99,7 @@ bool RingDescriptorHeap::Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisibl
 
 DescriptorData RingDescriptorHeap::Reserve(size_t count)
 {
-    Region r = ReserveInternal(count, 1);
+    Region r = ReserveInternal(count);
     if (r.size == 0) return DescriptorData();
 
     return DescriptorData::Form(mCPUHeapStart.ptr, mGPUHeapStart.ptr, static_cast<UINT>(r.offsetFromStart), static_cast<UINT>(count), mIncrementSize, 0);

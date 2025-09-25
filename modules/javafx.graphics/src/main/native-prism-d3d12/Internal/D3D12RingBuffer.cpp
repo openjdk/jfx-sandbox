@@ -51,9 +51,9 @@ RingBuffer::~RingBuffer()
     }
 }
 
-bool RingBuffer::Init(size_t flushThreshold, size_t size)
+bool RingBuffer::Init(size_t flushThreshold, size_t alignment, size_t size)
 {
-    if (!InitInternal(flushThreshold, size)) return false;
+    if (!InitInternal(flushThreshold, alignment, size)) return false;
 
     // create the Resource which will represent our Ring Buffer
     D3D12_RESOURCE_DESC resourceDesc;
@@ -92,9 +92,9 @@ bool RingBuffer::Init(size_t flushThreshold, size_t size)
     return true;
 }
 
-RingBuffer::Region RingBuffer::Reserve(size_t size, size_t alignment)
+RingBuffer::Region RingBuffer::Reserve(size_t size)
 {
-    RingContainer::Region region = ReserveInternal(size, alignment);
+    RingContainer::Region region = ReserveInternal(size);
     if (region.size == 0) return RingBuffer::Region();
 
     return RingBuffer::Region(mCPUPtr + region.offsetFromStart, mGPUPtr + region.offsetFromStart, region.size, region.offsetFromStart);
