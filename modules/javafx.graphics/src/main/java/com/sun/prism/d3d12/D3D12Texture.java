@@ -68,6 +68,11 @@ class D3D12Texture extends BaseTexture<D3D12Resource<D3D12TextureData>> {
     @Override
     public void update(Buffer buffer, PixelFormat format, int dstx, int dsty, int srcx, int srcy, int srcw, int srch,
                        int srcscan, boolean skipFlush) {
+        if (!resource.isValid()) {
+            System.err.println("LKDEBUG update cancelled, resource not valid");
+            return;
+        }
+
         checkUpdateParams(buffer, format, dstx, dsty, srcx, srcy, srcw, srch, srcscan);
 
         if (!skipFlush) {
@@ -150,6 +155,11 @@ class D3D12Texture extends BaseTexture<D3D12Resource<D3D12TextureData>> {
 
     @Override
     public void update(MediaFrame frame, boolean skipFlush) {
+        if (!resource.isValid()) {
+            System.err.println("LKDEBUG update(MediaFrame) cancelled, resource not valid");
+            return;
+        }
+
         if (frame.getPixelFormat() == PixelFormat.MULTI_YCbCr_420) {
             throw new IllegalArgumentException("Unsupported format " + frame.getPixelFormat());
         }

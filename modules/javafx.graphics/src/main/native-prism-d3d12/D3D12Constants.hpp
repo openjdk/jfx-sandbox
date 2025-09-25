@@ -36,6 +36,7 @@ const std::string PHONG_PS_NAME("Mtl1PS");
 const std::string MIPMAP_CS_NAME("MipmapCS");
 
 const unsigned int MAX_BATCH_QUADS = 4096; // follows other backends and Prism
+const unsigned int MAX_BATCH_VERTICES = MAX_BATCH_QUADS * 4;
 const unsigned int MAX_TEXTURE_UNITS = 4; // see BaseShaderContext.java validateTextureOp()
 const unsigned int MAX_LIGHTS = 3; // for now we support only up to 3 lights per mesh view
 const unsigned int MAX_MSAA_SAMPLE_COUNT = 16; // limit for MSAA sample count, same as D3D9

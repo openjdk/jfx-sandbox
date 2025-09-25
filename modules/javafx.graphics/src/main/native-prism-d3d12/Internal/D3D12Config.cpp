@@ -102,9 +102,9 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
 
     // default settings
     mSettings.apiOpts = true;
-    mSettings.mainRingBufferThreshold = 20 * 1024 * 1024;
-    mSettings.constantRingBufferThreshold = 4 * 1024 * 1024;
-    mSettings.srvRingHeapThreshold = 10 * 1024;
+    mSettings.mainRingBufferThreshold = 24 * 1024 * 1024;
+    mSettings.constantRingBufferThreshold = 8 * 1024 * 1024;
+    mSettings.srvRingHeapThreshold = 32 * 1024;
 
     // fetch configuration
     mSettings.verbose = GetBool("verbose");

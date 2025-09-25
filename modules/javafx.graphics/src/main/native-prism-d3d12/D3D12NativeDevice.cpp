@@ -192,6 +192,45 @@ const NIPtr<Internal::Shader>& NativeDevice::GetPhongPixelShader(const PhongShad
     return GetInternalShader(name);
 }
 
+NativeDevice::VertexSubregion NativeDevice::GetNewRegionForVertices(uint32_t vertexCount)
+{
+    if (vertexCount > (Constants::MAX_BATCH_VERTICES / 2))
+    {
+        // rendering more vertices might utilize the Ring Buffer better if we just reserve a separate space for them
+        mRingBuffer->DeclareRequired(vertexCount * 8 * sizeof(float));
+
+        VertexSubregion separateRegion;
+        separateRegion.subregion = mRingBuffer->Reserve(vertexCount * 8 * sizeof(float));
+        if (!separateRegion)
+        {
+            D3D12NI_LOG_ERROR("Ring Buffer allocation failed for quad rendering");
+            return VertexSubregion();
+        }
+
+        separateRegion.view.BufferLocation = separateRegion.subregion.gpu;
+        separateRegion.view.SizeInBytes = static_cast<UINT>(separateRegion.subregion.size);
+        separateRegion.view.StrideInBytes = sizeof(Vertex_2D);
+
+        return separateRegion;
+    }
+
+    if (!m2DVertexBatch.Valid() || vertexCount > m2DVertexBatch.Available())
+    {
+        // reserve space on Ring Buffer
+        mRingBuffer->DeclareRequired(Constants::MAX_BATCH_VERTICES * 8 * sizeof(float));
+        Internal::RingBuffer::Region newVertexRegion = mRingBuffer->Reserve(Constants::MAX_BATCH_VERTICES * 8 * sizeof(float));
+        if (!newVertexRegion)
+        {
+            D3D12NI_LOG_ERROR("Ring Buffer allocation failed for quad rendering");
+            return VertexSubregion();
+        }
+
+        m2DVertexBatch.AssignNewRegion(newVertexRegion);
+    }
+
+    return m2DVertexBatch.Subregion(vertexCount);
+}
+
 NativeDevice::NativeDevice()
     : mAdapter(nullptr)
     , mDevice()
@@ -213,6 +252,8 @@ NativeDevice::NativeDevice()
     , mPassthroughVS()
     , mPhongVS()
     , mCurrent2DShader()
+    , m2DCompositeMode()
+    , m2DVertexBatch()
     , mCommandListPool()
     , m2DIndexBuffer()
     , mRingBuffer()
@@ -280,7 +321,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create in-device Fence");
 
     mCommandListPool = std::make_shared<Internal::CommandListPool>(shared_from_this());
-    if (!mCommandListPool->Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 8))
+    if (!mCommandListPool->Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 16))
     {
         D3D12NI_LOG_ERROR("Failed to initialize Command List Pool");
         return false;
@@ -492,13 +533,12 @@ void NativeDevice::ClearTextureUnit(uint32_t unit)
 }
 
 void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors,
-                               UINT elementCount)
+                               UINT vertexCount)
 {
-    // index buffer size check - should not cross 4096 quads rendered
-    // also serves as an overflow check
-    if ((elementCount / 4) > Constants::MAX_BATCH_QUADS)
+    // vertex count size check, also serves as an overflow check
+    if (vertexCount > Constants::MAX_BATCH_VERTICES)
     {
-        D3D12NI_LOG_WARN("Provided %d quads to render (max %d)", elementCount / 4, Constants::MAX_BATCH_QUADS);
+        D3D12NI_LOG_ERROR("Provided too many quads to render (%d provided, max %d)", vertexCount / 4, Constants::MAX_BATCH_QUADS);
         return;
     }
 
@@ -523,25 +563,15 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
 
     // declare Ring Container spaces so that we can potentially flush the Command List early
     // and prevent mid-write flushes
-    mRingBuffer->DeclareRequired(elementCount * 8 * sizeof(float));
     mRenderingContext->DeclareRingResources();
 
-    // reserve space on Ring Buffer
-    Internal::RingBuffer::Region vertexRegion = mRingBuffer->Reserve(elementCount * 8 * sizeof(float));
-    if (!vertexRegion)
-    {
-        D3D12NI_LOG_ERROR("Ring Buffer allocation failed");
-        return;
-    }
-
     // move data to our Ring Buffer
-    AssembleVertexData(vertexRegion.cpu, vertices, colors, elementCount);
+    VertexSubregion vertexRegion = GetNewRegionForVertices(vertexCount);
+    if (!vertexRegion) return;
 
-    D3D12_VERTEX_BUFFER_VIEW vbView;
-    vbView.BufferLocation = vertexRegion.gpu;
-    vbView.SizeInBytes = static_cast<UINT>(vertexRegion.size);
-    vbView.StrideInBytes = 8 * sizeof(float); // 3x pos, 1x uint32 color, 2x uv, 2x uv
-    mRenderingContext->SetVertexBuffer(vbView);
+    AssembleVertexData(vertexRegion.subregion.cpu, vertices, colors, vertexCount);
+
+    mRenderingContext->SetVertexBuffer(vertexRegion.view);
 
     // apply Rendering Context details
     if (!mRenderingContext->Apply())
@@ -560,8 +590,8 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     // if rendered bbox takes up entire RT (from 0.0 to 1.0) AND we don't blend
     // then discard the clear
 
-    // draw the quads
-    GetCurrentCommandList()->DrawIndexedInstanced((elementCount / 4) * 6, 1, 0, 0, 0);
+    // draw the quads converting vertexCount to indexCount - 1 quad is 4 vertices, or 6 indices
+    GetCurrentCommandList()->DrawIndexedInstanced((vertexCount / 4) * 6, 1, 0, vertexRegion.startOffset, 0);
 
     if (mMidframeFlushNeeded)
     {
@@ -779,19 +809,6 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
         NIPtr<Internal::TextureBase> sourceTexture;
         NIPtr<NativeTexture> intermediateTexture;
 
-        // prepare quad vertices for blitting
-        // we do this early to make potential ring buffer flush happen before a batch of GPU commands
-        QuadVertices fsQuad = AssembleVertexQuadForBlit(src, dst);
-
-        Internal::RingBuffer::Region vertexRegion = mRingBuffer->Reserve(fsQuad.size() * sizeof(Vertex_2D));
-        if (vertexRegion.cpu == 0)
-        {
-            D3D12NI_LOG_ERROR("BlitTexture: Ring Buffer allocation failed");
-            return false;
-        }
-
-        memcpy(vertexRegion.cpu, fsQuad.data(), fsQuad.size() * sizeof(Vertex_2D));
-
         if (srcRT->GetMSAASamples() > 1)
         {
             // create intermediate tex, use ResolveSubresource() to populate it
@@ -819,13 +836,6 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
             sourceTexture = srcRT->GetTexture();
         }
 
-        // prepare rendering context for blit
-        D3D12_VERTEX_BUFFER_VIEW vbView;
-        vbView.BufferLocation = vertexRegion.gpu;
-        vbView.SizeInBytes = static_cast<UINT>(vertexRegion.size);
-        vbView.StrideInBytes = sizeof(Vertex_2D);
-        mRenderingContext->SetVertexBuffer(vbView);
-
         D3D12_INDEX_BUFFER_VIEW ibView;
         ibView.BufferLocation = m2DIndexBuffer->GetGPUPtr();
         ibView.SizeInBytes = static_cast<UINT>(m2DIndexBuffer->Size());
@@ -848,13 +858,25 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
         mRenderingContext->SetRenderTarget(dstRT);
         mRenderingContext->SetCompositeMode(CompositeMode::SRC);
 
+        mRenderingContext->DeclareRingResources();
+
+        // prepare quad vertices for blitting
+        QuadVertices fsQuad = AssembleVertexQuadForBlit(src, dst);
+
+        VertexSubregion vertexRegion = GetNewRegionForVertices(static_cast<uint32_t>(fsQuad.size()));
+        if (!vertexRegion) return false;
+
+        memcpy(vertexRegion.subregion.cpu, fsQuad.data(), fsQuad.size() * sizeof(Vertex_2D));
+
+        mRenderingContext->SetVertexBuffer(vertexRegion.view);
+
         mRenderingContext->Apply();
 
         QueueTextureTransition(sourceTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         QueueTextureTransition(dstRT->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
         SubmitTextureTransitions();
 
-        GetCurrentCommandList()->DrawIndexedInstanced(6, 1, 0, 0, 0);
+        GetCurrentCommandList()->DrawIndexedInstanced(6, 1, 0, vertexRegion.startOffset, 0);
 
         // restore original context parameters
         mRenderingContext->RestoreStashedParameters();
@@ -1116,6 +1138,7 @@ void NativeDevice::FlushCommandList()
 {
     mCommandListPool->SubmitCurrentCommandList();
     mRenderingContext->ClearAppliedFlags();
+    m2DVertexBatch.Invalidate();
 }
 
 void NativeDevice::FinishFrame()

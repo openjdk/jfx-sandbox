@@ -62,6 +62,84 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
 {
     using QuadVertices = std::array<Vertex_2D, 4>;
 
+    struct VertexSubregion
+    {
+        uint32_t startOffset; // counted in vertices since start of entire region
+        Internal::RingBuffer::Region subregion;
+        D3D12_VERTEX_BUFFER_VIEW view;
+
+        VertexSubregion()
+            : startOffset(0)
+            , subregion()
+            , view()
+        {}
+
+        operator bool() const
+        {
+            return subregion.operator bool();
+        }
+    };
+
+    class VertexBatch
+    {
+    private:
+        uint32_t mTaken;
+        Internal::RingBuffer::Region mRegion;
+        D3D12_VERTEX_BUFFER_VIEW mView;
+
+        size_t ElementsToBytes(size_t elements)
+        {
+            return elements * sizeof(Vertex_2D);
+        }
+
+    public:
+        VertexBatch()
+            : mTaken(0)
+            , mRegion()
+        {}
+
+        inline uint32_t Available() const
+        {
+            return (Constants::MAX_BATCH_VERTICES - mTaken);
+        }
+
+        inline bool Valid() const
+        {
+            return mRegion.operator bool();
+        }
+
+        inline void Invalidate()
+        {
+            mRegion = Internal::RingBuffer::Region();
+            mTaken = 0;
+            D3D12NI_ZERO_STRUCT(mView);
+        }
+
+        void AssignNewRegion(const Internal::RingBuffer::Region& region)
+        {
+            mRegion = region;
+            mTaken = 0;
+
+            mView.BufferLocation = mRegion.gpu;
+            mView.SizeInBytes = static_cast<UINT>(mRegion.size);
+            mView.StrideInBytes = sizeof(Vertex_2D); // 3x pos, 1x uint32 color, 2x uv, 2x uv
+        }
+
+        VertexSubregion Subregion(uint32_t elements)
+        {
+            D3D12NI_ASSERT(elements <= (Constants::MAX_BATCH_VERTICES - mTaken), "Attempted to exceed VB Batch size");
+            D3D12NI_ASSERT(mRegion == true, "No assigned vertex buffer region");
+
+            VertexSubregion result;
+            result.subregion = mRegion.Subregion(ElementsToBytes(mTaken), ElementsToBytes(elements));
+            result.startOffset = mTaken;
+            result.view = mView;
+
+            mTaken += elements;
+            return result;
+        }
+    };
+
     IDXGIAdapter1* mAdapter;
     D3D12DevicePtr mDevice;
     D3D12CommandQueuePtr mCommandQueue;
@@ -87,6 +165,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::Shader> mPhongVS;
     NIPtr<Internal::Shader> mCurrent2DShader;
     CompositeMode m2DCompositeMode;
+    VertexBatch m2DVertexBatch;
     NIPtr<Internal::CommandListPool> mCommandListPool;
     NIPtr<Internal::Buffer> m2DIndexBuffer;
     NIPtr<Internal::RingBuffer> mRingBuffer; // used for larger data (ex. 2D Vertex Buffer, texture upload)
@@ -103,6 +182,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
                             const Internal::MemoryView<signed char>& colors, UINT elementCount);
     QuadVertices AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst);
     const NIPtr<Internal::Shader>& GetPhongPixelShader(const PhongShaderSpec& spec) const;
+    VertexSubregion GetNewRegionForVertices(uint32_t elementCount);
 
 public:
     NativeDevice();
@@ -130,7 +210,7 @@ public:
     void Clear(float r, float g, float b, float a, bool clearDepth);
     void ClearTextureUnit(uint32_t unit);
     void RenderQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors,
-                     UINT elementCount);
+                     UINT vertexCount);
     void RenderMeshView(const NIPtr<NativeMeshView>& meshView);
     void SetCompositeMode(CompositeMode mode);
     void UnsetPixelShader();
