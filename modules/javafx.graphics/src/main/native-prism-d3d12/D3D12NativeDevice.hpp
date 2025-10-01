@@ -82,7 +82,6 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
 
     class VertexBatch
     {
-    private:
         uint32_t mTaken;
         Internal::RingBuffer::Region mRegion;
         D3D12_VERTEX_BUFFER_VIEW mView;
@@ -178,7 +177,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     } mTransforms;
 
     bool Build2DIndexBuffer();
-    void AssembleVertexData(void* buffer, const Internal::MemoryView<float>& vertices,
+    BBox AssembleVertexData(void* buffer, const Internal::MemoryView<float>& vertices,
                             const Internal::MemoryView<signed char>& colors, UINT elementCount);
     QuadVertices AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst);
     const NIPtr<Internal::Shader>& GetPhongPixelShader(const PhongShaderSpec& spec) const;
@@ -295,6 +294,7 @@ public:
         return mShaderLibrary->GetShaderData(name);
     }
 
+    // TODO This can be removed?
     inline void NotifyMidframeFlushNeeded()
     {
         mMidframeFlushNeeded = true;

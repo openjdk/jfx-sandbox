@@ -33,6 +33,25 @@
 namespace D3D12 {
 namespace Internal {
 
+void RenderingContext::RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect)
+{
+    mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    if (mRenderTarget.Get()->HasDepthTexture())
+        mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    mNativeDevice->SubmitTextureTransitions();
+
+    float rgba[4] = { r, g, b, a };
+    mNativeDevice->GetCurrentCommandList()->ClearRenderTargetView(mRenderTarget.Get()->GetRTVDescriptorData().CPU(0), rgba, 1, &clearRect);
+    // NOTE: Here we check by NativeRenderTarget::HasDepthTexture() and not IsDepthTestEnabled()
+    // Prism can sometimes set the RTT with depth test disabled, but then request its clear with
+    // the depth texture (ex. hello.HelloViewOrder) and only afterwards re-set the RTT again enabling
+    // depth testing. So we have to disregard the depth test flag, otherwise we would miss this DSV clear.
+    if (clearDepth && mRenderTarget.Get()->HasDepthTexture())
+    {
+        mNativeDevice->GetCurrentCommandList()->ClearDepthStencilView(mRenderTarget.Get()->GetDSVDescriptorData().CPU(0), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 1, &clearRect);
+    }
+}
+
 RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mState(nativeDevice)
@@ -45,6 +64,10 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     , mDefaultScissor()
     , mResources()
     , mViewport()
+    , mComputePipelineState()
+    , mComputeRootSignature()
+    , mComputeResources()
+    , mUsedRTs()
 {
     D3D12NI_LOG_DEBUG("RenderingContext: D3D12 API opts are %s", Config::IsApiOptsEnabled() ? "enabled" : "disabled");
 
@@ -101,21 +124,108 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
     mRenderTarget.Apply(mNativeDevice->GetCurrentCommandList(), mState);
     DescriptorData rtData = mRenderTarget.Get()->GetRTVDescriptorData();
 
-    mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-    if (mRenderTarget.Get()->HasDepthTexture())
-        mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    mNativeDevice->SubmitTextureTransitions();
+    // if the RTT was NOT fully used we don't have to clear the whole thing
+    // determine how much of the space actually needs to be cleared (unless the request is for a smaller section)
+    D3D12_RECT clearRect = GetScissor().Get();
+    const BBox& rttDirtyBBox = mRenderTarget.Get()->GetDirtyBBox();
 
-    float rgba[4] = { r, g, b, a };
-    mNativeDevice->GetCurrentCommandList()->ClearRenderTargetView(rtData.CPU(0), rgba, 1, &GetScissor().Get());
-    // NOTE: Here we check by NativeRenderTarget::HasDepthTexture() and not IsDepthTestEnabled()
-    // Prism can sometimes set the RTT with depth test disabled, but then request its clear with
-    // the depth texture (ex. hello.HelloViewOrder) and only afterwards re-set the RTT again enabling
-    // depth testing. So we have to disregard the depth test flag, otherwise we would miss this DSV clear.
-    if (clearDepth && mRenderTarget.Get()->HasDepthTexture())
+    if (rttDirtyBBox.Valid())
     {
-        mNativeDevice->GetCurrentCommandList()->ClearDepthStencilView(mRenderTarget.Get()->GetDSVDescriptorData().cpu, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+        // if RTT was dirited by less area than the clear rect demands it - shrink the clear rect
+        // if the BBox was not valid, that means we didn't render to the RTT yet - clear the whole area as scissor wants it
+        clearRect.left = std::max(clearRect.left, static_cast<LONG>(std::round(rttDirtyBBox.min.x)));
+        clearRect.top = std::max(clearRect.top, static_cast<LONG>(std::round(rttDirtyBBox.min.y)));
+        clearRect.right = std::min(clearRect.right, static_cast<LONG>(std::round(rttDirtyBBox.max.x)));
+        clearRect.bottom = std::min(clearRect.bottom, static_cast<LONG>(std::round(rttDirtyBBox.max.y)));
     }
+
+    if (r == 0.0f && g == 0.0f && b == 0.0f && a == 0.0f)
+    {
+        // clearing to all zeroes could be optimized out by directly overdrawing the RT
+        // delay the clear until first Draw() call (or until RT switch) to see if it's actually possible
+        mState.clearDelayed = true;
+        mState.clearDepth = clearDepth;
+        mState.clearRect = clearRect;
+    }
+    else
+    {
+        RecordClear(r, g, b, a, clearDepth, clearRect);
+    }
+}
+
+void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset)
+{
+    BBox invalidBox;
+    Draw(elements, vbOffset, invalidBox);
+}
+
+void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox)
+{
+    bool clearDiscarded = false;
+    CompositeMode currentCompositeMode = mPipelineState.Get().compositeMode;
+
+    if (mState.clearDelayed)
+    {
+        // check if we can discard this clear
+        // the clear can be discarded if we use composite mode SRC_OVER
+        // and this draw call will overwrite the entire to-be-cleared area of the RTT
+        if (currentCompositeMode == CompositeMode::SRC_OVER &&
+            std::round(dirtyBBox.min.x) <= mState.clearRect.left  && std::round(dirtyBBox.min.y) <= mState.clearRect.top &&
+            std::round(dirtyBBox.max.x) >= mState.clearRect.right && std::round(dirtyBBox.max.y) >= mState.clearRect.bottom)
+        {
+            clearDiscarded = true;
+            SetCompositeMode(CompositeMode::SRC);
+        }
+        else
+        {
+            RecordClear(0.0f, 0.0f, 0.0f, 0.0f, mState.clearDepth, mState.clearRect);
+        }
+
+        mState.clearDelayed = false;
+    }
+
+    // declare Ring Container spaces so that we can potentially flush the Command List early
+    // and prevent mid-write flushes
+    DeclareRingResources();
+
+    // apply Context settings to the Command List
+    if (!Apply())
+    {
+        D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping draw call.");
+        return;
+    }
+
+    // we separately ensure that textures bound to the Context are in correct state
+    // there can be a situation where a Texture was bound to the Context and then updated
+    // via updateTexture(). Its state will have to be re-set back to PIXEL_SHADER_RESOURCE
+    // before the draw call.
+    EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+    mNativeDevice->GetCurrentCommandList()->DrawIndexedInstanced(elements, 1, 0, vbOffset, 0);
+
+    if (dirtyBBox.Valid())
+    {
+        mRenderTarget.Get()->MergeDirtyBBox(dirtyBBox);
+    }
+
+    if (clearDiscarded)
+    {
+        // restore original composite mode
+        SetCompositeMode(currentCompositeMode);
+    }
+}
+
+void RenderingContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
+{
+    DeclareComputeRingResources();
+
+    if (!ApplyCompute())
+    {
+        D3D12NI_LOG_ERROR("Failed to apply Compute Rendering Context settings. Skipping dispatch call.");
+        return;
+    }
+
+    mNativeDevice->GetCurrentCommandList()->Dispatch(x, y, z);
 }
 
 void RenderingContext::ClearTextureUnit(uint32_t unit)
@@ -150,6 +260,14 @@ void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
 {
     if (renderTarget == mRenderTarget.Get()) return;
 
+    if (mState.clearDelayed)
+    {
+        // there was a Clear() queued but we're changing the RT
+        // we should submit the delayed Clear() call before we swap the RTs
+        RecordClear(0.0f, 0.0f, 0.0f, 0.0f, mState.clearDepth, mState.clearRect);
+        mState.clearDelayed = false;
+    }
+
     mRenderTarget.Set(renderTarget);
     if (!renderTarget) return;
 
@@ -174,6 +292,8 @@ void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
 
     mPipelineState.SetDepthTest(renderTarget->IsDepthTestEnabled());
     mPipelineState.SetMSAASamples(renderTarget->GetMSAASamples());
+
+    mUsedRTs.insert(renderTarget);
 }
 
 void RenderingContext::SetScissor(bool enabled, const D3D12_RECT& scissor)
@@ -293,10 +413,6 @@ bool RenderingContext::Apply()
     const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
     if (!commandList) return false;
 
-    mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-    if (mRenderTarget.Get()->HasDepthTexture())
-        mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
     mRenderTarget.Apply(commandList, mState);
     mViewport.Apply(commandList, mState);
 
@@ -336,6 +452,10 @@ bool RenderingContext::ApplyCompute()
 
 void RenderingContext::EnsureBoundTextureStates(D3D12_RESOURCE_STATES state)
 {
+    mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    if (mRenderTarget.Get()->HasDepthTexture())
+        mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
     mState.resourceManager.EnsureStates(mNativeDevice->GetCurrentCommandList(), state);
 }
 
@@ -367,6 +487,16 @@ void RenderingContext::ClearResourcesApplied()
 void RenderingContext::ClearComputeResourcesApplied()
 {
     mComputeResources.ClearApplied();
+}
+
+void RenderingContext::FinishFrame()
+{
+    for (const auto& rt: mUsedRTs)
+    {
+        rt->ResetDirtyBBox();
+    }
+
+    mUsedRTs.clear();
 }
 
 } // namespace Internal

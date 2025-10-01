@@ -34,6 +34,8 @@
 #include "D3D12RenderingParameter.hpp"
 #include "D3D12PSOManager.hpp"
 
+#include <unordered_set>
+
 
 namespace D3D12 {
 namespace Internal {
@@ -96,6 +98,14 @@ class RenderingContext
     ComputeRootSignatureRenderingParameter mComputeRootSignature;
     ComputeResourceRenderingStep mComputeResources;
 
+    // Used RTTs for finish-frame-time BBox invalidation
+    // Prism can "juggle" the RTTs between frames, so our dirty-bbox optimization can
+    // only apply for one frame - afterwards we need to invalidate those bboxes and
+    // start tracking anew
+    std::unordered_set<NIPtr<Internal::IRenderTarget>> mUsedRTs;
+
+    void RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect);
+
 public:
     RenderingContext(const NIPtr<NativeDevice>& nativeDevice);
     ~RenderingContext() = default;
@@ -108,6 +118,9 @@ public:
     bool ApplyCompute();
     void EnsureBoundTextureStates(D3D12_RESOURCE_STATES state);
     void Clear(float r, float g, float b, float a, bool clearDepth);
+    void Draw(uint32_t elements, uint32_t vbOffset);
+    void Draw(uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox);
+    void Dispatch(uint32_t x, uint32_t y, uint32_t z);
 
     void ClearTextureUnit(uint32_t unit);
     void SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView);
@@ -132,6 +145,8 @@ public:
     // this is used ex. when JFX wants to use the same pipeline but changes a Shader constant
     void ClearResourcesApplied();
     void ClearComputeResourcesApplied();
+
+    void FinishFrame();
 };
 
 } // namespace Internal

@@ -34,8 +34,13 @@
 namespace D3D12 {
 namespace Internal {
 
+// TODO: D3D12: Cleanup - this class should be renamed to "RenderTargetBase"
+//              and many common parts of both NativeRenderTarget and NativeSwapChain
+//              should be added here.
 class IRenderTarget
 {
+    BBox mDirtyBBox; // tracks how much of the RTT was "used" aka. rendered on
+
 public:
     virtual const NIPtr<TextureBase>& GetTexture() const = 0;
     virtual const NIPtr<TextureBase>& GetDepthTexture() const = 0;
@@ -47,6 +52,21 @@ public:
     virtual uint32_t GetMSAASamples() const = 0;
     virtual const Internal::DescriptorData& GetRTVDescriptorData() const = 0;
     virtual const Internal::DescriptorData& GetDSVDescriptorData() const = 0;
+
+    inline void MergeDirtyBBox(const BBox& box)
+    {
+        mDirtyBBox.Merge(box);
+    }
+
+    inline void ResetDirtyBBox()
+    {
+        mDirtyBBox = BBox();
+    }
+
+    inline const BBox& GetDirtyBBox() const
+    {
+        return mDirtyBBox;
+    }
 };
 
 } // namespace Internal

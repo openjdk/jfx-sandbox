@@ -25,6 +25,8 @@
 
 #pragma once
 
+#define NOMINMAX
+
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include <dxgidebug.h>
@@ -36,6 +38,7 @@
 #include <memory>
 #include <string>
 #include <cassert>
+#include <algorithm>
 
 #include "Internal/D3D12Logger.hpp"
 
@@ -182,6 +185,12 @@ constexpr bool IsDepthFormat(DXGI_FORMAT format)
 
 // Helper structs for in case we need to shuffle components
 // ex. see NativeDevice::UpdateTexture()
+struct Coords_XY_FLOAT
+{
+    float x;
+    float y;
+};
+
 struct Coords_XYZ_FLOAT
 {
     float x;
@@ -247,6 +256,40 @@ struct Pixel_BGRA8_UNORM
     uint8_t g;
     uint8_t r;
     uint8_t a;
+};
+
+struct BBox
+{
+    // mapping to D3D12_RECT:
+    //    min.x == left, min.y == top
+    //    max.x == right, max.y == bottom
+    Coords_XY_FLOAT min;
+    Coords_XY_FLOAT max;
+
+    BBox()
+        : min{std::numeric_limits<float>::max(), std::numeric_limits<float>::max()}
+        , max{0.0f, 0.0f}
+    {
+    }
+
+    inline void Merge(const BBox& other)
+    {
+        Merge(other.min.x, other.min.y, other.max.x, other.max.y);
+    }
+
+    inline void Merge(float minx, float miny, float maxx, float maxy)
+    {
+        min.x = std::min(min.x, minx);
+        min.y = std::min(min.y, miny);
+        max.x = std::max(max.x, maxx);
+        max.y = std::max(max.y, maxy);
+    }
+
+    inline bool Valid() const
+    {
+        // bbox is valid only when it's max coords are higher than min coords
+        return (min.x < max.x) && (min.y < max.y);
+    }
 };
 
 // Light spec matching Shader definitions

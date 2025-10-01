@@ -126,10 +126,11 @@ NativeDevice::QuadVertices NativeDevice::AssembleVertexQuadForBlit(const Coords_
 
 // NOTE technically we don't query buffer ptr's size, but this function assumes we reserved enough
 // space already.
-void NativeDevice::AssembleVertexData(void* buffer, const Internal::MemoryView<float>& vertices,
+BBox NativeDevice::AssembleVertexData(void* buffer, const Internal::MemoryView<float>& vertices,
                                       const Internal::MemoryView<signed char>& colors, UINT elementCount)
 {
     Vertex_2D* bufVertices = reinterpret_cast<Vertex_2D*>(buffer);
+    BBox bbox;
 
     size_t vertIdx = 0;
     size_t colorIdx = 0;
@@ -148,7 +149,11 @@ void NativeDevice::AssembleVertexData(void* buffer, const Internal::MemoryView<f
         bufVertices[i].uv1.v = vertices.Data()[vertIdx++];
         bufVertices[i].uv2.u = vertices.Data()[vertIdx++];
         bufVertices[i].uv2.v = vertices.Data()[vertIdx++];
+
+        bbox.Merge(bufVertices[i].pos.x, bufVertices[i].pos.y, bufVertices[i].pos.x, bufVertices[i].pos.y);
     }
+
+    return bbox;
 }
 
 const NIPtr<Internal::Shader>& NativeDevice::GetPhongPixelShader(const PhongShaderSpec& spec) const
@@ -242,6 +247,7 @@ NativeDevice::NativeDevice()
     , mProfilerFrameTimeID(0)
     , mMidframeFlushNeeded(false)
     , mWaitableOps()
+    , mBarrierQueue()
     , mCheckpointQueue()
     , mRootSignatureManager()
     , mRenderingContext()
@@ -561,37 +567,15 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     mRenderingContext->SetCullMode(D3D12_CULL_MODE_NONE);
     mRenderingContext->SetFillMode(D3D12_FILL_MODE_SOLID);
 
-    // declare Ring Container spaces so that we can potentially flush the Command List early
-    // and prevent mid-write flushes
-    mRenderingContext->DeclareRingResources();
-
     // move data to our Ring Buffer
     VertexSubregion vertexRegion = GetNewRegionForVertices(vertexCount);
     if (!vertexRegion) return;
 
-    AssembleVertexData(vertexRegion.subregion.cpu, vertices, colors, vertexCount);
-
+    BBox dirtyBBox = AssembleVertexData(vertexRegion.subregion.cpu, vertices, colors, vertexCount);
     mRenderingContext->SetVertexBuffer(vertexRegion.view);
 
-    // apply Rendering Context details
-    if (!mRenderingContext->Apply())
-    {
-        D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Rendering skipped.");
-        return;
-    }
-
-    // we separately ensure that textures bound to the Context are in correct state
-    // there can be a situation where a Texture was bound to the Context and then updated
-    // via updateTexture(). Its state will have to be re-set back to PIXEL_SHADER_RESOURCE
-    // before the draw call.
-    mRenderingContext->EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    // Clear if needed - check bbox from AssembleVertexData
-    // if rendered bbox takes up entire RT (from 0.0 to 1.0) AND we don't blend
-    // then discard the clear
-
     // draw the quads converting vertexCount to indexCount - 1 quad is 4 vertices, or 6 indices
-    GetCurrentCommandList()->DrawIndexedInstanced((vertexCount / 4) * 6, 1, 0, vertexRegion.startOffset, 0);
+    mRenderingContext->Draw((vertexCount / 4) * 6, vertexRegion.startOffset, dirtyBBox);
 
     if (mMidframeFlushNeeded)
     {
@@ -653,15 +637,7 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
         mRenderingContext->SetTexture(i, material->GetMap(static_cast<TextureMapType>(i)));
     }
 
-    if (!mRenderingContext->Apply())
-    {
-        D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping mesh view rendering.");
-        return;
-    }
-
-    mRenderingContext->EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    GetCurrentCommandList()->DrawIndexedInstanced(mesh->GetIndexCount(), 1, 0, 0, 0);
+    mRenderingContext->Draw(mesh->GetIndexCount(), 0);
 
     if (mMidframeFlushNeeded)
     {
@@ -870,13 +846,17 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
 
         mRenderingContext->SetVertexBuffer(vertexRegion.view);
 
-        mRenderingContext->Apply();
-
         QueueTextureTransition(sourceTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         QueueTextureTransition(dstRT->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
         SubmitTextureTransitions();
 
-        GetCurrentCommandList()->DrawIndexedInstanced(6, 1, 0, vertexRegion.startOffset, 0);
+        BBox box;
+        for (uint32_t i = 0; i < fsQuad.size(); ++i)
+        {
+            box.Merge(fsQuad[i].pos.x, fsQuad[i].pos.y, fsQuad[i].pos.x, fsQuad[i].pos.y);
+        }
+
+        mRenderingContext->Draw(6, vertexRegion.startOffset, box);
 
         // restore original context parameters
         mRenderingContext->RestoreStashedParameters();
@@ -1024,20 +1004,13 @@ bool NativeDevice::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
 
         mRenderingContext->ClearComputeResourcesApplied();
 
-        mRenderingContext->DeclareComputeRingResources();
-        if (!mRenderingContext->ApplyCompute())
-        {
-            D3D12NI_LOG_ERROR("Failed to apply Rendering Context Compute settings");
-            return false;
-        }
-
         // transition base level to non-PS-resource
         QueueTextureTransition(texture, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                                Internal::Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
 
         // each thread group manages an 8x8 square, so we need to dispatch (width/8) X groups and (height/8) Y groups
         SubmitTextureTransitions();
-        GetCurrentCommandList()->Dispatch(std::max<UINT>(srcWidth >> 3, 1), std::max<UINT>(srcHeight >> 3, 1), 1);
+        mRenderingContext->Dispatch(std::max<UINT>(srcWidth >> 3, 1), std::max<UINT>(srcHeight >> 3, 1), 1);
 
         // transition base level back to UAV
         // this should make all subresources have the same state again
@@ -1144,6 +1117,8 @@ void NativeDevice::FlushCommandList()
 void NativeDevice::FinishFrame()
 {
     FlushCommandList();
+    mRenderingContext->FinishFrame();
+
     mFrameCounter++;
     Internal::Profiler::Instance().MarkFrameEnd();
     Internal::Profiler::Instance().TimingEnd(mProfilerFrameTimeID);

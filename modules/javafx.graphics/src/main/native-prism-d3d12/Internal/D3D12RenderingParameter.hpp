@@ -46,10 +46,16 @@ struct RenderingContextState
 {
     PSOManager PSOManager;
     ResourceManager resourceManager;
+    bool clearDelayed;
+    D3D12_RECT clearRect;
+    bool clearDepth;
 
     RenderingContextState(const NIPtr<NativeDevice>& nativeDevice)
         : PSOManager(nativeDevice)
         , resourceManager(nativeDevice)
+        , clearDelayed(false)
+        , clearRect()
+        , clearDepth(false)
     {
     }
 };
