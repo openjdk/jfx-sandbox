@@ -85,6 +85,12 @@ class D3D12ResourceFactory extends BaseShaderFactory {
     }
 
     @Override
+    public Shader createShader(String pixelShaderName, Map<String, Integer> samplers, Map<String, Integer> params,
+                               int maxTexCoordIndex, boolean isPixcoordUsed, boolean isPerVertexColorUsed) {
+        throw new UnsupportedOperationException("Not supported on D3D12 backend");
+    }
+
+    @Override
     public Shader createStockShader(String name) {
         if (name == null) {
             throw new IllegalArgumentException("Shader name must be non-null");
