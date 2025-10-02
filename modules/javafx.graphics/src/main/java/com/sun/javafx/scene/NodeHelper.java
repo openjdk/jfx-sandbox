@@ -28,6 +28,7 @@ package com.sun.javafx.scene;
 import com.sun.glass.ui.Accessible;
 import com.sun.javafx.css.TransitionDefinition;
 import com.sun.javafx.css.TransitionTimer;
+import com.sun.javafx.css.media.MediaQueryContext;
 import com.sun.javafx.geom.BaseBounds;
 import com.sun.javafx.geom.PickRay;
 import com.sun.javafx.geom.transform.BaseTransform;
@@ -220,6 +221,14 @@ public abstract class NodeHelper {
         nodeAccessor.layoutBoundsChanged(node);
     }
 
+    public static void nodeResolvedOrientationInvalidated(Node node) {
+        nodeAccessor.nodeResolvedOrientationInvalidated(node);
+    }
+
+    public static void setInheritOrientationFromScene(Node node, boolean value) {
+        nodeAccessor.setInheritOrientationFromScene(node, value);
+    }
+
     public static void setShowMnemonics(Node node, boolean value) {
         nodeAccessor.setShowMnemonics(node, value);
     }
@@ -339,6 +348,10 @@ public abstract class NodeHelper {
         return nodeAccessor.findTransitionTimer(node, propertyName);
     }
 
+    public static MediaQueryContext getMediaQueryContext(Node node) {
+        return nodeAccessor.getMediaQueryContext(node);
+    }
+
     public static void setNodeAccessor(final NodeAccessor newAccessor) {
         if (nodeAccessor != null) {
             throw new IllegalStateException();
@@ -378,6 +391,8 @@ public abstract class NodeHelper {
         void syncPeer(Node node);
         <P extends NGNode> P getPeer(Node node);
         void layoutBoundsChanged(Node node);
+        void nodeResolvedOrientationInvalidated(Node node);
+        void setInheritOrientationFromScene(Node node, boolean value);
         void setShowMnemonics(Node node, boolean value);
         boolean isShowMnemonics(Node node);
         BooleanProperty showMnemonicsProperty(Node node);
@@ -410,6 +425,7 @@ public abstract class NodeHelper {
         void addTransitionTimer(Node node, String propertyName, TransitionTimer timer);
         void removeTransitionTimer(Node node, String propertyName);
         TransitionTimer findTransitionTimer(Node node, String propertyName);
+        MediaQueryContext getMediaQueryContext(Node node);
     }
 
 }
