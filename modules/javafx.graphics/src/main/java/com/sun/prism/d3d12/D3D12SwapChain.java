@@ -55,8 +55,8 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
         mState = state;
         mRenderScaleX = mState.getRenderScaleX();
         mRenderScaleY = mState.getRenderScaleY();
-        mWidth = mState.getWidth();
-        mHeight = mState.getHeight();
+        mWidth = mState.getRenderWidth();
+        mHeight = mState.getRenderHeight();
         mMSAA = mState.isMSAA();
 
         mSwapChain = ((D3D12ResourceFactory)context.getResourceFactory()).getNativeInstance().createSwapChain(

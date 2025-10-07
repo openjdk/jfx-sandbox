@@ -119,6 +119,7 @@ NativeSwapChain::~NativeSwapChain()
     mNativeDevice->GetCheckpointQueue().PrintStats();
     D3D12NI_ASSERT(mSubmittedFrameCount == 0, "SwapChain destructor: Failed to wait for all frames! Frame count = %u", mSubmittedFrameCount);
 
+    Internal::Profiler::Instance().RemoveSource(mProfilerSourceID);
     mNativeDevice->UnregisterWaitableOperation(this);
 
     for (size_t i = 0; i < mTextureBuffers.size(); ++i)

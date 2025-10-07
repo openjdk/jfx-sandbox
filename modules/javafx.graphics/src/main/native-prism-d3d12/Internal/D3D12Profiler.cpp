@@ -84,6 +84,37 @@ uint32_t Profiler::RegisterSource(const std::string& name)
     return id;
 }
 
+void Profiler::RemoveSource(uint32_t sourceID)
+{
+    D3D12NI_ASSERT(sourceID < mSourceCount, "Invalid source ID provided");
+    mEventSources[sourceID].freed = true;
+
+    bool printPurgedSources = false;
+    if (Config::IsProfilerSummaryEnabled() && mEventSources.back().freed)
+    {
+        D3D12NI_LOG_WARN("D3D12 Profiler - when removing source %d purged following sources:", sourceID);
+        printPurgedSources = true;
+    }
+
+    for (int32_t i = mSourceCount - 1; i >= 0; --i)
+    {
+        if (!mEventSources[i].freed) break;
+
+        if (printPurgedSources)
+        {
+            const Profiler::EventSource& source = mEventSources[i];
+            D3D12NI_LOG_WARN("%d. %s - %d hits (avg %.2f per frame)", source.id, source.name.c_str(), source.totalHits, static_cast<float>(source.totalHits) / static_cast<float>(mFrameCount));
+            PrintEventCounter("Event", source.hits[static_cast<uint32_t>(Event::Event)], mFrameCount);
+            PrintEventCounter("Signal", source.hits[static_cast<uint32_t>(Event::Signal)], mFrameCount);
+            PrintEventCounter("Wait", source.hits[static_cast<uint32_t>(Event::Wait)], mFrameCount);
+            PrintTimingCounter(source.totalTime, source.timingCount, mTimerFreq);
+        }
+
+        mEventSources.pop_back();
+        --mSourceCount;
+    }
+}
+
 void Profiler::RenameSource(uint32_t sourceID, const std::string& name)
 {
     D3D12NI_ASSERT(sourceID < mSourceCount, "Invalid source ID provided");

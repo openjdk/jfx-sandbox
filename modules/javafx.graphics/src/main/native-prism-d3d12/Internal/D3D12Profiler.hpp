@@ -57,6 +57,7 @@ private:
         uint64_t totalTime;
         uint64_t timingCount;
         uint64_t timerStart;
+        bool freed;
 
         EventSource(uint32_t id, const std::string& name)
             : id(id)
@@ -66,6 +67,7 @@ private:
             , totalTime(0)
             , timingCount(0)
             , timerStart(0)
+            , freed(false)
         {
             for (uint64_t& h: hits)
             {
@@ -91,6 +93,7 @@ public:
     static Profiler& Instance();
 
     uint32_t RegisterSource(const std::string& sourceName);
+    void RemoveSource(uint32_t sourceID);
     void RenameSource(uint32_t sourceID, const std::string& sourceName);
     void MarkEvent(uint32_t sourceID, Event event);
     void MarkFrameEnd();
