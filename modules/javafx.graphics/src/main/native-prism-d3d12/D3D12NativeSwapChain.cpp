@@ -173,6 +173,12 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
     hr = tmpSwapchain.As(&mSwapChain);
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to up-version SwapChain");
 
+    // DXGI injects its own Alt+Enter shortcut which switches to exclusive fullscreen mode
+    // JFX already handles fullscreen on its own, this shortcut is not officially supported
+    // by us and apps can already use it, so we want to disable it.
+    hr = factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER | DXGI_MWA_NO_WINDOW_CHANGES);
+    D3D12NI_RET_IF_FAILED(hr, false, "Failed to make necessary DXGI window associations");
+
     mFormat = desc.Format;
 
     if (!GetSwapChainBuffers(desc.BufferCount))
