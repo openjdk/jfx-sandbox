@@ -85,20 +85,7 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
         D3D12NI_LOG_WARN("Readback buffer cannot have initial data. Initial data will be ignored.");
     }
 
-    D3D12_RESOURCE_STATES initialState;
-    switch (mHeapType)
-    {
-    case D3D12_HEAP_TYPE_DEFAULT:
-        initialState = D3D12_RESOURCE_STATE_COMMON;
-        break;
-    case D3D12_HEAP_TYPE_UPLOAD:
-        initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
-        break;
-    case D3D12_HEAP_TYPE_READBACK:
-        initialState = D3D12_RESOURCE_STATE_COPY_DEST;
-        break;
-    };
-
+    D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
     HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
         &resourceDesc, initialState, nullptr, IID_PPV_ARGS(&mBufferResource));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Buffer's Committed Resource");
@@ -164,7 +151,7 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
     if (initialData != nullptr && mHeapType == D3D12_HEAP_TYPE_DEFAULT)
     {
         // transition from COMMON to COPY_DEST state
-        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+        barrier.Transition.StateBefore = initialState;
         barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
 
         mNativeDevice->GetCurrentCommandList()->ResourceBarrier(1, &barrier);
@@ -179,7 +166,7 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
     {
         // No data copying was needed, so StateBefore is not COPY_DEST but COMMON
         // (aka. what we provided at CreateCommittedResource)
-        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+        barrier.Transition.StateBefore = initialState;
     }
 
     // transition our Default-heap resource to its desired state

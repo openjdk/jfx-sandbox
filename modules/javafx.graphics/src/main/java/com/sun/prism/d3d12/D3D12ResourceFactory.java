@@ -340,7 +340,6 @@ class D3D12ResourceFactory extends BaseShaderFactory {
     @Override
     public Presentable createPresentable(PresentableState pState) {
         if (checkDisposed()) return null;
-
         return D3D12SwapChain.create(mContext, pState);
     }
 

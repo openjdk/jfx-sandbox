@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,11 +29,11 @@ import com.sun.glass.ui.Screen;
 import com.sun.javafx.geom.Rectangle;
 import com.sun.prism.Graphics;
 import com.sun.prism.GraphicsResource;
-import com.sun.prism.PixelFormat;
 import com.sun.prism.Presentable;
 import com.sun.prism.PresentableState;
 import com.sun.prism.Texture.WrapMode;
 import com.sun.prism.d3d12.ni.D3D12NativeSwapChain;
+import com.sun.prism.impl.PrismSettings;
 
 class D3D12SwapChain implements Presentable, GraphicsResource {
 
@@ -71,6 +71,10 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
         );
         if (!mOffscreenRTT.isValid()) {
             throw new NullPointerException("D3D12 swapchain is NULL");
+        }
+
+        if (PrismSettings.dirtyOptsEnabled) {
+            mOffscreenRTT.contentsUseful();
         }
     }
 
@@ -148,16 +152,13 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
             return true;
         }
 
-        mOffscreenRTT.lock();
-
-        if (mWidth != pState.getRenderWidth() || mHeight != pState.getRenderHeight()) {
-            mWidth = pState.getRenderWidth();
-            mHeight = pState.getRenderHeight();
-            if (!mSwapChain.resize(mWidth, mHeight)) {
-                // simple resize failed, ask to recreate the presentable
-                return true;
-            }
-            if (!mOffscreenRTT.resize(mSwapChain.getWidth(), mSwapChain.getHeight())) {
+        // check if we have to resize the SwapChain
+        // if we do, we will do it next time we call CreateGraphics
+        if (mOffscreenRTT != null) {
+            mOffscreenRTT.lock();
+            if (mOffscreenRTT.isSurfaceLost()) {
+                mOffscreenRTT.dispose();
+                mOffscreenRTT = null;
                 return true;
             }
         }

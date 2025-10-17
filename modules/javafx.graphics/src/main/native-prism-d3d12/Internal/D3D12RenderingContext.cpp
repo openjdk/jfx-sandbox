@@ -74,10 +74,9 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     mPrimitiveTopology.Set(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     // Some parameters/steps depend on PSO being set
-    PipelineStateRenderingParameter& psoParam = mPipelineState;
-    RenderingStep::StepDependency psoDep = [&psoParam](RenderingContextState& state) -> bool
+    RenderingStep::StepDependency psoDep = [&pso = mPipelineState](RenderingContextState& state) -> bool
     {
-        return psoParam.IsSet();
+        return pso.IsSet();
     };
     mRootSignature.SetDependency(psoDep);
     mDescriptorHeap.SetDependency(psoDep);
@@ -85,16 +84,14 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
 
     // Use the default scissor only if other custom scissor rect is not set
     // See SetRenderTarget() for more details
-    ScissorRenderingParameter& scissorParam = mScissor;
-    mDefaultScissor.SetDependency([&scissorParam](RenderingContextState& state) -> bool
+    mDefaultScissor.SetDependency([&scissor = mScissor](RenderingContextState& state) -> bool
     {
-        return !scissorParam.IsSet();
+        return !scissor.IsSet();
     });
 
-    ComputePipelineStateRenderingParameter& computePsoParam = mComputePipelineState;
-    RenderingStep::StepDependency computePsoDep = [&computePsoParam](RenderingContextState& state) -> bool
+    RenderingStep::StepDependency computePsoDep = [&computePso = mComputePipelineState](RenderingContextState& state) -> bool
     {
-        return computePsoParam.IsSet();
+        return computePso.IsSet();
     };
     mComputeRootSignature.SetDependency(computePsoDep);
     mComputeResources.SetDependency(computePsoDep);
@@ -271,6 +268,10 @@ void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
     mRenderTarget.Set(renderTarget);
     if (!renderTarget) return;
 
+    // D3D9 behavior emulation - setting a new RenderTarget should disable
+    // scissor testing and set the viewport to RT dimensions
+    mScissor.Unset();
+
     D3D12_VIEWPORT viewport;
     D3D12NI_ZERO_STRUCT(viewport);
     viewport.Width = static_cast<float>(renderTarget->GetWidth());
@@ -298,8 +299,17 @@ void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
 
 void RenderingContext::SetScissor(bool enabled, const D3D12_RECT& scissor)
 {
-    if (!enabled) mScissor.Unset();
-    else mScissor.Set(scissor);
+    if (!enabled)
+    {
+        // disabling scissor testing means we should unset the existing Scissor
+        // and ensure next Apply() call will apply the default (full-viewport) scissor
+        mScissor.Unset();
+        mDefaultScissor.ClearApplied();
+    }
+    else
+    {
+        mScissor.Set(scissor);
+    }
 }
 
 void RenderingContext::SetTexture(uint32_t unit, const NIPtr<TextureBase>& texture)
@@ -481,6 +491,12 @@ void RenderingContext::ClearAppliedFlags()
 
 void RenderingContext::ClearResourcesApplied()
 {
+    // TODO: D3D12: This could be a bit more optimized - we could ex. provide flags
+    // stating which parts of ResourceManager need refreshing.
+    // We can imagine when rendering a lot of 2D data we would just keep using the same
+    // Vertex Shader, so its resources (minus different constants) would stay intact,
+    // while Pixel Shader resources would need a refresh.
+    // Investigate if that would make sense in the long run.
     mResources.ClearApplied();
 }
 
