@@ -226,11 +226,37 @@ public class HLSL6Backend extends SLBackend {
                     output(".Sample(");
                     scan(param);
                     output("_sampler");
-                    continue;
                 } else {
                     output(", ");
+                    scan(param);
                 }
-                scan(param);
+            }
+            output(")");
+        } else if (e.getFunction().getName().equals("paint")) {
+            // This is a bit hacky, but it prevents the DXC warning
+            // regarding implicit truncation of vector type.
+            // Ideally we would use the correct notation in the source file.
+            output(getFuncName(e.getFunction().getName()) + "(");
+            boolean first = true;
+            for (Expr param : e.getParams()) {
+                if (first) {
+                    first = false;
+                } else {
+                    output(",");
+                }
+
+                if (param.getResultType() == Type.FLOAT) {
+                    scan(param);
+                    output(".x");
+                } else if (param.getResultType() == Type.FLOAT2) {
+                    scan(param);
+                    output(".xy");
+                } else if (param.getResultType() == Type.FLOAT3) {
+                    scan(param);
+                    output(".xyz");
+                } else {
+                    scan(param);
+                }
             }
             output(")");
         } else {
