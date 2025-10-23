@@ -153,13 +153,26 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
         }
 
         // check if we have to resize the SwapChain
-        // if we do, we will do it next time we call CreateGraphics
         if (mOffscreenRTT != null) {
             mOffscreenRTT.lock();
             if (mOffscreenRTT.isSurfaceLost()) {
                 mOffscreenRTT.dispose();
                 mOffscreenRTT = null;
                 return true;
+            }
+
+            // resize the SwapChain if needed
+            if (mWidth != pState.getRenderWidth() || mHeight != pState.getRenderHeight()) {
+                mWidth = pState.getRenderWidth();
+                mHeight = pState.getRenderHeight();
+
+                if (!mSwapChain.resize(mWidth, mHeight)) {
+                    // simple resize failed, ask to recreate the presentable
+                    return true;
+                }
+                if (!mOffscreenRTT.resize(mSwapChain.getWidth(), mSwapChain.getHeight())) {
+                    return true;
+                }
             }
         }
 
