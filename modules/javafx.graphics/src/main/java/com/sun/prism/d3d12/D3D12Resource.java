@@ -37,6 +37,8 @@ class D3D12Resource<T extends Disposer.Record> extends DisposerManagedResource<T
     public void free() {
         if (isValid()) {
             resource.dispose();
+            // resource.dispose() will free the native-side for us
+            // resource = null is not set here, ManagedResource will handle that when appropriate
         }
     }
 }
