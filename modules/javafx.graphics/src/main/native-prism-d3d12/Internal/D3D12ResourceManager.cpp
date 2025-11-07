@@ -349,6 +349,12 @@ void ResourceManager::SetVertexShader(const NIPtr<Shader>& shader)
 {
     if (shader == mVertexShader) return;
 
+    if (!shader)
+    {
+        mVertexShader.reset();
+        return;
+    }
+
     mVertexShader = shader;
     mVertexShader->SetConstantsDirty(true);
 }
@@ -357,6 +363,12 @@ void ResourceManager::SetPixelShader(const NIPtr<Shader>& shader)
 {
     if (shader == mPixelShader) return;
 
+    if (!shader)
+    {
+        mPixelShader.reset();
+        return;
+    }
+
     mPixelShader = shader;
     mPixelShader->SetConstantsDirty(true);
 }
@@ -364,6 +376,12 @@ void ResourceManager::SetPixelShader(const NIPtr<Shader>& shader)
 void ResourceManager::SetComputeShader(const NIPtr<Shader>& shader)
 {
     if (shader == mComputeShader) return;
+
+    if (!shader)
+    {
+        mComputeShader.reset();
+        return;
+    }
 
     mComputeShader = shader;
     mComputeShader->SetConstantsDirty(true);
@@ -396,6 +414,10 @@ void ResourceManager::StashParameters()
 
 void ResourceManager::RestoreStashedParameters()
 {
+    D3D12NI_LOG_DEBUG("LKDEBUG -- restoring stashed params");
+    D3D12NI_LOG_DEBUG("LKDEBUG -- vs %p", mRuntimeParametersStash.vertexShader.get());
+    D3D12NI_LOG_DEBUG("LKDEBUG -- ps %p", mRuntimeParametersStash.pixelShader.get());
+
     SetVertexShader(mRuntimeParametersStash.vertexShader);
     SetPixelShader(mRuntimeParametersStash.pixelShader);
 

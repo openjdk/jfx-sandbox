@@ -785,8 +785,11 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
         NIPtr<Internal::TextureBase> sourceTexture;
         NIPtr<NativeTexture> intermediateTexture;
 
+        D3D12NI_LOG_DEBUG("LKDEBUG blit slow path %dx%d vs %dx%d", srcWidth, srcHeight, dstWidth, dstHeight);
+
         if (srcRT->GetMSAASamples() > 1)
         {
+            D3D12NI_LOG_DEBUG("LKDEBUG resolve msaa");
             // create intermediate tex, use ResolveSubresource() to populate it
             intermediateTexture = std::make_shared<NativeTexture>(shared_from_this());
             if (!intermediateTexture->Init(srcWidth, srcHeight, srcRT->GetFormat(),
@@ -809,6 +812,7 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
         }
         else
         {
+            D3D12NI_LOG_DEBUG("LKDEBUG no need to resolve, go direct");
             sourceTexture = srcRT->GetTexture();
         }
 
@@ -816,50 +820,67 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
         ibView.BufferLocation = m2DIndexBuffer->GetGPUPtr();
         ibView.SizeInBytes = static_cast<UINT>(m2DIndexBuffer->Size());
         ibView.Format = DXGI_FORMAT_R16_UINT;
+        D3D12NI_LOG_DEBUG("LKDEBUG set ib");
         mRenderingContext->SetIndexBuffer(ibView);
 
+        D3D12NI_LOG_DEBUG("LKDEBUG get blitps");
         const NIPtr<Internal::Shader>& blitShader = GetInternalShader("BlitPS");
 
         // temporarily store whatever context state we have right now
+        D3D12NI_LOG_DEBUG("LKDEBUG stash params");
         mRenderingContext->StashParamters();
+        D3D12NI_LOG_DEBUG("LKDEBUG set constants");
         mPassthroughVS->SetConstants("WorldViewProj", Internal::Matrix<float>::IDENTITY.Data(), sizeof(Internal::Matrix<float>));
 
+        D3D12NI_LOG_DEBUG("LKDEBUG set vs");
         mRenderingContext->SetVertexShader(mPassthroughVS);
+        D3D12NI_LOG_DEBUG("LKDEBUG set ps");
         mRenderingContext->SetPixelShader(blitShader);
 
+        D3D12NI_LOG_DEBUG("LKDEBUG set cull fill");
         mRenderingContext->SetCullMode(D3D12_CULL_MODE_NONE);
         mRenderingContext->SetFillMode(D3D12_FILL_MODE_SOLID);
 
+        D3D12NI_LOG_DEBUG("LKDEBUG set tex rt composite");
         mRenderingContext->SetTexture(0, sourceTexture);
         mRenderingContext->SetRenderTarget(dstRT);
         mRenderingContext->SetCompositeMode(CompositeMode::SRC);
 
+        D3D12NI_LOG_DEBUG("LKDEBUG declare rings");
         mRenderingContext->DeclareRingResources();
 
         // prepare quad vertices for blitting
         QuadVertices fsQuad = AssembleVertexQuadForBlit(src, dst);
 
+        D3D12NI_LOG_DEBUG("LKDEBUG get vb region and copy");
         VertexSubregion vertexRegion = GetNewRegionForVertices(static_cast<uint32_t>(fsQuad.size()));
         if (!vertexRegion) return false;
 
         memcpy(vertexRegion.subregion.cpu, fsQuad.data(), fsQuad.size() * sizeof(Vertex_2D));
 
+        D3D12NI_LOG_DEBUG("LKDEBUG set vb");
         mRenderingContext->SetVertexBuffer(vertexRegion.view);
 
+        D3D12NI_LOG_DEBUG("LKDEBUG queue transition");
         QueueTextureTransition(sourceTexture, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
         QueueTextureTransition(dstRT->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
         SubmitTextureTransitions();
 
+        D3D12NI_LOG_DEBUG("LKDEBUG stash params");
         BBox box;
         for (uint32_t i = 0; i < fsQuad.size(); ++i)
         {
             box.Merge(fsQuad[i].pos.x, fsQuad[i].pos.y, fsQuad[i].pos.x, fsQuad[i].pos.y);
         }
 
+        D3D12NI_LOG_DEBUG("LKDEBUG draw");
         mRenderingContext->Draw(6, vertexRegion.startOffset, box);
 
         // restore original context parameters
+        D3D12NI_LOG_DEBUG("LKDEBUG restore params");
         mRenderingContext->RestoreStashedParameters();
+
+        D3D12NI_LOG_DEBUG("LKDEBUG blit done");
     }
 
     return true;
