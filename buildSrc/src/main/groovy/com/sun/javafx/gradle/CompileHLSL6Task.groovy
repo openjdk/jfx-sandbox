@@ -25,27 +25,36 @@
 
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.Optional
+import org.gradle.process.ExecOperations
+
+import javax.inject.Inject
 
 class CompileHLSL6Task extends NativeCompileTask {
     @Optional @InputDirectory File shaderIncludeDir;
+
+    @Inject
+    CompileHLSL6Task(ExecOperations execOperations) {
+        super(execOperations);
+    }
 
     protected File outputFile(File sourceFile) {
         new File("$output/${sourceFile.name.replace('.hlsl', '.cso')}");
     }
 
     protected void doCompile(File sourceFile, File outputFile){
-        project.exec({
-            def DEBUG_FLAGS = [ "/Zi", "/Qembed_debug", "/O0" ]
-            def cmd = ["$project.DXC", "/T", "ps_6_0", "/Fo", "$outputFile"];
-            if (shaderIncludeDir != null) {
-                cmd.addAll(["/I", shaderIncludeDir.toString()]);
-            }
-            if (project.getProperty("IS_DEBUG_NATIVE")) {
-                cmd.addAll(DEBUG_FLAGS);
-            }
-            cmd.add("$sourceFile");
-            commandLine = cmd;
-            environment(project.WINDOWS_NATIVE_COMPILE_ENVIRONMENT);
-        });
+        def DEBUG_FLAGS = [ "/Zi", "/Qembed_debug", "/O0" ]
+        def cmd = ["$project.DXC", "/T", "ps_6_0", "/Fo", "$outputFile"];
+        if (shaderIncludeDir != null) {
+            cmd.addAll(["/I", shaderIncludeDir.toString()]);
+        }
+        if (project.getProperty("IS_DEBUG_NATIVE")) {
+            cmd.addAll(DEBUG_FLAGS);
+        }
+        cmd.add("$sourceFile");
+
+        execCompile { spec ->
+            spec.commandLine = cmd;
+            spec.environment(project.WINDOWS_NATIVE_COMPILE_ENVIRONMENT);
+        }
     }
 }

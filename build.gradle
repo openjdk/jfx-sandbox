@@ -2671,7 +2671,7 @@ project(":graphics") {
                     futures.add(executor.submit(new Runnable() {
                         @Override public void run() {
                             try {
-                                exec {
+                                execOps.exec { spec ->
                                     commandLine cmd
                                 }
                             } finally {
