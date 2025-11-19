@@ -40,6 +40,7 @@ import javafx.animation.AnimationTimer;
 import javafx.application.Platform;
 import javafx.geometry.Point3D;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.effect.BlendMode;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -129,7 +130,7 @@ public class RenderPerfTest {
     private static final Map<String, Integer> defaultObjectCounts = Map.ofEntries(
         Map.entry("3DBox",                     20000),
         Map.entry("3DCylinder",                20000),
-        Map.entry("3DMesh",                    20000),
+        Map.entry("3DMesh",                    15000),
         Map.entry("3DSphere",                  20000),
         Map.entry("Arc",                       6500),
         Map.entry("Button",                    5000),
@@ -143,6 +144,7 @@ public class RenderPerfTest {
         Map.entry("Ellipse",                   70000),
         Map.entry("Image",                     70000),
         Map.entry("ImageRH",                   70000),
+        Map.entry("Label",                     5000),
         Map.entry("LargeColorText",            30000),
         Map.entry("LargeText",                 30000),
         Map.entry("Line",                      70000),
@@ -158,6 +160,7 @@ public class RenderPerfTest {
         Map.entry("Polygon",                   47500),
         Map.entry("QuadCurve",                 47500),
         Map.entry("RadGradCircle",             4000),
+        Map.entry("RandomSizeText",            22500),
         Map.entry("Rectangle",                 70000),
         Map.entry("RotatedRectangleRH",        47500),
         Map.entry("StrokedCircle",             70000),
@@ -166,30 +169,60 @@ public class RenderPerfTest {
         Map.entry("WhiteText",                 22500)
     );
 
+    static enum PerfResultStatus {
+        INVALID,
+        SUCCESS,
+        INTERRUPTED,
+        FAILED
+    };
+
     static class PerfResult {
         public String testName;
         public long objectCount;
         public long frames;
         public double totalTestTime;
         public double frameRate;
-        public boolean stoppedEarly;
-
-        public PerfResult(String testName, long objectCount, long frames, double testTime, double FPS) {
-            this.testName = testName;
-            this.objectCount = objectCount;
-            this.frames = frames;
-            this.totalTestTime = testTime;
-            this.frameRate = FPS;
-            this.stoppedEarly = false;
-        }
+        public PerfResultStatus status;
+        public String statusReason;
 
         public PerfResult(String testName, long objectCount) {
-            this(testName, objectCount, 0, 0.0, 0.0);
-            this.stoppedEarly = true;
+            this.testName = testName;
+            this.objectCount = objectCount;
+            this.frames = 0;
+            this.totalTestTime = 0.0;
+            this.frameRate = 0.0;
+            this.status = PerfResultStatus.INVALID;
+            this.statusReason = "";
+        }
+
+        public void success(long frames, double totalTestTime, double frameRate) {
+            this.status = PerfResultStatus.SUCCESS;
+            this.frames = frames;
+            this.totalTestTime = totalTestTime;
+            this.frameRate = frameRate;
+        }
+
+        public void interrupted(String reason) {
+            this.status = PerfResultStatus.INTERRUPTED;
+            this.statusReason = reason;
+        }
+
+        public void fail(String reason) {
+            this.status = PerfResultStatus.FAILED;
+            this.statusReason = reason;
         }
 
         public void writeToCSV(FileWriter writer) throws java.io.IOException, Exception {
             writer.write("%s;%d;%.2f\n".formatted(testName, objectCount, frameRate));
+        }
+
+        public void print() {
+            switch (status) {
+                case PerfResultStatus.SUCCESS -> System.out.println(String.format("%s (Objects Frames Time FPS): %d, %d, %.2f, %.2f", testName, objectCount, frames, totalTestTime, frameRate));
+                case PerfResultStatus.INTERRUPTED -> System.out.println(String.format("%s interrupted: %s", testName, statusReason));
+                case PerfResultStatus.FAILED -> System.out.println(String.format("%s failed: %s", testName, statusReason));
+                default -> System.out.println(String.format("%s results invalid, this should not happen", testName));
+            }
         }
     }
 
@@ -197,7 +230,8 @@ public class RenderPerfTest {
         private int totalTestsAccumulated;
 
         public AccumulatedPerfResult(String testName, long objectCount, double testTime) {
-            super(testName, objectCount, 0, testTime, 0.0);
+            super(testName, objectCount);
+            this.totalTestTime = testTime;
             this.totalTestsAccumulated = 0;
         }
 
@@ -206,8 +240,11 @@ public class RenderPerfTest {
                 throw new Exception("Cannot accumulate results from different tests");
             }
 
-            this.frames += other.frames;
-            this.frameRate += other.frameRate;
+            if (other.status == PerfResultStatus.SUCCESS) {
+                this.frames += other.frames;
+                this.frameRate += other.frameRate;
+            }
+
             this.totalTestsAccumulated += 1;
         }
 
@@ -1144,6 +1181,48 @@ public class RenderPerfTest {
         }
     }
 
+    static class LabelRenderer implements ParticleRenderer {
+        int n;
+        double r;
+        Label[] label;
+
+        LabelRenderer(int n, double r) {
+            this.n = n;
+            this.r = r;
+            label = new Label[n];
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                label[id] = new Label(String.valueOf(id));
+                label[id].setTextFill(Color.WHITE);
+                label[id].setLayoutX(x[id]);
+                label[id].setLayoutY(y[id]);
+                node.getChildren().add(label[id]);
+            }
+        }
+
+        public void updateComponentCoordinates(int n, double[] x, double[] y, double[] vx, double[] vy) {
+            for (int id = 0; id < n; id++) {
+                label[id].setLayoutX(x[id]);
+                label[id].setLayoutY(y[id]);
+            }
+        }
+
+        public void releaseResource() {
+            label = null;
+        }
+
+        public int getObjectCount() {
+            return n;
+        }
+
+        public double getParticleRadius() {
+            return r;
+        }
+    }
+
     static class WhiteTextRenderer implements ParticleRenderer {
         int n;
         double r;
@@ -1205,6 +1284,27 @@ public class RenderPerfTest {
             super.addComponents(node, n, x, y, vx, vy);
             for (int id = 0; id < n; id++) {
                 text[id].setFill(colors[id % colors.length]);
+            }
+        }
+    }
+
+    static class RandomSizeTextRenderer extends WhiteTextRenderer {
+        Font[] fonts;
+
+        RandomSizeTextRenderer(int n, double r) {
+            super(n, r);
+            fonts = new Font[n];
+
+            for (int i = 0; i < n; i++) {
+                fonts[i] = new Font((random.nextInt() % 24) + 8);
+            }
+        }
+
+        @Override
+        public void addComponents(Group node, int n, double[] x, double[] y, double[] vx, double[] vy) {
+            super.addComponents(node, n, x, y, vx, vy);
+            for (int id = 0; id < n; id++) {
+                text[id].setFont(fonts[id]);
             }
         }
     }
@@ -2086,6 +2186,8 @@ public class RenderPerfTest {
             final CountDownLatch stageHiddenLatch = new CountDownLatch(1);
 
             Platform.runLater(() -> {
+                stage = new Stage();
+
                 group = new Group();
                 renderable.addComponents(group);
                 scene = new Scene(group, WIDTH, HEIGHT);
@@ -2132,31 +2234,53 @@ public class RenderPerfTest {
                 };
             });
 
+            PerfResult result = new PerfResult(name, objectCount);
+
+            // Startup & load
+
             if (!startupLatch.await(20, TimeUnit.SECONDS)) {
-                throw new RuntimeException("Timeout waiting for stage to load.");
+                result.fail("Timeout waiting for stage to load.");
+                Platform.runLater(() -> {
+                    stage.hide();
+                    renderable.releaseResource();
+                });
+                if (!stageHiddenLatch.await(30, TimeUnit.SECONDS)) {
+                    throw new RuntimeException("Timeout waiting for stage to get hidden.");
+                }
+                return result;
             }
+
+            // The Test
+
             Platform.runLater(() -> frameRateMeter.start());
 
             if (testTimeSeconds > 0) {
                 // timed run, which means we can also timeout if something goes wrong
                 if (!stopLatch.await(testTimeSeconds + WARMUP_TIME_SECONDS + 5, TimeUnit.SECONDS)) {
-                    throw new RuntimeException("Timeout waiting for test execution completion.\n" + name + ": Test workload could be too high. Try running the test with lesser number of objects.");
+                    result.fail("Timeout waiting for test execution completion.\n" + name + ": Test workload could be too high. Try running the test with less objects.");
                 }
             } else {
                 // infinite run, await until the stage is closed
                 stopLatch.await();
             }
-            Platform.runLater(() -> frameRateMeter.stop());
 
-            PerfResult result = reportFPS();
+            Platform.runLater(() -> frameRateMeter.stop());
+            collectResults(result);
+
+            // Wrap-up
+
             Platform.runLater(() -> {
-                renderable.releaseResource();
                 stage.hide();
             });
 
-            if (!stageHiddenLatch.await(20, TimeUnit.SECONDS)) {
+            if (!stageHiddenLatch.await(30, TimeUnit.SECONDS)) {
                 throw new RuntimeException("Timeout waiting for stage to get hidden.");
             }
+
+            Platform.runLater(() -> {
+                renderable.releaseResource();
+            });
+
             startTime = 0;
             warmUp = true;
 
@@ -2170,10 +2294,12 @@ public class RenderPerfTest {
             });
         }
 
-        PerfResult reportFPS() {
+        void collectResults(PerfResult result) {
+            if (result.status != PerfResultStatus.INVALID) return;
+
             if (warmUp) {
-                System.out.println(String.format("Test %s stopped before warm-up was completed. Results not valid.", name));
-                return new PerfResult(name, objectCount);
+                // not a test failure but (most probably) a deliberate stop before results completed
+                result.interrupted("Test %s stopped before warm-up was completed. Results not valid.".formatted(name));
             } else {
                 long totalTestTime = testTimeNanos;
                 if (totalTestTime == 0 || !completed) {
@@ -2182,8 +2308,7 @@ public class RenderPerfTest {
                 }
                 double totalTestTimeSeconds = (double)totalTestTime / SECOND_IN_NANOS;
                 double frameRate = frames / totalTestTimeSeconds;
-                System.out.println(String.format("%s (Objects Frames Time FPS): %d, %d, %.2f, %.2f", name, objectCount, frames, totalTestTimeSeconds, frameRate));
-                return new PerfResult(name, objectCount, frames, totalTestTimeSeconds, frameRate);
+                result.success(frames, totalTestTimeSeconds, frameRate);
             }
         }
     }
@@ -2270,12 +2395,21 @@ public class RenderPerfTest {
         return (new PerfMeter("StrokedPolygon", testDuration)).exec(createPR(new StrokedPolygonRenderer(objectCount, R)));
     }
 
+    public PerfResult testLabel() throws Exception {
+        return (new PerfMeter("Label", testDuration)).exec(createPR(new LabelRenderer(objectCount, R)));
+    }
+
     public PerfResult testWhiteText() throws Exception {
         return (new PerfMeter("WhiteText", testDuration)).exec(createPR(new WhiteTextRenderer(objectCount, R)));
     }
 
     public PerfResult testColorText() throws Exception {
         return (new PerfMeter("ColorText", testDuration)).exec(createPR(new ColorTextRenderer(objectCount, R)));
+    }
+
+    // TODO: Temporarily disabled until fixed on D3D12
+    public PerfResult disabled_testRandomSizeText() throws Exception {
+        return (new PerfMeter("RandomSizeText", testDuration)).exec(createPR(new RandomSizeTextRenderer(objectCount, R)));
     }
 
     public PerfResult testLargeText() throws Exception {
@@ -2345,7 +2479,6 @@ public class RenderPerfTest {
      */
     public void intializeFxEnvironment() {
         Platform.startup(() -> {
-            stage = new Stage();
             Platform.setImplicitExit(false);
         });
     }
@@ -2410,10 +2543,17 @@ public class RenderPerfTest {
     public static void printTests() {
         Method[] methods = RenderPerfTest.class.getDeclaredMethods();
         System.out.println("\nSupported tests:");
+        ArrayList<String> tests = new ArrayList<String>();
         for (Method m : methods) {
             if (m.getName().startsWith("test")) {
-                System.out.println(m.getName().replaceFirst("test", ""));
+                tests.add(m.getName().replaceFirst("test", ""));
             }
+        }
+
+        tests.sort(null);
+
+        for (String test : tests) {
+            System.out.println(test);
         }
     }
 
@@ -2498,10 +2638,11 @@ public class RenderPerfTest {
 
                 for (int i = 0; i < test.runsPerTest; ++i) {
                     PerfResult result = (PerfResult)m.invoke(test);
-                    if (result.stoppedEarly) {
-                        throw new InterruptedException("Test run was stopped early. Exiting.");
-                    }
+                    result.print();
                     results.add(result);
+                    if (result.status == PerfResultStatus.INTERRUPTED) {
+                        throw new InterruptedException("Test execution interrupted early");
+                    }
                 }
 
                 PerfResult finalResult = null;
