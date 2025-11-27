@@ -230,14 +230,18 @@ public:
                        UINT dstx, UINT dsty, UINT srcx, UINT srcy, UINT srcw, UINT srch, UINT srcstride);
 
     void FinishFrame();
-    void FlushCommandList();
+    void FlushCommandList(CheckpointType type);
     void Execute(const std::vector<ID3D12CommandList*>& commandLists);
-    uint64_t Signal(CheckpointType type);
     void AdvanceCommandAllocator();
     void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     void QueueTextureTransition(const NIPtr<Internal::TextureBase>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
     void SubmitTextureTransitions();
+
+    // NOTE: Signal is only exposed due to SwapChain requiring it to signal after Present
+    // In any other cases, FlushCommandList() will implicitly call it.
+    // TODO: D3D12: Maybe it would be worth to figure out how to private this?
+    uint64_t Signal(CheckpointType type);
 
     const D3D12DevicePtr& GetDevice()
     {

@@ -579,8 +579,7 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
 
     if (mMidframeFlushNeeded)
     {
-        FlushCommandList();
-        Signal(CheckpointType::MIDFRAME);
+        FlushCommandList(CheckpointType::MIDFRAME);
         mMidframeFlushNeeded = false;
     }
 }
@@ -641,8 +640,7 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
 
     if (mMidframeFlushNeeded)
     {
-        FlushCommandList();
-        Signal(CheckpointType::MIDFRAME);
+        FlushCommandList(CheckpointType::MIDFRAME);
         mMidframeFlushNeeded = false;
     }
 }
@@ -938,8 +936,7 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
 
     // Flush the Command Queue to ensure data was read and wait for itF
     Internal::Profiler::Instance().MarkEvent(mProfilerTransferWaitSourceID, Internal::Profiler::Event::Wait);
-    FlushCommandList();
-    Signal(CheckpointType::TRANSFER);
+    FlushCommandList(CheckpointType::TRANSFER);
     mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::TRANSFER);
 
     void* readbackPtr = readbackBuffer.Map();
@@ -1128,17 +1125,24 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
     return true;
 }
 
-void NativeDevice::FlushCommandList()
+void NativeDevice::FlushCommandList(CheckpointType type)
 {
     mCommandListPool->SubmitCurrentCommandList();
+    Signal(type);
+
     mRenderingContext->ClearAppliedFlags();
     m2DVertexBatch.Invalidate();
 }
 
 void NativeDevice::FinishFrame()
 {
-    FlushCommandList();
+    // Not calling FlushCommandList() here to avoid Signal()
+    // SwapChain will execute Signal on its own to mark the actual end of the frame
+    mCommandListPool->SubmitCurrentCommandList();
+
+    mRenderingContext->ClearAppliedFlags();
     mRenderingContext->FinishFrame();
+    m2DVertexBatch.Invalidate();
 
     mFrameCounter++;
     Internal::Profiler::Instance().MarkFrameEnd();

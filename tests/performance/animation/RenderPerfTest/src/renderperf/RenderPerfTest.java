@@ -2407,8 +2407,7 @@ public class RenderPerfTest {
         return (new PerfMeter("ColorText", testDuration)).exec(createPR(new ColorTextRenderer(objectCount, R)));
     }
 
-    // TODO: Temporarily disabled until fixed on D3D12
-    public PerfResult disabled_testRandomSizeText() throws Exception {
+    public PerfResult testRandomSizeText() throws Exception {
         return (new PerfMeter("RandomSizeText", testDuration)).exec(createPR(new RandomSizeTextRenderer(objectCount, R)));
     }
 

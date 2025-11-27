@@ -48,7 +48,17 @@ void CommandListPool::ResetCurrentCommandList()
 void CommandListPool::WaitForAvailableCommandList()
 {
     Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Wait);
-    mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ANY);
+
+    while (mCommandLists[mCurrentCommandList].state == CommandListState::Closed &&
+           mNativeDevice->GetCheckpointQueue().HasCheckpoints())
+    {
+        mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ANY);
+    }
+
+    // if this assertion ever triggers, there is something terribly wrong
+    D3D12NI_ASSERT(mCommandLists[mCurrentCommandList].state == CommandListState::Available,
+        "Waited through the entire Queue, yet current Command List is still not available. Something has gone terribly wrong."
+    );
 }
 
 CommandListPool::CommandListPool(const NIPtr<NativeDevice>& nativeDevice)

@@ -57,8 +57,7 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
             // somewhere else) to prevent it from triggering.
             D3D12NI_LOG_WARN("Triggered a mid-frame Command List flush right before waiting for next checkpoint."
                 "This might cause some glitches and generally should be prevented");
-            mNativeDevice->FlushCommandList();
-            mNativeDevice->Signal(CheckpointType::MIDFRAME);
+            mNativeDevice->FlushCommandList(CheckpointType::MIDFRAME);
         }
 
         // await for any waitable set by FlushCommandList()
@@ -271,7 +270,7 @@ void RingContainer::DeclareRequired(size_t size)
     if ((mUncommitted > 0) && (mUncommitted + realSizeNeeded > mFlushThreshold))
     {
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Signal);
-        mNativeDevice->FlushCommandList();
+        mNativeDevice->FlushCommandList(CheckpointType::MIDFRAME);
     }
 }
 

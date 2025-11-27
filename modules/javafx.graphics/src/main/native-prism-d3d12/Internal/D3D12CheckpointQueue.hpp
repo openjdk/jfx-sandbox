@@ -71,6 +71,11 @@ public:
     bool AddCheckpoint(CheckpointType type, Waitable&& waitable);
     bool WaitForNextCheckpoint(CheckpointType type);
     void PrintStats();
+
+    bool HasCheckpoints() const
+    {
+        return !mQueue.empty();
+    }
 };
 
 } // namespace Internal
