@@ -255,7 +255,21 @@ void RenderingContext::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView)
 
 void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
 {
-    if (renderTarget == mRenderTarget.Get()) return;
+    if (renderTarget == mRenderTarget.Get())
+    {
+        // faster path just to double-check if depth testing and MSAA should be enabled
+        if (renderTarget)
+        {
+            mPipelineState.SetDepthTest(renderTarget->IsDepthTestEnabled());
+            mPipelineState.SetMSAASamples(renderTarget->GetMSAASamples());
+
+            // this is to ensure RTT set gets re-recorded on the command list
+            // this can also include a Depth Texture in case this Set is called again with depthTest = true
+            mRenderTarget.ClearApplied();
+        }
+
+        return;
+    }
 
     if (mState.clearDelayed)
     {
