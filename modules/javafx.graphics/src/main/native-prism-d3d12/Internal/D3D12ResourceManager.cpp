@@ -414,10 +414,6 @@ void ResourceManager::StashParameters()
 
 void ResourceManager::RestoreStashedParameters()
 {
-    D3D12NI_LOG_DEBUG("LKDEBUG -- restoring stashed params");
-    D3D12NI_LOG_DEBUG("LKDEBUG -- vs %p", mRuntimeParametersStash.vertexShader.get());
-    D3D12NI_LOG_DEBUG("LKDEBUG -- ps %p", mRuntimeParametersStash.pixelShader.get());
-
     SetVertexShader(mRuntimeParametersStash.vertexShader);
     SetPixelShader(mRuntimeParametersStash.pixelShader);
 
