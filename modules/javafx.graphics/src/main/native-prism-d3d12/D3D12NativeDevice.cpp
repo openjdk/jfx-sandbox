@@ -300,7 +300,9 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create D3D12 Device");
     mDevice->SetName(L"Main D3D12 Device");
 
-    D3D12NI_LOG_DEBUG("Device created");
+    DXGI_ADAPTER_DESC adapterDesc;
+    mAdapter->GetDesc(&adapterDesc);
+    D3D12NI_LOG_INFO("Device created using adapter %S", adapterDesc.Description);
 
     if (!Internal::Debug::Instance().InitDeviceDebug(shared_from_this()))
     {

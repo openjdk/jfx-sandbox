@@ -132,6 +132,15 @@ int NativeInstance::GetAdapterOrdinal(HMONITOR monitor)
             break;
     }
 
+    if (ret > -1)
+    {
+        D3D12NI_LOG_INFO("GetAdapterOrdinal: Returning adapter #%d (%ws)", ret, mDXGIAdapterDescs[ret].Description);
+    }
+    else
+    {
+        D3D12NI_LOG_WARN("Failed to find suitable adapter for monitor %p", monitor);
+    }
+
     return ret;
 }
 
