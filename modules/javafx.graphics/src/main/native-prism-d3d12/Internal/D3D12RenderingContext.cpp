@@ -126,7 +126,7 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
     D3D12_RECT clearRect = GetScissor().Get();
     const BBox& rttDirtyBBox = mRenderTarget.Get()->GetDirtyBBox();
 
-    if (rttDirtyBBox.Valid())
+    if (Config::Instance().IsClearOptsEnabled() && rttDirtyBBox.Valid())
     {
         // if RTT was dirited by less area than the clear rect demands it - shrink the clear rect
         // if the BBox was not valid, that means we didn't render to the RTT yet - clear the whole area as scissor wants it
@@ -136,7 +136,8 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
         clearRect.bottom = std::min(clearRect.bottom, static_cast<LONG>(std::round(rttDirtyBBox.max.y)));
     }
 
-    if (r == 0.0f && g == 0.0f && b == 0.0f && a == 0.0f)
+    if (Config::Instance().IsClearOptsEnabled() &&
+        r == 0.0f && g == 0.0f && b == 0.0f && a == 0.0f)
     {
         // clearing to all zeroes could be optimized out by directly overdrawing the RT
         // delay the clear until first Draw() call (or until RT switch) to see if it's actually possible

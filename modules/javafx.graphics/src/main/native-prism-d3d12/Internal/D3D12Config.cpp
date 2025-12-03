@@ -102,6 +102,7 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
 
     // default settings
     mSettings.apiOpts = true;
+    mSettings.clearOpts = true;
     mSettings.mainRingBufferThreshold = 24 * 1024 * 1024;
     mSettings.constantRingBufferThreshold = 8 * 1024 * 1024;
     mSettings.srvRingHeapThreshold = 32 * 1024;
@@ -119,6 +120,7 @@ bool Config::LoadConfiguration(JNIEnv* env, jclass psClass)
     mSettings.profilerSummary = GetBoolProperty("prism.d3d12.profilerSummary");
 
     TRY_GET_BOOL_PROP(apiOpts);
+    TRY_GET_BOOL_PROP(clearOpts);
     TRY_GET_UINT_PROP(mainRingBufferThreshold);
     TRY_GET_UINT_PROP(constantRingBufferThreshold);
     TRY_GET_UINT_PROP(srvRingHeapThreshold);

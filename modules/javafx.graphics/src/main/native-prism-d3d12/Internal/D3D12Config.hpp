@@ -50,6 +50,7 @@ class Config
         bool vsync;
         bool fileLog;
         bool apiOpts;
+        bool clearOpts;
         bool dred;
         bool profilerSummary;
         uint32_t mainRingBufferThreshold;
@@ -131,6 +132,11 @@ public:
     inline static bool IsApiOptsEnabled()
     {
         return Instance().mSettings.apiOpts;
+    }
+
+    inline static bool IsClearOptsEnabled()
+    {
+        return Instance().mSettings.clearOpts;
     }
 
     inline static bool IsDREDEnabled()
