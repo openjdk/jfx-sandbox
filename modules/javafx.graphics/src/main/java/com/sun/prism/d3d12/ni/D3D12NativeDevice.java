@@ -48,7 +48,7 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
     private native long nCreateMesh(long ptr);
     private native long nCreateMeshView(long ptr, long meshPtr);
     private native long nCreatePhongMaterial(long ptr);
-    private native long nCreateRenderTarget(long ptr, long texturePtr);
+    private native long nCreateRenderTarget(long ptr, long texturePtr, boolean enableDirtyBBox);
     private native long nCreateShader(long ptr, String name, ByteBuffer code);
     private native long nCreateTexture(long ptr, int width, int height, int format, int usage, int wrapMode, int samples, boolean useMipmap, boolean isRTT);
     private native int nGetMaximumMSAASampleSize(long ptr, int format);
@@ -120,8 +120,8 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
         return new D3D12NativePhongMaterial(nCreatePhongMaterial(ptr));
     }
 
-    public D3D12NativeRenderTarget createRenderTarget(D3D12NativeTexture texture) {
-        return new D3D12NativeRenderTarget(nCreateRenderTarget(ptr, texture.getPtr()));
+    public D3D12NativeRenderTarget createRenderTarget(D3D12NativeTexture texture, boolean enableDirtyBBox) {
+        return new D3D12NativeRenderTarget(nCreateRenderTarget(ptr, texture.getPtr(), enableDirtyBBox));
     }
 
     public D3D12NativeShader createShader(String name, ByteBuffer code) {

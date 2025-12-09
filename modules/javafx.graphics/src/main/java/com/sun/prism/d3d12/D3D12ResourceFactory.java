@@ -293,6 +293,13 @@ class D3D12ResourceFactory extends BaseShaderFactory {
 
     @Override
     public RTTexture createRTTexture(int width, int height, WrapMode wrapMode, boolean msaa) {
+        // Default to creating an RTT with dirty bbox enabled
+        // Realistically only SwapChain will want an offscreen RTT with dirty bbox opts disabled, so
+        // it can manually call the full overload below. Other RTTs should have this enabled.
+        return createRTTexture(width, height, wrapMode, false, true);
+    }
+
+    public RTTexture createRTTexture(int width, int height, WrapMode wrapMode, boolean msaa, boolean enableDirtyBBox) {
         if (checkDisposed()) return null;
 
         int createw = width;
@@ -324,7 +331,7 @@ class D3D12ResourceFactory extends BaseShaderFactory {
             return null;
         }
 
-        D3D12RTTexture tex = D3D12RTTexture.create(mContext, width, height, format, wrapMode, aaSamples);
+        D3D12RTTexture tex = D3D12RTTexture.create(mContext, width, height, format, wrapMode, aaSamples, enableDirtyBBox);
         if (!tex.isValid()) {
             return null;
         }

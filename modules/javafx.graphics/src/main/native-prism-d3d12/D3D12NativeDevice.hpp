@@ -198,7 +198,7 @@ public:
     NIPtr<NativeMesh>* CreateMesh();
     NIPtr<NativeMeshView>* CreateMeshView(const NIPtr<NativeMesh>& mesh);
     NIPtr<NativePhongMaterial>* CreatePhongMaterial();
-    NIPtr<NativeRenderTarget>* CreateRenderTarget(const NIPtr<NativeTexture>& texture);
+    NIPtr<NativeRenderTarget>* CreateRenderTarget(const NIPtr<NativeTexture>& texture, bool enableDirtyBBox);
     NIPtr<NativeShader>* CreateShader(const std::string& name, void* buf, UINT size);
     NIPtr<NativeTexture>* CreateTexture(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESOURCE_FLAGS flags,
                                         TextureUsage usage, TextureWrapMode wrapMode, int samples, bool useMipmap);

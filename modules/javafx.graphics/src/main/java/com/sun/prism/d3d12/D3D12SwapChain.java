@@ -59,15 +59,19 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
         mHeight = mState.getRenderHeight();
         mMSAA = mState.isMSAA();
 
-        mSwapChain = ((D3D12ResourceFactory)context.getResourceFactory()).getNativeInstance().createSwapChain(
+        D3D12ResourceFactory resourceFactory = (D3D12ResourceFactory)context.getResourceFactory();
+        mSwapChain = resourceFactory.getNativeInstance().createSwapChain(
             mContext.getDevice(), mState.getNativeView()
         );
         if (!mSwapChain.isValid()) {
             throw new NullPointerException("D3D12 swapchain is NULL");
         }
 
-        mOffscreenRTT = (D3D12RTTexture)context.getResourceFactory().createRTTexture(
-            mState.getRenderWidth(), mState.getRenderHeight(), WrapMode.CLAMP_NOT_NEEDED, mMSAA
+        // Disable in-backend dirty bbox optimization for SwapChain's offscreen RTT
+        // JFX already tracks dirty regions for SwapChain buffers, so it's not needed
+        // and the simplified in-backend algorithm can cause visual glitches
+        mOffscreenRTT = (D3D12RTTexture)resourceFactory.createRTTexture(
+            mState.getRenderWidth(), mState.getRenderHeight(), WrapMode.CLAMP_NOT_NEEDED, mMSAA, false
         );
         if (!mOffscreenRTT.isValid()) {
             throw new NullPointerException("D3D12 swapchain is NULL");

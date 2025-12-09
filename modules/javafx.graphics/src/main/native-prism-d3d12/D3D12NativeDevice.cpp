@@ -479,9 +479,9 @@ NIPtr<NativePhongMaterial>* NativeDevice::CreatePhongMaterial()
     return CreateNIDeviceObject<NativePhongMaterial>(shared_from_this());
 }
 
-NIPtr<NativeRenderTarget>* NativeDevice::CreateRenderTarget(const NIPtr<NativeTexture>& texture)
+NIPtr<NativeRenderTarget>* NativeDevice::CreateRenderTarget(const NIPtr<NativeTexture>& texture, bool enableDirtyBBox)
 {
-    return CreateNIDeviceObject<NativeRenderTarget>(shared_from_this(), texture);
+    return CreateNIDeviceObject<NativeRenderTarget>(shared_from_this(), texture, enableDirtyBBox);
 }
 
 NIPtr<NativeShader>* NativeDevice::CreateShader(const std::string& name, void* buf, UINT size)
@@ -1273,7 +1273,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCreatePho
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCreateRenderTarget
-    (JNIEnv* env, jobject obj, jlong ptr, jlong texturePtr)
+    (JNIEnv* env, jobject obj, jlong ptr, jlong texturePtr, jboolean enableDirtyBBox)
 {
     if (!ptr) return 0;
     if (!texturePtr) return 0;
@@ -1281,7 +1281,7 @@ JNIEXPORT jlong JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCreateRen
     const D3D12::NIPtr<D3D12::NativeTexture>& texture = D3D12::GetNIObject<D3D12::NativeTexture>(texturePtr);
     if (!texture) return 0;
 
-    return reinterpret_cast<jlong>(D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->CreateRenderTarget(texture));
+    return reinterpret_cast<jlong>(D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->CreateRenderTarget(texture, (enableDirtyBBox > 0)));
 }
 
 JNIEXPORT jlong JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCreateShader

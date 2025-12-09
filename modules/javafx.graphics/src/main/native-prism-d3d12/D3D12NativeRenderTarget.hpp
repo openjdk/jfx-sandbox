@@ -54,7 +54,7 @@ public:
     NativeRenderTarget(const NIPtr<NativeDevice>& nativeDevice);
     ~NativeRenderTarget();
 
-    bool Init(const NIPtr<NativeTexture>& texture);
+    bool Init(const NIPtr<NativeTexture>& texture, bool enableDirtyBBox);
     bool EnsureHasDepthBuffer();
     bool Refresh();
     void SetDepthTestEnabled(bool enabled);

@@ -39,7 +39,9 @@ namespace Internal {
 //              should be added here.
 class IRenderTarget
 {
+protected:
     BBox mDirtyBBox; // tracks how much of the RTT was "used" aka. rendered on
+    bool mDirtyBBoxEnabled; // Merges are rejected when this is false
 
 public:
     virtual const NIPtr<TextureBase>& GetTexture() const = 0;
@@ -55,6 +57,8 @@ public:
 
     inline void MergeDirtyBBox(const BBox& box)
     {
+        if (!mDirtyBBoxEnabled) return;
+
         mDirtyBBox.Merge(box);
     }
 

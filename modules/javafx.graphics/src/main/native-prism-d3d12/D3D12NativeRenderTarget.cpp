@@ -60,11 +60,12 @@ NativeRenderTarget::~NativeRenderTarget()
     D3D12NI_LOG_TRACE("--- RenderTarget destroyed (%ux%u) ---", mWidth, mHeight);
 }
 
-bool NativeRenderTarget::Init(const NIPtr<NativeTexture>& texture)
+bool NativeRenderTarget::Init(const NIPtr<NativeTexture>& texture, bool enableDirtyBBox)
 {
     mTexture = texture;
     mTextureBase = mTexture;
     mDescriptors = mNativeDevice->GetRTVDescriptorAllocator()->Allocate(1);
+    mDirtyBBoxEnabled = enableDirtyBBox;
 
     return Refresh();
 }
