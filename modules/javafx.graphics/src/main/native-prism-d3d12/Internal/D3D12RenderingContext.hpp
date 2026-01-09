@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,6 +61,7 @@ class RenderingContext
 {
     NIPtr<NativeDevice> mNativeDevice;
     RenderingContextState mState;
+    uint32_t mRecordClearProfilerID;
 
     // some parameters are set by the Java Runtime ex. transforms, composite mode, textures
     // whenever we need to execute some internal operation (ex. BlitTexture()) we have to

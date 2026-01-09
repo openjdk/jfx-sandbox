@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -279,10 +279,23 @@ struct BBox
 
     inline void Merge(float minx, float miny, float maxx, float maxy)
     {
+        // dirty bbox applies to RTTs only, so its dimensions cannot be less than 0
+        // otherwise further checks we do (ex. Inside() ) might not work
+        minx = std::max(minx, 0.0f);
+        miny = std::max(miny, 0.0f);
+        maxx = std::max(maxx, 0.0f);
+        maxy = std::max(maxy, 0.0f);
+
         min.x = std::min(min.x, minx);
         min.y = std::min(min.y, miny);
         max.x = std::max(max.x, maxx);
         max.y = std::max(max.y, maxy);
+    }
+
+    inline bool Inside(const D3D12_RECT& rect) const
+    {
+        return std::round(min.x) >= rect.left  && std::round(min.y) >= rect.top &&
+               std::round(max.x) <= rect.right && std::round(max.y) <= rect.bottom;
     }
 
     inline bool Valid() const

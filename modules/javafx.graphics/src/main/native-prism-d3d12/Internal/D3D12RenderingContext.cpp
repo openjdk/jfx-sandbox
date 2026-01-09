@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "../D3D12NativeDevice.hpp"
 
 #include "D3D12Config.hpp"
+#include "D3D12Profiler.hpp"
 
 
 namespace D3D12 {
@@ -50,11 +51,14 @@ void RenderingContext::RecordClear(float r, float g, float b, float a, bool clea
     {
         mNativeDevice->GetCurrentCommandList()->ClearDepthStencilView(mRenderTarget.Get()->GetDSVDescriptorData().CPU(0), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 1, &clearRect);
     }
+
+    Profiler::Instance().MarkEvent(mRecordClearProfilerID, Profiler::Event::Event);
 }
 
 RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mState(nativeDevice)
+    , mRecordClearProfilerID(std::numeric_limits<uint32_t>::max())
     , mIndexBuffer()
     , mVertexBuffer()
     , mPipelineState()
@@ -111,6 +115,8 @@ bool RenderingContext::Init()
         return false;
     }
 
+    mRecordClearProfilerID = Profiler::Instance().RegisterSource("RenderingContext RecordClear");
+
     return true;
 }
 
@@ -126,10 +132,10 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
     D3D12_RECT clearRect = GetScissor().Get();
     const BBox& rttDirtyBBox = mRenderTarget.Get()->GetDirtyBBox();
 
-    if (Config::Instance().IsClearOptsEnabled() && rttDirtyBBox.Valid())
+    if (Config::Instance().IsClearOptsEnabled() && rttDirtyBBox.Valid() && rttDirtyBBox.Inside(clearRect))
     {
-        // if RTT was dirited by less area than the clear rect demands it - shrink the clear rect
-        // if the BBox was not valid, that means we didn't render to the RTT yet - clear the whole area as scissor wants it
+        // if RTT was dirited by less area than the clear rect demands it AND the clear area
+        // contains our dirty bbox, we can safely shrink the clear rect to save some clear time
         clearRect.left = std::max(clearRect.left, static_cast<LONG>(std::round(rttDirtyBBox.min.x)));
         clearRect.top = std::max(clearRect.top, static_cast<LONG>(std::round(rttDirtyBBox.min.y)));
         clearRect.right = std::min(clearRect.right, static_cast<LONG>(std::round(rttDirtyBBox.max.x)));
@@ -167,7 +173,7 @@ void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& di
         // check if we can discard this clear
         // the clear can be discarded if we use composite mode SRC_OVER
         // and this draw call will overwrite the entire to-be-cleared area of the RTT
-        if (currentCompositeMode == CompositeMode::SRC_OVER &&
+        if (currentCompositeMode == CompositeMode::SRC_OVER && dirtyBBox.Valid() &&
             std::round(dirtyBBox.min.x) <= mState.clearRect.left  && std::round(dirtyBBox.min.y) <= mState.clearRect.top &&
             std::round(dirtyBBox.max.x) >= mState.clearRect.right && std::round(dirtyBBox.max.y) >= mState.clearRect.bottom)
         {
