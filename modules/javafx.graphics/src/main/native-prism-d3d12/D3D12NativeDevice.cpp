@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -328,8 +328,11 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     hr = mDevice->CreateFence(mFenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create in-device Fence");
 
+    // NOTE: Command List Pool requires to have as many Command Allocators as SwapChain buffers + 1
+    // This is the minimum we need (one per frame) and also ensures an extra one to pre-record more commands
+    // if both SwapChain buffers are full.
     mCommandListPool = std::make_shared<Internal::CommandListPool>(shared_from_this());
-    if (!mCommandListPool->Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 16))
+    if (!mCommandListPool->Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 16, 3))
     {
         D3D12NI_LOG_ERROR("Failed to initialize Command List Pool");
         return false;
@@ -1134,6 +1137,11 @@ void NativeDevice::FinishFrame()
 void NativeDevice::Execute(const std::vector<ID3D12CommandList*>& commandLists)
 {
     mCommandQueue->ExecuteCommandLists(static_cast<UINT>(commandLists.size()), commandLists.data());
+}
+
+void NativeDevice::AdvanceCommandAllocator()
+{
+    mCommandListPool->AdvanceAllocator();
 }
 
 void NativeDevice::RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp)

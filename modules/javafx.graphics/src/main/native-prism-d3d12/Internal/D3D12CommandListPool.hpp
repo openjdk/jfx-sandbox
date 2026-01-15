@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,21 +43,32 @@ class CommandListPool: public IWaitableOperation
         Closed, // CL has finished recording, was closed and has to be/is executed
     };
 
+
     struct CommandListData
     {
         D3D12GraphicsCommandListPtr commandList;
-        D3D12CommandAllocatorPtr commandAllocator;
         CommandListState state;
         uint64_t closedFenceValue;
     };
 
+    struct CommandAllocatorData
+    {
+        D3D12CommandAllocatorPtr allocator;
+        CommandListState state; // same three states as CLs
+        uint64_t closedFenceValue;
+    };
+
     NIPtr<NativeDevice> mNativeDevice;
-    uint32_t mProfilerSourceID;
+    uint32_t mCommandListProfilerID;
+    uint32_t mCommandAllocatorProfilerID;
     std::vector<CommandListData> mCommandLists;
     size_t mCurrentCommandList;
+    std::vector<CommandAllocatorData> mCommandAllocators;
+    size_t mCurrentCommandAllocator;
 
     void ResetCurrentCommandList();
     void WaitForAvailableCommandList();
+    void WaitForAvailableCommandAllocator();
 
     inline CommandListData& CurrentCommandListData()
     {
@@ -68,10 +79,11 @@ public:
     CommandListPool(const NIPtr<NativeDevice>& nativeDevice);
     ~CommandListPool();
 
-    bool Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount);
+    bool Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount, size_t commandAllocators);
     void OnQueueSignal(uint64_t fenceValue) override;
     void OnFenceSignaled(uint64_t fenceValue) override;
     bool SubmitCurrentCommandList();
+    void AdvanceAllocator();
 
     inline const D3D12GraphicsCommandListPtr& CurrentCommandList()
     {
