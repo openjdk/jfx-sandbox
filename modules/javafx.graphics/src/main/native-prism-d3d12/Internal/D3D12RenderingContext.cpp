@@ -170,9 +170,9 @@ void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& di
 
     if (mState.clearDelayed)
     {
-        // check if we can discard this clear
-        // the clear can be discarded if we use composite mode SRC_OVER
-        // and this draw call will overwrite the entire to-be-cleared area of the RTT
+        // Check if we can discard this clear.
+        // The clear can be discarded if we use composite mode SRC_OVER and
+        // this draw call will overwrite the entire to-be-cleared area of the RTT.
         //
         // NOTE: compared to other parts related to Clear optimization here we're being
         // a bit more cautions with coordinates - min bbox gets ceil-ed while max bbox gets floor-ed.
@@ -182,7 +182,11 @@ void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& di
         // overwritten by the primitive we want to draw. To prevent those occasional artifacts we must push
         // a Clear() through here - under-estimating BBox coordinates makes it possible and ensures visual
         // correctness when using clear optimizations.
+        //
+        // NOTE2: Temporary workaround - some shaders deny clear optimizations because of shortcomings
+        // of how dirty bbox is calculated. This might (and should be) changed in the future.
         if (currentCompositeMode == CompositeMode::SRC_OVER && dirtyBBox.Valid() &&
+            mPipelineState.Get().pixelShader->AllowsClearOpt() &&
             std::ceil(dirtyBBox.min.x) <= mState.clearRect.left  && std::ceil(dirtyBBox.min.y) <= mState.clearRect.top &&
             std::floor(dirtyBBox.max.x) >= mState.clearRect.right && std::floor(dirtyBBox.max.y) >= mState.clearRect.bottom)
         {

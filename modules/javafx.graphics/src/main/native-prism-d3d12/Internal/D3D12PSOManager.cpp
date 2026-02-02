@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,6 +59,7 @@ D3D12_BLEND_DESC PSOManager::FormBlendState(CompositeMode mode)
         break;
     case CompositeMode::SRC:
         state.RenderTarget[0].BlendEnable = false;
+        state.RenderTarget[0].RenderTargetWriteMask = (D3D12_COLOR_WRITE_ENABLE_RED | D3D12_COLOR_WRITE_ENABLE_GREEN | D3D12_COLOR_WRITE_ENABLE_BLUE);
         break;
     case CompositeMode::SRC_OVER:
         state.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
