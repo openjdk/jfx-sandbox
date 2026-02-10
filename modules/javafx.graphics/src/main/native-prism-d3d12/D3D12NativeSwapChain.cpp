@@ -140,7 +140,7 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
 {
     mVSyncEnabled = Internal::Config::IsVsyncEnabled();
     mSwapChainFlags = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
-    mDirtyBBoxEnabled = false; // SwapChain doesn't use dirty bbox opts
+    mBBoxState = BBoxTrackingState::Disabled; // SwapChain doesn't use dirty bbox opts
 
     DXGI_SWAP_CHAIN_DESC1 desc;
     D3D12NI_ZERO_STRUCT(desc);

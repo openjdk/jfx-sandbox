@@ -59,7 +59,6 @@ D3D12_BLEND_DESC PSOManager::FormBlendState(CompositeMode mode)
         break;
     case CompositeMode::SRC:
         state.RenderTarget[0].BlendEnable = false;
-        state.RenderTarget[0].RenderTargetWriteMask = (D3D12_COLOR_WRITE_ENABLE_RED | D3D12_COLOR_WRITE_ENABLE_GREEN | D3D12_COLOR_WRITE_ENABLE_BLUE);
         break;
     case CompositeMode::SRC_OVER:
         state.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;

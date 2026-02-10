@@ -272,6 +272,14 @@ struct BBox
     {
     }
 
+    inline void operator=(const BBox& other)
+    {
+        min.x = other.min.x;
+        min.y = other.min.y;
+        max.x = other.max.x;
+        max.y = other.max.y;
+    }
+
     inline void Merge(const BBox& other)
     {
         Merge(other.min.x, other.min.y, other.max.x, other.max.y);
@@ -292,10 +300,25 @@ struct BBox
         max.y = std::max(max.y, maxy);
     }
 
+    inline bool Inside(const float minx, const float miny, const float maxx, const float maxy) const
+    {
+        return std::round(min.x) >= minx && std::round(min.y) >= miny &&
+               std::round(max.x) <= maxx && std::round(max.y) <= maxy;
+    }
+
     inline bool Inside(const D3D12_RECT& rect) const
     {
-        return std::round(min.x) >= rect.left  && std::round(min.y) >= rect.top &&
-               std::round(max.x) <= rect.right && std::round(max.y) <= rect.bottom;
+        return Inside(
+            static_cast<const float>(rect.left),
+            static_cast<const float>(rect.top),
+            static_cast<const float>(rect.right),
+            static_cast<const float>(rect.bottom)
+        );
+    }
+
+    inline bool Inside(const BBox& other) const
+    {
+        return Inside(other.min.x, other.min.y, other.max.x, other.max.y);
     }
 
     inline bool Valid() const

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,8 +40,15 @@ namespace Internal {
 class IRenderTarget
 {
 protected:
+    enum class BBoxTrackingState
+    {
+        Disabled = 0,   // set when upper layers disable bbox tracking permanently
+        Enabled,        // bbox tracking is enabled
+        FrameDisabled,  // bbox tracking was disabled for current frame due to ex. bbox being more complex
+    };
+
     BBox mDirtyBBox; // tracks how much of the RTT was "used" aka. rendered on
-    bool mDirtyBBoxEnabled; // Merges are rejected when this is false
+    BBoxTrackingState mBBoxState;
 
 public:
     virtual const NIPtr<TextureBase>& GetTexture() const = 0;
@@ -55,16 +62,17 @@ public:
     virtual const Internal::DescriptorData& GetRTVDescriptorData() const = 0;
     virtual const Internal::DescriptorData& GetDSVDescriptorData() const = 0;
 
-    inline void MergeDirtyBBox(const BBox& box)
-    {
-        if (!mDirtyBBoxEnabled) return;
-
-        mDirtyBBox.Merge(box);
-    }
+    void UpdateDirtyBBox(const BBox& box);
 
     inline void ResetDirtyBBox()
     {
         mDirtyBBox = BBox();
+        if (mBBoxState != BBoxTrackingState::Disabled) mBBoxState = BBoxTrackingState::Enabled;
+    }
+
+    inline bool BBoxEnabled() const
+    {
+        return (mBBoxState == BBoxTrackingState::Enabled);
     }
 
     inline const BBox& GetDirtyBBox() const

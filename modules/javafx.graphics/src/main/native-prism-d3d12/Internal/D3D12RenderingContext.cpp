@@ -132,7 +132,8 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
     D3D12_RECT clearRect = GetScissor().Get();
     const BBox& rttDirtyBBox = mRenderTarget.Get()->GetDirtyBBox();
 
-    if (Config::Instance().IsClearOptsEnabled() && rttDirtyBBox.Valid() && rttDirtyBBox.Inside(clearRect))
+    if (Config::Instance().IsClearOptsEnabled() && mRenderTarget.Get()->BBoxEnabled() &&
+        rttDirtyBBox.Valid() && rttDirtyBBox.Inside(clearRect))
     {
         // if RTT was dirited by less area than the clear rect demands it AND the clear area
         // contains our dirty bbox, we can safely shrink the clear rect to save some clear time
@@ -182,11 +183,7 @@ void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& di
         // overwritten by the primitive we want to draw. To prevent those occasional artifacts we must push
         // a Clear() through here - under-estimating BBox coordinates makes it possible and ensures visual
         // correctness when using clear optimizations.
-        //
-        // NOTE2: Temporary workaround - some shaders deny clear optimizations because of shortcomings
-        // of how dirty bbox is calculated. This might (and should be) changed in the future.
         if (currentCompositeMode == CompositeMode::SRC_OVER && dirtyBBox.Valid() &&
-            mPipelineState.Get().pixelShader->AllowsClearOpt() &&
             std::ceil(dirtyBBox.min.x) <= mState.clearRect.left  && std::ceil(dirtyBBox.min.y) <= mState.clearRect.top &&
             std::floor(dirtyBBox.max.x) >= mState.clearRect.right && std::floor(dirtyBBox.max.y) >= mState.clearRect.bottom)
         {
@@ -219,11 +216,7 @@ void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& di
     EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     mNativeDevice->GetCurrentCommandList()->DrawIndexedInstanced(elements, 1, 0, vbOffset, 0);
-
-    if (dirtyBBox.Valid())
-    {
-        mRenderTarget.Get()->MergeDirtyBBox(dirtyBBox);
-    }
+    mRenderTarget.Get()->UpdateDirtyBBox(dirtyBBox);
 
     if (clearDiscarded)
     {

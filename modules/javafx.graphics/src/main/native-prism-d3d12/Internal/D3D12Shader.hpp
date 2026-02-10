@@ -102,9 +102,6 @@ protected:
     ResourceData mResourceData;
     DescriptorData mDescriptorData;
     bool mConstantsDirty;
-    // used to skip Clear optimization; check RenderingContext for details
-    // TODO: D3D12: This might be a bit hacky, but I didn't find a better way to do this (yet).
-    bool mAllowClearOpt;
 
     void SetConstantBufferData(void* data, size_t size, size_t storageOffset);
     void AddShaderResource(const std::string& name, const ResourceAssignment& resource);
@@ -152,11 +149,6 @@ public:
     inline void SetConstantsDirty(bool dirty)
     {
         mConstantsDirty = dirty;
-    }
-
-    inline bool AllowsClearOpt() const
-    {
-        return mAllowClearOpt;
     }
 };
 

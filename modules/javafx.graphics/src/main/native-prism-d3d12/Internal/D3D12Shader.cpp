@@ -26,23 +26,6 @@
 #include "D3D12Shader.hpp"
 
 
-namespace {
-
-// Some shaders can require Clear opts to be skipped before drawing.
-// TODO: D3D12: This is a temporary workaround and might be removed soon.
-const std::vector<const char*> SHADER_PREFIXES_DENY_CLEAR_OPT =
-{
-    // Mask shaders are frequently used for Text rendering. In some situations
-    // (ex. multiple Labels with different contents) this behavior can overdraw
-    // past Label contents, not covering it correctly and making it seeem
-    // as if Label contents got "corrupted". To prevent this, we deny Mask
-    // shaders the Clear optimization.
-    "Mask"
-};
-
-} // namespace
-
-
 namespace D3D12 {
 namespace Internal {
 
@@ -75,17 +58,6 @@ bool Shader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER
     memcpy(mBytecodeBuffer.data(), code, codeSize);
     mBytecode.BytecodeLength = codeSize;
     mBytecode.pShaderBytecode = mBytecodeBuffer.data();
-
-    // TODO: D3D12: Probably a temporary solution, might be worth coming back and reworking it.
-    mAllowClearOpt = true;
-    for (const char* prefix: SHADER_PREFIXES_DENY_CLEAR_OPT)
-    {
-        if (name.rfind(prefix, 0) == 0)
-        {
-            mAllowClearOpt = false;
-            break;
-        }
-    }
 
     return true;
 }

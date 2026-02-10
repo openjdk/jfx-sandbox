@@ -149,8 +149,18 @@ BBox NativeDevice::AssembleVertexData(void* buffer, const Internal::MemoryView<f
         bufVertices[i].uv1.v = vertices.Data()[vertIdx++];
         bufVertices[i].uv2.u = vertices.Data()[vertIdx++];
         bufVertices[i].uv2.v = vertices.Data()[vertIdx++];
+    }
 
-        bbox.Merge(bufVertices[i].pos.x, bufVertices[i].pos.y, bufVertices[i].pos.x, bufVertices[i].pos.y);
+    if (elementCount == 4)
+    {
+        // only create a valid bbox when we render a quad
+        // quad is the only way we can be sure bbox is valid
+        // TODO: D3D12: maybe we should lift that limitation some day, would require reworking
+        // bbox merging though and might be too heavy CPU wise
+        for (UINT i = 0; i < elementCount; ++i)
+        {
+            bbox.Merge(bufVertices[i].pos.x, bufVertices[i].pos.y, bufVertices[i].pos.x, bufVertices[i].pos.y);
+        }
     }
 
     return bbox;
