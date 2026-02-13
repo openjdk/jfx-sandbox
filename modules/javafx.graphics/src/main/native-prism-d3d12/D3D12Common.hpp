@@ -46,6 +46,26 @@
 
 namespace D3D12 {
 
+// C-style-allocated unique ptr
+// used ex. to dynamically allocate D3D12_MESSAGE in D3D12Debug.cpp because of message size being dynamic
+struct CFree
+{
+    void operator()(void* p) const noexcept
+    {
+        std::free(p);
+    }
+};
+
+template <typename T>
+using UniqueCPtr = std::unique_ptr<T, CFree>;
+
+template <typename T>
+UniqueCPtr<T> MakeUniqueCPtr(std::size_t size) noexcept
+{
+    return UniqueCPtr<T>(reinterpret_cast<T*>(std::malloc(size)));
+}
+
+
 // smart-pointer container shorthand for D3D12 objects
 template <typename T>
 using Ptr = Microsoft::WRL::ComPtr<T>;
@@ -75,7 +95,7 @@ using D3D12ResourcePtr = Ptr<ID3D12Resource>;
 using D3D12RootSignaturePtr = Ptr<ID3D12RootSignature>;
 
 using D3D12DebugPtr = Ptr<ID3D12Debug3>;
-using D3D12InfoQueuePtr = Ptr<ID3D12InfoQueue1>;
+using D3D12InfoQueuePtr = Ptr<ID3D12InfoQueue>;
 using D3D12DebugDevicePtr = Ptr<ID3D12DebugDevice2>;
 
 // smart-pointer container for internal objects
@@ -530,8 +550,10 @@ inline size_t GetPixelFormatBPP(PixelFormat f)
     if (FAILED(hr)) { \
         _com_error __e(hr); \
         D3D12NI_LOG_ERROR("%s: %x (%ws)", errMsg, hr, __e.ErrorMessage()); \
-        if (hr == DXGI_ERROR_DEVICE_REMOVED) \
+        ::D3D12::Internal::Debug::Instance().ReportErrorMessages(); \
+        if (hr == DXGI_ERROR_DEVICE_REMOVED) { \
             ::D3D12::Internal::Debug::Instance().ExamineDeviceRemoved(); \
+        } \
         return (ret); \
     } \
 } while (0)
@@ -541,8 +563,10 @@ inline size_t GetPixelFormatBPP(PixelFormat f)
     if (FAILED(hr)) { \
         _com_error __e(hr); \
         D3D12NI_LOG_ERROR("%s: %x (%ws)", errMsg, hr, __e.ErrorMessage()); \
-        if (hr == DXGI_ERROR_DEVICE_REMOVED) \
+        ::D3D12::Internal::Debug::Instance().ReportErrorMessages(); \
+        if (hr == DXGI_ERROR_DEVICE_REMOVED) { \
             ::D3D12::Internal::Debug::Instance().ExamineDeviceRemoved(); \
+        } \
         return; \
     } \
 } while (0)

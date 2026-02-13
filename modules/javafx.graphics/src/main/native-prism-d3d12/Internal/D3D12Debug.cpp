@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -306,22 +306,40 @@ bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
     hr = mD3D12InfoQueue->AddStorageFilterEntries(&filter);
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to apply D3D12 info queue filters");
 
-    // register our own message callback to use D3D12NI's logging facilities
-    hr = mD3D12InfoQueue->RegisterMessageCallback(D3D12DebugMessageCallback, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &mD3D12MessageCallbackCookie);
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to register D3D12 debug message callback");
-
-    if (mD3D12MessageCallbackCookie == 0)
-    {
-        D3D12NI_LOG_ERROR("Failed to register D3D12 debug message callback (cookie is empty)");
-        return false;
-    }
-
     if (Config::IsBreakOnErrorEnabled())
     {
         hr = mD3D12InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
         D3D12NI_RET_IF_FAILED(hr, false, "Failed to set break on D3D12 errors");
         hr = mD3D12InfoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
         D3D12NI_RET_IF_FAILED(hr, false, "Failed to set break on D3D12 corruptions");
+    }
+
+    mUsesMessageCallback = false;
+
+    // attempt to up-cast the Info Queue to ID3D12InfoQueue1 and, if successful, register our message callback
+    // There is a chance this will fail on older systems
+    Ptr<ID3D12InfoQueue1> d3d12InfoQueue1;
+    hr = mD3D12InfoQueue.As(&d3d12InfoQueue1);
+    if (SUCCEEDED(hr))
+    {
+        // register our own message callback to use D3D12NI's logging facilities
+        hr = d3d12InfoQueue1->RegisterMessageCallback(D3D12DebugMessageCallback, D3D12_MESSAGE_CALLBACK_FLAG_NONE, nullptr, &mD3D12MessageCallbackCookie);
+        D3D12NI_RET_IF_FAILED(hr, false, "Failed to register D3D12 debug message callback");
+
+        if (mD3D12MessageCallbackCookie == 0)
+        {
+            D3D12NI_LOG_ERROR("Failed to register D3D12 debug message callback (cookie is empty)");
+        }
+        else
+        {
+            // at this point Info Queue has our message callback, we can suppress printing messages via ReportErrorMessages()
+            mUsesMessageCallback = true;
+        }
+    }
+
+    if (!mUsesMessageCallback)
+    {
+        D3D12NI_LOG_WARN("D3D12 Debug: Failed to set up Debug Message Callback. Debug Layer logs might appear delayed.");
     }
 
     D3D12NI_LOG_INFO("D3D12 Device debugging set up");
@@ -428,6 +446,27 @@ void Debug::ExamineDeviceRemoved()
             node = node->pNext;
         }
     }
+}
+
+void Debug::ReportErrorMessages()
+{
+    if (!mD3D12InfoQueue) return;
+    if (mUsesMessageCallback) return; // ignore when messages are printed by the Callback
+
+    D3D12NI_LOG_ERROR("Colleted error messages since last report:");
+    UINT64 storedMessagesNum = mD3D12InfoQueue->GetNumStoredMessages();
+    for (UINT64 i = 0; i < storedMessagesNum; ++i)
+    {
+        SIZE_T messageSizeBytes = 0;
+        mD3D12InfoQueue->GetMessage(i, nullptr, &messageSizeBytes);
+
+        UniqueCPtr<D3D12_MESSAGE> msg = MakeUniqueCPtr<D3D12_MESSAGE>(messageSizeBytes);
+        mD3D12InfoQueue->GetMessage(i, msg.get(), &messageSizeBytes);
+
+        D3D12DebugMessageCallback(msg->Category, msg->Severity, msg->ID, msg->pDescription, nullptr);
+    }
+
+    mD3D12InfoQueue->ClearStoredMessages();
 }
 
 } // namespace Internal
