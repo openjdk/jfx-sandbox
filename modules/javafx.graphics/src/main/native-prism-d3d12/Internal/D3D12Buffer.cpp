@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,6 +86,16 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
     }
 
     D3D12_RESOURCE_STATES initialState = D3D12_RESOURCE_STATE_COMMON;
+    switch (mHeapType)
+    {
+    case D3D12_HEAP_TYPE_UPLOAD:
+        initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
+        break;
+    case D3D12_HEAP_TYPE_READBACK:
+        initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+        break;
+    }
+
     HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
         &resourceDesc, initialState, nullptr, IID_PPV_ARGS(&mBufferResource));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Buffer's Committed Resource");
