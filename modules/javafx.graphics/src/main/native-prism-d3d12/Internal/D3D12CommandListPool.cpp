@@ -72,7 +72,7 @@ void CommandListPool::WaitForAvailableCommandAllocator()
     }
 
     // if this assertion ever triggers there is something terribly wrong
-    D3D12NI_ASSERT(mCommandAllocators[mCurrentCommandList].state == CommandListState::Available,
+    D3D12NI_ASSERT(mCommandAllocators[mCurrentCommandAllocator].state == CommandListState::Available,
         "Waited through the entire Queue, yet current Command Allocator is still not available. Something has gone terribly wrong."
     );
 }
