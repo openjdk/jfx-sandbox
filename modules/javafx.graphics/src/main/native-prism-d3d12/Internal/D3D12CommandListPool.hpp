@@ -82,7 +82,7 @@ public:
     bool Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount, size_t commandAllocators);
     void OnQueueSignal(uint64_t fenceValue) override;
     void OnFenceSignaled(uint64_t fenceValue) override;
-    bool SubmitCurrentCommandList();
+    D3D12GraphicsCommandListPtr AdvanceCommandList();
     void AdvanceAllocator();
 
     inline const D3D12GraphicsCommandListPtr& CurrentCommandList()

@@ -212,18 +212,19 @@ NativeDevice::VertexSubregion NativeDevice::GetNewRegionForVertices(uint32_t ver
     if (vertexCount > (Constants::MAX_BATCH_VERTICES / 2))
     {
         // rendering more vertices might utilize the Ring Buffer better if we just reserve a separate space for them
-        mRingBuffer->DeclareRequired(vertexCount * 8 * sizeof(float));
+        mVertexRingBuffer->DeclareRequired(vertexCount * 8 * sizeof(float));
+        Internal::GPURingBuffer::GPURegion region = mVertexRingBuffer->ReserveCPU(vertexCount * 8 * sizeof(float));
 
         VertexSubregion separateRegion;
-        separateRegion.subregion = mRingBuffer->Reserve(vertexCount * 8 * sizeof(float));
+        separateRegion.subregion = region.cpuRegion;
         if (!separateRegion)
         {
-            D3D12NI_LOG_ERROR("Ring Buffer allocation failed for quad rendering");
+            D3D12NI_LOG_ERROR("2D Vertex Ring Buffer allocation failed");
             return VertexSubregion();
         }
 
-        separateRegion.view.BufferLocation = separateRegion.subregion.gpu;
-        separateRegion.view.SizeInBytes = static_cast<UINT>(separateRegion.subregion.size);
+        separateRegion.view.BufferLocation = region.gpuRegion.gpu;
+        separateRegion.view.SizeInBytes = static_cast<UINT>(region.gpuRegion.size);
         separateRegion.view.StrideInBytes = sizeof(Vertex_2D);
 
         return separateRegion;
@@ -232,15 +233,16 @@ NativeDevice::VertexSubregion NativeDevice::GetNewRegionForVertices(uint32_t ver
     if (!m2DVertexBatch.Valid() || vertexCount > m2DVertexBatch.Available())
     {
         // reserve space on Ring Buffer
-        mRingBuffer->DeclareRequired(Constants::MAX_BATCH_VERTICES * 8 * sizeof(float));
-        Internal::RingBuffer::Region newVertexRegion = mRingBuffer->Reserve(Constants::MAX_BATCH_VERTICES * 8 * sizeof(float));
-        if (!newVertexRegion)
+        mVertexRingBuffer->DeclareRequired(Constants::MAX_BATCH_VERTICES * 8 * sizeof(float));
+
+        Internal::GPURingBuffer::GPURegion newVertexRegion = mVertexRingBuffer->ReserveCPU(Constants::MAX_BATCH_VERTICES * 8 * sizeof(float));
+        if (!newVertexRegion.cpuRegion)
         {
-            D3D12NI_LOG_ERROR("Ring Buffer allocation failed for quad rendering");
+            D3D12NI_LOG_ERROR("2D Vertex Ring Buffer allocation failed");
             return VertexSubregion();
         }
 
-        m2DVertexBatch.AssignNewRegion(newVertexRegion);
+        m2DVertexBatch.AssignNewRegion(newVertexRegion.cpuRegion, newVertexRegion.gpuRegion);
     }
 
     return m2DVertexBatch.Subregion(vertexCount);
@@ -273,6 +275,7 @@ NativeDevice::NativeDevice()
     , mCommandListPool()
     , m2DIndexBuffer()
     , mRingBuffer()
+    , mVertexRingBuffer()
 {
 }
 
@@ -377,6 +380,15 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
         return false;
     }
 
+    // TODO adjust thresholds if this idea works fine for memory optimization
+    mVertexRingBuffer = std::make_shared<Internal::GPURingBuffer>(shared_from_this());
+    mVertexRingBuffer->SetDebugName("2D Vertex GPU Ring Buffer");
+    if (!mVertexRingBuffer->Init(Internal::Config::MainRingBufferThreshold(), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT))
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize 2D Vertex Ring Buffer");
+        return false;
+    }
+
     mRTVAllocator = std::make_shared<Internal::DescriptorAllocator>(shared_from_this());
     if (!mRTVAllocator->Init(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false))
     {
@@ -433,6 +445,7 @@ void NativeDevice::Release()
 
     if (mRenderingContext) mRenderingContext.reset();
     if (mRingBuffer) mRingBuffer.reset();
+    if (mVertexRingBuffer) mVertexRingBuffer.reset();
     if (m2DIndexBuffer) m2DIndexBuffer.reset();
     if (mCommandListPool) mCommandListPool.reset();
     if (mShaderLibrary) mShaderLibrary.reset();
@@ -1119,9 +1132,37 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
     return true;
 }
 
+// private
+void NativeDevice::ExecuteCurrentCommandList()
+{
+    // we query for this before Pool::AdvanceCommandList() because advancing
+    // the Command List will flush the buffer and we need this information afterwards
+    bool needsGPUVertexBufferUpdate = mVertexRingBuffer->HasUncommittedData();
+
+    D3D12GraphicsCommandListPtr cmdList = mCommandListPool->AdvanceCommandList();
+    if (needsGPUVertexBufferUpdate)
+    {
+        mVertexRingBuffer->RecordTransferToGPU();
+        D3D12GraphicsCommandListPtr copyVertexBufferList = mCommandListPool->AdvanceCommandList();
+
+        // Copy vertex buffer list must happen before just-recorded list, this is
+        // to ensure the copy will be executed first. This lets the driver merge the
+        // lists and parallelize them better. Synchronization will be done via barriers.
+        ID3D12CommandList* lists[2] = { copyVertexBufferList.Get(), cmdList.Get() };
+        mCommandQueue->ExecuteCommandLists(2, lists);
+    }
+    else
+    {
+        // GPU vertex ring buffer was not used, we don't need to transfer any data
+        // simply submit this Command List for execution and move on
+        ID3D12CommandList* lists[1] = { cmdList.Get() };
+        mCommandQueue->ExecuteCommandLists(1, lists);
+    }
+}
+
 void NativeDevice::FlushCommandList(CheckpointType type)
 {
-    mCommandListPool->SubmitCurrentCommandList();
+    ExecuteCurrentCommandList();
     Signal(type);
 
     mRenderingContext->ClearAppliedFlags();
@@ -1132,7 +1173,7 @@ void NativeDevice::FinishFrame()
 {
     // Not calling FlushCommandList() here to avoid Signal()
     // SwapChain will execute Signal on its own to mark the actual end of the frame
-    mCommandListPool->SubmitCurrentCommandList();
+    ExecuteCurrentCommandList();
 
     mRenderingContext->ClearAppliedFlags();
     mRenderingContext->FinishFrame();
@@ -1142,11 +1183,6 @@ void NativeDevice::FinishFrame()
     Internal::Profiler::Instance().MarkFrameEnd();
     Internal::Profiler::Instance().TimingEnd(mProfilerFrameTimeID);
     Internal::Profiler::Instance().TimingStart(mProfilerFrameTimeID);
-}
-
-void NativeDevice::Execute(const std::vector<ID3D12CommandList*>& commandLists)
-{
-    mCommandQueue->ExecuteCommandLists(static_cast<UINT>(commandLists.size()), commandLists.data());
 }
 
 void NativeDevice::AdvanceCommandAllocator()

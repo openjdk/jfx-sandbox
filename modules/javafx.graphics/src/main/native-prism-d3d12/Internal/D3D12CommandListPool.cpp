@@ -225,7 +225,7 @@ void CommandListPool::OnFenceSignaled(uint64_t fenceValue)
     }
 }
 
-bool CommandListPool::SubmitCurrentCommandList()
+D3D12GraphicsCommandListPtr CommandListPool::AdvanceCommandList()
 {
     D3D12NI_ASSERT(CurrentCommandListData().state == CommandListState::Active, "Invalid Command List #%d state %d", mCurrentCommandList, CurrentCommandListData().state);
 
@@ -234,7 +234,7 @@ bool CommandListPool::SubmitCurrentCommandList()
 
     CurrentCommandListData().state = CommandListState::Closed;
 
-    mNativeDevice->Execute({ CurrentCommandListData().commandList.Get() });
+    D3D12GraphicsCommandListPtr& list = CurrentCommandListData().commandList;
 
     ++mCurrentCommandList;
     if (mCurrentCommandList == mCommandLists.size()) mCurrentCommandList = 0;
@@ -244,7 +244,7 @@ bool CommandListPool::SubmitCurrentCommandList()
         ResetCurrentCommandList();
     }
 
-    return true;
+    return list;
 }
 
 void CommandListPool::AdvanceAllocator()

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@
 #include "Internal/D3D12CheckpointQueue.hpp"
 #include "Internal/D3D12CommandListPool.hpp"
 #include "Internal/D3D12DescriptorAllocator.hpp"
+#include "Internal/D3D12GPURingBuffer.hpp"
 #include "Internal/D3D12IWaitableOperation.hpp"
 #include "Internal/D3D12RootSignatureManager.hpp"
 #include "Internal/D3D12ResourceDisposer.hpp"
@@ -83,7 +84,8 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     class VertexBatch
     {
         uint32_t mTaken;
-        Internal::RingBuffer::Region mRegion;
+        Internal::RingBuffer::Region mCPURegion;
+        Internal::RingBuffer::Region mGPURegion;
         D3D12_VERTEX_BUFFER_VIEW mView;
 
         size_t ElementsToBytes(size_t elements)
@@ -94,7 +96,9 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     public:
         VertexBatch()
             : mTaken(0)
-            , mRegion()
+            , mCPURegion()
+            , mGPURegion()
+            , mView()
         {}
 
         inline uint32_t Available() const
@@ -104,33 +108,35 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
 
         inline bool Valid() const
         {
-            return mRegion.operator bool();
+            return mCPURegion.operator bool();
         }
 
         inline void Invalidate()
         {
-            mRegion = Internal::RingBuffer::Region();
+            mCPURegion = Internal::RingBuffer::Region();
+            mGPURegion = Internal::RingBuffer::Region();
             mTaken = 0;
             D3D12NI_ZERO_STRUCT(mView);
         }
 
-        void AssignNewRegion(const Internal::RingBuffer::Region& region)
+        void AssignNewRegion(const Internal::RingBuffer::Region& cpuRegion, const Internal::RingBuffer::Region& gpuRegion)
         {
-            mRegion = region;
+            mCPURegion = cpuRegion;
+            mGPURegion = gpuRegion;
             mTaken = 0;
 
-            mView.BufferLocation = mRegion.gpu;
-            mView.SizeInBytes = static_cast<UINT>(mRegion.size);
+            mView.BufferLocation = gpuRegion.gpu;
+            mView.SizeInBytes = static_cast<UINT>(gpuRegion.size);
             mView.StrideInBytes = sizeof(Vertex_2D); // 3x pos, 1x uint32 color, 2x uv, 2x uv
         }
 
         VertexSubregion Subregion(uint32_t elements)
         {
             D3D12NI_ASSERT(elements <= (Constants::MAX_BATCH_VERTICES - mTaken), "Attempted to exceed VB Batch size");
-            D3D12NI_ASSERT(mRegion == true, "No assigned vertex buffer region");
+            D3D12NI_ASSERT(mCPURegion == true, "No assigned vertex buffer region");
 
             VertexSubregion result;
-            result.subregion = mRegion.Subregion(ElementsToBytes(mTaken), ElementsToBytes(elements));
+            result.subregion = mCPURegion.Subregion(ElementsToBytes(mTaken), ElementsToBytes(elements));
             result.startOffset = mTaken;
             result.view = mView;
 
@@ -167,7 +173,8 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     VertexBatch m2DVertexBatch;
     NIPtr<Internal::CommandListPool> mCommandListPool;
     NIPtr<Internal::Buffer> m2DIndexBuffer;
-    NIPtr<Internal::RingBuffer> mRingBuffer; // used for larger data (ex. 2D Vertex Buffer, texture upload)
+    NIPtr<Internal::RingBuffer> mRingBuffer; // used for larger read-once-by-GPU data (ex. texture upload)
+    NIPtr<Internal::GPURingBuffer> mVertexRingBuffer; // used for 2D Vertex data which for performance should reside on GPU-side
 
     struct Transforms
     {
@@ -182,6 +189,8 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     QuadVertices AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst);
     const NIPtr<Internal::Shader>& GetPhongPixelShader(const PhongShaderSpec& spec) const;
     VertexSubregion GetNewRegionForVertices(uint32_t elementCount);
+    D3D12GraphicsCommandListPtr CopyVertexDataToGPU(uint64_t offset, uint64_t size);
+    void ExecuteCurrentCommandList();
 
 public:
     NativeDevice();
@@ -231,7 +240,6 @@ public:
 
     void FinishFrame();
     void FlushCommandList(CheckpointType type);
-    void Execute(const std::vector<ID3D12CommandList*>& commandLists);
     void AdvanceCommandAllocator();
     void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,55 +27,38 @@
 
 #include "../D3D12Common.hpp"
 
-#include "D3D12RingContainer.hpp"
+#include "D3D12RingBuffer.hpp"
 
 
 namespace D3D12 {
 namespace Internal {
 
-class RingBuffer: public RingContainer
+// A variant of regular Ring Buffer which utilizes two buffers at once.
+// The goal is to use CPU-side Ring Buffer to collect the data and when
+// Command List is flushed this Buffer will perform a copy to a GPU-side
+// Resource.
+// Upload heaps are enough in case of GPU-reads-once data (ex. shader
+// constants) however for other data like Vertices submitted via RenderQuads
+// Upload heap can create performance constraints, especially on discrete
+// GPUs.
+class GPURingBuffer: public RingBuffer
 {
 public:
-    struct Region
+    struct GPURegion
     {
-        void* cpu;
-        D3D12_GPU_VIRTUAL_ADDRESS gpu;
-        size_t size;
-        size_t offsetFromStart;
-
-        Region()
-            : Region(nullptr, 0, 0, 0)
-        {}
-
-        Region(void* c, D3D12_GPU_VIRTUAL_ADDRESS g, size_t s, size_t o)
-            : cpu(c)
-            , gpu(g)
-            , size(s)
-            , offsetFromStart(o)
-        {}
-
-        inline operator bool() const
-        {
-            return (cpu != 0);
-        }
-
-        inline Region Subregion(size_t offset, size_t size)
-        {
-            D3D12NI_ASSERT(offset >= 0 && size > 0, "Invalid Subregion parameters requested");
-            D3D12NI_ASSERT(offset + size <= this->size, "Invalid Subregion parameters requested");
-
-            return Region((uint8_t*)cpu + offset, gpu + offset, size, offsetFromStart + offset);
-        }
+        RingBuffer::Region cpuRegion;
+        RingBuffer::Region gpuRegion;
     };
 
-protected:
-    D3D12ResourcePtr mBufferResource;
-    uint8_t* mCPUPtr;
-    D3D12_GPU_VIRTUAL_ADDRESS mGPUPtr;
+private:
+    D3D12ResourcePtr mGPUBufferResource;
+    D3D12_GPU_VIRTUAL_ADDRESS mGPUResourcePtr;
+    size_t mChunkToTransferStart;
+    size_t mChunkToTransferSize;
 
 public:
-    RingBuffer(const NIPtr<NativeDevice>& nativeDevice);
-    virtual ~RingBuffer();
+    GPURingBuffer(const NIPtr<NativeDevice>& nativeDevice);
+    virtual ~GPURingBuffer();
 
     /**
      * Initializes Ring Buffer with predefined @p size in bytes and preset
@@ -105,23 +88,20 @@ public:
      */
     bool Init(size_t flushThreshold, size_t alignment, size_t size = 0);
 
+
+    GPURegion ReserveCPU(size_t size);
+
     /**
-     * Requests @p size bytes of space from the Ring Buffer which should
-     * be aligned to @p alignment bytes.
-     *
-     * Returns a Region struct which contains both a CPU and a GPU pointer
-     * to allocated spac, its size and offset from the start.
-     *
-     * If there is an error during reservation for some reason, returns a Region
-     * struct filled with zeros (null CPU, null GPU, 0 size).
+     * Record CPU-to-GPU transfer on current command list. This will move all uncommitted data
+     * from the CPU (mBufferResource) to the GPU (mGPUBufferResource).
      */
-    Region Reserve(size_t size);
+    void RecordTransferToGPU();
 
     void SetDebugName(const std::string& name);
 
-    inline const D3D12ResourcePtr& GetResource() const
+    inline const D3D12ResourcePtr& GetGPUResource() const
     {
-        return mBufferResource;
+        return mGPUBufferResource;
     }
 };
 
