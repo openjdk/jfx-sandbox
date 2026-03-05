@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -338,11 +338,11 @@ void ResourceManager::EnsureStates(const D3D12GraphicsCommandListPtr& commandLis
     {
         if (mTextures[i])
         {
-            mNativeDevice->QueueTextureTransition(mTextures[i], state);
+            mNativeDevice->GetRenderingContext()->QueueTextureTransition(mTextures[i], state);
         }
     }
 
-    mNativeDevice->SubmitTextureTransitions();
+    mNativeDevice->GetRenderingContext()->SubmitTextureTransitions();
 }
 
 void ResourceManager::SetVertexShader(const NIPtr<Shader>& shader)

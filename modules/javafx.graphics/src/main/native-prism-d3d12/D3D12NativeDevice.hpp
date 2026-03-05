@@ -153,9 +153,9 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     uint32_t mFrameCounter; // for debugging ex. triggering a breakpoint after X frames
     uint32_t mProfilerTransferWaitSourceID;
     uint32_t mProfilerFrameTimeID;
+    uint32_t mProfilerRecordTimeID;
     bool mMidframeFlushNeeded;
     std::vector<Internal::IWaitableOperation*> mWaitableOps;
-    std::vector<D3D12_RESOURCE_BARRIER> mBarrierQueue;
 
     Internal::CheckpointQueue mCheckpointQueue;
     NIPtr<Internal::RootSignatureManager> mRootSignatureManager;
@@ -243,8 +243,6 @@ public:
     void AdvanceCommandAllocator();
     void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
-    void QueueTextureTransition(const NIPtr<Internal::TextureBase>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-    void SubmitTextureTransitions();
 
     // NOTE: Signal is only exposed due to SwapChain requiring it to signal after Present
     // In any other cases, FlushCommandList() will implicitly call it.
@@ -304,6 +302,12 @@ public:
     const NIPtr<Internal::Shader>& GetInternalShader(const std::string& name) const
     {
         return mShaderLibrary->GetShaderData(name);
+    }
+
+    // TODO: TEMPORARY, remove after reworks
+    const NIPtr<Internal::RenderingContext>& GetRenderingContext() const
+    {
+        return mRenderingContext;
     }
 
     // TODO This can be removed?

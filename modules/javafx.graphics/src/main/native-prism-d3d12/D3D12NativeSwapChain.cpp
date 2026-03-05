@@ -207,8 +207,8 @@ bool NativeSwapChain::Prepare(LONG left, LONG top, LONG right, LONG bottom)
     mDirtyRegion.right = right;
     mDirtyRegion.bottom = bottom;
 
-    mNativeDevice->QueueTextureTransition(GetTexture(), D3D12_RESOURCE_STATE_PRESENT);
-    mNativeDevice->SubmitTextureTransitions();
+    mNativeDevice->GetRenderingContext()->QueueTextureTransition(GetTexture(), D3D12_RESOURCE_STATE_PRESENT);
+    mNativeDevice->GetRenderingContext()->SubmitTextureTransitions();
 
     return true;
 }

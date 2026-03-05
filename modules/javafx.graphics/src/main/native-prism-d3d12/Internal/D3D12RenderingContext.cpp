@@ -36,10 +36,10 @@ namespace Internal {
 
 void RenderingContext::RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect)
 {
-    mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
     if (mRenderTarget.Get()->HasDepthTexture())
-        mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    mNativeDevice->SubmitTextureTransitions();
+        QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+    SubmitTextureTransitions();
 
     float rgba[4] = { r, g, b, a };
     mNativeDevice->GetCurrentCommandList()->ClearRenderTargetView(mRenderTarget.Get()->GetRTVDescriptorData().CPU(0), rgba, 1, &clearRect);
@@ -236,6 +236,30 @@ void RenderingContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
     }
 
     mNativeDevice->GetCurrentCommandList()->Dispatch(x, y, z);
+}
+
+void RenderingContext::QueueTextureTransition(const NIPtr<Internal::TextureBase>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+{
+    if (tex->GetResourceState(subresource) == newState) return;
+
+    D3D12_RESOURCE_BARRIER barrier;
+    D3D12NI_ZERO_STRUCT(barrier);
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = tex->GetResource().Get();
+    barrier.Transition.StateBefore = tex->GetResourceState(subresource);
+    barrier.Transition.StateAfter = newState;
+    barrier.Transition.Subresource = subresource;
+    mBarrierQueue.emplace_back(barrier);
+
+    tex->SetResourceState(newState, subresource);
+}
+
+void RenderingContext::SubmitTextureTransitions()
+{
+    if (mBarrierQueue.size() == 0) return;
+
+    mNativeDevice->GetCurrentCommandList()->ResourceBarrier(static_cast<UINT>(mBarrierQueue.size()), mBarrierQueue.data());
+    mBarrierQueue.clear();
 }
 
 void RenderingContext::ClearTextureUnit(uint32_t unit)
@@ -489,9 +513,9 @@ bool RenderingContext::ApplyCompute()
 
 void RenderingContext::EnsureBoundTextureStates(D3D12_RESOURCE_STATES state)
 {
-    mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
     if (mRenderTarget.Get()->HasDepthTexture())
-        mNativeDevice->QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
     mState.resourceManager.EnsureStates(mNativeDevice->GetCurrentCommandList(), state);
 }
