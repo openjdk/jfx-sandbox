@@ -164,7 +164,6 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::DescriptorAllocator> mRTVAllocator;
     NIPtr<Internal::DescriptorAllocator> mDSVAllocator;
     NIPtr<Internal::DescriptorAllocator> mSRVAllocator;
-    NIPtr<Internal::SamplerStorage> mSamplerStorage;
     NIPtr<Internal::ShaderLibrary> mShaderLibrary;
     NIPtr<Internal::Shader> mPassthroughVS;
     NIPtr<Internal::Shader> mPhongVS;
@@ -292,11 +291,6 @@ public:
     const NIPtr<Internal::DescriptorAllocator>& GetSRVDescriptorAllocator() const
     {
         return mSRVAllocator;
-    }
-
-    const NIPtr<Internal::SamplerStorage>& GetSamplerStorage() const
-    {
-        return mSamplerStorage;
     }
 
     const NIPtr<Internal::Shader>& GetInternalShader(const std::string& name) const

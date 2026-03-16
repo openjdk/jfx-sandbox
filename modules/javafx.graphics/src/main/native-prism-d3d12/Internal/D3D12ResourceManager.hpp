@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@
 #include "D3D12IWaitableOperation.hpp"
 #include "D3D12RingBuffer.hpp"
 #include "D3D12RingDescriptorHeap.hpp"
+#include "D3D12SamplerStorage.hpp"
 #include "D3D12Shader.hpp"
 #include "D3D12TextureBase.hpp"
 
@@ -94,6 +95,7 @@ class ResourceManager: public IWaitableOperation
     NIPtr<Shader> mVertexShader;
     NIPtr<Shader> mPixelShader;
     TextureBank mTextures;
+    SamplerStorage mSamplerStorage;
     RingDescriptorHeap mDescriptorHeap;
     RingDescriptorHeap mSamplerHeap;
     RingBuffer mConstantRingBuffer;

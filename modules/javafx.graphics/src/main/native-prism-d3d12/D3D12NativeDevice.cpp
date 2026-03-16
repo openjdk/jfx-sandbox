@@ -414,13 +414,6 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     mDSVAllocator->SetName("DepthStencilView Descriptor Heap");
     mSRVAllocator->SetName("CBV/SRV/UAV Descriptor Heap");
 
-    mSamplerStorage = std::make_shared<Internal::SamplerStorage>(shared_from_this());
-    if (!mSamplerStorage->Init())
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize Sampler Storage");
-        return false;
-    }
-
     if (!Build2DIndexBuffer()) return false;
 
     mPassthroughVS = GetInternalShader(Constants::PASSTHROUGH_VS_NAME);
@@ -449,7 +442,6 @@ void NativeDevice::Release()
     if (m2DIndexBuffer) m2DIndexBuffer.reset();
     if (mCommandListPool) mCommandListPool.reset();
     if (mShaderLibrary) mShaderLibrary.reset();
-    if (mSamplerStorage) mSamplerStorage.reset();
     if (mRTVAllocator) mRTVAllocator.reset();
     if (mDSVAllocator) mDSVAllocator.reset();
     if (mSRVAllocator) mSRVAllocator.reset();
@@ -867,8 +859,6 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
         mRenderingContext->SetTexture(0, sourceTexture);
         mRenderingContext->SetRenderTarget(dstRT);
         mRenderingContext->SetCompositeMode(CompositeMode::SRC);
-
-        mRenderingContext->DeclareRingResources();
 
         // prepare quad vertices for blitting
         QuadVertices fsQuad = AssembleVertexQuadForBlit(src, dst);

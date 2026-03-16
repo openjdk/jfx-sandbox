@@ -29,9 +29,11 @@
 
 #include "../D3D12NativeTexture.hpp"
 
+#include "D3D12CommandListPool.hpp"
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12Matrix.hpp"
 #include "D3D12RenderingParameter.hpp"
+#include "D3D12RenderingThread.hpp"
 #include "D3D12PSOManager.hpp"
 
 #include <unordered_set>
@@ -61,7 +63,7 @@ class RenderingContext
 {
     NIPtr<NativeDevice> mNativeDevice;
     RenderingContextState mState;
-    uint32_t mRecordClearProfilerID;
+    RenderingThread mRenderThread;
 
     // some parameters are set by the Java Runtime ex. transforms, composite mode, textures
     // whenever we need to execute some internal operation (ex. BlitTexture()) we have to

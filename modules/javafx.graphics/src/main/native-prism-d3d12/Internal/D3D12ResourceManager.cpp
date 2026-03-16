@@ -142,7 +142,7 @@ bool ResourceManager::PrepareSamplers(const NIPtr<Shader>& shader)
 
             for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
             {
-                const Internal::DescriptorData& sampler = mNativeDevice->GetSamplerStorage()->GetSampler(mCurrentSamplerBinding.descs[i]);
+                const Internal::DescriptorData& sampler = mSamplerStorage.GetSampler(mCurrentSamplerBinding.descs[i]);
 
                 mNativeDevice->GetDevice()->CopyDescriptorsSimple(
                     1, descs.CPU(i), sampler.CPU(0), D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER
@@ -191,6 +191,7 @@ ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
     , mVertexShader()
     , mPixelShader()
     , mTextures()
+    , mSamplerStorage(nativeDevice)
     , mDescriptorHeap(nativeDevice)
     , mSamplerHeap(nativeDevice)
     , mConstantRingBuffer(nativeDevice)
@@ -223,6 +224,12 @@ bool ResourceManager::Init()
     mDescriptorHeap.SetDebugName("CBV/SRV/UAV Descriptor Heap");
     mSamplerHeap.SetDebugName("Sampler Heap");
     mConstantRingBuffer.SetDebugName("Constant Ring Buffer");
+
+    if (!mSamplerStorage.Init())
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize Sampler Storage");
+        return false;
+    }
 
     if (!mDescriptorHeap.Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, true, Config::SRVRingHeapThreshold()))
     {
