@@ -37,7 +37,7 @@
 #include "D3D12ResourceManager.hpp"
 #include "D3D12RingDescriptorHeap.hpp"
 #include "D3D12RenderThreadExecutable.hpp"
-#include "D3D12RenderingPayload.hpp"
+#include "D3D12RenderPayload.hpp"
 
 #include <functional>
 
@@ -68,7 +68,7 @@ class RenderingStep
 public:
     // Dependency callback. Should return true if step should be applied.
     // We assume the step should be unconditionally applied if there is no dependency set.
-    using StepDependency = std::function<bool(RenderingContextState&)>;
+    using StepDependency = std::function<bool()>;
 
 private:
     bool mIsApplied;
@@ -80,9 +80,9 @@ protected:
     virtual RenderThreadExecutablePtr CreateExecutable() = 0;
     virtual bool PrepareStep(RenderingContextState& state) { return true; }
 
-    virtual bool CanBeSkipped(RenderingContextState& state) const
+    virtual bool CanBeSkipped() const
     {
-        return (mOptimizeApply && mIsApplied) || (mDependency && !mDependency(state));
+        return (mOptimizeApply && mIsApplied) || (mDependency && !mDependency());
     }
 
 public:
@@ -97,7 +97,7 @@ public:
     // should be called right before any Draw calls
     void Apply(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state)
     {
-        if (CanBeSkipped(state)) return;
+        if (CanBeSkipped()) return;
 
         ApplyOnCommandList(commandList, state);
         mIsApplied = true;
@@ -107,14 +107,14 @@ public:
     // Since Apply() calls will follow right after, we do not need to set the flags here.
     bool Prepare(RenderingContextState& state)
     {
-        if (CanBeSkipped(state)) return true;
+        if (CanBeSkipped()) return true;
 
         return PrepareStep(state);
     }
 
-    void AddToPayload(const std::unique_ptr<RenderingPayload>& payload, RenderingContextState& state)
+    void AddToPayload(const std::unique_ptr<RenderPayload>& payload)
     {
-        if (CanBeSkipped(state)) return;
+        if (CanBeSkipped()) return;
 
         payload->AddStep(CreateExecutable());
     }
@@ -149,9 +149,9 @@ protected:
         return std::make_unique<Executable>(mParameter);
     }
 
-    bool CanBeSkipped(RenderingContextState& state) const override final
+    bool CanBeSkipped() const override final
     {
-        return (!mIsSet || RenderingStep::CanBeSkipped(state));
+        return (!mIsSet || RenderingStep::CanBeSkipped());
     }
 
 public:

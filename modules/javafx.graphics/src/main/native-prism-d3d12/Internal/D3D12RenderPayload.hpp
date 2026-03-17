@@ -23,37 +23,46 @@
  * questions.
  */
 
-#include "D3D12RenderingThread.hpp"
+#pragma once
 
-#include "../D3D12NativeDevice.hpp"
+#include "../D3D12Common.hpp"
 
-#include "D3D12Config.hpp"
-#include "D3D12Profiler.hpp"
+#include "../D3D12NativeTexture.hpp"
+
+#include "D3D12RenderThreadExecutable.hpp"
+
+#include <list>
 
 
 namespace D3D12 {
 namespace Internal {
 
-// Thread
-
-RenderingThread::RenderingThread(const NIPtr<NativeDevice>& nativeDevice)
-    : mNativeDevice(nativeDevice)
+// collects steps that need to be processed by the Rendering Thread
+class RenderPayload
 {
-}
+    // TODO this might need a custom allocator
+    using StepList = std::list<RenderThreadExecutablePtr>;
 
-bool RenderingThread::Init()
-{
-    return true;
-}
+    StepList mSteps;
 
-void RenderingThread::Execute(const std::unique_ptr<RenderingPayload>& payload)
-{
-    // TODO move to separate thread
-    const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
-    if (!commandList) return;
+public:
+    RenderPayload()
+        : mSteps()
+    {}
 
-    payload->ApplySteps(commandList);
-}
+    void AddStep(RenderThreadExecutablePtr&& executable)
+    {
+        mSteps.push_back(std::move(executable));
+    }
+
+    void ApplySteps(const D3D12GraphicsCommandListPtr& commandList)
+    {
+        for (const RenderThreadExecutablePtr& executable: mSteps)
+        {
+            executable->Execute(commandList);
+        }
+    }
+};
 
 } // namespace Internal
 } // namespace D3D12

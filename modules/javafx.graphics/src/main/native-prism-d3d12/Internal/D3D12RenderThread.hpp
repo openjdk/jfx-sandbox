@@ -29,39 +29,33 @@
 
 #include "../D3D12NativeTexture.hpp"
 
-#include "D3D12RenderThreadExecutable.hpp"
+#include "D3D12CommandListPool.hpp"
+#include "D3D12IRenderTarget.hpp"
+#include "D3D12Matrix.hpp"
+#include "D3D12RenderPayload.hpp"
+#include "D3D12PSOManager.hpp"
 
-#include <list>
+#include <unordered_set>
+#include <forward_list>
 
 
 namespace D3D12 {
 namespace Internal {
 
-// collects steps that need to be processed by the Rendering Thread
-class RenderingPayload
+// processes RenderingPayload objects on separate thread
+class RenderThread
 {
-    // TODO this might need a custom allocator
-    using StepList = std::list<RenderThreadExecutablePtr>;
+    NIPtr<NativeDevice> mNativeDevice;
+    D3D12CommandQueuePtr mCommandQueue;
 
-    StepList mSteps;
+    // TODO actually add a thread here
 
 public:
-    RenderingPayload()
-        : mSteps()
-    {}
+    RenderThread(const NIPtr<NativeDevice>& nativeDevice);
+    ~RenderThread() = default;
 
-    void AddStep(RenderThreadExecutablePtr&& executable)
-    {
-        mSteps.push_back(std::move(executable));
-    }
-
-    void ApplySteps(const D3D12GraphicsCommandListPtr& commandList)
-    {
-        for (const RenderThreadExecutablePtr& executable: mSteps)
-        {
-            executable->Execute(commandList);
-        }
-    }
+    bool Init();
+    void Execute(const std::unique_ptr<RenderPayload>& payload);
 };
 
 } // namespace Internal

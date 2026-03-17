@@ -29,7 +29,7 @@
 
 #include "D3D12Config.hpp"
 #include "D3D12Profiler.hpp"
-#include "D3D12RenderingPayload.hpp"
+#include "D3D12RenderPayload.hpp"
 
 
 namespace D3D12 {
@@ -78,7 +78,7 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     mPrimitiveTopology.Set(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
     // Some parameters/steps depend on PSO being set
-    RenderingStep::StepDependency psoDep = [&pso = mPipelineState](RenderingContextState& state) -> bool
+    RenderingStep::StepDependency psoDep = [&pso = mPipelineState]() -> bool
     {
         return pso.IsSet();
     };
@@ -88,12 +88,12 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
 
     // Use the default scissor only if other custom scissor rect is not set
     // See SetRenderTarget() for more details
-    mDefaultScissor.SetDependency([&scissor = mScissor](RenderingContextState& state) -> bool
+    mDefaultScissor.SetDependency([&scissor = mScissor]() -> bool
     {
         return !scissor.IsSet();
     });
 
-    RenderingStep::StepDependency computePsoDep = [&computePso = mComputePipelineState](RenderingContextState& state) -> bool
+    RenderingStep::StepDependency computePsoDep = [&computePso = mComputePipelineState]() -> bool
     {
         return computePso.IsSet();
     };
@@ -481,14 +481,14 @@ bool RenderingContext::Apply()
     mRenderTarget.Apply(commandList, mState);
     mPipelineState.Apply(commandList, mState);
 
-    std::unique_ptr<RenderingPayload> payload = std::make_unique<RenderingPayload>();
-    mRootSignature.AddToPayload(payload, mState);
-    mViewport.AddToPayload(payload, mState);
-    mScissor.AddToPayload(payload, mState);
-    mDefaultScissor.AddToPayload(payload, mState);
-    mPrimitiveTopology.AddToPayload(payload, mState);
-    mVertexBuffer.AddToPayload(payload, mState);
-    mIndexBuffer.AddToPayload(payload, mState);
+    std::unique_ptr<RenderPayload> payload = std::make_unique<RenderPayload>();
+    mRootSignature.AddToPayload(payload);
+    mViewport.AddToPayload(payload);
+    mScissor.AddToPayload(payload);
+    mDefaultScissor.AddToPayload(payload);
+    mPrimitiveTopology.AddToPayload(payload);
+    mVertexBuffer.AddToPayload(payload);
+    mIndexBuffer.AddToPayload(payload);
 
     mRenderThread.Execute(payload);
 

@@ -23,41 +23,37 @@
  * questions.
  */
 
-#pragma once
+#include "D3D12RenderThread.hpp"
 
-#include "../D3D12Common.hpp"
+#include "../D3D12NativeDevice.hpp"
 
-#include "../D3D12NativeTexture.hpp"
-
-#include "D3D12CommandListPool.hpp"
-#include "D3D12IRenderTarget.hpp"
-#include "D3D12Matrix.hpp"
-#include "D3D12RenderingParameter.hpp"
-#include "D3D12RenderingPayload.hpp"
-#include "D3D12PSOManager.hpp"
-
-#include <unordered_set>
-#include <forward_list>
+#include "D3D12Config.hpp"
+#include "D3D12Profiler.hpp"
 
 
 namespace D3D12 {
 namespace Internal {
 
-// processes RenderingPayload objects on separate thread
-class RenderingThread
+// Thread
+
+RenderThread::RenderThread(const NIPtr<NativeDevice>& nativeDevice)
+    : mNativeDevice(nativeDevice)
 {
-    NIPtr<NativeDevice> mNativeDevice;
-    D3D12CommandQueuePtr mCommandQueue;
+}
 
-    // TODO actually add a thread here
+bool RenderThread::Init()
+{
+    return true;
+}
 
-public:
-    RenderingThread(const NIPtr<NativeDevice>& nativeDevice);
-    ~RenderingThread() = default;
+void RenderThread::Execute(const std::unique_ptr<RenderPayload>& payload)
+{
+    // TODO move to separate thread
+    const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
+    if (!commandList) return;
 
-    bool Init();
-    void Execute(const std::unique_ptr<RenderingPayload>& payload);
-};
+    payload->ApplySteps(commandList);
+}
 
 } // namespace Internal
 } // namespace D3D12
