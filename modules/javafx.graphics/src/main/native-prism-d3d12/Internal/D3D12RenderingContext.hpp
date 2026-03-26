@@ -29,6 +29,7 @@
 
 #include "../D3D12NativeTexture.hpp"
 
+#include "D3D12Buffer.hpp"
 #include "D3D12CommandListPool.hpp"
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12Matrix.hpp"
@@ -62,8 +63,14 @@ namespace Internal {
 class RenderingContext
 {
     NIPtr<NativeDevice> mNativeDevice;
-    RenderingContextState mState;
     RenderThread mRenderThread;
+    RenderPayloadPtr mRTPayload;
+    struct ClearOptState
+    {
+        bool clearDelayed;
+        D3D12_RECT clearRect;
+        bool clearDepth;
+    } mClearOptState;
 
     // some parameters are set by the Java Runtime ex. transforms, composite mode, textures
     // whenever we need to execute some internal operation (ex. BlitTexture()) we have to
@@ -72,22 +79,27 @@ class RenderingContext
     struct RuntimeParametersStash
     {
         PipelineStateRenderingParameter pipelineState;
+        GraphicsShadersRenderingParameter graphicsShaders;
         PrimitiveTopologyRenderingParameter primitiveTopology;
         RenderTargetRenderingParameter renderTarget;
         RootSignatureRenderingParameter rootSignature;
+        TextureRenderingParameter textures;
     } mRuntimeParametersStash;
 
     // Graphics Pipeline
     IndexBufferRenderingParameter mIndexBuffer;
     VertexBufferRenderingParameter mVertexBuffer;
     DescriptorHeapRenderingStep mDescriptorHeap;
+    GraphicsShadersRenderingParameter mGraphicsShaders;
+    VertexShaderConstantsRenderingStep mVertexShaderConstants;
+    PixelShaderConstantsRenderingStep mPixelShaderConstants;
     PipelineStateRenderingParameter mPipelineState;
     RootSignatureRenderingParameter mRootSignature;
     PrimitiveTopologyRenderingParameter mPrimitiveTopology;
     RenderTargetRenderingParameter mRenderTarget;
     ScissorRenderingParameter mScissor; // used when explicitly set by updateClipRect()
     ScissorRenderingParameter mDefaultScissor; // used when scissor testing is disabled
-    ResourceRenderingStep mResources;
+    TextureRenderingParameter mTextures;
     ViewportRenderingParameter mViewport;
 
     inline ScissorRenderingParameter& GetScissor()
@@ -98,8 +110,9 @@ class RenderingContext
 
     // Compute Pipeline
     ComputePipelineStateRenderingParameter mComputePipelineState;
+    ComputeShaderRenderingParameter mComputeShader;
+    ComputeShaderConstantsRenderingStep mComputeShaderConstants;
     ComputeRootSignatureRenderingParameter mComputeRootSignature;
-    ComputeResourceRenderingStep mComputeResources;
 
     // Used RTTs for finish-frame-time BBox invalidation
     // Prism can "juggle" the RTTs between frames, so our dirty-bbox optimization can
@@ -107,11 +120,11 @@ class RenderingContext
     // start tracking anew
     std::unordered_set<NIPtr<Internal::IRenderTarget>> mUsedRTs;
 
-    // Transition queue - add entries via QueueTextureTransition() and submit them
-    // all at once with SubmitTextureTransitions()
     std::vector<D3D12_RESOURCE_BARRIER> mBarrierQueue;
 
     void RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect);
+    void EnsureBoundTextureStates(D3D12_RESOURCE_STATES state);
+    void SubmitRTPayload(RenderPayload::Type type);
 
 public:
     RenderingContext(const NIPtr<NativeDevice>& nativeDevice);
@@ -119,15 +132,26 @@ public:
 
     bool Init();
 
-    void DeclareRingResources();
-    void DeclareComputeRingResources();
     bool Apply();
     bool ApplyCompute();
-    void EnsureBoundTextureStates(D3D12_RESOURCE_STATES state);
     void Clear(float r, float g, float b, float a, bool clearDepth);
     void Draw(uint32_t elements, uint32_t vbOffset);
     void Draw(uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox);
     void Dispatch(uint32_t x, uint32_t y, uint32_t z);
+
+    void Resolve(const NIPtr<TextureBase>& dstTexture, const NIPtr<TextureBase>& srcTexture, DXGI_FORMAT resolveFormat);
+    void ResolveRegion(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
+                       const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
+                       DXGI_FORMAT resolveFormat);
+    void CopyTexture(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
+                     const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
+    void CopyTexture(const Buffer& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
+                     uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
+    void CopyToTexture(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
+                       ID3D12Resource* srcResource, uint32_t srcw, uint32_t srch, uint64_t srcOffset,
+                       uint32_t srcStride, DXGI_FORMAT format);
+    bool GenerateMipmaps(const NIPtr<NativeTexture>& texture);
+
     void QueueTextureTransition(const NIPtr<Internal::TextureBase>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
     void SubmitTextureTransitions();
 
@@ -150,11 +174,7 @@ public:
 
     void ClearAppliedFlags();
 
-    // below functions only clear ResourceManager applied flags
-    // this is used ex. when JFX wants to use the same pipeline but changes a Shader constant
-    void ClearResourcesApplied();
-    void ClearComputeResourcesApplied();
-
+    void SyncToRenderThread();
     void FinishFrame();
 };
 

@@ -42,11 +42,12 @@
 namespace D3D12 {
 namespace Internal {
 
-// processes RenderingPayload objects on separate thread
+// processes RenderPayload objects on separate thread
 class RenderThread
 {
     NIPtr<NativeDevice> mNativeDevice;
     D3D12CommandQueuePtr mCommandQueue;
+    RenderingContextState mState;
 
     // TODO actually add a thread here
 
@@ -55,7 +56,8 @@ public:
     ~RenderThread() = default;
 
     bool Init();
-    void Execute(const std::unique_ptr<RenderPayload>& payload);
+    void Execute(RenderPayloadPtr&& payload);
+    void WaitForCompletion();
 };
 
 } // namespace Internal

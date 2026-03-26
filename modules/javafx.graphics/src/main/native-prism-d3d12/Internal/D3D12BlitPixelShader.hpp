@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,7 +49,7 @@ class BlitPixelShader: public Shader
 
     bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize) override;
 
-    virtual bool PrepareDescriptors(const TextureBank& textures) override;
+    virtual bool PrepareDescriptors(const TextureBank& textures, const Shader::ConstantBuffer& constants) override;
     virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const override;
 };
 

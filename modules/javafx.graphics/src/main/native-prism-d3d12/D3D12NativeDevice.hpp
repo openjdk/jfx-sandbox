@@ -217,7 +217,7 @@ public:
     void Clear(float r, float g, float b, float a, bool clearDepth);
     void ClearTextureUnit(uint32_t unit);
     void RenderQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors,
-                     UINT vertexCount);
+                     uint32_t vertexCount);
     void RenderMeshView(const NIPtr<NativeMeshView>& meshView);
     void SetCompositeMode(CompositeMode mode);
     void UnsetPixelShader();
@@ -232,10 +232,9 @@ public:
     bool Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box_UINT32& src,
               const NIPtr<Internal::IRenderTarget>& dstRT, const Coords_Box_UINT32& dst);
     bool ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer, size_t pixelCount,
-                     UINT srcx, UINT srcy, UINT srcw, UINT srch);
-    bool GenerateMipmaps(const NIPtr<NativeTexture>& texture);
+                     uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
     bool UpdateTexture(const NIPtr<NativeTexture>& texture, const void* data, size_t pixelCount, PixelFormat srcFormat,
-                       UINT dstx, UINT dsty, UINT srcx, UINT srcy, UINT srcw, UINT srch, UINT srcstride);
+                       uint32_t dstx, uint32_t dsty, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch, uint32_t srcstride);
 
     void FinishFrame();
     void FlushCommandList(CheckpointType type);

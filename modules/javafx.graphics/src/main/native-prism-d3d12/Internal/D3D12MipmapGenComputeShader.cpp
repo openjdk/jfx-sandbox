@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,7 +67,7 @@ bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mo
     return true;
 }
 
-bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures)
+bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures, const Shader::ConstantBuffer& constants)
 {
     if (mConstantBufferStorage.size() != sizeof(CBuffer))
     {
@@ -81,8 +81,8 @@ bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures)
         return false;
     }
 
-    const CBuffer* cb = reinterpret_cast<const CBuffer*>(mConstantBufferStorage.data());
-    memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, mConstantBufferStorage.data(), sizeof(CBuffer));
+    const CBuffer* cb = reinterpret_cast<const CBuffer*>(constants.data());
+    memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, cb, sizeof(CBuffer));
 
     // write source mip level as SRV (our input)
     textures[0]->WriteSRVToDescriptor(mDescriptorData.SRVDescriptors.CPU(0), 1, cb->sourceLevel);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -201,7 +201,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     return true;
 }
 
-bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures)
+bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures, const Shader::ConstantBuffer& constants)
 {
     for (uint32_t i = 0; i < mResourceData.textureCount; ++i)
     {
@@ -211,7 +211,7 @@ bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures)
         }
     }
 
-    if (mConstantBufferStorage.size() > 0)
+    if (constants.size() > 0)
     {
         if (!mDescriptorData.ConstantDataDirectRegion)
         {
@@ -220,7 +220,7 @@ bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures)
             return false;
         }
 
-        memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, mConstantBufferStorage.data(), mConstantBufferStorage.size());
+        memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, constants.data(), constants.size());
     }
 
     return true;

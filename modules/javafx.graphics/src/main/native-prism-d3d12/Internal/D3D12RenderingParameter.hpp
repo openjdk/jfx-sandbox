@@ -33,8 +33,6 @@
 #include "D3D12CommandListPool.hpp"
 #include "D3D12Config.hpp"
 #include "D3D12IRenderTarget.hpp"
-#include "D3D12PSOManager.hpp"
-#include "D3D12ResourceManager.hpp"
 #include "D3D12RingDescriptorHeap.hpp"
 #include "D3D12RenderThreadExecutable.hpp"
 #include "D3D12RenderPayload.hpp"
@@ -45,23 +43,6 @@
 namespace D3D12 {
 namespace Internal {
 
-struct RenderingContextState
-{
-    PSOManager PSOManager;
-    ResourceManager resourceManager;
-    bool clearDelayed;
-    D3D12_RECT clearRect;
-    bool clearDepth;
-
-    RenderingContextState(const NIPtr<NativeDevice>& nativeDevice)
-        : PSOManager(nativeDevice)
-        , resourceManager(nativeDevice)
-        , clearDelayed(false)
-        , clearRect()
-        , clearDepth(false)
-    {
-    }
-};
 
 class RenderingStep
 {
@@ -76,9 +57,7 @@ private:
     StepDependency mDependency;
 
 protected:
-    virtual void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) = 0;
-    virtual RenderThreadExecutablePtr CreateExecutable() = 0;
-    virtual bool PrepareStep(RenderingContextState& state) { return true; }
+    virtual RenderThreadExecutablePtr CreateExecutable() const = 0;
 
     virtual bool CanBeSkipped() const
     {
@@ -94,25 +73,7 @@ public:
 
     virtual ~RenderingStep() {}
 
-    // should be called right before any Draw calls
-    void Apply(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state)
-    {
-        if (CanBeSkipped()) return;
-
-        ApplyOnCommandList(commandList, state);
-        mIsApplied = true;
-    }
-
-    // Prepare should be called before Apply(), however ONLY inside RenderingContext.
-    // Since Apply() calls will follow right after, we do not need to set the flags here.
-    bool Prepare(RenderingContextState& state)
-    {
-        if (CanBeSkipped()) return true;
-
-        return PrepareStep(state);
-    }
-
-    void AddToPayload(const std::unique_ptr<RenderPayload>& payload)
+    virtual void AddToPayload(const std::unique_ptr<RenderPayload>& payload)
     {
         if (CanBeSkipped()) return;
 
@@ -130,7 +91,7 @@ public:
     }
 };
 
-template <typename T, typename Executable = ApplyNoopData<T>>
+template <typename T, typename Executable>
 class RenderingParameter: public RenderingStep
 {
     bool mIsSet;
@@ -144,7 +105,7 @@ protected:
         mIsSet = true;
     }
 
-    RenderThreadExecutablePtr CreateExecutable() override final
+    RenderThreadExecutablePtr CreateExecutable() const override final
     {
         return std::make_unique<Executable>(mParameter);
     }
@@ -185,106 +146,91 @@ public:
     }
 };
 
+template <typename T, typename Executable>
+class RenderingResource: public RenderingParameter<T, Executable>
+{
+public:
+    RenderingResource()
+        : RenderingParameter()
+    {}
+
+    virtual void AddToPayload(const RenderPayloadPtr& payload) override
+    {
+        if (CanBeSkipped()) return;
+
+        payload->AddResourceStep(CreateExecutable());
+    }
+};
+
+
+// generic Shader Constants resource
+// requires slightly different path checking if shader's constants are dirtied
+
+template <typename Executable>
+class ShaderConstantsResource: public RenderingParameter<NIPtr<Shader>, Executable>
+{
+public:
+    ShaderConstantsResource()
+        : RenderingParameter()
+    {}
+
+    virtual void AddToPayload(const RenderPayloadPtr& payload) override
+    {
+        if (CanBeSkipped() && !mParameter->AreConstantsDirty()) return;
+
+        payload->AddResourceStep(CreateExecutable());
+        mParameter->SetConstantsDirty(false);
+    }
+};
+
 
 // Graphics parameters //
 
-class IndexBufferRenderingParameter: public RenderingParameter<D3D12_INDEX_BUFFER_VIEW, ApplyIndexBuffer>
-{
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override {}
-};
-
-class VertexBufferRenderingParameter: public RenderingParameter<D3D12_VERTEX_BUFFER_VIEW, ApplyVertexBuffer>
-{
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override {}
-};
-
-class PrimitiveTopologyRenderingParameter: public RenderingParameter<D3D12_PRIMITIVE_TOPOLOGY, ApplyPrimitiveTopology>
-{
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override {}
-};
-
-class RootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr, ApplyRootSignature>
-{
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override {}
-};
-
-class ScissorRenderingParameter: public RenderingParameter<D3D12_RECT, ApplyScissor>
-{
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override {}
-};
-
-class ViewportRenderingParameter: public RenderingParameter<D3D12_VIEWPORT, ApplyViewport>
-{
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override {}
-};
-
 class DescriptorHeapRenderingStep: public RenderingStep
 {
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
+    RenderThreadExecutablePtr CreateExecutable() const override
     {
-        ID3D12DescriptorHeap* heaps[] = {
-            state.resourceManager.GetHeap().Get(),
-            state.resourceManager.GetSamplerHeap().Get()
-        };
-        commandList->SetDescriptorHeaps(2, heaps);
-    }
-
-    RenderThreadExecutablePtr CreateExecutable() override final
-    {
-        return std::make_unique<ApplyNoop>();
+        return std::make_unique<ApplyDescriptorHeaps>();
     }
 };
 
-
-class PipelineStateRenderingParameter: public RenderingParameter<GraphicsPSOParameters>
+class PipelineStateRenderingParameter: public RenderingParameter<GraphicsPSOParameters, ApplyPipelineState>
 {
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
-    {
-        const D3D12PipelineStatePtr& pso = state.PSOManager.GetPSO(mParameter);
-        commandList->SetPipelineState(pso.Get());
-    }
-
 public:
     void SetVertexShader(const NIPtr<Shader>& vertexShader)
     {
-        if (mParameter.vertexShader == vertexShader) return;
-
         mParameter.vertexShader = vertexShader;
         FlagSet();
     }
 
     void SetPixelShader(const NIPtr<Shader>& pixelShader)
     {
-        if (mParameter.pixelShader == pixelShader) return;
-
         mParameter.pixelShader = pixelShader;
         FlagSet();
     }
 
     void SetCompositeMode(CompositeMode mode)
     {
-        if (mParameter.compositeMode == mode) return;
-
         mParameter.compositeMode = mode;
         FlagSet();
     }
 
     void SetCullMode(D3D12_CULL_MODE mode)
     {
-        if (mode == mParameter.cullMode) return;
-
         mParameter.cullMode = mode;
         FlagSet();
     }
 
     void SetFillMode(D3D12_FILL_MODE mode)
     {
-        if (mode == mParameter.fillMode) return;
-
         mParameter.fillMode = mode;
         FlagSet();
     }
 
+    // below Sets do the set-redundancy-check because they're used in multiple places
+    // when setting a new RenderTarget in RenderingContext; this is to sometimes prevent
+    // PipelineState change when RTT changes but its parameters (depth/MSAA) remain the
+    // same as the old RTT.
     void SetDepthTest(bool enabled)
     {
         if (mParameter.enableDepthTest == enabled) return;
@@ -302,47 +248,55 @@ public:
     }
 };
 
-class RenderTargetRenderingParameter: public RenderingParameter<NIPtr<IRenderTarget>>
-{
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
-    {
-        if (!mParameter) return;
+class IndexBufferRenderingParameter: public RenderingParameter<D3D12_INDEX_BUFFER_VIEW, ApplyIndexBuffer> {};
+class PrimitiveTopologyRenderingParameter: public RenderingParameter<D3D12_PRIMITIVE_TOPOLOGY, ApplyPrimitiveTopology> {};
+class RenderTargetRenderingParameter: public RenderingParameter<NIPtr<IRenderTarget>, ApplyRenderTarget> {};
+class RootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr, ApplyRootSignature> {};
+class ScissorRenderingParameter: public RenderingParameter<D3D12_RECT, ApplyScissor> {};
+class VertexBufferRenderingParameter: public RenderingParameter<D3D12_VERTEX_BUFFER_VIEW, ApplyVertexBuffer> {};
+class ViewportRenderingParameter: public RenderingParameter<D3D12_VIEWPORT, ApplyViewport> {};
 
-        const Internal::DescriptorData& rtData = mParameter->GetRTVDescriptorData();
-        commandList->OMSetRenderTargets(
-            rtData.count, &rtData.cpu, true, mParameter->IsDepthTestEnabled() ? &mParameter->GetDSVDescriptorData().cpu : nullptr
-        );
+// Graphics resources //
+
+class GraphicsShadersRenderingParameter: public RenderingResource<GraphicsShaders, SetGraphicsShaders>
+{
+public:
+    void SetVertexShader(const NIPtr<Shader>& vertexShader)
+    {
+        mParameter.vertexShader = vertexShader;
+        FlagSet();
+    }
+
+    void SetPixelShader(const NIPtr<Shader>& pixelShader)
+    {
+        mParameter.pixelShader = pixelShader;
+        FlagSet();
     }
 };
 
-class ResourceRenderingStep: public RenderingStep
+class TextureRenderingParameter: public RenderingResource<TextureBank, SetTextures>
 {
-    bool PrepareStep(RenderingContextState& state) override final
+public:
+    void SetTexture(uint32_t unit, const NIPtr<TextureBase>& texture)
     {
-        return state.resourceManager.PrepareResources();
+        mParameter[unit] = texture;
+        FlagSet();
     }
 
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
+    const NIPtr<TextureBase>& GetTexture(uint32_t unit) const
     {
-        state.resourceManager.ApplyResources(commandList);
-    }
-
-    RenderThreadExecutablePtr CreateExecutable() override final
-    {
-        return std::make_unique<ApplyNoop>();
+        return mParameter[unit];
     }
 };
+
+class VertexShaderConstantsRenderingStep: public ShaderConstantsResource<SetVertexShaderConstants> {};
+class PixelShaderConstantsRenderingStep: public ShaderConstantsResource<SetPixelShaderConstants> {};
 
 
 // Compute parameters //
 
-class ComputePipelineStateRenderingParameter: public RenderingParameter<ComputePSOParameters>
+class ComputePipelineStateRenderingParameter: public RenderingParameter<ComputePSOParameters, ApplyComputePipelineState>
 {
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state)
-    {
-        commandList->SetPipelineState(state.PSOManager.GetPSO(mParameter).Get());
-    }
-
 public:
     void SetComputeShader(const NIPtr<Shader>& shader)
     {
@@ -351,31 +305,12 @@ public:
     }
 };
 
-class ComputeRootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr>
-{
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override
-    {
-        commandList->SetComputeRootSignature(mParameter.Get());
-    }
-};
+class ComputeRootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr, ApplyComputeRootSignature> {};
 
-class ComputeResourceRenderingStep: public RenderingStep
-{
-    bool PrepareStep(RenderingContextState& state) override final
-    {
-        return state.resourceManager.PrepareComputeResources();
-    }
+// Compute resources //
 
-    void ApplyOnCommandList(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
-    {
-        state.resourceManager.ApplyComputeResources(commandList);
-    }
-
-    RenderThreadExecutablePtr CreateExecutable() override final
-    {
-        return std::make_unique<ApplyNoop>();
-    }
-};
+class ComputeShaderRenderingParameter: public RenderingResource<NIPtr<Shader>, SetComputeShader> {};
+class ComputeShaderConstantsRenderingStep: public ShaderConstantsResource<SetComputeShaderConstants> {};
 
 } // namespace Internal
 } // namespace D3D12

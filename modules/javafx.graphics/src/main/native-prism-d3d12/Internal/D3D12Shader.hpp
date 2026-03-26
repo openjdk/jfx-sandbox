@@ -50,6 +50,8 @@ namespace Internal {
 class Shader
 {
 public:
+    using ConstantBuffer = std::vector<uint8_t>;
+
     struct ResourceData
     {
         uint32_t textureCount = 0;
@@ -97,7 +99,7 @@ protected:
     D3D12_SHADER_VISIBILITY mVisibility;
     D3D12_SHADER_BYTECODE mBytecode;
     std::vector<uint8_t> mBytecodeBuffer;
-    std::vector<uint8_t> mConstantBufferStorage;
+    ConstantBuffer mConstantBufferStorage;
     ResourceAssignmentCollection mShaderResourceAssignments;
     ResourceData mResourceData;
     DescriptorData mDescriptorData;
@@ -113,9 +115,14 @@ public:
     bool SetConstants(const std::string& name, const void* data, size_t size);
     bool SetConstantsInArray(const std::string& name, uint32_t idx, const void* data, size_t size);
 
-    virtual bool PrepareDescriptors(const TextureBank& textures) = 0;
+    // Accessed by RenderThread when preparing for rendering
+    // NOTE: constants are delivered separately here by ResourceManager. The reason is to prevent
+    // threading issues - RenderThread might want to prepare descriptors and constants "from the past"
+    // here. This lets us not have to synchronize when trying to change Shader Constants from Prism-side.
+    virtual bool PrepareDescriptors(const TextureBank& textures, const ConstantBuffer& constants) = 0;
     virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const = 0;
 
+    // Inline getters
     inline const std::string& GetName() const
     {
         return mName;
@@ -131,11 +138,20 @@ public:
         return mBytecode;
     }
 
+    // created during Init(), accessed by RenderThread's ResourceManager to allocate Descriptors on Heaps
     inline const ResourceData& GetResourceData() const
     {
         return mResourceData;
     }
 
+    // created during Init(), set by QuantumRenderer (aka main thread)
+    // RenderingContext will access this from the main thread to copy its contents for RenderThread
+    inline const ConstantBuffer& GetConstantStorage() const
+    {
+        return mConstantBufferStorage;
+    }
+
+    // Shader-specific Descriptor storage, managed by RenderThread
     inline DescriptorData& GetDescriptorData()
     {
         return mDescriptorData;

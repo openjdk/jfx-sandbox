@@ -38,21 +38,76 @@ namespace Internal {
 
 RenderThread::RenderThread(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
+    , mCommandQueue()
+    , mState(nativeDevice)
 {
 }
 
 bool RenderThread::Init()
 {
+    if (!mState.PSOManager.Init())
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize PSO Manager");
+        return false;
+    }
+
+    if (!mState.resourceManager.Init())
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize Resource Manager");
+        return false;
+    }
+
     return true;
 }
 
-void RenderThread::Execute(const std::unique_ptr<RenderPayload>& payload)
+void RenderThread::Execute(RenderPayloadPtr&& payload)
 {
-    // TODO move to separate thread
-    const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
-    if (!commandList) return;
+    RenderPayloadPtr curPayload(std::move(payload));
 
-    payload->ApplySteps(commandList);
+    // TODO move below to separate thread
+    {
+        // apply any resource changes the Payload brought us
+        curPayload->ApplyResourceSteps(mState);
+
+        switch (curPayload->GetType())
+        {
+        case RenderPayload::Type::GRAPHICS:
+        {
+            // go through ResourceManager and prepare the descriptors and shader constants
+            mState.resourceManager.DeclareRingResources();
+            if (!mState.resourceManager.PrepareResources())
+            {
+                D3D12NI_LOG_ERROR("Failed to prepare resources for recording Command List data");
+                return;
+            }
+            break;
+        }
+        case RenderPayload::Type::COMPUTE:
+        {
+            mState.resourceManager.DeclareComputeRingResources();
+            if (!mState.resourceManager.PrepareComputeResources())
+            {
+                D3D12NI_LOG_ERROR("Failed to prepare resources for recording Command List data");
+                return;
+            }
+            break;
+        }
+        default:
+            // assume this payload is not ending with a draw or a dispatch, no resources are needed
+            break;
+        }
+
+        // record what is needed on the Command List
+        const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
+        if (!commandList) return;
+
+        curPayload->ApplySteps(commandList, mState);
+    }
+}
+
+void RenderThread::WaitForCompletion()
+{
+    // TODO for now noop, will be filled in later
 }
 
 } // namespace Internal

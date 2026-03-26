@@ -28,12 +28,35 @@
 #include "../D3D12NativeDevice.hpp"
 
 #include "D3D12Config.hpp"
+#include "D3D12MipmapGenComputeShader.hpp"
 #include "D3D12Profiler.hpp"
 #include "D3D12RenderPayload.hpp"
+#include "D3D12Utils.hpp"
 
+
+namespace
+{
+    template <typename Executable, typename ...Args>
+    D3D12::Internal::RenderThreadExecutablePtr CreateRTExec(Args&&... args)
+    {
+        return std::make_unique<Executable>(std::forward<Args>(args)...);
+    }
+}
 
 namespace D3D12 {
 namespace Internal {
+
+void RenderingContext::SubmitRTPayload(RenderPayload::Type type)
+{
+    if (mRTPayload->HasWork())
+    {
+        // current payload has some work that was not reflected on a Command List yet
+        // move current payload to the Render Thread for execution and create a fresh one for later
+        mRTPayload->Finalize(type);
+        mRenderThread.Execute(std::move(mRTPayload));
+        mRTPayload = std::make_unique<RenderPayload>();
+    }
+}
 
 void RenderingContext::RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect)
 {
@@ -42,34 +65,78 @@ void RenderingContext::RecordClear(float r, float g, float b, float a, bool clea
         QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
     SubmitTextureTransitions();
 
-    float rgba[4] = { r, g, b, a };
-    mNativeDevice->GetCurrentCommandList()->ClearRenderTargetView(mRenderTarget.Get()->GetRTVDescriptorData().CPU(0), rgba, 1, &clearRect);
+    mRTPayload->AddStep(CreateRTExec<ClearRenderTargetAction>(mRenderTarget.Get()->GetRTVDescriptorData().CPU(0), r, g, b, a, clearRect));
     // NOTE: Here we check by NativeRenderTarget::HasDepthTexture() and not IsDepthTestEnabled()
     // Prism can sometimes set the RTT with depth test disabled, but then request its clear with
     // the depth texture (ex. hello.HelloViewOrder) and only afterwards re-set the RTT again enabling
     // depth testing. So we have to disregard the depth test flag, otherwise we would miss this DSV clear.
     if (clearDepth && mRenderTarget.Get()->HasDepthTexture())
     {
-        mNativeDevice->GetCurrentCommandList()->ClearDepthStencilView(mRenderTarget.Get()->GetDSVDescriptorData().CPU(0), D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 1, &clearRect);
+        mRTPayload->AddStep(CreateRTExec<ClearDepthStencilAction>(mRenderTarget.Get()->GetDSVDescriptorData().CPU(0), 1.0f, clearRect));
     }
+}
+
+void RenderingContext::EnsureBoundTextureStates(D3D12_RESOURCE_STATES state)
+{
+    QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    if (mRenderTarget.Get()->HasDepthTexture())
+        QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+    for (uint32_t i = 0; i < mTextures.Get().size(); ++i)
+    {
+        const NIPtr<TextureBase>& tex = mTextures.GetTexture(i);
+        if (tex)
+        {
+            QueueTextureTransition(mTextures.GetTexture(i), state);
+        }
+    }
+
+    SubmitTextureTransitions();
+}
+
+void RenderingContext::QueueTextureTransition(const NIPtr<Internal::TextureBase>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+{
+    if (tex->GetResourceState(subresource) == newState) return;
+
+    D3D12_RESOURCE_BARRIER barrier;
+    D3D12NI_ZERO_STRUCT(barrier);
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = tex->GetResource().Get();
+    barrier.Transition.StateBefore = tex->GetResourceState(subresource);
+    barrier.Transition.StateAfter = newState;
+    barrier.Transition.Subresource = subresource;
+    mBarrierQueue.emplace_back(barrier);
+
+    tex->SetResourceState(newState, subresource);
+}
+
+void RenderingContext::SubmitTextureTransitions()
+{
+    if (mBarrierQueue.size() == 0) return;
+
+    mRTPayload->AddStep(CreateRTExec<ResourceBarrierAction>(mBarrierQueue));
+    mBarrierQueue.clear();
 }
 
 RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
-    , mState(nativeDevice)
     , mRenderThread(nativeDevice)
+    , mRTPayload(std::make_unique<RenderPayload>())
+    , mClearOptState()
     , mIndexBuffer()
     , mVertexBuffer()
+    , mDescriptorHeap()
     , mPipelineState()
+    , mGraphicsShaders()
     , mPrimitiveTopology()
     , mRenderTarget()
     , mScissor()
     , mDefaultScissor()
-    , mResources()
+    , mTextures()
     , mViewport()
     , mComputePipelineState()
+    , mComputeShader()
     , mComputeRootSignature()
-    , mComputeResources()
     , mUsedRTs()
     , mBarrierQueue()
 {
@@ -84,7 +151,8 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     };
     mRootSignature.SetDependency(psoDep);
     mDescriptorHeap.SetDependency(psoDep);
-    mResources.SetDependency(psoDep);
+    mGraphicsShaders.SetDependency(psoDep);
+    mTextures.SetDependency(psoDep);
 
     // Use the default scissor only if other custom scissor rect is not set
     // See SetRenderTarget() for more details
@@ -98,23 +166,13 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
         return computePso.IsSet();
     };
     mComputeRootSignature.SetDependency(computePsoDep);
-    mComputeResources.SetDependency(computePsoDep);
+    mComputeShader.SetDependency(computePsoDep);
+
+    mBarrierQueue.reserve(8);
 }
 
 bool RenderingContext::Init()
 {
-    if (!mState.PSOManager.Init())
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize PSO Manager");
-        return false;
-    }
-
-    if (!mState.resourceManager.Init())
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize Resource Manager");
-        return false;
-    }
-
     if (!mRenderThread.Init())
     {
         D3D12NI_LOG_ERROR("Failed to initialize Render Thread");
@@ -128,7 +186,8 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
 {
     if (!mRenderTarget.IsSet()) return;
 
-    mRenderTarget.Apply(mNativeDevice->GetCurrentCommandList(), mState);
+    // LKTODO I think Apply is not needed here...?
+    //mRenderTarget.Apply(mNativeDevice->GetCurrentCommandList(), mState);
     DescriptorData rtData = mRenderTarget.Get()->GetRTVDescriptorData();
 
     // if the RTT was NOT fully used we don't have to clear the whole thing
@@ -152,9 +211,9 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
     {
         // clearing to all zeroes could be optimized out by directly overdrawing the RT
         // delay the clear until first Draw() call (or until RT switch) to see if it's actually possible
-        mState.clearDelayed = true;
-        mState.clearDepth = clearDepth;
-        mState.clearRect = clearRect;
+        mClearOptState.clearDelayed = true;
+        mClearOptState.clearDepth = clearDepth;
+        mClearOptState.clearRect = clearRect;
     }
     else
     {
@@ -173,7 +232,7 @@ void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& di
     bool clearDiscarded = false;
     CompositeMode currentCompositeMode = mPipelineState.Get().compositeMode;
 
-    if (mState.clearDelayed)
+    if (mClearOptState.clearDelayed)
     {
         // Check if we can discard this clear.
         // The clear can be discarded if we use composite mode SRC_OVER and
@@ -188,25 +247,21 @@ void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& di
         // a Clear() through here - under-estimating BBox coordinates makes it possible and ensures visual
         // correctness when using clear optimizations.
         if (currentCompositeMode == CompositeMode::SRC_OVER && dirtyBBox.Valid() &&
-            std::ceil(dirtyBBox.min.x) <= mState.clearRect.left  && std::ceil(dirtyBBox.min.y) <= mState.clearRect.top &&
-            std::floor(dirtyBBox.max.x) >= mState.clearRect.right && std::floor(dirtyBBox.max.y) >= mState.clearRect.bottom)
+            std::ceil(dirtyBBox.min.x) <= mClearOptState.clearRect.left  && std::ceil(dirtyBBox.min.y) <= mClearOptState.clearRect.top &&
+            std::floor(dirtyBBox.max.x) >= mClearOptState.clearRect.right && std::floor(dirtyBBox.max.y) >= mClearOptState.clearRect.bottom)
         {
             clearDiscarded = true;
             SetCompositeMode(CompositeMode::SRC);
         }
         else
         {
-            RecordClear(0.0f, 0.0f, 0.0f, 0.0f, mState.clearDepth, mState.clearRect);
+            RecordClear(0.0f, 0.0f, 0.0f, 0.0f, mClearOptState.clearDepth, mClearOptState.clearRect);
         }
 
-        mState.clearDelayed = false;
+        mClearOptState.clearDelayed = false;
     }
 
-    // declare Ring Container spaces so that we can potentially flush the Command List early
-    // and prevent mid-write flushes
-    DeclareRingResources();
-
-    // apply Context settings to the Command List
+    // apply Context settings to the payload
     if (!Apply())
     {
         D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping draw call.");
@@ -219,7 +274,10 @@ void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& di
     // before the draw call.
     EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-    mNativeDevice->GetCurrentCommandList()->DrawIndexedInstanced(elements, 1, 0, vbOffset, 0);
+    // Tell RenderThread to submit a Draw command and record what we have
+    mRTPayload->AddStep(CreateRTExec<DrawAction>(elements, vbOffset));
+    SubmitRTPayload(RenderPayload::Type::GRAPHICS);
+
     mRenderTarget.Get()->UpdateDirtyBBox(dirtyBBox);
 
     if (clearDiscarded)
@@ -231,47 +289,204 @@ void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& di
 
 void RenderingContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
 {
-    DeclareComputeRingResources();
-
     if (!ApplyCompute())
     {
         D3D12NI_LOG_ERROR("Failed to apply Compute Rendering Context settings. Skipping dispatch call.");
         return;
     }
 
-    mNativeDevice->GetCurrentCommandList()->Dispatch(x, y, z);
+    mRTPayload->AddStep(CreateRTExec<DispatchAction>(x, y, z));
+    SubmitRTPayload(RenderPayload::Type::COMPUTE);
 }
 
-void RenderingContext::QueueTextureTransition(const NIPtr<Internal::TextureBase>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+void RenderingContext::Resolve(const NIPtr<TextureBase>& dstTexture, const NIPtr<TextureBase>& srcTexture, DXGI_FORMAT resolveFormat)
 {
-    if (tex->GetResourceState(subresource) == newState) return;
+    QueueTextureTransition(srcTexture, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+    QueueTextureTransition(dstTexture, D3D12_RESOURCE_STATE_RESOLVE_DEST);
+    SubmitTextureTransitions();
 
-    D3D12_RESOURCE_BARRIER barrier;
-    D3D12NI_ZERO_STRUCT(barrier);
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource = tex->GetResource().Get();
-    barrier.Transition.StateBefore = tex->GetResourceState(subresource);
-    barrier.Transition.StateAfter = newState;
-    barrier.Transition.Subresource = subresource;
-    mBarrierQueue.emplace_back(barrier);
-
-    tex->SetResourceState(newState, subresource);
+    mRTPayload->AddStep(CreateRTExec<ResolveAction>(dstTexture->GetResource().Get(), srcTexture->GetResource().Get(), resolveFormat));
 }
 
-void RenderingContext::SubmitTextureTransitions()
+void RenderingContext::ResolveRegion(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
+                                     const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
+                                     DXGI_FORMAT resolveFormat)
 {
-    if (mBarrierQueue.size() == 0) return;
+    D3D12_RECT srcRect;
+    srcRect.left = srcx;
+    srcRect.top = srcy;
+    srcRect.right = srcx + srcw;
+    srcRect.bottom = srcy + srch;
 
-    mNativeDevice->GetCurrentCommandList()->ResourceBarrier(static_cast<UINT>(mBarrierQueue.size()), mBarrierQueue.data());
-    mBarrierQueue.clear();
+    QueueTextureTransition(srcTexture, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+    QueueTextureTransition(dstTexture, D3D12_RESOURCE_STATE_RESOLVE_DEST);
+    SubmitTextureTransitions();
+
+    mRTPayload->AddStep(CreateRTExec<ResolveRegionAction>(dstTexture->GetResource().Get(), dstx, dsty, srcTexture->GetResource().Get(), srcRect, resolveFormat));
+}
+
+void RenderingContext::CopyTexture(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
+                                   const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch)
+{
+    D3D12_TEXTURE_COPY_LOCATION srcLoc;
+    D3D12NI_ZERO_STRUCT(srcLoc);
+    srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    srcLoc.pResource = srcTexture->GetResource().Get();
+    srcLoc.SubresourceIndex = 0;
+
+    D3D12_BOX srcBox;
+    D3D12NI_ZERO_STRUCT(srcBox);
+    srcBox.left = srcx;
+    srcBox.top = srcy;
+    srcBox.right = srcx + srcw;
+    srcBox.bottom = srcy + srch;
+    srcBox.front = 0;
+    srcBox.back = 1;
+
+    D3D12_TEXTURE_COPY_LOCATION dstLoc;
+    D3D12NI_ZERO_STRUCT(dstLoc);
+    dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    dstLoc.pResource = dstTexture->GetResource().Get();
+    dstLoc.SubresourceIndex = 0;
+
+    QueueTextureTransition(srcTexture, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    QueueTextureTransition(dstTexture, D3D12_RESOURCE_STATE_COPY_DEST);
+    SubmitTextureTransitions();
+
+    mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(dstLoc, dstx, dsty, srcLoc, srcBox));
+}
+
+void RenderingContext::CopyTexture(const Buffer& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
+                                   uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch)
+{
+    D3D12_TEXTURE_COPY_LOCATION srcLoc;
+    D3D12NI_ZERO_STRUCT(srcLoc);
+    srcLoc.pResource = srcTexture->GetResource().Get();
+    srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    srcLoc.SubresourceIndex = 0;
+
+    D3D12_BOX srcBox;
+    srcBox.left = srcx;
+    srcBox.top = srcy;
+    srcBox.right = srcx + srcw;
+    srcBox.bottom = srcy + srch;
+    srcBox.front = 0;
+    srcBox.back = 1;
+
+    D3D12_TEXTURE_COPY_LOCATION dstLoc;
+    D3D12NI_ZERO_STRUCT(dstLoc);
+    dstLoc.pResource = dstBuffer.GetResource().Get();
+    dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    dstLoc.PlacedFootprint.Footprint.Width = srcw;
+    dstLoc.PlacedFootprint.Footprint.Height = srch;
+    dstLoc.PlacedFootprint.Footprint.Depth = 1;
+    dstLoc.PlacedFootprint.Footprint.RowPitch = static_cast<UINT>(dstStride);
+    dstLoc.PlacedFootprint.Footprint.Format = srcTexture->GetFormat();
+    dstLoc.PlacedFootprint.Offset = 0;
+
+    QueueTextureTransition(srcTexture, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    SubmitTextureTransitions();
+
+    mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(dstLoc, 0, 0, srcLoc, srcBox));
+}
+
+void RenderingContext::CopyToTexture(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
+                                     ID3D12Resource* srcResource, uint32_t srcw, uint32_t srch, uint64_t srcOffset,
+                                     uint32_t srcStride, DXGI_FORMAT format)
+{
+    D3D12_TEXTURE_COPY_LOCATION srcLoc;
+    D3D12NI_ZERO_STRUCT(srcLoc);
+    srcLoc.pResource = srcResource;
+    srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    srcLoc.PlacedFootprint.Footprint.Width = srcw;
+    srcLoc.PlacedFootprint.Footprint.Height = srch;
+    srcLoc.PlacedFootprint.Footprint.Depth = 1;
+    srcLoc.PlacedFootprint.Footprint.RowPitch = srcStride;
+    srcLoc.PlacedFootprint.Footprint.Format = format;
+    srcLoc.PlacedFootprint.Offset = srcOffset;
+
+    D3D12_TEXTURE_COPY_LOCATION dstLoc;
+    D3D12NI_ZERO_STRUCT(dstLoc);
+    dstLoc.pResource = dstTexture->GetResource().Get();
+    dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    dstLoc.SubresourceIndex = 0;
+
+    // Ensure we are in COPY_DEST state. Texture can be now bound to RenderingContext
+    // and exist in a different state.
+    QueueTextureTransition(dstTexture, D3D12_RESOURCE_STATE_COPY_DEST);
+    SubmitTextureTransitions();
+
+    mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(dstLoc, dstx, dsty, srcLoc));
+}
+
+bool RenderingContext::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
+{
+    if (!texture->HasMipmaps()) return true;
+
+    uint32_t mipLevels = texture->GetMipLevels();
+
+    const NIPtr<Internal::Shader>& cs = mNativeDevice->GetInternalShader("MipmapGenCS");
+    SetComputeShader(cs);
+    SetTexture(0, texture);
+
+    uint32_t srcWidth = static_cast<uint32_t>(texture->GetWidth());
+    uint32_t srcHeight = static_cast<uint32_t>(texture->GetHeight());
+
+    // transition entire texture with mips to UAV state
+    QueueTextureTransition(texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    SubmitTextureTransitions();
+
+    // starting from 1, level 0 is our base mip level
+    // also note, we're divinding by 2 a lot, so to make it faster we'll bit-shift instead
+    MipmapGenComputeShader::CBuffer constants;
+    uint32_t mipMapCount = mipLevels - 1; // mipLevels includes base level so we need to skip it
+    for (uint32_t mipBase = 0; mipBase < mipMapCount; mipBase += constants.numLevels)
+    {
+        // dimensions of first mipmap
+        uint32_t mip1Width = (srcWidth >> 1);
+        uint32_t mip1Height = (srcHeight >> 1);
+
+        // check how many times we can downsample at once
+        // we guarantee at least one downsample (MipmapGenCS has the initial "heavy" path for that purpose)
+        // but if both mip1Width and mip1Height have any zero-LSBs past that, we can do more downsamples within
+        // one dispatch and save some CS invocations. Worst case scenario our texture dimensions have all LSB
+        // bits set to 1, but it is an extremely rare occurence.
+        uint32_t widthZeros = Internal::Utils::CountZeroBitsLSB(mip1Width, 3);
+        uint32_t heightZeros = Internal::Utils::CountZeroBitsLSB(mip1Height, 3);
+        uint32_t levels = 1 + std::min<uint32_t>(widthZeros, heightZeros);
+
+        constants.sourceLevel = mipBase; // base level is one higher than our first mip
+        constants.numLevels = std::min<uint32_t>(levels, mipMapCount - mipBase);
+        constants.texelSizeMip1[0] = 1.0f / mip1Width;
+        constants.texelSizeMip1[1] = 1.0f / mip1Height;
+        cs->SetConstants("gData", &constants, sizeof(constants));
+
+        // transition base level to non-PS-resource
+        QueueTextureTransition(texture, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                               Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
+
+        // each thread group manages an 8x8 square, so we need to dispatch (width/8) X groups and (height/8) Y groups
+        SubmitTextureTransitions();
+
+        Dispatch(std::max<UINT>(srcWidth >> 3, 1), std::max<UINT>(srcHeight >> 3, 1), 1);
+
+        // transition base level back to UAV
+        // this should make all subresources have the same state again
+        QueueTextureTransition(texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                               Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
+
+        srcWidth >>= constants.numLevels;
+        srcHeight >>= constants.numLevels;
+    }
+
+    return true;
 }
 
 void RenderingContext::ClearTextureUnit(uint32_t unit)
 {
-    if (!mState.resourceManager.GetTexture(unit)) return;
+    if (!mTextures.GetTexture(unit)) return;
 
-    mState.resourceManager.ClearTextureUnit(unit);
-    ClearResourcesApplied();
+    mTextures.SetTexture(unit, nullptr);
 }
 
 void RenderingContext::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView)
@@ -312,12 +527,12 @@ void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
         return;
     }
 
-    if (mState.clearDelayed)
+    if (mClearOptState.clearDelayed)
     {
         // there was a Clear() queued but we're changing the RT
         // we should submit the delayed Clear() call before we swap the RTs
-        RecordClear(0.0f, 0.0f, 0.0f, 0.0f, mState.clearDepth, mState.clearRect);
-        mState.clearDelayed = false;
+        RecordClear(0.0f, 0.0f, 0.0f, 0.0f, mClearOptState.clearDepth, mClearOptState.clearRect);
+        mClearOptState.clearDelayed = false;
     }
 
     mRenderTarget.Set(renderTarget);
@@ -369,8 +584,7 @@ void RenderingContext::SetScissor(bool enabled, const D3D12_RECT& scissor)
 
 void RenderingContext::SetTexture(uint32_t unit, const NIPtr<TextureBase>& texture)
 {
-    mState.resourceManager.SetTexture(unit, texture);
-    ClearResourcesApplied();
+    mTextures.SetTexture(unit, texture);
 }
 
 // PSO-related setters
@@ -401,9 +615,8 @@ void RenderingContext::SetVertexShader(const NIPtr<Shader>& vertexShader)
     if (mPipelineState.Get().vertexShader == vertexShader) return;
 
     mPipelineState.SetVertexShader(vertexShader);
-    mState.resourceManager.SetVertexShader(vertexShader);
-
-    ClearResourcesApplied();
+    mGraphicsShaders.SetVertexShader(vertexShader);
+    mVertexShaderConstants.Set(vertexShader);
 }
 
 void RenderingContext::SetPixelShader(const NIPtr<Shader>& pixelShader)
@@ -411,14 +624,13 @@ void RenderingContext::SetPixelShader(const NIPtr<Shader>& pixelShader)
     if (mPipelineState.Get().pixelShader == pixelShader) return;
 
     mPipelineState.SetPixelShader(pixelShader);
-    mState.resourceManager.SetPixelShader(pixelShader);
+    mGraphicsShaders.SetPixelShader(pixelShader);
+    mPixelShaderConstants.Set(pixelShader);
 
     if (pixelShader)
     {
         mRootSignature.Set(mNativeDevice->GetRootSignatureManager()->GetGraphicsRootSignature());
     }
-
-    ClearResourcesApplied();
 }
 
 void RenderingContext::SetComputeShader(const NIPtr<Shader>& computeShader)
@@ -426,140 +638,107 @@ void RenderingContext::SetComputeShader(const NIPtr<Shader>& computeShader)
     if (mComputePipelineState.Get().shader == computeShader) return;
 
     mComputePipelineState.SetComputeShader(computeShader);
-    mState.resourceManager.SetComputeShader(computeShader);
-
+    mComputeShader.Set(computeShader);
+    mComputeShaderConstants.Set(computeShader);
     mComputeRootSignature.Set(mNativeDevice->GetRootSignatureManager()->GetComputeRootSignature());
-    ClearComputeResourcesApplied();
 }
 
 void RenderingContext::StashParamters()
 {
     mRuntimeParametersStash.pipelineState.Set(mPipelineState.Get());
+    mRuntimeParametersStash.graphicsShaders.Set(mGraphicsShaders.Get());
     mRuntimeParametersStash.primitiveTopology.Set(mPrimitiveTopology.Get());
     mRuntimeParametersStash.renderTarget.Set(mRenderTarget.Get());
     mRuntimeParametersStash.rootSignature.Set(mRootSignature.Get());
-    mState.resourceManager.StashParameters();
+    mRuntimeParametersStash.textures.Set(mTextures.Get());
 }
 
 void RenderingContext::RestoreStashedParameters()
 {
     SetRenderTarget(mRuntimeParametersStash.renderTarget.Get());
+    SetVertexShader(mRuntimeParametersStash.graphicsShaders.Get().vertexShader);
+    SetPixelShader(mRuntimeParametersStash.graphicsShaders.Get().pixelShader);
+
     mPipelineState.Set(mRuntimeParametersStash.pipelineState.Get());
     mPrimitiveTopology.Set(mRuntimeParametersStash.primitiveTopology.Get());
     mRootSignature.Set(mRuntimeParametersStash.rootSignature.Get());
-
-    mState.resourceManager.RestoreStashedParameters();
-    ClearResourcesApplied();
-}
-
-void RenderingContext::DeclareRingResources()
-{
-    mState.resourceManager.DeclareRingResources();
-}
-
-void RenderingContext::DeclareComputeRingResources()
-{
-    mState.resourceManager.DeclareComputeRingResources();
+    mTextures.Set(mRuntimeParametersStash.textures.Get());
 }
 
 bool RenderingContext::Apply()
 {
-    // Prepare rendering steps. These should do all necessary allocations.
-    if (!mResources.Prepare(mState)) return false;
-
     // there can only be one Pipeline State on a command list
     // To prevent using an incorrect Pipeline State after this Apply call we'll reset the compute PSO flag
     // other settings (RootSignatures, Descriptors etc) are all set separately
     mComputePipelineState.ClearApplied();
 
-    // Apply changes on current Command List. Below calls must NOT do any operations
-    // which might submit the Command List (ex. Ring Container allocations)
+    // Add command list changes (if necessary) to current payload for the RenderThread
+    // We start with resource changes - shaders and textures - and then a Resource update step.
+    // These are a RenderingResource, so will be added to initial Resource steps in the Payload
+    mGraphicsShaders.AddToPayload(mRTPayload);
+    mTextures.AddToPayload(mRTPayload);
+    mVertexShaderConstants.AddToPayload(mRTPayload);
+    mPixelShaderConstants.AddToPayload(mRTPayload);
 
-    const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
-    if (!commandList) return false;
+    // Now, update more straightforward on-Command-List parameters
+    mRenderTarget.AddToPayload(mRTPayload);
+    mPipelineState.AddToPayload(mRTPayload);
+    mRootSignature.AddToPayload(mRTPayload);
+    mDescriptorHeap.AddToPayload(mRTPayload);
+    mViewport.AddToPayload(mRTPayload);
+    mScissor.AddToPayload(mRTPayload);
+    mDefaultScissor.AddToPayload(mRTPayload);
+    mPrimitiveTopology.AddToPayload(mRTPayload);
+    mVertexBuffer.AddToPayload(mRTPayload);
+    mIndexBuffer.AddToPayload(mRTPayload);
 
-    mRenderTarget.Apply(commandList, mState);
-    mPipelineState.Apply(commandList, mState);
-
-    std::unique_ptr<RenderPayload> payload = std::make_unique<RenderPayload>();
-    mRootSignature.AddToPayload(payload);
-    mViewport.AddToPayload(payload);
-    mScissor.AddToPayload(payload);
-    mDefaultScissor.AddToPayload(payload);
-    mPrimitiveTopology.AddToPayload(payload);
-    mVertexBuffer.AddToPayload(payload);
-    mIndexBuffer.AddToPayload(payload);
-
-    mRenderThread.Execute(payload);
-
-    mDescriptorHeap.Apply(commandList, mState);
-    mResources.Apply(commandList, mState);
+    mRTPayload->AddStep(CreateRTExec<ApplyResources>());
 
     return true;
 }
 
 bool RenderingContext::ApplyCompute()
 {
-    if (!mComputeResources.Prepare(mState)) return false;
-
     // there can only be one Pipeline State on a command list
     // To prevent using an incorrect Pipeline State after this Apply call we'll reset the graphics' PSO flag
     mPipelineState.ClearApplied();
 
-    const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
-    if (!commandList) return false;
+    // resources
+    mComputeShader.AddToPayload(mRTPayload);
+    mTextures.AddToPayload(mRTPayload);
+    mComputeShaderConstants.AddToPayload(mRTPayload);
 
-    mComputePipelineState.Apply(commandList, mState);
-    mComputeRootSignature.Apply(commandList, mState);
-    mDescriptorHeap.Apply(commandList, mState);
-    mComputeResources.Apply(commandList, mState);
-
+    // command list recording steps
+    mComputePipelineState.AddToPayload(mRTPayload);
+    mComputeRootSignature.AddToPayload(mRTPayload);
+    mDescriptorHeap.AddToPayload(mRTPayload);
     return true;
-}
-
-void RenderingContext::EnsureBoundTextureStates(D3D12_RESOURCE_STATES state)
-{
-    QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-    if (mRenderTarget.Get()->HasDepthTexture())
-        QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-    mState.resourceManager.EnsureStates(mNativeDevice->GetCurrentCommandList(), state);
 }
 
 void RenderingContext::ClearAppliedFlags()
 {
     mIndexBuffer.ClearApplied();
     mVertexBuffer.ClearApplied();
-
-    mPipelineState.ClearApplied();
-    mRootSignature.ClearApplied();
     mDescriptorHeap.ClearApplied();
+    mGraphicsShaders.ClearApplied();
+    mPipelineState.ClearApplied();
     mPrimitiveTopology.ClearApplied();
+    mRootSignature.ClearApplied();
     mRenderTarget.ClearApplied();
     mScissor.ClearApplied();
     mDefaultScissor.ClearApplied();
-    mResources.ClearApplied();
+    mTextures.ClearApplied();
     mViewport.ClearApplied();
 
     mComputePipelineState.ClearApplied();
+    mComputeShader.ClearApplied();
     mComputeRootSignature.ClearApplied();
-    mComputeResources.ClearApplied();
 }
 
-void RenderingContext::ClearResourcesApplied()
+void RenderingContext::SyncToRenderThread()
 {
-    // TODO: D3D12: This could be a bit more optimized - we could ex. provide flags
-    // stating which parts of ResourceManager need refreshing.
-    // We can imagine when rendering a lot of 2D data we would just keep using the same
-    // Vertex Shader, so its resources (minus different constants) would stay intact,
-    // while Pixel Shader resources would need a refresh.
-    // Investigate if that would make sense in the long run.
-    mResources.ClearApplied();
-}
-
-void RenderingContext::ClearComputeResourcesApplied()
-{
-    mComputeResources.ClearApplied();
+    SubmitRTPayload(RenderPayload::Type::OTHER);
+    mRenderThread.WaitForCompletion();
 }
 
 void RenderingContext::FinishFrame()

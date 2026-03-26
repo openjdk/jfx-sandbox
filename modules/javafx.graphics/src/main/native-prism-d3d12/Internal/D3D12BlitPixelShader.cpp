@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,7 +62,7 @@ bool BlitPixelShader::Init(const std::string& name, ShaderPipelineMode mode, D3D
     return true;
 }
 
-bool BlitPixelShader::PrepareDescriptors(const TextureBank& textures)
+bool BlitPixelShader::PrepareDescriptors(const TextureBank& textures, const Shader::ConstantBuffer&)
 {
     if (!textures[0])
     {

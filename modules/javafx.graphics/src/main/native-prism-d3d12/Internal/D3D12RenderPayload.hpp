@@ -40,29 +40,71 @@ namespace Internal {
 // collects steps that need to be processed by the Rendering Thread
 class RenderPayload
 {
+public:
+    enum class Type: uint8_t
+    {
+        OTHER = 0,
+        GRAPHICS,
+        COMPUTE
+    };
+
+private:
     // TODO this might need a custom allocator
     using StepList = std::list<RenderThreadExecutablePtr>;
 
+    StepList mResourceSteps;
     StepList mSteps;
+    Type mType;
 
 public:
     RenderPayload()
-        : mSteps()
+        : mResourceSteps()
+        , mSteps()
     {}
+
+    void AddResourceStep(RenderThreadExecutablePtr&& executable)
+    {
+        mResourceSteps.push_back(std::move(executable));
+    }
 
     void AddStep(RenderThreadExecutablePtr&& executable)
     {
         mSteps.push_back(std::move(executable));
     }
 
-    void ApplySteps(const D3D12GraphicsCommandListPtr& commandList)
+    void ApplyResourceSteps(RenderingContextState& state)
+    {
+        for (const RenderThreadExecutablePtr& executable: mResourceSteps)
+        {
+            executable->Execute(nullptr, state);
+        }
+    }
+
+    void ApplySteps(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state)
     {
         for (const RenderThreadExecutablePtr& executable: mSteps)
         {
-            executable->Execute(commandList);
+            executable->Execute(commandList, state);
         }
     }
+
+    void Finalize(Type type)
+    {
+        mType = type;
+    }
+
+    bool HasWork() const
+    {
+        return (mResourceSteps.size() > 0) || (mSteps.size() > 0);
+    }
+
+    Type GetType()
+    {
+        return mType;
+    }
 };
+
+using RenderPayloadPtr = std::unique_ptr<RenderPayload>;
 
 } // namespace Internal
 } // namespace D3D12
