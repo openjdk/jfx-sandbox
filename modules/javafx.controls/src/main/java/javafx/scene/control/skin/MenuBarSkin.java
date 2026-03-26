@@ -916,9 +916,10 @@ public class MenuBarSkin extends SkinBase<MenuBar> {
                 // If the system menu references this MenuBarSkin, then we're done with rebuilding the UI.
                 // If the system menu does not reference this MenuBarSkin, then the MenuBar is a child of the scene
                 // and we continue with the update.
-                // If there is no system menu but this skinnable uses the system menu bar, then the
-                // stage just isn't focused yet (see setSystemMenu) and we're done rebuilding the UI.
-                if (currentMenuBarStage != null ? getMenuBarSkin(currentMenuBarStage) == MenuBarSkin.this : getSkinnable().isUseSystemMenuBar()) {
+                // If there is no system menu but this skinnable uses the system menu bar and there is no CustomMenuItem,
+                // then the stage just isn't focused yet (see setSystemMenu) and we're done rebuilding the UI.
+                if (currentMenuBarStage != null ? getMenuBarSkin(currentMenuBarStage) == MenuBarSkin.this :
+                        getSkinnable().isUseSystemMenuBar() && !menusContainCustomMenuItem()) {
                     return;
                 }
 
