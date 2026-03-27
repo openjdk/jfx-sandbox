@@ -712,6 +712,9 @@ bool RenderingContext::ApplyCompute()
     mComputePipelineState.AddToPayload(mRTPayload);
     mComputeRootSignature.AddToPayload(mRTPayload);
     mDescriptorHeap.AddToPayload(mRTPayload);
+
+    mRTPayload->AddStep(CreateRTExec<ApplyComputeResources>());
+
     return true;
 }
 

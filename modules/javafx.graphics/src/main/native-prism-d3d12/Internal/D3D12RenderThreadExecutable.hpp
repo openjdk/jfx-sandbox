@@ -473,6 +473,15 @@ public:
     }
 };
 
+class ApplyComputeResources: public RenderThreadExecutable
+{
+public:
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
+    {
+        state.resourceManager.ApplyComputeResources(commandList);
+    }
+};
+
 class ApplyComputeRootSignature: public RenderThreadDataExecutable<D3D12RootSignaturePtr>
 {
 public:
