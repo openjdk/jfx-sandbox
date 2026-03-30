@@ -95,7 +95,7 @@ public:
      * Record CPU-to-GPU transfer on current command list. This will move all uncommitted data
      * from the CPU (mBufferResource) to the GPU (mGPUBufferResource).
      */
-    void RecordTransferToGPU();
+    void RecordTransferToGPU(const D3D12GraphicsCommandListPtr& commandList);
 
     void SetDebugName(const std::string& name);
 

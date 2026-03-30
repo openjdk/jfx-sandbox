@@ -971,7 +971,7 @@ void NativeDevice::ExecuteCurrentCommandList()
     D3D12GraphicsCommandListPtr cmdList = mCommandListPool->AdvanceCommandList();
     if (needsGPUVertexBufferUpdate)
     {
-        mVertexRingBuffer->RecordTransferToGPU();
+        mVertexRingBuffer->RecordTransferToGPU(mCommandListPool->CurrentCommandList());
         D3D12GraphicsCommandListPtr copyVertexBufferList = mCommandListPool->AdvanceCommandList();
 
         // Copy vertex buffer list must happen before just-recorded list, this is

@@ -48,7 +48,7 @@ namespace Internal {
 
 void RenderingContext::SubmitRTPayload(RenderPayload::Type type)
 {
-    if (mRTPayload->HasWork())
+    if (mRTPayload && mRTPayload->HasWork())
     {
         // current payload has some work that was not reflected on a Command List yet
         // move current payload to the Render Thread for execution and create a fresh one for later
