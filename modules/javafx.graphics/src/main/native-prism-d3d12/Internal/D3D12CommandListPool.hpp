@@ -91,6 +91,11 @@ public:
 
         D3D12NI_ASSERT(mCommandLists[mCurrentCommandList].state != CommandListState::Closed, "Attempted to access closed Command List");
         if (mCommandLists[mCurrentCommandList].state == CommandListState::Available) ResetCurrentCommandList();
+        return CurrentCommandListRef();
+    }
+
+    inline const D3D12GraphicsCommandListPtr& CurrentCommandListRef()
+    {
         return mCommandLists[mCurrentCommandList].commandList;
     }
 };

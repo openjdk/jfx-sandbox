@@ -91,17 +91,9 @@ class ResourceManager: public IWaitableOperation
         TextureBank textures;
     } mRuntimeParametersStash;
 
-    struct ShaderConstantsData
-    {
-        bool dirty;
-        Shader::ConstantBuffer buffer;
-    };
-
     NIPtr<NativeDevice> mNativeDevice;
     NIPtr<Shader> mVertexShader;
     NIPtr<Shader> mPixelShader;
-    ShaderConstantsData mVertexShaderConstants;
-    ShaderConstantsData mPixelShaderConstants;
     TextureBank mTextures;
     SamplerStorage mSamplerStorage;
     RingDescriptorHeap mDescriptorHeap;
@@ -113,13 +105,12 @@ class ResourceManager: public IWaitableOperation
 
     // Compute Resources
     NIPtr<Shader> mComputeShader;
-    ShaderConstantsData mComputeShaderConstants;
 
     void UpdateTextureDescriptorTable(const DescriptorData& dtable);
-    bool PrepareConstants(const NIPtr<Shader>& shaderResourceData, ShaderConstantsData& constants);
+    bool PrepareConstants(const NIPtr<Shader>& shaderResourceData);
     bool PrepareTextureViews(const NIPtr<Shader>& shaderResourceData);
     bool PrepareSamplers(const NIPtr<Shader>& shaderResourceData);
-    bool PrepareShaderResources(const NIPtr<Shader>& shader, ShaderConstantsData& constants);
+    bool PrepareShaderResources(const NIPtr<Shader>& shader);
 
 public:
     ResourceManager(const NIPtr<NativeDevice>& nativeDevice);
@@ -130,15 +121,12 @@ public:
     void DeclareComputeRingResources();
     bool PrepareResources();
     bool PrepareComputeResources();
-    void ApplyResources(const D3D12GraphicsCommandListPtr& commandList) const;
-    void ApplyComputeResources(const D3D12GraphicsCommandListPtr& commandList) const;
+    Descriptors CollectDescriptors() const;
+    Descriptors CollectComputeDescriptors() const;
     void ClearTextureUnit(uint32_t slot);
     void SetVertexShader(const NIPtr<Shader>& shader);
     void SetPixelShader(const NIPtr<Shader>& shader);
     void SetComputeShader(const NIPtr<Shader>& shader);
-    void SetVertexShaderConstants(Shader::ConstantBuffer&& constants);
-    void SetPixelShaderConstants(Shader::ConstantBuffer&& constants);
-    void SetComputeShaderConstants(Shader::ConstantBuffer&& constants);
     void SetTextures(const TextureBank& bank);
     void SetTexture(uint32_t slot, const NIPtr<TextureBase>& tex);
 

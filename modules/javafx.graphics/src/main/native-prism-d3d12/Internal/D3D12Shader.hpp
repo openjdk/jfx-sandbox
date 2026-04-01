@@ -115,12 +115,8 @@ public:
     bool SetConstants(const std::string& name, const void* data, size_t size);
     bool SetConstantsInArray(const std::string& name, uint32_t idx, const void* data, size_t size);
 
-    // Accessed by RenderThread when preparing for rendering
-    // NOTE: constants are delivered separately here by ResourceManager. The reason is to prevent
-    // threading issues - RenderThread might want to prepare descriptors and constants "from the past"
-    // here. This lets us not have to synchronize when trying to change Shader Constants from Prism-side.
-    virtual bool PrepareDescriptors(const TextureBank& textures, const ConstantBuffer& constants) = 0;
-    virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const = 0;
+    virtual bool PrepareDescriptors(const TextureBank& textures) = 0;
+    virtual void CollectDescriptors(Descriptors& descriptors) const = 0;
 
     // Inline getters
     inline const std::string& GetName() const

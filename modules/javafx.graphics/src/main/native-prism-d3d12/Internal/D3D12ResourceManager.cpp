@@ -35,10 +35,10 @@
 namespace D3D12 {
 namespace Internal {
 
-bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader, ShaderConstantsData& constants)
+bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader)
 {
     // quietly exit early if constants do not need to be re-prepared
-    if (!constants.dirty) return true;
+    if (!shader->AreConstantsDirty()) return true;
 
     const Shader::ResourceData& resourceData = shader->GetResourceData();
     Shader::DescriptorData& descriptors = shader->GetDescriptorData();
@@ -86,7 +86,7 @@ bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader, ShaderConsta
         }
     }
 
-    constants.dirty = false;
+    shader->SetConstantsDirty(false);
     return true;
 }
 
@@ -159,7 +159,7 @@ bool ResourceManager::PrepareSamplers(const NIPtr<Shader>& shader)
     return true;
 }
 
-bool ResourceManager::PrepareShaderResources(const NIPtr<Shader>& shader, ShaderConstantsData& constants)
+bool ResourceManager::PrepareShaderResources(const NIPtr<Shader>& shader)
 {
     // We need to allocate space on respective heaps here:
     //  - Reserve RingBuffer space for CBVs, allocate and create CBV Descriptors for CBV DTable (if needed)
@@ -171,7 +171,7 @@ bool ResourceManager::PrepareShaderResources(const NIPtr<Shader>& shader, Shader
     //  - Calling SetTexture() should dirty the SRV update and independently check if Samplers are dirty too
     //  - Setting Shader constants should dirty the Constant Data
     //     - Maybe we should do the constants set via ResourceManager? What about NativeShader API though...
-    if (!PrepareConstants(shader, constants)) return false;
+    if (!PrepareConstants(shader)) return false;
     if (!PrepareTextureViews(shader)) return false;
     if (!PrepareSamplers(shader)) return false;
 
@@ -179,7 +179,7 @@ bool ResourceManager::PrepareShaderResources(const NIPtr<Shader>& shader, Shader
     // ex. MipmapGenComputeShader wants to populate Texture's subresources when generating mip levels instead of
     // simply viewing Textures as a whole resource, including all of its subresources.
     // As such, it makes more sense to let Shaders decide how to write Views onto Descriptors we just prepared for them.
-    if (!shader->PrepareDescriptors(mTextures, constants.buffer)) return false;
+    if (!shader->PrepareDescriptors(mTextures)) return false;
 
     return true;
 }
@@ -295,16 +295,20 @@ void ResourceManager::DeclareRingResources()
 bool ResourceManager::PrepareResources()
 {
     // collect how many slots of each Ring Container we will need and
-    if (!PrepareShaderResources(mVertexShader, mVertexShaderConstants)) return false;
-    if (!PrepareShaderResources(mPixelShader, mPixelShaderConstants)) return false;
+    if (!PrepareShaderResources(mVertexShader)) return false;
+    if (!PrepareShaderResources(mPixelShader)) return false;
 
     return true;
 }
 
-void ResourceManager::ApplyResources(const D3D12GraphicsCommandListPtr& commandList) const
+Descriptors ResourceManager::CollectDescriptors() const
 {
-    mVertexShader->ApplyDescriptors(commandList);
-    mPixelShader->ApplyDescriptors(commandList);
+    Descriptors descriptors;
+
+    mVertexShader->CollectDescriptors(descriptors);
+    mPixelShader->CollectDescriptors(descriptors);
+
+    return descriptors;
 }
 
 void ResourceManager::DeclareComputeRingResources()
@@ -325,12 +329,16 @@ void ResourceManager::DeclareComputeRingResources()
 
 bool ResourceManager::PrepareComputeResources()
 {
-    return PrepareShaderResources(mComputeShader, mComputeShaderConstants);
+    return PrepareShaderResources(mComputeShader);
 }
 
-void ResourceManager::ApplyComputeResources(const D3D12GraphicsCommandListPtr& commandList) const
+Descriptors ResourceManager::CollectComputeDescriptors() const
 {
-    mComputeShader->ApplyDescriptors(commandList);
+    Descriptors descriptors;
+
+    mComputeShader->CollectDescriptors(descriptors);
+
+    return descriptors;
 }
 
 void ResourceManager::ClearTextureUnit(uint32_t slot)
@@ -377,24 +385,6 @@ void ResourceManager::SetComputeShader(const NIPtr<Shader>& shader)
     }
 
     mComputeShader = shader;
-}
-
-void ResourceManager::SetVertexShaderConstants(Shader::ConstantBuffer&& constants)
-{
-    mVertexShaderConstants.dirty = true;
-    mVertexShaderConstants.buffer = std::move(constants);
-}
-
-void ResourceManager::SetPixelShaderConstants(Shader::ConstantBuffer&& constants)
-{
-    mPixelShaderConstants.dirty = true;
-    mPixelShaderConstants.buffer = std::move(constants);
-}
-
-void ResourceManager::SetComputeShaderConstants(Shader::ConstantBuffer&& constants)
-{
-    mComputeShaderConstants.dirty = true;
-    mComputeShaderConstants.buffer = std::move(constants);
 }
 
 void ResourceManager::SetTextures(const TextureBank& bank)

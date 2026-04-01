@@ -67,7 +67,7 @@ bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mo
     return true;
 }
 
-bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures, const Shader::ConstantBuffer& constants)
+bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures)
 {
     if (mConstantBufferStorage.size() != sizeof(CBuffer))
     {
@@ -81,7 +81,7 @@ bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures, con
         return false;
     }
 
-    const CBuffer* cb = reinterpret_cast<const CBuffer*>(constants.data());
+    const CBuffer* cb = reinterpret_cast<const CBuffer*>(mConstantBufferStorage.data());
     memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, cb, sizeof(CBuffer));
 
     // write source mip level as SRV (our input)
@@ -97,11 +97,11 @@ bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures, con
     return true;
 }
 
-void MipmapGenComputeShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const
+void MipmapGenComputeShader::CollectDescriptors(Descriptors& descriptors) const
 {
-    commandList->SetComputeRootConstantBufferView(ShaderSlots::COMPUTE_RS_CONSTANT_DATA, mDescriptorData.ConstantDataDirectRegion.gpu);
-    commandList->SetComputeRootDescriptorTable(ShaderSlots::COMPUTE_RS_UAV_DTABLE, mDescriptorData.UAVDescriptors.GPU(0));
-    commandList->SetComputeRootDescriptorTable(ShaderSlots::COMPUTE_RS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.GPU(0));
+    descriptors.AddConstantBufferView(ShaderSlots::COMPUTE_RS_CONSTANT_DATA, mDescriptorData.ConstantDataDirectRegion.gpu);
+    descriptors.AddDescriptorTable(ShaderSlots::COMPUTE_RS_UAV_DTABLE, mDescriptorData.UAVDescriptors.GPU(0));
+    descriptors.AddDescriptorTable(ShaderSlots::COMPUTE_RS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.GPU(0));
 }
 
 } // namespace Internal

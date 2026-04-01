@@ -64,6 +64,7 @@ void D3D12DebugMessageCallback(D3D12_MESSAGE_CATEGORY Category,
         break;
     case D3D12_MESSAGE_SEVERITY_ERROR:
         D3D12NI_LOG_ERROR("D3D12 %s Error: %s", D3D12MessageCategoryToString(Category), pDescription);
+        D3D12NI_ASSERT(false, "D3D12 Debug Layers Error: %s", pDescription);
         break;
     case D3D12_MESSAGE_SEVERITY_WARNING:
         D3D12NI_LOG_WARN("D3D12 %s Warning: %s", D3D12MessageCategoryToString(Category), pDescription);

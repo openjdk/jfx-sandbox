@@ -113,11 +113,8 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
 
 NativeSwapChain::~NativeSwapChain()
 {
-    mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ALL);
-    // TODO: D3D12: this is placed here because of JDK-8342694
-    // Otherwise it is not printed - move this to NativeDevice destructor when resolved
-    mNativeDevice->GetCheckpointQueue().PrintStats();
-    D3D12NI_ASSERT(mSubmittedFrameCount == 0, "SwapChain destructor: Failed to wait for all frames! Frame count = %u", mSubmittedFrameCount);
+    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
+    D3D12NI_ASSERT(mSubmittedFrameCount == 0, "SwapChain destructor: called before waiting for all frames! Frame count = %u", mSubmittedFrameCount);
 
     Internal::Profiler::Instance().RemoveSource(mProfilerSourceID);
     mNativeDevice->UnregisterWaitableOperation(this);
@@ -168,7 +165,7 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
     desc.SampleDesc.Quality = 0;
 
     Ptr<IDXGISwapChain1> tmpSwapchain;
-    HRESULT hr = factory->CreateSwapChainForHwnd(mNativeDevice->GetCommandQueue().Get(), hwnd, &desc, nullptr, nullptr, &tmpSwapchain);
+    HRESULT hr = factory->CreateSwapChainForHwnd(mNativeDevice->GetRenderingContext()->GetCommandQueue().Get(), hwnd, &desc, nullptr, nullptr, &tmpSwapchain);
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create SwapChain");
 
     hr = tmpSwapchain.As(&mSwapChain);
@@ -209,7 +206,7 @@ bool NativeSwapChain::Prepare(LONG left, LONG top, LONG right, LONG bottom)
 
     // TODO maybe should be done differently?
     mNativeDevice->GetRenderingContext()->QueueTextureTransition(GetTexture(), D3D12_RESOURCE_STATE_PRESENT);
-    mNativeDevice->GetRenderingContext()->SubmitTextureTransitions();
+    mNativeDevice->GetRenderingContext()->SubmitResourceTransitions();
 
     return true;
 }
@@ -248,7 +245,7 @@ bool NativeSwapChain::Present()
     while (mSubmittedFrameCount >= mBufferCount)
     {
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Internal::Profiler::Event::Wait);
-        if (!mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ENDFRAME))
+        if (!mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ENDFRAME))
         {
             D3D12NI_LOG_ERROR("Failed to wait for old frame to complete");
             return false;
@@ -256,7 +253,6 @@ bool NativeSwapChain::Present()
     }
 
     mCurrentBufferIdx = mSwapChain->GetCurrentBackBufferIndex();
-    mNativeDevice->AdvanceCommandAllocator();
 
     return true;
 }
@@ -264,7 +260,7 @@ bool NativeSwapChain::Present()
 bool NativeSwapChain::Resize(UINT width, UINT height)
 {
     // before Resize we need to wait for all frames
-    mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ALL);
+    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
 
     // since all frames were completed, reset all Buffer references before resizing
     for (size_t i = 0; i < mTextureBuffers.size(); ++i)

@@ -28,6 +28,7 @@
 #include "../D3D12Common.hpp"
 
 #include "D3D12IRenderTarget.hpp"
+#include "D3D12LinearAllocator.hpp"
 #include "D3D12PSOManager.hpp"
 #include "D3D12ResourceManager.hpp"
 #include "D3D12TextureBase.hpp"
@@ -38,17 +39,17 @@
 namespace D3D12 {
 namespace Internal {
 
-struct RenderingContextState
+struct RenderThreadState
 {
     PSOManager PSOManager;
-    ResourceManager resourceManager;
+    CommandListPool commandListPool;
     bool clearDelayed;
     D3D12_RECT clearRect;
     bool clearDepth;
 
-    RenderingContextState(const NIPtr<NativeDevice>& nativeDevice)
+    RenderThreadState(const NIPtr<NativeDevice>& nativeDevice)
         : PSOManager(nativeDevice)
-        , resourceManager(nativeDevice)
+        , commandListPool(nativeDevice)
         , clearDelayed(false)
         , clearRect()
         , clearDepth(false)
@@ -96,6 +97,21 @@ struct CopyTextureArgs
     D3D12_BOX srcBox;
 };
 
+struct CopyBufferRegionArgs
+{
+    D3D12ResourcePtr dst;
+    uint64_t dstOffset;
+    D3D12ResourcePtr src;
+    uint64_t srcOffset;
+    uint64_t size;
+};
+
+struct CopyResourceArgs
+{
+    D3D12ResourcePtr dst;
+    D3D12ResourcePtr src;
+};
+
 struct DrawArgs
 {
     uint32_t elements;
@@ -132,11 +148,26 @@ struct GraphicsShaders
     NIPtr<Shader> pixelShader;
 };
 
+struct DescriptorHeaps
+{
+    D3D12DescriptorHeapPtr heap;
+    D3D12DescriptorHeapPtr samplerHeap;
+};
+
+using ResourceBarrierArray = std::array<D3D12_RESOURCE_BARRIER, 8>;
+struct ResourceBarrierGroup
+{
+    ResourceBarrierArray barriers;
+    uint32_t count;
+};
+
+// Descriptor bindings-related bits are in D3D12Common.hpp to make them visible to Shaders
+
 
 class RenderThreadExecutable
 {
 public:
-    virtual void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) = 0;
+    virtual void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state) = 0;
     virtual ~RenderThreadExecutable() {}
 };
 
@@ -156,21 +187,45 @@ public:
     {}
 };
 
-using RenderThreadExecutablePtr = std::unique_ptr<RenderThreadExecutable>;
+using RenderThreadExecutableDeleter = LinearAllocatorDeleter<RenderThreadExecutable>;
+using RenderThreadExecutablePtr = std::unique_ptr<RenderThreadExecutable, RenderThreadExecutableDeleter>;
+
+template <typename Executable, typename ...Args>
+RenderThreadExecutablePtr CreateRTExec(LinearAllocator& allocator, Args&&... args)
+{
+    return RenderThreadExecutablePtr(allocator.Construct<Executable>(std::forward<Args>(args)...), RenderThreadExecutableDeleter(&allocator));
+}
 
 
 // Graphics render thread actions //
 
-class ApplyDescriptorHeaps: public RenderThreadExecutable
+class ApplyDescriptorHeaps: public RenderThreadDataExecutable<DescriptorHeaps>
 {
 public:
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
+    ApplyDescriptorHeaps(const DescriptorHeaps& heaps)
+        : RenderThreadDataExecutable(heaps)
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
-        ID3D12DescriptorHeap* heaps[] = {
-            state.resourceManager.GetHeap().Get(),
-            state.resourceManager.GetSamplerHeap().Get()
-        };
-        commandList->SetDescriptorHeaps(2, heaps);
+        std::array<ID3D12DescriptorHeap*, 2> heaps;
+        uint32_t totalHeaps = 0;
+        if (mData.heap)
+        {
+            heaps[totalHeaps] = mData.heap.Get();
+            totalHeaps++;
+        }
+
+        if (mData.samplerHeap)
+        {
+            heaps[totalHeaps] = mData.samplerHeap.Get();
+            totalHeaps++;
+        }
+
+        if (totalHeaps)
+        {
+            commandList->SetDescriptorHeaps(totalHeaps, heaps.data());
+        }
     }
 };
 
@@ -181,7 +236,7 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->IASetIndexBuffer(&mData);
     }
@@ -194,7 +249,7 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state) override final
     {
         const D3D12PipelineStatePtr& pso = state.PSOManager.GetPSO(mData);
         commandList->SetPipelineState(pso.Get());
@@ -208,7 +263,7 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->IASetPrimitiveTopology(mData);
     }
@@ -221,7 +276,7 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state) override final
     {
         if (!mData) return;
 
@@ -232,12 +287,24 @@ public:
     }
 };
 
-class ApplyResources: public RenderThreadExecutable
+class ApplyDescriptors: public RenderThreadDataExecutable<Descriptors>
 {
 public:
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
+    ApplyDescriptors(const Descriptors& descriptors)
+        : RenderThreadDataExecutable(descriptors)
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
-        state.resourceManager.ApplyResources(commandList);
+        for (const DescriptorBinding<D3D12_GPU_VIRTUAL_ADDRESS>& db: mData.CBVs)
+        {
+            commandList->SetGraphicsRootConstantBufferView(db.rootIndex, db.handle);
+        }
+
+        for (const DescriptorBinding<D3D12_GPU_DESCRIPTOR_HANDLE>& db: mData.DTs)
+        {
+            commandList->SetGraphicsRootDescriptorTable(db.rootIndex, db.handle);
+        }
     }
 };
 
@@ -248,7 +315,7 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->SetGraphicsRootSignature(mData.Get());
     }
@@ -261,7 +328,7 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->RSSetScissorRects(1, &mData);
     }
@@ -274,7 +341,7 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->IASetVertexBuffers(0, 1, &mData);
     }
@@ -287,7 +354,7 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->RSSetViewports(1, &mData);
     }
@@ -303,7 +370,7 @@ public:
         : RenderThreadDataExecutable(ClearRenderTargetArgs(rtv, r, g, b, a, clearRect))
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->ClearRenderTargetView(
             mData.rtv,
@@ -320,7 +387,7 @@ public:
         : RenderThreadDataExecutable(ClearDepthStencilArgs(dsv, depth, clearRect))
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->ClearDepthStencilView(mData.dsv, D3D12_CLEAR_FLAG_DEPTH, mData.depth, 0, 1, &mData.clearRect);
     }
@@ -341,9 +408,35 @@ public:
         , hasBox(false)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->CopyTextureRegion(&mData.dstLoc, mData.dstx, mData.dsty, 0, &mData.srcLoc, hasBox ? &mData.srcBox : nullptr);
+    }
+};
+
+class CopyBufferRegionAction: public RenderThreadDataExecutable<CopyBufferRegionArgs>
+{
+public:
+    CopyBufferRegionAction(const D3D12ResourcePtr& dst, uint64_t dstOffset, const D3D12ResourcePtr& src, uint64_t srcOffset, uint64_t size)
+        : RenderThreadDataExecutable({dst, dstOffset, src, srcOffset, size})
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
+    {
+        commandList->CopyBufferRegion(mData.dst.Get(), mData.dstOffset, mData.src.Get(), mData.srcOffset, mData.size);
+    }
+};
+
+class CopyResourceAction: public RenderThreadDataExecutable<CopyResourceArgs>
+{
+public:
+    CopyResourceAction(const D3D12ResourcePtr& dst, const D3D12ResourcePtr& src)
+        : RenderThreadDataExecutable({dst, src})
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
+    {
+        commandList->CopyResource(mData.dst.Get(), mData.src.Get());
     }
 };
 
@@ -354,7 +447,7 @@ public:
         : RenderThreadDataExecutable({elements, vbOffset})
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->DrawIndexedInstanced(mData.elements, 1, 0, mData.vbOffset, 0);
     }
@@ -367,7 +460,7 @@ public:
         : RenderThreadDataExecutable({dst, src, format})
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->ResolveSubresource(mData.dst, 0, mData.src, 0, mData.format);
     }
@@ -380,7 +473,7 @@ public:
         : RenderThreadDataExecutable({dst, dstx, dsty, src, srcRect, format})
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->ResolveSubresourceRegion(mData.dst, 0, mData.dstx, mData.dsty,
                                               mData.src, 0, &mData.srcRect,
@@ -389,70 +482,16 @@ public:
 };
 
 
-class ResourceBarrierAction: public RenderThreadDataExecutable<std::vector<D3D12_RESOURCE_BARRIER>>
+class ResourceBarrierAction: public RenderThreadDataExecutable<ResourceBarrierGroup>
 {
 public:
-    ResourceBarrierAction(const std::vector<D3D12_RESOURCE_BARRIER>& data)
-        : RenderThreadDataExecutable(data)
+    ResourceBarrierAction(const ResourceBarrierArray& data, uint32_t count)
+        : RenderThreadDataExecutable({data, count})
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
-        commandList->ResourceBarrier(static_cast<UINT>(mData.size()), mData.data());
-    }
-};
-
-class SetGraphicsShaders: public RenderThreadDataExecutable<GraphicsShaders>
-{
-public:
-    SetGraphicsShaders(const GraphicsShaders& data)
-        : RenderThreadDataExecutable(data)
-    {
-    }
-
-    void Execute(const D3D12GraphicsCommandListPtr&, RenderingContextState& state) override final
-    {
-        state.resourceManager.SetVertexShader(mData.vertexShader);
-        state.resourceManager.SetPixelShader(mData.pixelShader);
-    }
-};
-
-class SetVertexShaderConstants: public RenderThreadDataExecutable<Shader::ConstantBuffer>
-{
-public:
-    SetVertexShaderConstants(const NIPtr<Shader>& vertexShader)
-        : RenderThreadDataExecutable(vertexShader->GetConstantStorage())
-    {}
-
-    void Execute(const D3D12GraphicsCommandListPtr&, RenderingContextState& state) override final
-    {
-        state.resourceManager.SetVertexShaderConstants(std::move(mData));
-    }
-};
-
-class SetPixelShaderConstants: public RenderThreadDataExecutable<Shader::ConstantBuffer>
-{
-public:
-    SetPixelShaderConstants(const NIPtr<Shader>& pixelShader)
-        : RenderThreadDataExecutable(pixelShader->GetConstantStorage())
-    {}
-
-    void Execute(const D3D12GraphicsCommandListPtr&, RenderingContextState& state) override final
-    {
-        state.resourceManager.SetPixelShaderConstants(std::move(mData));
-    }
-};
-
-class SetTextures: public RenderThreadDataExecutable<TextureBank>
-{
-public:
-    SetTextures(const TextureBank& data)
-        : RenderThreadDataExecutable(data)
-    {}
-
-    void Execute(const D3D12GraphicsCommandListPtr&, RenderingContextState& state) override final
-    {
-        state.resourceManager.SetTextures(mData);
+        commandList->ResourceBarrier(mData.count, mData.barriers.data());
     }
 };
 
@@ -466,19 +505,31 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state) override final
     {
         const D3D12PipelineStatePtr& pso = state.PSOManager.GetPSO(mData);
         commandList->SetPipelineState(pso.Get());
     }
 };
 
-class ApplyComputeResources: public RenderThreadExecutable
+class ApplyComputeDescriptors: public RenderThreadDataExecutable<Descriptors>
 {
 public:
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state) override final
+    ApplyComputeDescriptors(const Descriptors& descriptors)
+        : RenderThreadDataExecutable(descriptors)
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
-        state.resourceManager.ApplyComputeResources(commandList);
+        for (const DescriptorBinding<D3D12_GPU_VIRTUAL_ADDRESS>& db: mData.CBVs)
+        {
+            commandList->SetComputeRootConstantBufferView(db.rootIndex, db.handle);
+        }
+
+        for (const DescriptorBinding<D3D12_GPU_DESCRIPTOR_HANDLE>& db: mData.DTs)
+        {
+            commandList->SetComputeRootDescriptorTable(db.rootIndex, db.handle);
+        }
     }
 };
 
@@ -489,7 +540,7 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->SetComputeRootSignature(mData.Get());
     }
@@ -502,35 +553,21 @@ public:
         : RenderThreadDataExecutable({x, y, z})
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->Dispatch(mData.x, mData.y, mData.z);
     }
 };
 
-class SetComputeShader: public RenderThreadDataExecutable<NIPtr<Shader>>
+
+// Other/internal Executables //
+
+class AdvanceCommandList: public RenderThreadExecutable
 {
 public:
-    SetComputeShader(const NIPtr<Shader>& data)
-        : RenderThreadDataExecutable(data)
-    {}
-
-    void Execute(const D3D12GraphicsCommandListPtr&, RenderingContextState& state) override final
+    void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
     {
-        state.resourceManager.SetComputeShader(mData);
-    }
-};
-
-class SetComputeShaderConstants: public RenderThreadDataExecutable<Shader::ConstantBuffer>
-{
-public:
-    SetComputeShaderConstants(const NIPtr<Shader>& computeShader)
-        : RenderThreadDataExecutable(computeShader->GetConstantStorage())
-    {}
-
-    void Execute(const D3D12GraphicsCommandListPtr&, RenderingContextState& state) override final
-    {
-        state.resourceManager.SetComputeShaderConstants(std::move(mData));
+        state.commandListPool.AdvanceCommandList();
     }
 };
 

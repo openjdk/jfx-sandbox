@@ -62,7 +62,7 @@ bool BlitPixelShader::Init(const std::string& name, ShaderPipelineMode mode, D3D
     return true;
 }
 
-bool BlitPixelShader::PrepareDescriptors(const TextureBank& textures, const Shader::ConstantBuffer&)
+bool BlitPixelShader::PrepareDescriptors(const TextureBank& textures)
 {
     if (!textures[0])
     {
@@ -77,10 +77,10 @@ bool BlitPixelShader::PrepareDescriptors(const TextureBank& textures, const Shad
     return true;
 }
 
-void BlitPixelShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const
+void BlitPixelShader::CollectDescriptors(Descriptors& descriptors) const
 {
-    commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.GPU(0));
-    commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mDescriptorData.SamplerDescriptors.GPU(0));
+    descriptors.AddDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.GPU(0));
+    descriptors.AddDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mDescriptorData.SamplerDescriptors.GPU(0));
 }
 
 } // namespace Internal

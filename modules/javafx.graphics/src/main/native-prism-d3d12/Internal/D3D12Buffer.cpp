@@ -150,38 +150,18 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
     }
 
     // prepare a temporary Command List to transfer data and/or transition our resource
-
-    // prepare most of our ResourceBarrier
-    D3D12_RESOURCE_BARRIER barrier;
-    D3D12NI_ZERO_STRUCT(barrier);
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource = mBufferResource.Get();
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-
+    D3D12_RESOURCE_STATES postCopyOldState = initialState;
     if (initialData != nullptr && mHeapType == D3D12_HEAP_TYPE_DEFAULT)
     {
-        // transition from COMMON to COPY_DEST state
-        barrier.Transition.StateBefore = initialState;
-        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+        postCopyOldState = D3D12_RESOURCE_STATE_COPY_DEST;
 
-        mNativeDevice->GetCurrentCommandList()->ResourceBarrier(1, &barrier);
-
-        // execute the copy operation
-        mNativeDevice->GetCurrentCommandList()->CopyResource(mBufferResource.Get(), stagingResource.Get());
-
-        // now the StateBefore should be COPY_DEST (we just transitioned to it)
-        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-    }
-    else
-    {
-        // No data copying was needed, so StateBefore is not COPY_DEST but COMMON
-        // (aka. what we provided at CreateCommittedResource)
-        barrier.Transition.StateBefore = initialState;
+        mNativeDevice->GetRenderingContext()->QueueResourceTransition(mBufferResource, initialState, postCopyOldState);
+        mNativeDevice->GetRenderingContext()->SubmitResourceTransitions();
+        mNativeDevice->GetRenderingContext()->CopyResource(mBufferResource, stagingResource);
     }
 
     // transition our Default-heap resource to its desired state
-    barrier.Transition.StateAfter = finalState;
-    mNativeDevice->GetCurrentCommandList()->ResourceBarrier(1, &barrier);
+    mNativeDevice->GetRenderingContext()->QueueResourceTransition(mBufferResource, postCopyOldState, finalState);
 
     // pass Staging Buffer along to release after the command list is flushed
     if (stagingResource) mNativeDevice->MarkResourceDisposed(stagingResource);

@@ -33,6 +33,7 @@
 #include "D3D12CommandListPool.hpp"
 #include "D3D12Config.hpp"
 #include "D3D12IRenderTarget.hpp"
+#include "D3D12LinearAllocator.hpp"
 #include "D3D12RingDescriptorHeap.hpp"
 #include "D3D12RenderThreadExecutable.hpp"
 #include "D3D12RenderPayload.hpp"
@@ -57,7 +58,7 @@ private:
     StepDependency mDependency;
 
 protected:
-    virtual RenderThreadExecutablePtr CreateExecutable() const = 0;
+    virtual RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const = 0;
 
     virtual bool CanBeSkipped() const
     {
@@ -73,11 +74,12 @@ public:
 
     virtual ~RenderingStep() {}
 
-    virtual void AddToPayload(const std::unique_ptr<RenderPayload>& payload)
+    virtual void AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload)
     {
         if (CanBeSkipped()) return;
 
-        payload->AddStep(CreateExecutable());
+        payload->AddStep(CreateExecutable(allocator));
+        mIsApplied = true;
     }
 
     void ClearApplied()
@@ -105,9 +107,9 @@ protected:
         mIsSet = true;
     }
 
-    RenderThreadExecutablePtr CreateExecutable() const override final
+    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const override final
     {
-        return std::make_unique<Executable>(mParameter);
+        return CreateRTExec<Executable>(allocator, mParameter);
     }
 
     bool CanBeSkipped() const override final
@@ -146,51 +148,34 @@ public:
     }
 };
 
-template <typename T, typename Executable>
-class RenderingResource: public RenderingParameter<T, Executable>
-{
-public:
-    RenderingResource()
-        : RenderingParameter()
-    {}
-
-    virtual void AddToPayload(const RenderPayloadPtr& payload) override
-    {
-        if (CanBeSkipped()) return;
-
-        payload->AddResourceStep(CreateExecutable());
-    }
-};
-
-
-// generic Shader Constants resource
-// requires slightly different path checking if shader's constants are dirtied
-
-template <typename Executable>
-class ShaderConstantsResource: public RenderingParameter<NIPtr<Shader>, Executable>
-{
-public:
-    ShaderConstantsResource()
-        : RenderingParameter()
-    {}
-
-    virtual void AddToPayload(const RenderPayloadPtr& payload) override
-    {
-        if (CanBeSkipped() && !mParameter->AreConstantsDirty()) return;
-
-        payload->AddResourceStep(CreateExecutable());
-        mParameter->SetConstantsDirty(false);
-    }
-};
-
 
 // Graphics parameters //
 
-class DescriptorHeapRenderingStep: public RenderingStep
+class DescriptorHeapsRenderingParameter: public RenderingParameter<DescriptorHeaps, ApplyDescriptorHeaps>
 {
-    RenderThreadExecutablePtr CreateExecutable() const override
+public:
+    void SetHeap(const D3D12DescriptorHeapPtr& heap)
     {
-        return std::make_unique<ApplyDescriptorHeaps>();
+        mParameter.heap = heap;
+        FlagSet();
+    }
+
+    void SetSamplerHeap(const D3D12DescriptorHeapPtr& heap)
+    {
+        mParameter.samplerHeap = heap;
+        FlagSet();
+    }
+};
+
+class DescriptorsRenderingParameter: public RenderingParameter<Descriptors, ApplyDescriptors>
+{
+public:
+    void MoveDescriptors(Descriptors&& descriptors)
+    {
+        if (descriptors.CBVs.size() == 0 && descriptors.DTs.size() == 0) return;
+
+        mParameter = std::move(descriptors);
+        FlagSet();
     }
 };
 
@@ -256,42 +241,6 @@ class ScissorRenderingParameter: public RenderingParameter<D3D12_RECT, ApplyScis
 class VertexBufferRenderingParameter: public RenderingParameter<D3D12_VERTEX_BUFFER_VIEW, ApplyVertexBuffer> {};
 class ViewportRenderingParameter: public RenderingParameter<D3D12_VIEWPORT, ApplyViewport> {};
 
-// Graphics resources //
-
-class GraphicsShadersRenderingParameter: public RenderingResource<GraphicsShaders, SetGraphicsShaders>
-{
-public:
-    void SetVertexShader(const NIPtr<Shader>& vertexShader)
-    {
-        mParameter.vertexShader = vertexShader;
-        FlagSet();
-    }
-
-    void SetPixelShader(const NIPtr<Shader>& pixelShader)
-    {
-        mParameter.pixelShader = pixelShader;
-        FlagSet();
-    }
-};
-
-class TextureRenderingParameter: public RenderingResource<TextureBank, SetTextures>
-{
-public:
-    void SetTexture(uint32_t unit, const NIPtr<TextureBase>& texture)
-    {
-        mParameter[unit] = texture;
-        FlagSet();
-    }
-
-    const NIPtr<TextureBase>& GetTexture(uint32_t unit) const
-    {
-        return mParameter[unit];
-    }
-};
-
-class VertexShaderConstantsRenderingStep: public ShaderConstantsResource<SetVertexShaderConstants> {};
-class PixelShaderConstantsRenderingStep: public ShaderConstantsResource<SetPixelShaderConstants> {};
-
 
 // Compute parameters //
 
@@ -306,11 +255,6 @@ public:
 };
 
 class ComputeRootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr, ApplyComputeRootSignature> {};
-
-// Compute resources //
-
-class ComputeShaderRenderingParameter: public RenderingResource<NIPtr<Shader>, SetComputeShader> {};
-class ComputeShaderConstantsRenderingStep: public ShaderConstantsResource<SetComputeShaderConstants> {};
 
 } // namespace Internal
 } // namespace D3D12

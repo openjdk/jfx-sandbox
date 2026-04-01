@@ -31,12 +31,17 @@
 
 #include "D3D12CommandListPool.hpp"
 #include "D3D12IRenderTarget.hpp"
+#include "D3D12LinearAllocator.hpp"
 #include "D3D12Matrix.hpp"
 #include "D3D12RenderPayload.hpp"
 #include "D3D12PSOManager.hpp"
 
 #include <unordered_set>
 #include <forward_list>
+#include <thread>
+#include <condition_variable>
+#include <mutex>
+#include <queue>
 
 
 namespace D3D12 {
@@ -46,10 +51,18 @@ namespace Internal {
 class RenderThread
 {
     NIPtr<NativeDevice> mNativeDevice;
-    D3D12CommandQueuePtr mCommandQueue;
-    RenderingContextState mState;
+    RenderThreadState mState;
+    RenderPayloadPtr mNullPayload; // used to leave FetchPayload() without returning a temporary ref
 
-    // TODO actually add a thread here
+    std::condition_variable mPayloadAvailableCV;
+    std::condition_variable mQueueEmptyCV;
+    std::mutex mPayloadQueueMutex;
+    std::queue<RenderPayloadPtr> mPayloadQueue;
+    std::atomic<bool> mWorkerDone;
+    std::thread mWorkerThread;
+
+    RenderPayloadPtr& FetchPayload();
+    void WorkerMain();
 
 public:
     RenderThread(const NIPtr<NativeDevice>& nativeDevice);
@@ -58,6 +71,13 @@ public:
     bool Init();
     void Execute(RenderPayloadPtr&& payload);
     void WaitForCompletion();
+    D3D12GraphicsCommandListPtr FinalizeCommandList(LinearAllocator& allocator, RenderPayloadPtr&& payload);
+    void Exit();
+
+    inline void AdvanceCommandAllocator()
+    {
+        mState.commandListPool.AdvanceAllocator();
+    }
 };
 
 } // namespace Internal

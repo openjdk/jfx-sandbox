@@ -35,6 +35,7 @@
 #include <comdef.h>
 #include <wrl/client.h>
 #include <jni.h>
+#include <array>
 #include <memory>
 #include <string>
 #include <cassert>
@@ -541,6 +542,37 @@ inline size_t GetPixelFormatBPP(PixelFormat f)
         return 0;
     }
 }
+
+template <typename DescriptorType>
+struct DescriptorBinding
+{
+    uint32_t rootIndex;
+    DescriptorType handle;
+
+    DescriptorBinding(uint32_t idx, DescriptorType h)
+        : rootIndex(idx)
+        , handle(h)
+    {}
+};
+
+template <typename DescriptorType>
+using DescriptorMappings = std::vector<DescriptorBinding<DescriptorType>>;
+
+struct Descriptors
+{
+    DescriptorMappings<D3D12_GPU_VIRTUAL_ADDRESS> CBVs;
+    DescriptorMappings<D3D12_GPU_DESCRIPTOR_HANDLE> DTs;
+
+    void AddConstantBufferView(uint32_t rootIndex, const D3D12_GPU_VIRTUAL_ADDRESS& address)
+    {
+        CBVs.emplace_back(rootIndex, address);
+    }
+
+    void AddDescriptorTable(uint32_t rootIndex, const D3D12_GPU_DESCRIPTOR_HANDLE& handle)
+    {
+        DTs.emplace_back(rootIndex, handle);
+    }
+};
 
 } // namespace D3D12
 

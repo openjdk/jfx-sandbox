@@ -201,7 +201,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     return true;
 }
 
-bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures, const Shader::ConstantBuffer& constants)
+bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures)
 {
     for (uint32_t i = 0; i < mResourceData.textureCount; ++i)
     {
@@ -211,7 +211,7 @@ bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures, con
         }
     }
 
-    if (constants.size() > 0)
+    if (mConstantBufferStorage.size() > 0)
     {
         if (!mDescriptorData.ConstantDataDirectRegion)
         {
@@ -220,24 +220,24 @@ bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures, con
             return false;
         }
 
-        memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, constants.data(), constants.size());
+        memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, mConstantBufferStorage.data(), mConstantBufferStorage.size());
     }
 
     return true;
 }
 
-void NativeShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const
+void NativeShader::CollectDescriptors(Descriptors& descriptors) const
 {
     // NativeShaders are always Pixel shaders
     if (mResourceData.textureCount > 0)
     {
-        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.gpu);
-        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mDescriptorData.SamplerDescriptors.gpu);
+        descriptors.AddDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.gpu);
+        descriptors.AddDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mDescriptorData.SamplerDescriptors.gpu);
     }
 
     if (mDescriptorData.ConstantDataDirectRegion)
     {
-        commandList->SetGraphicsRootConstantBufferView(ShaderSlots::GRAPHICS_RS_PS_DATA, mDescriptorData.ConstantDataDirectRegion.gpu);
+        descriptors.AddConstantBufferView(ShaderSlots::GRAPHICS_RS_PS_DATA, mDescriptorData.ConstantDataDirectRegion.gpu);
     }
 }
 

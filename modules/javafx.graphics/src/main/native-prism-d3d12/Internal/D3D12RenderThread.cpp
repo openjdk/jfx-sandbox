@@ -28,19 +28,59 @@
 #include "../D3D12NativeDevice.hpp"
 
 #include "D3D12Config.hpp"
+#include "D3D12Debug.hpp"
 #include "D3D12Profiler.hpp"
+#include "D3D12Logger.hpp"
 
 
 namespace D3D12 {
 namespace Internal {
 
-// Thread
+RenderPayloadPtr& RenderThread::FetchPayload()
+{
+    std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
+
+    if (mPayloadQueue.size() > 0)
+    {
+        // we're here because there used to be an element on queue that we just finished
+        // we should pop right now (and not when
+        mPayloadQueue.pop();
+    }
+
+    while (mPayloadQueue.size() == 0)
+    {
+        mQueueEmptyCV.notify_one();
+
+        mPayloadAvailableCV.wait(lock);
+        if (mWorkerDone) return mNullPayload;
+    }
+
+    return mPayloadQueue.front();
+}
+
+void RenderThread::WorkerMain()
+{
+    while (!mWorkerDone)
+    {
+        RenderPayloadPtr& curPayload = FetchPayload();
+        if (!curPayload) continue;
+
+        // record what is needed on the Command List
+        curPayload->ApplySteps(mState.commandListPool.CurrentCommandList(), mState);
+    }
+}
 
 RenderThread::RenderThread(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
-    , mCommandQueue()
     , mState(nativeDevice)
+    , mNullPayload(nullptr, LinearAllocatorDeleter<RenderPayload>(nullptr))
+    , mPayloadAvailableCV()
+    , mPayloadQueueMutex()
+    , mPayloadQueue()
+    , mWorkerDone(false)
+    , mWorkerThread(&RenderThread::WorkerMain, this)
 {
+    SetThreadDescription(mWorkerThread.native_handle(), L"JavaFX D3D12 RenderThread");
 }
 
 bool RenderThread::Init()
@@ -51,9 +91,12 @@ bool RenderThread::Init()
         return false;
     }
 
-    if (!mState.resourceManager.Init())
+    // NOTE: Command List Pool requires to have as many Command Allocators as SwapChain buffers + 1
+    // This is the minimum we need (one per frame) and also ensures an extra one to pre-record more commands
+    // if both SwapChain buffers are full.
+    if (!mState.commandListPool.Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 16, 4))
     {
-        D3D12NI_LOG_ERROR("Failed to initialize Resource Manager");
+        D3D12NI_LOG_ERROR("Failed to initialize Command List Pool");
         return false;
     }
 
@@ -62,52 +105,51 @@ bool RenderThread::Init()
 
 void RenderThread::Execute(RenderPayloadPtr&& payload)
 {
-    RenderPayloadPtr curPayload(std::move(payload));
+    D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::Execute() can only be called from main thread");
 
-    // TODO move below to separate thread
-    {
-        // apply any resource changes the Payload brought us
-        curPayload->ApplyResourceSteps(mState);
+    std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
+    mPayloadQueue.emplace(std::move(payload));
 
-        switch (curPayload->GetType())
-        {
-        case RenderPayload::Type::GRAPHICS:
-        {
-            // go through ResourceManager and prepare the descriptors and shader constants
-            mState.resourceManager.DeclareRingResources();
-            if (!mState.resourceManager.PrepareResources())
-            {
-                D3D12NI_LOG_ERROR("Failed to prepare resources for recording Command List data");
-                return;
-            }
-            break;
-        }
-        case RenderPayload::Type::COMPUTE:
-        {
-            mState.resourceManager.DeclareComputeRingResources();
-            if (!mState.resourceManager.PrepareComputeResources())
-            {
-                D3D12NI_LOG_ERROR("Failed to prepare resources for recording Command List data");
-                return;
-            }
-            break;
-        }
-        default:
-            // assume this payload is not ending with a draw or a dispatch, no resources are needed
-            break;
-        }
-
-        // record what is needed on the Command List
-        const D3D12GraphicsCommandListPtr& commandList = mNativeDevice->GetCurrentCommandList();
-        if (!commandList) return;
-
-        curPayload->ApplySteps(commandList, mState);
-    }
+    mPayloadAvailableCV.notify_one();
 }
 
 void RenderThread::WaitForCompletion()
 {
-    // TODO for now noop, will be filled in later
+    D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::WaitForCompletion() can only be called from main thread");
+
+    std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
+    while (mPayloadQueue.size() != 0)
+    {
+        mQueueEmptyCV.wait(lock);
+    }
+}
+
+D3D12GraphicsCommandListPtr RenderThread::FinalizeCommandList(LinearAllocator& allocator, RenderPayloadPtr&& payload)
+{
+    D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::FinalizeCommandList() can only be called from main thread");
+
+    // Command List has to be closed by the Render Thread, otherwise we risk thread safety
+    // We'll do this by a custom Payload that will be added to the Queue and executed
+    // First grab the reference to the current Command List - we can be sure this is what we return
+    const D3D12GraphicsCommandListPtr& currentList = mState.commandListPool.CurrentCommandListRef();
+
+    // Then submit the payload advancing the command list
+    payload->AddStep(CreateRTExec<AdvanceCommandList>(allocator));
+    Execute(std::move(payload));
+    WaitForCompletion();
+
+    // this list should now be closed and we can return it for execution on a Command Queue
+    return currentList;
+}
+
+void RenderThread::Exit()
+{
+    std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
+
+    mWorkerDone = true;
+    mPayloadAvailableCV.notify_one();
+
+    mWorkerThread.join();
 }
 
 } // namespace Internal

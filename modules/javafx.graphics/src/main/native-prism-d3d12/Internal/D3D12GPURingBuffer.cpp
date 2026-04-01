@@ -80,17 +80,9 @@ bool GPURingBuffer::Init(size_t flushThreshold, size_t alignment, size_t size)
 
     mGPUResourcePtr = mGPUBufferResource->GetGPUVirtualAddress();
 
-    D3D12_RESOURCE_BARRIER barrier;
-    D3D12NI_ZERO_STRUCT(barrier);
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource = mGPUBufferResource.Get();
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    mNativeDevice->GetCurrentCommandList()->ResourceBarrier(1, &barrier);
-
-    // to ensure the transition happens, just in case
-    mNativeDevice->FlushCommandList(CheckpointType::TRANSFER);
+    // transition GPU-side buffer to Vertex Buffer state
+    mNativeDevice->GetRenderingContext()->QueueResourceTransition(mGPUBufferResource, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    mNativeDevice->GetRenderingContext()->SubmitResourceTransitions();
 
     mChunkToTransferStart = 0;
     mChunkToTransferSize = 0;
@@ -115,35 +107,30 @@ GPURingBuffer::GPURegion GPURingBuffer::ReserveCPU(size_t size)
     return result;
 }
 
-void GPURingBuffer::RecordTransferToGPU(const D3D12GraphicsCommandListPtr& commandList)
+void GPURingBuffer::RecordTransferToGPU()
 {
     // we assume Current Command List is empty, this should be called right after Pool::AdvanceCommandList()
+    const NIPtr<RenderingContext>& context = mNativeDevice->GetRenderingContext();
 
-    D3D12_RESOURCE_BARRIER barrier;
-    D3D12NI_ZERO_STRUCT(barrier);
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource = mGPUBufferResource.Get();
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-
-    commandList->ResourceBarrier(1, &barrier);
+    context->QueueResourceTransition(mGPUBufferResource, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
+    context->SubmitResourceTransitions();
 
     if (mChunkToTransferStart + mChunkToTransferSize > mSize)
     {
         // double transfer - offset + size cross buffer boundaries
         // first, copy from current offset to end
         size_t remainder = mSize - mChunkToTransferStart;
-        commandList->CopyBufferRegion(
-            mGPUBufferResource.Get(), mChunkToTransferStart,
-            mBufferResource.Get(), mChunkToTransferStart,
+
+        context->CopyBufferRegion(
+            mGPUBufferResource, mChunkToTransferStart,
+            mBufferResource, mChunkToTransferStart,
             remainder
         );
 
         // second, copy from beginning to the rest of data
-        commandList->CopyBufferRegion(
-            mGPUBufferResource.Get(), 0,
-            mBufferResource.Get(), 0,
+        context->CopyBufferRegion(
+            mGPUBufferResource, 0,
+            mBufferResource, 0,
             mChunkToTransferSize - remainder
         );
 
@@ -152,9 +139,9 @@ void GPURingBuffer::RecordTransferToGPU(const D3D12GraphicsCommandListPtr& comma
     else
     {
         // single transfer - offset + size doesn't cross buffer boundaries
-        commandList->CopyBufferRegion(
-            mGPUBufferResource.Get(), mChunkToTransferStart,
-            mBufferResource.Get(), mChunkToTransferStart,
+        context->CopyBufferRegion(
+            mGPUBufferResource, mChunkToTransferStart,
+            mBufferResource, mChunkToTransferStart,
             mChunkToTransferSize
         );
 
@@ -164,9 +151,8 @@ void GPURingBuffer::RecordTransferToGPU(const D3D12GraphicsCommandListPtr& comma
 
     mChunkToTransferSize = 0;
 
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-    commandList->ResourceBarrier(1, &barrier);
+    context->QueueResourceTransition(mGPUBufferResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
+    context->SubmitResourceTransitions();
 }
 
 void GPURingBuffer::SetDebugName(const std::string& name)

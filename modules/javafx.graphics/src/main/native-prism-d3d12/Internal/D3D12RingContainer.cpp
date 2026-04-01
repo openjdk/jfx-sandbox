@@ -58,7 +58,7 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
             // somewhere else) to prevent it from triggering.
             D3D12NI_LOG_WARN("Triggered a mid-frame Command List flush right before waiting for next checkpoint."
                 "This might cause some glitches and generally should be prevented");
-            mNativeDevice->FlushCommandList(CheckpointType::MIDFRAME);
+            mNativeDevice->GetRenderingContext()->FlushCommandList(CheckpointType::MIDFRAME);
         }
 
         // await for any waitable set by FlushCommandList()
@@ -67,7 +67,7 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
         //    mDebugName.c_str(), mUsed, mUncommitted, mFlushThreshold, mSize
         //);
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Wait);
-        bool waitSuccess = mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ANY);
+        bool waitSuccess = mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ANY);
         if (!waitSuccess)
         {
             D3D12NI_LOG_WARN("Failed to wait on mid-frame waitable");
@@ -271,7 +271,7 @@ void RingContainer::DeclareRequired(size_t size)
     if ((mUncommitted > 0) && (mUncommitted + realSizeNeeded > mFlushThreshold))
     {
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Signal);
-        mNativeDevice->FlushCommandList(CheckpointType::MIDFRAME);
+        mNativeDevice->GetRenderingContext()->FlushCommandList(CheckpointType::MIDFRAME);
     }
 }
 

@@ -50,9 +50,9 @@ void CommandListPool::WaitForAvailableCommandList()
     Profiler::Instance().MarkEvent(mCommandListProfilerID, Profiler::Event::Wait);
 
     while (mCommandLists[mCurrentCommandList].state == CommandListState::Closed &&
-           mNativeDevice->GetCheckpointQueue().HasCheckpoints())
+           !mNativeDevice->GetRenderingContext()->CheckpointQueueEmpty())
     {
-        mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ANY);
+        mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ANY);
     }
 
     // if this assertion ever triggers, there is something terribly wrong
@@ -66,9 +66,9 @@ void CommandListPool::WaitForAvailableCommandAllocator()
     Profiler::Instance().MarkEvent(mCommandAllocatorProfilerID, Profiler::Event::Wait);
 
     while (mCommandAllocators[mCurrentCommandAllocator].state == CommandListState::Closed &&
-           mNativeDevice->GetCheckpointQueue().HasCheckpoints())
+           !mNativeDevice->GetRenderingContext()->CheckpointQueueEmpty())
     {
-        mNativeDevice->GetCheckpointQueue().WaitForNextCheckpoint(CheckpointType::ENDFRAME);
+        mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ENDFRAME);
     }
 
     // if this assertion ever triggers there is something terribly wrong

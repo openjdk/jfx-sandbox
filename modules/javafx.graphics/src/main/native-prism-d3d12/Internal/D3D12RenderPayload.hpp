@@ -29,9 +29,10 @@
 
 #include "../D3D12NativeTexture.hpp"
 
+#include "D3D12LinearAllocator.hpp"
 #include "D3D12RenderThreadExecutable.hpp"
 
-#include <list>
+#include <array>
 
 
 namespace D3D12 {
@@ -40,71 +41,40 @@ namespace Internal {
 // collects steps that need to be processed by the Rendering Thread
 class RenderPayload
 {
-public:
-    enum class Type: uint8_t
-    {
-        OTHER = 0,
-        GRAPHICS,
-        COMPUTE
-    };
-
 private:
-    // TODO this might need a custom allocator
-    using StepList = std::list<RenderThreadExecutablePtr>;
+    static const uint32_t PAYLOAD_LIMIT = 4096;
+    using StepList = std::vector<RenderThreadExecutablePtr>;
 
-    StepList mResourceSteps;
     StepList mSteps;
-    Type mType;
 
 public:
     RenderPayload()
-        : mResourceSteps()
-        , mSteps()
-    {}
-
-    void AddResourceStep(RenderThreadExecutablePtr&& executable)
+        : mSteps()
     {
-        mResourceSteps.push_back(std::move(executable));
+        mSteps.reserve(PAYLOAD_LIMIT + 24);
     }
 
-    void AddStep(RenderThreadExecutablePtr&& executable)
+    bool AddStep(RenderThreadExecutablePtr&& executable)
     {
-        mSteps.push_back(std::move(executable));
+        mSteps.emplace_back(std::move(executable));
+        return (mSteps.size() > PAYLOAD_LIMIT);
     }
 
-    void ApplyResourceSteps(RenderingContextState& state)
+    void ApplySteps(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state)
     {
-        for (const RenderThreadExecutablePtr& executable: mResourceSteps)
+        for (uint32_t i = 0; i < mSteps.size(); ++i)
         {
-            executable->Execute(nullptr, state);
+            mSteps[i]->Execute(commandList, state);
         }
-    }
-
-    void ApplySteps(const D3D12GraphicsCommandListPtr& commandList, RenderingContextState& state)
-    {
-        for (const RenderThreadExecutablePtr& executable: mSteps)
-        {
-            executable->Execute(commandList, state);
-        }
-    }
-
-    void Finalize(Type type)
-    {
-        mType = type;
     }
 
     bool HasWork() const
     {
-        return (mResourceSteps.size() > 0) || (mSteps.size() > 0);
-    }
-
-    Type GetType()
-    {
-        return mType;
+        return (mSteps.size() > 0);
     }
 };
 
-using RenderPayloadPtr = std::unique_ptr<RenderPayload>;
+using RenderPayloadPtr = std::unique_ptr<RenderPayload, LinearAllocatorDeleter<RenderPayload>>;
 
 } // namespace Internal
 } // namespace D3D12
