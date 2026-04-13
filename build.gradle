@@ -2762,6 +2762,7 @@ project(":graphics") {
     }
     if (IS_WINDOWS) {
         nativeDecora.dependsOn(compileDecoraHLSLShaders)
+        nativeDecora.dependsOn(compileDecoraHLSL6Shaders)
     }
     if (IS_MAC) {
         nativeDecora.dependsOn(compileDecoraMSLShaders)
@@ -2915,6 +2916,7 @@ project(":graphics") {
     }
     project.processShaders.dependsOn(initShaderDirs)
     nativePrism.dependsOn compilePrismHLSLShaders;
+    nativePrism.dependsOn compilePrismHLSL6Shaders;
     if (IS_MAC) {
         nativePrism.dependsOn compilePrismMSLShaders;
     }
