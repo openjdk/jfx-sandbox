@@ -33,6 +33,7 @@ namespace Internal {
 
 void LinearAllocator::Expand()
 {
+    D3D12NI_LOG_TRACE("--- LinearAllocator - expanding with new chunk size %d (current chunks %d) ---", mSizePerChunk, mChunks.size());
     mChunks.emplace_back(mSizePerChunk);
     mCurrentChunk = &mChunks.back();
 }
@@ -51,8 +52,15 @@ LinearAllocator::~LinearAllocator()
 {
 }
 
+// called when frame is finished; goal is to allocate a new large enough
+// chunk to prevent further allocations
 void LinearAllocator::MoveToNewChunk()
 {
+    // TODO: D3D12: A small optimization would be to avoid allocating a new chunk every frame
+    // (and freeing the old one). Ideally we would hit a large enough chunk size that the entire
+    // frame would fit in it, and then it would be reclaimed. However, since RenderingContext always
+    // assumes there is always a Payload available for use, it will always hold the Chunk alive.
+    // Investigate if it's even worth it.
     while (mUsedBeforeLastMove > mSizePerChunk)
     {
         mSizePerChunk += CHUNK_SIZE;
@@ -107,6 +115,7 @@ void LinearAllocator::Free(void* ptr)
 
             if (mCurrentChunk->FullyFreed())
             {
+                D3D12NI_LOG_TRACE("--- LinearAllocator - Reclaiming current chunk ---");
                 mCurrentChunk->Reclaim();
             }
 
@@ -125,6 +134,9 @@ void LinearAllocator::Free(void* ptr)
             c.Free(ptr);
             if (c.FullyFreed())
             {
+                // relocking to not corrupt the Chunk list
+                std::unique_lock<std::mutex> lock(mAllocatorMutex);
+                D3D12NI_LOG_TRACE("--- LinearAllocator - Freeing chunk size %d (currently %d chunks) ---", c.mSize, mChunks.size());
                 mChunks.erase(it);
             }
 

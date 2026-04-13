@@ -43,7 +43,7 @@ RenderPayloadPtr& RenderThread::FetchPayload()
     if (mPayloadQueue.size() > 0)
     {
         // we're here because there used to be an element on queue that we just finished
-        // we should pop right now (and not when
+        // we should pop right now
         mPayloadQueue.pop();
     }
 
@@ -144,8 +144,6 @@ D3D12GraphicsCommandListPtr RenderThread::FinalizeCommandList(LinearAllocator& a
 
 void RenderThread::Exit()
 {
-    std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
-
     mWorkerDone = true;
     mPayloadAvailableCV.notify_one();
 

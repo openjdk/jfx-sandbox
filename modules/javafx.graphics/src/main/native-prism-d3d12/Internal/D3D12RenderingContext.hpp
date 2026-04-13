@@ -203,7 +203,7 @@ class RenderingContext
     // Compute Pipeline
     ComputePipelineStateRenderingParameter mComputePipelineState;
     ComputeRootSignatureRenderingParameter mComputeRootSignature;
-    DescriptorsRenderingParameter mComputeDescriptors;
+    ComputeDescriptorsRenderingParameter mComputeDescriptors;
 
     // Used RTTs for finish-frame-time BBox invalidation
     // Prism can "juggle" the RTTs between frames, so our dirty-bbox optimization can
@@ -230,9 +230,10 @@ class RenderingContext
 
 public:
     RenderingContext(const NIPtr<NativeDevice>& nativeDevice);
-    ~RenderingContext();
+    ~RenderingContext() = default;
 
     bool Init();
+    void Release();
 
     bool Apply();
     bool ApplyCompute();

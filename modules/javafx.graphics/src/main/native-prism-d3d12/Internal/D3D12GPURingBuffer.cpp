@@ -79,10 +79,7 @@ bool GPURingBuffer::Init(size_t flushThreshold, size_t alignment, size_t size)
     mGPUBufferResource->SetName(L"Ring Buffer Resource (GPU)");
 
     mGPUResourcePtr = mGPUBufferResource->GetGPUVirtualAddress();
-
-    // transition GPU-side buffer to Vertex Buffer state
-    mNativeDevice->GetRenderingContext()->QueueResourceTransition(mGPUBufferResource, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    mNativeDevice->GetRenderingContext()->SubmitResourceTransitions();
+    mGPUResourceState = D3D12_RESOURCE_STATE_COMMON;
 
     mChunkToTransferStart = 0;
     mChunkToTransferSize = 0;
@@ -112,7 +109,7 @@ void GPURingBuffer::RecordTransferToGPU()
     // we assume Current Command List is empty, this should be called right after Pool::AdvanceCommandList()
     const NIPtr<RenderingContext>& context = mNativeDevice->GetRenderingContext();
 
-    context->QueueResourceTransition(mGPUBufferResource, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, D3D12_RESOURCE_STATE_COPY_DEST);
+    context->QueueResourceTransition(mGPUBufferResource, mGPUResourceState, D3D12_RESOURCE_STATE_COPY_DEST);
     context->SubmitResourceTransitions();
 
     if (mChunkToTransferStart + mChunkToTransferSize > mSize)
@@ -153,6 +150,7 @@ void GPURingBuffer::RecordTransferToGPU()
 
     context->QueueResourceTransition(mGPUBufferResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
     context->SubmitResourceTransitions();
+    mGPUResourceState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 }
 
 void GPURingBuffer::SetDebugName(const std::string& name)

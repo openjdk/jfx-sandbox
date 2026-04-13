@@ -172,7 +172,7 @@ class DescriptorsRenderingParameter: public RenderingParameter<Descriptors, Appl
 public:
     void MoveDescriptors(Descriptors&& descriptors)
     {
-        if (descriptors.CBVs.size() == 0 && descriptors.DTs.size() == 0) return;
+        if (descriptors.CBVCount == 0 && descriptors.DTCount == 0) return;
 
         mParameter = std::move(descriptors);
         FlagSet();
@@ -250,6 +250,18 @@ public:
     void SetComputeShader(const NIPtr<Shader>& shader)
     {
         mParameter.shader = shader;
+        FlagSet();
+    }
+};
+
+class ComputeDescriptorsRenderingParameter: public RenderingParameter<Descriptors, ApplyComputeDescriptors>
+{
+public:
+    void MoveDescriptors(Descriptors&& descriptors)
+    {
+        if (descriptors.CBVCount == 0 && descriptors.DTCount == 0) return;
+
+        mParameter = std::move(descriptors);
         FlagSet();
     }
 };

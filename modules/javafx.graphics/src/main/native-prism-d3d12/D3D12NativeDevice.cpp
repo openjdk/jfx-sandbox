@@ -120,7 +120,6 @@ NativeDevice::NativeDevice()
     , mFrameCounter(0)
     , mProfilerTransferWaitSourceID(0)
     , mProfilerFrameTimeID(0)
-    , mProfilerRecordTimeID(0)
     , mMidframeFlushNeeded(false)
     , mWaitableOps()
     , mRootSignatureManager()
@@ -243,7 +242,6 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
 
     mProfilerTransferWaitSourceID = Internal::Profiler::Instance().RegisterSource("NativeDevice Transfer Wait");
     mProfilerFrameTimeID = Internal::Profiler::Instance().RegisterSource("Frame Time");
-    mProfilerRecordTimeID = Internal::Profiler::Instance().RegisterSource("Record Time");
 
     Internal::Profiler::Instance().TimingStart(mProfilerFrameTimeID);
     return true;
@@ -258,7 +256,12 @@ void NativeDevice::Release()
 
     mWaitableOps.clear();
 
-    if (mRenderingContext) mRenderingContext.reset();
+    if (mRenderingContext)
+    {
+        mRenderingContext->Release();
+        mRenderingContext.reset();
+    }
+
     if (m2DIndexBuffer) m2DIndexBuffer.reset();
     if (mShaderLibrary) mShaderLibrary.reset();
     if (mRTVAllocator) mRTVAllocator.reset();
@@ -409,12 +412,8 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     uint32_t vbOffset = 0;
     BBox dirtyBBox = mRenderingContext->SetVertexBufferForQuads(vertices, colors, vertexCount, vbOffset);
 
-    //Internal::Profiler::Instance().TimingStart(mProfilerRecordTimeID);
-
     // draw the quads converting vertexCount to indexCount - 1 quad is 4 vertices, or 6 indices
     mRenderingContext->Draw((vertexCount / 4) * 6, vbOffset, dirtyBBox);
-
-    //Internal::Profiler::Instance().TimingEnd(mProfilerRecordTimeID);
 
     if (mMidframeFlushNeeded)
     {
@@ -474,11 +473,7 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
         mRenderingContext->SetTexture(i, material->GetMap(static_cast<TextureMapType>(i)));
     }
 
-    //Internal::Profiler::Instance().TimingStart(mProfilerRecordTimeID);
-
     mRenderingContext->Draw(mesh->GetIndexCount(), 0);
-
-    //Internal::Profiler::Instance().TimingEnd(mProfilerRecordTimeID);
 
     if (mMidframeFlushNeeded)
     {

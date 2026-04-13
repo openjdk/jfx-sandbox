@@ -53,6 +53,7 @@ public:
 private:
     D3D12ResourcePtr mGPUBufferResource;
     D3D12_GPU_VIRTUAL_ADDRESS mGPUResourcePtr;
+    D3D12_RESOURCE_STATES mGPUResourceState;
     size_t mChunkToTransferStart;
     size_t mChunkToTransferSize;
 

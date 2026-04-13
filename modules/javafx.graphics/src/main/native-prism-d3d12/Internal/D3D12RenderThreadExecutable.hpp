@@ -34,6 +34,7 @@
 #include "D3D12TextureBase.hpp"
 
 #include <memory>
+#include <algorithm>
 
 
 namespace D3D12 {
@@ -43,16 +44,10 @@ struct RenderThreadState
 {
     PSOManager PSOManager;
     CommandListPool commandListPool;
-    bool clearDelayed;
-    D3D12_RECT clearRect;
-    bool clearDepth;
 
     RenderThreadState(const NIPtr<NativeDevice>& nativeDevice)
         : PSOManager(nativeDevice)
         , commandListPool(nativeDevice)
-        , clearDelayed(false)
-        , clearRect()
-        , clearDepth(false)
     {
     }
 };
@@ -294,16 +289,16 @@ public:
         : RenderThreadDataExecutable(descriptors)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state) override final
     {
-        for (const DescriptorBinding<D3D12_GPU_VIRTUAL_ADDRESS>& db: mData.CBVs)
+        for (uint32_t i = 0; i < mData.CBVCount; ++i)
         {
-            commandList->SetGraphicsRootConstantBufferView(db.rootIndex, db.handle);
+            commandList->SetGraphicsRootConstantBufferView(mData.CBVs[i].rootIndex, mData.CBVs[i].handle);
         }
 
-        for (const DescriptorBinding<D3D12_GPU_DESCRIPTOR_HANDLE>& db: mData.DTs)
+        for (uint32_t i = 0; i < mData.DTCount; ++i)
         {
-            commandList->SetGraphicsRootDescriptorTable(db.rootIndex, db.handle);
+            commandList->SetGraphicsRootDescriptorTable(mData.DTs[i].rootIndex, mData.DTs[i].handle);
         }
     }
 };
@@ -519,16 +514,16 @@ public:
         : RenderThreadDataExecutable(descriptors)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state) override final
     {
-        for (const DescriptorBinding<D3D12_GPU_VIRTUAL_ADDRESS>& db: mData.CBVs)
+        for (uint32_t i = 0; i < mData.CBVCount; ++i)
         {
-            commandList->SetComputeRootConstantBufferView(db.rootIndex, db.handle);
+            commandList->SetComputeRootConstantBufferView(mData.CBVs[i].rootIndex, mData.CBVs[i].handle);
         }
 
-        for (const DescriptorBinding<D3D12_GPU_DESCRIPTOR_HANDLE>& db: mData.DTs)
+        for (uint32_t i = 0; i < mData.DTCount; ++i)
         {
-            commandList->SetComputeRootDescriptorTable(db.rootIndex, db.handle);
+            commandList->SetComputeRootDescriptorTable(mData.DTs[i].rootIndex, mData.DTs[i].handle);
         }
     }
 };

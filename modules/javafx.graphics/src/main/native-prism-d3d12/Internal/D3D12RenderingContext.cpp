@@ -338,15 +338,6 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     ReplaceRTPayload();
 }
 
-RenderingContext::~RenderingContext()
-{
-    mRenderThread.WaitForCompletion();
-    mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
-    mCheckpointQueue.PrintStats();
-
-    mRenderThread.Exit();
-}
-
 bool RenderingContext::Init()
 {
     D3D12_COMMAND_QUEUE_DESC cqDesc;
@@ -391,6 +382,17 @@ bool RenderingContext::Init()
     }
 
     return true;
+}
+
+void RenderingContext::Release()
+{
+    mRenderThread.WaitForCompletion();
+    mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
+    mCheckpointQueue.PrintStats();
+
+    mRenderThread.Exit();
+
+    mNativeDevice.reset();
 }
 
 void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth)
