@@ -74,8 +74,9 @@ public class JSLC {
 
     public static final int OUT_SW_PEERS   = OUT_JAVA | OUT_SSE;
     public static final int OUT_HW_PEERS   = OUT_PRISM;
-    public static final int OUT_HW_SHADERS = OUT_D3D | OUT_ES2 | OUT_D3D12 | OUT_MTL;
-    public static final int OUT_ALL        = OUT_SW_PEERS | OUT_HW_PEERS | OUT_HW_SHADERS;
+    public static final int OUT_ALL_PEERS  = OUT_SW_PEERS | OUT_HW_PEERS;
+
+    public static final int OUT_HW_SHADERS = OUT_D3D | OUT_D3D12 | OUT_ES2 | OUT_MTL;
 
     private static final String rootPkg = "com/sun/scenario/effect";
     public static final STGroup group;
@@ -369,7 +370,7 @@ public class JSLC {
             String prefix0 = "Usage: java "+prog+" ";
             String prefix1 = "";
             for (int i = 0; i < prefix0.length(); i++) prefix1 += " ";
-            out.println(prefix0+"[-d3d | -d3d12 | -es2 | -java | -sse | -me | -sw | -hw | -all]");
+            out.println(prefix0+"[-d3d | -d3d12 | -es2 | -mtl | -java | -sse | -me | -sw | -hw | -all]");
             out.println(prefix1+"[-o <outdir>] [-i <srcdir>] [-t]");
             out.println(prefix1+"[-name <name>] [-ifname <interface name>]");
             if (extraOpts != null) {
@@ -426,9 +427,9 @@ public class JSLC {
             } else if (arg.equals("-sw")) {
                 outTypes = OUT_SW_PEERS;
             } else if (arg.equals("-hw")) {
-                outTypes = OUT_HW_PEERS | OUT_HW_SHADERS;
+                outTypes |= OUT_HW_PEERS;
             } else if (arg.equals("-all")) {
-                outTypes = OUT_ALL;
+                outTypes |= OUT_ALL_PEERS;
             } else if (arg.equals("-help")) {
                 usage(System.out);
                 System.exit(0);

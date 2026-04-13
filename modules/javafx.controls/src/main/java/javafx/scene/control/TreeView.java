@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1671,9 +1671,11 @@ public class TreeView<T> extends Control {
             }
 
             showRootListener = obs -> {
-                if (isFocused(0)) {
-                    focus(-1);
-                    focus(0);
+                if (getFocusedIndex() >= 0) {
+                    int newIndex = treeView.isShowRoot()
+                            ? getFocusedIndex() + 1
+                            : Math.max(0, getFocusedIndex() - 1);
+                    focus(newIndex);
                 }
             };
             treeView.showRootProperty().addListener(new WeakInvalidationListener(showRootListener));
