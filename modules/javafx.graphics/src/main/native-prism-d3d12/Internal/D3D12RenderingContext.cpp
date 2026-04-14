@@ -265,6 +265,7 @@ void RenderingContext::ClearAppliedFlags()
     mIndexBuffer.ClearApplied();
     mVertexBuffer.ClearApplied();
     mDescriptorHeaps.ClearApplied();
+    mDescriptors.ClearApplied();
     mPipelineState.ClearApplied();
     mPrimitiveTopology.ClearApplied();
     mRootSignature.ClearApplied();
