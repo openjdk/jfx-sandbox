@@ -35,10 +35,10 @@
 namespace D3D12 {
 namespace Internal {
 
-bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader)
+bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader, ShaderConstantsData& constants)
 {
     // quietly exit early if constants do not need to be re-prepared
-    if (!shader->AreConstantsDirty()) return true;
+    if (!constants.dirty) return true;
 
     const Shader::ResourceData& resourceData = shader->GetResourceData();
     Shader::DescriptorData& descriptors = shader->GetDescriptorData();
@@ -86,7 +86,7 @@ bool ResourceManager::PrepareConstants(const NIPtr<Shader>& shader)
         }
     }
 
-    shader->SetConstantsDirty(false);
+    constants.dirty = false;
     return true;
 }
 
@@ -159,7 +159,7 @@ bool ResourceManager::PrepareSamplers(const NIPtr<Shader>& shader)
     return true;
 }
 
-bool ResourceManager::PrepareShaderResources(const NIPtr<Shader>& shader)
+bool ResourceManager::PrepareShaderResources(const NIPtr<Shader>& shader, ShaderConstantsData& constants)
 {
     // We need to allocate space on respective heaps here:
     //  - Reserve RingBuffer space for CBVs, allocate and create CBV Descriptors for CBV DTable (if needed)
@@ -171,7 +171,7 @@ bool ResourceManager::PrepareShaderResources(const NIPtr<Shader>& shader)
     //  - Calling SetTexture() should dirty the SRV update and independently check if Samplers are dirty too
     //  - Setting Shader constants should dirty the Constant Data
     //     - Maybe we should do the constants set via ResourceManager? What about NativeShader API though...
-    if (!PrepareConstants(shader)) return false;
+    if (!PrepareConstants(shader, constants)) return false;
     if (!PrepareTextureViews(shader)) return false;
     if (!PrepareSamplers(shader)) return false;
 
@@ -222,10 +222,6 @@ ResourceManager::~ResourceManager()
 
 bool ResourceManager::Init()
 {
-    mDescriptorHeap.SetDebugName("CBV/SRV/UAV Descriptor Heap");
-    mSamplerHeap.SetDebugName("Sampler Heap");
-    mConstantRingBuffer.SetDebugName("Constant Ring Buffer");
-
     if (!mSamplerStorage.Init())
     {
         D3D12NI_LOG_ERROR("Failed to initialize Sampler Storage");
@@ -263,6 +259,10 @@ bool ResourceManager::Init()
         return false;
     }
 
+    mDescriptorHeap.SetDebugName("CBV/SRV/UAV Descriptor Heap");
+    mSamplerHeap.SetDebugName("Sampler Heap");
+    mConstantRingBuffer.SetDebugName("Constant Ring Buffer");
+
     return true;
 }
 
@@ -295,20 +295,16 @@ void ResourceManager::DeclareRingResources()
 bool ResourceManager::PrepareResources()
 {
     // collect how many slots of each Ring Container we will need and
-    if (!PrepareShaderResources(mVertexShader)) return false;
-    if (!PrepareShaderResources(mPixelShader)) return false;
+    if (!PrepareShaderResources(mVertexShader, mVertexShaderConstants)) return false;
+    if (!PrepareShaderResources(mPixelShader, mPixelShaderConstants)) return false;
 
     return true;
 }
 
-Descriptors ResourceManager::CollectDescriptors() const
+void ResourceManager::ApplyResources(const D3D12GraphicsCommandListPtr& commandList) const
 {
-    Descriptors descriptors;
-
-    mVertexShader->CollectDescriptors(descriptors);
-    mPixelShader->CollectDescriptors(descriptors);
-
-    return descriptors;
+    mVertexShader->ApplyDescriptors(commandList);
+    mPixelShader->ApplyDescriptors(commandList);
 }
 
 void ResourceManager::DeclareComputeRingResources()
@@ -329,16 +325,12 @@ void ResourceManager::DeclareComputeRingResources()
 
 bool ResourceManager::PrepareComputeResources()
 {
-    return PrepareShaderResources(mComputeShader);
+    return PrepareShaderResources(mComputeShader, mComputeShaderConstants);
 }
 
-Descriptors ResourceManager::CollectComputeDescriptors() const
+void ResourceManager::ApplyComputeResources(const D3D12GraphicsCommandListPtr& commandList) const
 {
-    Descriptors descriptors;
-
-    mComputeShader->CollectDescriptors(descriptors);
-
-    return descriptors;
+    mComputeShader->ApplyDescriptors(commandList);
 }
 
 void ResourceManager::ClearTextureUnit(uint32_t slot)
@@ -386,6 +378,25 @@ void ResourceManager::SetComputeShader(const NIPtr<Shader>& shader)
 
     mComputeShader = shader;
 }
+
+void ResourceManager::SetVertexShaderConstants(Shader::ConstantBuffer&& constants)
+{
+    mVertexShaderConstants.dirty = true;
+    mVertexShaderConstants.buffer = std::move(constants);
+}
+
+void ResourceManager::SetPixelShaderConstants(Shader::ConstantBuffer&& constants)
+{
+    mPixelShaderConstants.dirty = true;
+    mPixelShaderConstants.buffer = std::move(constants);
+}
+
+void ResourceManager::SetComputeShaderConstants(Shader::ConstantBuffer&& constants)
+{
+    mComputeShaderConstants.dirty = true;
+    mComputeShaderConstants.buffer = std::move(constants);
+}
+
 
 void ResourceManager::SetTextures(const TextureBank& bank)
 {

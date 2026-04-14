@@ -151,7 +151,6 @@ class RenderingContext
     };
 
     NIPtr<NativeDevice> mNativeDevice;
-    ResourceManager mResourceManager;
     LinearAllocator mPayloadAllocator;
     D3D12CommandQueuePtr mCommandQueue;
     D3D12FencePtr mFence;
@@ -159,8 +158,11 @@ class RenderingContext
     RenderPayloadPtr mRTPayload;
     CheckpointQueue mCheckpointQueue;
     VertexBatch m2DVertexBatch;
+    RingContainer::Tracker mConstantRingBufferTracker;
+    RingContainer::Tracker mDescriptorHeapTracker;
+    RingContainer::Tracker mSamplerHeapTracker;
     NIPtr<Internal::GPURingBuffer> mVertexRingBuffer; // used for 2D Vertex data which for performance should reside on GPU-side
-    std::thread::id mLastFlushTid;
+    std::thread::id mMainThreadTid;
 
     struct ClearOptState
     {
@@ -179,13 +181,15 @@ class RenderingContext
         PrimitiveTopologyRenderingParameter primitiveTopology;
         RenderTargetRenderingParameter renderTarget;
         RootSignatureRenderingParameter rootSignature;
+        TexturesRenderingParameter textures;
+        VertexShaderRenderingParameter vertexShader;
+        PixelShaderRenderingParameter pixelShader;
     } mRuntimeParametersStash;
 
     // Graphics Pipeline
     IndexBufferRenderingParameter mIndexBuffer;
     VertexBufferRenderingParameter mVertexBuffer;
-    DescriptorHeapsRenderingParameter mDescriptorHeaps;
-    DescriptorsRenderingParameter mDescriptors;
+    DescriptorHeapsRenderingStep mDescriptorHeaps;
     PipelineStateRenderingParameter mPipelineState;
     RootSignatureRenderingParameter mRootSignature;
     PrimitiveTopologyRenderingParameter mPrimitiveTopology;
@@ -193,6 +197,12 @@ class RenderingContext
     ScissorRenderingParameter mScissor; // used when explicitly set by updateClipRect()
     ScissorRenderingParameter mDefaultScissor; // used when scissor testing is disabled
     ViewportRenderingParameter mViewport;
+
+    TexturesRenderingParameter mTextures;
+    VertexShaderRenderingParameter mVertexShader;
+    PixelShaderRenderingParameter mPixelShader;
+    VertexShaderConstantsRenderingParameter mVertexShaderConstants;
+    PixelShaderConstantsRenderingParameter mPixelShaderConstants;
 
     inline ScissorRenderingParameter& GetScissor()
     {
@@ -203,7 +213,8 @@ class RenderingContext
     // Compute Pipeline
     ComputePipelineStateRenderingParameter mComputePipelineState;
     ComputeRootSignatureRenderingParameter mComputeRootSignature;
-    ComputeDescriptorsRenderingParameter mComputeDescriptors;
+    ComputeShaderRenderingParameter mComputeShader;
+    ComputeShaderConstantsRenderingParameter mComputeShaderConstants;
 
     // Used RTTs for finish-frame-time BBox invalidation
     // Prism can "juggle" the RTTs between frames, so our dirty-bbox optimization can
@@ -219,7 +230,6 @@ class RenderingContext
     RenderPayloadPtr ReplaceRTPayload(); // creates new payload, returns old one
     void SubmitRTPayload();
 
-
     QuadVertices AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst);
     BBox AssembleVertexData(void* buffer, const Internal::MemoryView<float>& vertices,
                             const Internal::MemoryView<signed char>& colors, UINT elementCount);
@@ -227,6 +237,9 @@ class RenderingContext
     void SyncToRenderThread();
     void ExecuteCurrentCommandList();
     void ClearAppliedFlags();
+
+    void DeclareRingResources();
+    void DeclareComputeRingResources();
 
 public:
     RenderingContext(const NIPtr<NativeDevice>& nativeDevice);

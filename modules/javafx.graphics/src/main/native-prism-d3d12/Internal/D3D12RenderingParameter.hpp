@@ -44,7 +44,6 @@
 namespace D3D12 {
 namespace Internal {
 
-
 class RenderingStep
 {
 public:
@@ -148,34 +147,32 @@ public:
     }
 };
 
-
-// Graphics parameters //
-
-class DescriptorHeapsRenderingParameter: public RenderingParameter<DescriptorHeaps, ApplyDescriptorHeaps>
+template <typename Executable>
+class ShaderConstantsResource: public RenderingParameter<NIPtr<Shader>, Executable>
 {
 public:
-    void SetHeap(const D3D12DescriptorHeapPtr& heap)
-    {
-        mParameter.heap = heap;
-        FlagSet();
-    }
+    ShaderConstantsResource()
+        : RenderingParameter()
+    {}
 
-    void SetSamplerHeap(const D3D12DescriptorHeapPtr& heap)
+    virtual void AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload) override
     {
-        mParameter.samplerHeap = heap;
-        FlagSet();
+        if (CanBeSkipped() && !mParameter->AreConstantsDirty()) return;
+
+        payload->AddStep(CreateExecutable(allocator));
+        mParameter->SetConstantsDirty(false);
     }
 };
 
-class DescriptorsRenderingParameter: public RenderingParameter<Descriptors, ApplyDescriptors>
+
+// Graphics parameters //
+
+class DescriptorHeapsRenderingStep: public RenderingStep
 {
 public:
-    void MoveDescriptors(Descriptors&& descriptors)
+    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const override final
     {
-        if (descriptors.CBVCount == 0 && descriptors.DTCount == 0) return;
-
-        mParameter = std::move(descriptors);
-        FlagSet();
+        return CreateRTExec<ApplyDescriptorHeaps>(allocator);
     }
 };
 
@@ -241,6 +238,25 @@ class ScissorRenderingParameter: public RenderingParameter<D3D12_RECT, ApplyScis
 class VertexBufferRenderingParameter: public RenderingParameter<D3D12_VERTEX_BUFFER_VIEW, ApplyVertexBuffer> {};
 class ViewportRenderingParameter: public RenderingParameter<D3D12_VIEWPORT, ApplyViewport> {};
 
+class TexturesRenderingParameter: public RenderingParameter<TextureBank, SetTexturesAction>
+{
+public:
+    void SetTexture(uint32_t unit, const NIPtr<TextureBase>& texture)
+    {
+        mParameter[unit] = texture;
+        FlagSet();
+    }
+
+    const NIPtr<TextureBase>& GetTexture(uint32_t unit) const
+    {
+        return mParameter[unit];
+    }
+};
+
+class VertexShaderRenderingParameter: public RenderingParameter<NIPtr<Shader>, SetVertexShaderAction> {};
+class PixelShaderRenderingParameter: public RenderingParameter<NIPtr<Shader>, SetPixelShaderAction> {};
+class VertexShaderConstantsRenderingParameter: public ShaderConstantsResource<SetVertexShaderConstantsAction> {};
+class PixelShaderConstantsRenderingParameter: public ShaderConstantsResource<SetPixelShaderConstantsAction> {};
 
 // Compute parameters //
 
@@ -254,19 +270,10 @@ public:
     }
 };
 
-class ComputeDescriptorsRenderingParameter: public RenderingParameter<Descriptors, ApplyComputeDescriptors>
-{
-public:
-    void MoveDescriptors(Descriptors&& descriptors)
-    {
-        if (descriptors.CBVCount == 0 && descriptors.DTCount == 0) return;
-
-        mParameter = std::move(descriptors);
-        FlagSet();
-    }
-};
-
 class ComputeRootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr, ApplyComputeRootSignature> {};
+
+class ComputeShaderRenderingParameter: public RenderingParameter<NIPtr<Shader>, SetComputeShaderAction> {};
+class ComputeShaderConstantsRenderingParameter: public ShaderConstantsResource<SetComputeShaderConstantsAction> {};
 
 } // namespace Internal
 } // namespace D3D12

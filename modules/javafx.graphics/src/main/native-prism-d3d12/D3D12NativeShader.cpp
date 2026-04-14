@@ -226,18 +226,18 @@ bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures)
     return true;
 }
 
-void NativeShader::CollectDescriptors(Descriptors& descriptors) const
+void NativeShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const
 {
     // NativeShaders are always Pixel shaders
     if (mResourceData.textureCount > 0)
     {
-        descriptors.AddDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.gpu);
-        descriptors.AddDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mDescriptorData.SamplerDescriptors.gpu);
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.gpu);
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mDescriptorData.SamplerDescriptors.gpu);
     }
 
     if (mDescriptorData.ConstantDataDirectRegion)
     {
-        descriptors.AddConstantBufferView(ShaderSlots::GRAPHICS_RS_PS_DATA, mDescriptorData.ConstantDataDirectRegion.gpu);
+        commandList->SetGraphicsRootConstantBufferView(ShaderSlots::GRAPHICS_RS_PS_DATA, mDescriptorData.ConstantDataDirectRegion.gpu);
     }
 }
 

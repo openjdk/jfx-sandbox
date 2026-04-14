@@ -78,6 +78,21 @@ public:
     {
         mState.commandListPool.AdvanceAllocator();
     }
+
+    inline RingContainer::Tracker GetConstantRingBufferTracker()
+    {
+        return mState.resourceManager.CreateConstantRingBufferTracker();
+    }
+
+    inline RingContainer::Tracker GetDescriptorHeapTracker()
+    {
+        return mState.resourceManager.CreateDescriptorHeapTracker();
+    }
+
+    inline RingContainer::Tracker GetSamplerHeapTracker()
+    {
+        return mState.resourceManager.CreateSamplerHeapTracker();
+    }
 };
 
 } // namespace Internal

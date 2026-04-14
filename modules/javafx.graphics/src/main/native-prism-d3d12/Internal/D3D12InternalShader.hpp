@@ -72,7 +72,7 @@ class InternalShader: public Shader
     bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize) override;
 
     virtual bool PrepareDescriptors(const TextureBank& textures) override;
-    virtual void CollectDescriptors(Descriptors& descriptors) const override;
+    virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const override;
 };
 
 } // namespace Internal

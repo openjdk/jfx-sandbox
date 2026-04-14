@@ -58,7 +58,7 @@ private:
     bool Init(const std::string& name, void* code, size_t size);
 
     virtual bool PrepareDescriptors(const Internal::TextureBank& textures) override;
-    virtual void CollectDescriptors(Descriptors& descriptors) const override;
+    virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const override;
 };
 
 } // namespace D3D12

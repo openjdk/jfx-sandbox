@@ -116,7 +116,7 @@ public:
     bool SetConstantsInArray(const std::string& name, uint32_t idx, const void* data, size_t size);
 
     virtual bool PrepareDescriptors(const TextureBank& textures) = 0;
-    virtual void CollectDescriptors(Descriptors& descriptors) const = 0;
+    virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const = 0;
 
     // Inline getters
     inline const std::string& GetName() const

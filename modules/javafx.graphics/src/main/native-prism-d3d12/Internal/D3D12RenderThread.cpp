@@ -91,6 +91,12 @@ bool RenderThread::Init()
         return false;
     }
 
+    if (!mState.resourceManager.Init())
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize Resource Manager");
+        return false;
+    }
+
     // NOTE: Command List Pool requires to have as many Command Allocators as SwapChain buffers + 1
     // This is the minimum we need (one per frame) and also ensures an extra one to pre-record more commands
     // if both SwapChain buffers are full.

@@ -44,10 +44,12 @@ struct RenderThreadState
 {
     PSOManager PSOManager;
     CommandListPool commandListPool;
+    ResourceManager resourceManager;
 
     RenderThreadState(const NIPtr<NativeDevice>& nativeDevice)
         : PSOManager(nativeDevice)
         , commandListPool(nativeDevice)
+        , resourceManager(nativeDevice)
     {
     }
 };
@@ -205,33 +207,16 @@ RenderThreadExecutablePtr CreateRTExec(LinearAllocator& allocator, Args&&... arg
 
 // Graphics render thread actions //
 
-class ApplyDescriptorHeaps: public RenderThreadDataExecutable<DescriptorHeaps>
+class ApplyDescriptorHeaps: public RenderThreadExecutable
 {
 public:
-    ApplyDescriptorHeaps(const DescriptorHeaps& heaps)
-        : RenderThreadDataExecutable(heaps)
-    {}
-
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state) override final
     {
-        std::array<ID3D12DescriptorHeap*, 2> heaps;
-        uint32_t totalHeaps = 0;
-        if (mData.heap)
-        {
-            heaps[totalHeaps] = mData.heap.Get();
-            totalHeaps++;
-        }
-
-        if (mData.samplerHeap)
-        {
-            heaps[totalHeaps] = mData.samplerHeap.Get();
-            totalHeaps++;
-        }
-
-        if (totalHeaps)
-        {
-            commandList->SetDescriptorHeaps(totalHeaps, heaps.data());
-        }
+        ID3D12DescriptorHeap* heaps[2] = {
+            state.resourceManager.GetHeap().Get(),
+            state.resourceManager.GetSamplerHeap().Get(),
+        };
+        commandList->SetDescriptorHeaps(2, heaps);
     }
 };
 
@@ -290,27 +275,6 @@ public:
         commandList->OMSetRenderTargets(
             rtData.count, &rtData.cpu, true, mData->IsDepthTestEnabled() ? &mData->GetDSVDescriptorData().cpu : nullptr
         );
-    }
-};
-
-class ApplyDescriptors: public RenderThreadDataExecutable<Descriptors>
-{
-public:
-    ApplyDescriptors(const Descriptors& descriptors)
-        : RenderThreadDataExecutable(descriptors)
-    {}
-
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state) override final
-    {
-        for (uint32_t i = 0; i < mData.CBVCount; ++i)
-        {
-            commandList->SetGraphicsRootConstantBufferView(mData.CBVs[i].rootIndex, mData.CBVs[i].handle);
-        }
-
-        for (uint32_t i = 0; i < mData.DTCount; ++i)
-        {
-            commandList->SetGraphicsRootDescriptorTable(mData.DTs[i].rootIndex, mData.DTs[i].handle);
-        }
     }
 };
 
@@ -514,7 +478,6 @@ public:
     }
 };
 
-
 class ResourceBarrierAction: public RenderThreadDataExecutable<ResourceBarrierGroup>
 {
 public:
@@ -525,6 +488,95 @@ public:
     void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->ResourceBarrier(mData.count, mData.barriers.data());
+    }
+};
+
+
+// Graphics resource-related actions
+
+class SetTexturesAction: public RenderThreadDataExecutable<TextureBank>
+{
+public:
+    SetTexturesAction(const TextureBank& bank)
+        : RenderThreadDataExecutable(bank)
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
+    {
+        state.resourceManager.SetTextures(mData);
+    }
+};
+
+class SetVertexShaderAction: public RenderThreadDataExecutable<NIPtr<Shader>>
+{
+public:
+    SetVertexShaderAction(const NIPtr<Shader>& shader)
+        : RenderThreadDataExecutable(shader)
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
+    {
+        state.resourceManager.SetVertexShader(mData);
+    }
+};
+
+class SetPixelShaderAction: public RenderThreadDataExecutable<NIPtr<Shader>>
+{
+public:
+    SetPixelShaderAction(const NIPtr<Shader>& shader)
+        : RenderThreadDataExecutable(shader)
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
+    {
+        state.resourceManager.SetPixelShader(mData);
+    }
+};
+
+class SetVertexShaderConstantsAction: public RenderThreadDataExecutable<Shader::ConstantBuffer>
+{
+public:
+    SetVertexShaderConstantsAction(const NIPtr<Shader>& vertexShader)
+        : RenderThreadDataExecutable(vertexShader->GetConstantStorage())
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
+    {
+        state.resourceManager.SetVertexShaderConstants(std::move(mData));
+    }
+};
+
+class SetPixelShaderConstantsAction: public RenderThreadDataExecutable<Shader::ConstantBuffer>
+{
+public:
+    SetPixelShaderConstantsAction(const NIPtr<Shader>& pixelShader)
+        : RenderThreadDataExecutable(pixelShader->GetConstantStorage())
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
+    {
+        state.resourceManager.SetPixelShaderConstants(std::move(mData));
+    }
+};
+
+class PrepareResources: public RenderThreadExecutable
+{
+public:
+    void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
+    {
+        if (!state.resourceManager.PrepareResources())
+        {
+            D3D12NI_LOG_ERROR("RenderThread: Failed to prepare resources for draw call");
+        }
+    }
+};
+
+class ApplyResources: public RenderThreadExecutable
+{
+public:
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state) override final
+    {
+        state.resourceManager.ApplyResources(commandList);
     }
 };
 
@@ -542,27 +594,6 @@ public:
     {
         const D3D12PipelineStatePtr& pso = state.PSOManager.GetPSO(mData);
         commandList->SetPipelineState(pso.Get());
-    }
-};
-
-class ApplyComputeDescriptors: public RenderThreadDataExecutable<Descriptors>
-{
-public:
-    ApplyComputeDescriptors(const Descriptors& descriptors)
-        : RenderThreadDataExecutable(descriptors)
-    {}
-
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state) override final
-    {
-        for (uint32_t i = 0; i < mData.CBVCount; ++i)
-        {
-            commandList->SetComputeRootConstantBufferView(mData.CBVs[i].rootIndex, mData.CBVs[i].handle);
-        }
-
-        for (uint32_t i = 0; i < mData.DTCount; ++i)
-        {
-            commandList->SetComputeRootDescriptorTable(mData.DTs[i].rootIndex, mData.DTs[i].handle);
-        }
     }
 };
 
@@ -589,6 +620,56 @@ public:
     void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
         commandList->Dispatch(mData.x, mData.y, mData.z);
+    }
+};
+
+
+// Compute resource actions
+
+class SetComputeShaderAction: public RenderThreadDataExecutable<NIPtr<Shader>>
+{
+public:
+    SetComputeShaderAction(const NIPtr<Shader>& shader)
+        : RenderThreadDataExecutable(shader)
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
+    {
+        state.resourceManager.SetComputeShader(mData);
+    }
+};
+
+class SetComputeShaderConstantsAction: public RenderThreadDataExecutable<Shader::ConstantBuffer>
+{
+public:
+    SetComputeShaderConstantsAction(const NIPtr<Shader>& computeShader)
+        : RenderThreadDataExecutable(computeShader->GetConstantStorage())
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
+    {
+        state.resourceManager.SetComputeShaderConstants(std::move(mData));
+    }
+};
+
+class PrepareComputeResources: public RenderThreadExecutable
+{
+public:
+    void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
+    {
+        if (!state.resourceManager.PrepareComputeResources())
+        {
+            D3D12NI_LOG_ERROR("RenderThread: Failed to prepare resources for dispatch call");
+        }
+    }
+};
+
+class ApplyComputeResources: public RenderThreadExecutable
+{
+public:
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state) override final
+    {
+        state.resourceManager.ApplyComputeResources(commandList);
     }
 };
 

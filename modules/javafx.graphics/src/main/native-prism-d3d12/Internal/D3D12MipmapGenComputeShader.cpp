@@ -97,11 +97,11 @@ bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures)
     return true;
 }
 
-void MipmapGenComputeShader::CollectDescriptors(Descriptors& descriptors) const
+void MipmapGenComputeShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const
 {
-    descriptors.AddConstantBufferView(ShaderSlots::COMPUTE_RS_CONSTANT_DATA, mDescriptorData.ConstantDataDirectRegion.gpu);
-    descriptors.AddDescriptorTable(ShaderSlots::COMPUTE_RS_UAV_DTABLE, mDescriptorData.UAVDescriptors.GPU(0));
-    descriptors.AddDescriptorTable(ShaderSlots::COMPUTE_RS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.GPU(0));
+    commandList->SetComputeRootConstantBufferView(ShaderSlots::COMPUTE_RS_CONSTANT_DATA, mDescriptorData.ConstantDataDirectRegion.gpu);
+    commandList->SetComputeRootDescriptorTable(ShaderSlots::COMPUTE_RS_UAV_DTABLE, mDescriptorData.UAVDescriptors.GPU(0));
+    commandList->SetComputeRootDescriptorTable(ShaderSlots::COMPUTE_RS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.GPU(0));
 }
 
 } // namespace Internal

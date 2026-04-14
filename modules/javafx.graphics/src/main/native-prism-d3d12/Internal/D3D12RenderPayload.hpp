@@ -42,7 +42,8 @@ namespace Internal {
 class RenderPayload
 {
 private:
-    static const uint32_t PAYLOAD_LIMIT = 1024;
+    static const uint32_t PAYLOAD_SIZE = 512;
+    static const uint32_t PAYLOAD_LIMIT = 488;
     using StepList = std::vector<RenderThreadExecutablePtr>;
 
     StepList mSteps;
@@ -51,7 +52,7 @@ public:
     RenderPayload()
         : mSteps()
     {
-        mSteps.reserve(PAYLOAD_LIMIT + 24);
+        mSteps.reserve(PAYLOAD_SIZE);
     }
 
     bool AddStep(RenderThreadExecutablePtr&& executable)
@@ -67,6 +68,7 @@ public:
             mSteps[i]->Execute(commandList, state);
         }
     }
+
 
     bool HasWork() const
     {

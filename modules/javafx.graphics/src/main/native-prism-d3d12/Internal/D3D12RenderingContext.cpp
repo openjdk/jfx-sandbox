@@ -85,7 +85,7 @@ void RenderingContext::EnsureBoundTextureStates(D3D12_RESOURCE_STATES state)
 
     for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
     {
-        const NIPtr<TextureBase>& tex = mResourceManager.GetTexture(i);
+        const NIPtr<TextureBase>& tex = mTextures.GetTexture(i);
         if (tex) QueueTextureTransition(tex, state);
     }
 
@@ -272,14 +272,78 @@ void RenderingContext::ClearAppliedFlags()
     mDefaultScissor.ClearApplied();
     mViewport.ClearApplied();
 
+    mTextures.ClearApplied();
+    mVertexShader.ClearApplied();
+    mPixelShader.ClearApplied();
+    mVertexShaderConstants.ClearApplied();
+    mPixelShaderConstants.ClearApplied();
+
     mComputePipelineState.ClearApplied();
     mComputeRootSignature.ClearApplied();
+    mComputeShader.ClearApplied();
+    mComputeShaderConstants.ClearApplied();
+}
+
+void RenderingContext::DeclareRingResources()
+{
+    Shader::ResourceData vsData = mVertexShader.Get()->GetResourceData();
+    Shader::ResourceData psData = mPixelShader.Get()->GetResourceData();
+
+    // constant data vs
+    size_t totalConstantDataSize =
+        Utils::Align<size_t>(vsData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) +
+        Utils::Align<size_t>(vsData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) * vsData.cbufferDTableCount;
+
+    // constant data ps
+    totalConstantDataSize +=
+        Utils::Align<size_t>(psData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) +
+        Utils::Align<size_t>(psData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) * psData.cbufferDTableCount;
+
+    if (mConstantRingBufferTracker.Declare(totalConstantDataSize))
+    {
+        FlushCommandList(CheckpointType::MIDFRAME);
+        return;
+    }
+
+    // descriptors
+    size_t totalDescriptorCount = vsData.textureCount + vsData.uavCount + psData.textureCount + psData.uavCount;
+    if (mDescriptorHeapTracker.Declare(totalDescriptorCount))
+    {
+        FlushCommandList(CheckpointType::MIDFRAME);
+        return;
+    }
+
+    // samplers should never cross the threshold
+    // if they do we need to figure out some optimization for them instead
+}
+
+void RenderingContext::DeclareComputeRingResources()
+{
+    Shader::ResourceData csData = mComputeShader.Get()->GetResourceData();
+
+    // constant data
+    size_t totalConstantDataSize =
+        Utils::Align<size_t>(csData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) +
+        Utils::Align<size_t>(csData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) * csData.cbufferDTableCount;
+
+    if (mConstantRingBufferTracker.Declare(totalConstantDataSize))
+    {
+        FlushCommandList(CheckpointType::MIDFRAME);
+        return;
+    }
+
+    // descriptors
+    size_t totalDescriptorCount = csData.textureCount + csData.uavCount;
+    if (mDescriptorHeapTracker.Declare(totalDescriptorCount))
+    {
+        FlushCommandList(CheckpointType::MIDFRAME);
+        return;
+    }
 }
 
 
 RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
-    , mResourceManager(nativeDevice)
     , mPayloadAllocator()
     , mCommandQueue()
     , mRenderThread(nativeDevice)
@@ -291,16 +355,21 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     , mIndexBuffer()
     , mVertexBuffer()
     , mDescriptorHeaps()
-    , mDescriptors()
     , mPipelineState()
     , mPrimitiveTopology()
     , mRenderTarget()
     , mScissor()
     , mDefaultScissor()
     , mViewport()
+    , mTextures()
+    , mVertexShader()
+    , mPixelShader()
+    , mVertexShaderConstants()
+    , mPixelShaderConstants()
     , mComputePipelineState()
     , mComputeRootSignature()
-    , mComputeDescriptors()
+    , mComputeShader()
+    , mComputeShaderConstants()
     , mUsedRTs()
     , mBarrierQueue()
     , mBarrierQueueSize(0)
@@ -316,7 +385,6 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     };
     mRootSignature.SetDependency(psoDep);
     mDescriptorHeaps.SetDependency(psoDep);
-    mDescriptors.SetDependency(psoDep);
 
     // Use the default scissor only if other custom scissor rect is not set
     // See SetRenderTarget() for more details
@@ -330,9 +398,8 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
         return computePso.IsSet();
     };
     mComputeRootSignature.SetDependency(computePsoDep);
-    mComputeDescriptors.SetDependency(computePsoDep);
 
-    mLastFlushTid = std::this_thread::get_id();
+    mMainThreadTid = std::this_thread::get_id();
 
     ReplaceRTPayload();
 }
@@ -356,20 +423,15 @@ bool RenderingContext::Init()
     hr = mNativeDevice->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create in-device Fence");
 
-    if (!mResourceManager.Init())
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize Resource Manager");
-        return false;
-    }
-
-    mDescriptorHeaps.SetHeap(mResourceManager.GetHeap());
-    mDescriptorHeaps.SetSamplerHeap(mResourceManager.GetSamplerHeap());
-
     if (!mRenderThread.Init())
     {
         D3D12NI_LOG_ERROR("Failed to initialize Render Thread");
         return false;
     }
+
+    mConstantRingBufferTracker = mRenderThread.GetConstantRingBufferTracker();
+    mDescriptorHeapTracker= mRenderThread.GetDescriptorHeapTracker();
+    mSamplerHeapTracker = mRenderThread.GetSamplerHeapTracker();
 
     // TODO adjust thresholds if this idea works fine for memory optimization
     mVertexRingBuffer = std::make_shared<Internal::GPURingBuffer>(mNativeDevice);
@@ -741,9 +803,9 @@ bool RenderingContext::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
 
 void RenderingContext::ClearTextureUnit(uint32_t unit)
 {
-    if (!mResourceManager.GetTexture(unit)) return;
+    if (!mTextures.GetTexture(unit)) return;
 
-    mResourceManager.SetTexture(unit, nullptr);
+    mTextures.SetTexture(unit, nullptr);
 }
 
 void RenderingContext::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView)
@@ -876,7 +938,7 @@ void RenderingContext::SetScissor(bool enabled, const D3D12_RECT& scissor)
 
 void RenderingContext::SetTexture(uint32_t unit, const NIPtr<TextureBase>& texture)
 {
-    mResourceManager.SetTexture(unit, texture);
+    mTextures.SetTexture(unit, texture);
 }
 
 // PSO-related setters
@@ -907,7 +969,8 @@ void RenderingContext::SetVertexShader(const NIPtr<Shader>& vertexShader)
     if (mPipelineState.Get().vertexShader == vertexShader) return;
 
     mPipelineState.SetVertexShader(vertexShader);
-    mResourceManager.SetVertexShader(vertexShader);
+    mVertexShader.Set(vertexShader);
+    mVertexShaderConstants.Set(vertexShader);
 }
 
 void RenderingContext::SetPixelShader(const NIPtr<Shader>& pixelShader)
@@ -915,7 +978,8 @@ void RenderingContext::SetPixelShader(const NIPtr<Shader>& pixelShader)
     if (mPipelineState.Get().pixelShader == pixelShader) return;
 
     mPipelineState.SetPixelShader(pixelShader);
-    mResourceManager.SetPixelShader(pixelShader);
+    mPixelShader.Set(pixelShader);
+    mPixelShaderConstants.Set(pixelShader);
 
     if (pixelShader)
     {
@@ -928,7 +992,8 @@ void RenderingContext::SetComputeShader(const NIPtr<Shader>& computeShader)
     if (mComputePipelineState.Get().shader == computeShader) return;
 
     mComputePipelineState.SetComputeShader(computeShader);
-    mResourceManager.SetComputeShader(computeShader);
+    mComputeShader.Set(computeShader);
+    mComputeShaderConstants.Set(computeShader);
     mComputeRootSignature.Set(mNativeDevice->GetRootSignatureManager()->GetComputeRootSignature());
 }
 
@@ -938,7 +1003,9 @@ void RenderingContext::StashParamters()
     mRuntimeParametersStash.primitiveTopology.Set(mPrimitiveTopology.Get());
     mRuntimeParametersStash.renderTarget.Set(mRenderTarget.Get());
     mRuntimeParametersStash.rootSignature.Set(mRootSignature.Get());
-    mResourceManager.StashParameters();
+    mRuntimeParametersStash.textures.Set(mTextures.Get());
+    mRuntimeParametersStash.vertexShader.Set(mVertexShader.Get());
+    mRuntimeParametersStash.pixelShader.Set(mPixelShader.Get());
 }
 
 void RenderingContext::RestoreStashedParameters()
@@ -947,26 +1014,34 @@ void RenderingContext::RestoreStashedParameters()
     mPipelineState.Set(mRuntimeParametersStash.pipelineState.Get());
     mPrimitiveTopology.Set(mRuntimeParametersStash.primitiveTopology.Get());
     mRootSignature.Set(mRuntimeParametersStash.rootSignature.Get());
-    mResourceManager.RestoreStashedParameters();
+    mTextures.Set(mRuntimeParametersStash.textures.Get());
+    SetVertexShader(mRuntimeParametersStash.vertexShader.Get());
+    SetPixelShader(mRuntimeParametersStash.pixelShader.Get());
 }
 
 bool RenderingContext::Apply()
 {
-    mResourceManager.DeclareRingResources();
-    if (!mResourceManager.PrepareResources()) return false;
-    mDescriptors.MoveDescriptors(mResourceManager.CollectDescriptors());
+    DeclareRingResources();
 
     // there can only be one Pipeline State on a command list
     // To prevent using an incorrect Pipeline State after this Apply call we'll reset the compute PSO flag
     // other settings (RootSignatures, Descriptors etc) are all set separately
     mComputePipelineState.ClearApplied();
 
+    // Prepare Resource Manager
+    mTextures.AddToPayload(mPayloadAllocator, mRTPayload);
+    mVertexShader.AddToPayload(mPayloadAllocator, mRTPayload);
+    mPixelShader.AddToPayload(mPayloadAllocator, mRTPayload);
+    mVertexShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload);
+    mPixelShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload);
+
+    mRTPayload->AddStep(CreateRTExec<PrepareResources>(mPayloadAllocator));
+
     // Prepare a payload to record on the Command List
     mRenderTarget.AddToPayload(mPayloadAllocator, mRTPayload);
     mPipelineState.AddToPayload(mPayloadAllocator, mRTPayload);
     mRootSignature.AddToPayload(mPayloadAllocator, mRTPayload);
     mDescriptorHeaps.AddToPayload(mPayloadAllocator, mRTPayload);
-    mDescriptors.AddToPayload(mPayloadAllocator, mRTPayload);
     mViewport.AddToPayload(mPayloadAllocator, mRTPayload);
     mScissor.AddToPayload(mPayloadAllocator, mRTPayload);
     mDefaultScissor.AddToPayload(mPayloadAllocator, mRTPayload);
@@ -974,24 +1049,32 @@ bool RenderingContext::Apply()
     mVertexBuffer.AddToPayload(mPayloadAllocator, mRTPayload);
     mIndexBuffer.AddToPayload(mPayloadAllocator, mRTPayload);
 
+    mRTPayload->AddStep(CreateRTExec<ApplyResources>(mPayloadAllocator));
+
     return true;
 }
 
 bool RenderingContext::ApplyCompute()
 {
-    mResourceManager.DeclareComputeRingResources();
-    if (!mResourceManager.PrepareComputeResources()) return false;
-    mComputeDescriptors.MoveDescriptors(mResourceManager.CollectComputeDescriptors());
+    DeclareComputeRingResources();
 
     // there can only be one Pipeline State on a command list
     // To prevent using an incorrect Pipeline State after this Apply call we'll reset the graphics' PSO flag
     mPipelineState.ClearApplied();
 
+    // prepare compute resources
+    mTextures.AddToPayload(mPayloadAllocator, mRTPayload);
+    mComputeShader.AddToPayload(mPayloadAllocator, mRTPayload);
+    mComputeShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload);
+
+    mRTPayload->AddStep(CreateRTExec<PrepareComputeResources>(mPayloadAllocator));
+
     // command list recording steps
     mComputePipelineState.AddToPayload(mPayloadAllocator, mRTPayload);
     mComputeRootSignature.AddToPayload(mPayloadAllocator, mRTPayload);
     mDescriptorHeaps.AddToPayload(mPayloadAllocator, mRTPayload);
-    mComputeDescriptors.AddToPayload(mPayloadAllocator, mRTPayload);
+
+    mRTPayload->AddStep(CreateRTExec<ApplyComputeResources>(mPayloadAllocator));
 
     return true;
 }
@@ -1019,11 +1102,15 @@ void RenderingContext::ExecuteCurrentCommandList()
         ID3D12CommandList* lists[1] = { cmdList.Get() };
         mCommandQueue->ExecuteCommandLists(1, lists);
     }
+
+    mConstantRingBufferTracker.Reset();
+    mDescriptorHeapTracker.Reset();
+    mSamplerHeapTracker.Reset();
 }
 
 void RenderingContext::FlushCommandList(CheckpointType type)
 {
-    D3D12NI_ASSERT(mLastFlushTid == std::this_thread::get_id(), "FlushCommandLists() has to be called by the main thread");
+    D3D12NI_ASSERT(mMainThreadTid == std::this_thread::get_id(), "FlushCommandLists() has to be called by the main thread");
 
     // submit existing RenderThread payload if there's any leftover commands there
     // and finish executing RenderThread payload

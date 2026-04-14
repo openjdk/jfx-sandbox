@@ -205,23 +205,23 @@ bool InternalShader::PrepareDescriptors(const TextureBank& textures)
     return true;
 }
 
-void InternalShader::CollectDescriptors(Descriptors& descriptors) const
+void InternalShader::ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const
 {
     if (mCBufferDirectRegion)
     {
-        descriptors.AddConstantBufferView(mCBufferDirectRegion.assignment.rootIndex, mCBufferDirectRegion.region.gpu);
+        commandList->SetGraphicsRootConstantBufferView(mCBufferDirectRegion.assignment.rootIndex, mCBufferDirectRegion.region.gpu);
     }
 
     if (mDescriptorData.CBufferTableDescriptors && mCBufferDTableRegions.size() > 0)
     {
-        descriptors.AddDescriptorTable(mCBufferDTableRegions[0].assignment.rootIndex, mDescriptorData.CBufferTableDescriptors.gpu);
+        commandList->SetGraphicsRootDescriptorTable(mCBufferDTableRegions[0].assignment.rootIndex, mDescriptorData.CBufferTableDescriptors.gpu);
     }
 
     if (mResourceData.textureCount > 0)
     {
         // textures only apply to Pixel Shaders
-        descriptors.AddDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.GPU(0));
-        descriptors.AddDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mDescriptorData.SamplerDescriptors.GPU(0));
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, mDescriptorData.SRVDescriptors.GPU(0));
+        commandList->SetGraphicsRootDescriptorTable(ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, mDescriptorData.SamplerDescriptors.GPU(0));
     }
 }
 

@@ -28,6 +28,7 @@
 #include "../D3D12Common.hpp"
 
 #include "D3D12IWaitableOperation.hpp"
+#include "D3D12Utils.hpp"
 
 #include <deque>
 
@@ -43,6 +44,35 @@ namespace Internal {
  */
 class RingContainer: public IWaitableOperation
 {
+public:
+    class Tracker
+    {
+        size_t mThreshold;
+        size_t mAlignment;
+        size_t mTaken;
+
+    public:
+        Tracker() = default;
+
+        Tracker(size_t threshold, size_t alignment)
+            : mThreshold(threshold)
+            , mAlignment(alignment)
+            , mTaken(0)
+        {}
+
+        bool Declare(size_t size)
+        {
+            mTaken += Internal::Utils::Align(size, mThreshold);
+            return (mTaken >= mThreshold);
+        }
+
+        void Reset()
+        {
+            mTaken = 0;
+        }
+    };
+
+private:
     size_t mFlushThreshold;
     size_t mUsed; // total data used inside the ring buffer
     size_t mUncommitted; // total data that has not been committed yet
@@ -109,6 +139,11 @@ protected:
 public:
     RingContainer(const NIPtr<NativeDevice>& nativeDevice);
     virtual ~RingContainer() = 0;
+
+    Tracker CreateTracker() const
+    {
+        return Tracker(mFlushThreshold, mAlignment);
+    }
 
     /**
      * Informs Ring Container that we will require @p size bytes/slots of data in order to
