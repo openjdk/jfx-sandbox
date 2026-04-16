@@ -40,7 +40,7 @@ namespace Internal {
 
 RenderPayloadPtr RenderingContext::ReplaceRTPayload()
 {
-    D3D12NI_ASSERT(mLastFlushTid == std::this_thread::get_id(), "CreateRTPayload() has to be called by the main thread");
+    D3D12NI_ASSERT(mMainThreadTid == std::this_thread::get_id(), "CreateRTPayload() has to be called by the main thread");
 
     RenderPayloadPtr ret(std::move(mRTPayload));
     mRTPayload.reset(mPayloadAllocator.Construct<RenderPayload>());
@@ -49,7 +49,7 @@ RenderPayloadPtr RenderingContext::ReplaceRTPayload()
 
 void RenderingContext::SubmitRTPayload()
 {
-    D3D12NI_ASSERT(mLastFlushTid == std::this_thread::get_id(), "SubmitRTPayload() has to be called by the main thread");
+    D3D12NI_ASSERT(mMainThreadTid == std::this_thread::get_id(), "SubmitRTPayload() has to be called by the main thread");
 
     if (mRTPayload && mRTPayload->HasWork())
     {
@@ -263,7 +263,6 @@ void RenderingContext::ClearAppliedFlags()
     mIndexBuffer.ClearApplied();
     mVertexBuffer.ClearApplied();
     mDescriptorHeaps.ClearApplied();
-    mDescriptors.ClearApplied();
     mPipelineState.ClearApplied();
     mPrimitiveTopology.ClearApplied();
     mRootSignature.ClearApplied();
@@ -284,7 +283,7 @@ void RenderingContext::ClearAppliedFlags()
     mComputeShaderConstants.ClearApplied();
 }
 
-void RenderingContext::DeclareRingResources()
+bool RenderingContext::DeclareRingResources()
 {
     Shader::ResourceData vsData = mVertexShader.Get()->GetResourceData();
     Shader::ResourceData psData = mPixelShader.Get()->GetResourceData();
@@ -301,23 +300,22 @@ void RenderingContext::DeclareRingResources()
 
     if (mConstantRingBufferTracker.Declare(totalConstantDataSize))
     {
-        FlushCommandList(CheckpointType::MIDFRAME);
-        return;
+        return true;
     }
 
     // descriptors
     size_t totalDescriptorCount = vsData.textureCount + vsData.uavCount + psData.textureCount + psData.uavCount;
     if (mDescriptorHeapTracker.Declare(totalDescriptorCount))
     {
-        FlushCommandList(CheckpointType::MIDFRAME);
-        return;
+        return true;
     }
 
     // samplers should never cross the threshold
     // if they do we need to figure out some optimization for them instead
+    return false;
 }
 
-void RenderingContext::DeclareComputeRingResources()
+bool RenderingContext::DeclareComputeRingResources()
 {
     Shader::ResourceData csData = mComputeShader.Get()->GetResourceData();
 
@@ -328,17 +326,17 @@ void RenderingContext::DeclareComputeRingResources()
 
     if (mConstantRingBufferTracker.Declare(totalConstantDataSize))
     {
-        FlushCommandList(CheckpointType::MIDFRAME);
-        return;
+        return true;
     }
 
     // descriptors
     size_t totalDescriptorCount = csData.textureCount + csData.uavCount;
     if (mDescriptorHeapTracker.Declare(totalDescriptorCount))
     {
-        FlushCommandList(CheckpointType::MIDFRAME);
-        return;
+        return true;
     }
+
+    return false;
 }
 
 
@@ -1021,7 +1019,16 @@ void RenderingContext::RestoreStashedParameters()
 
 bool RenderingContext::Apply()
 {
-    DeclareRingResources();
+    if (DeclareRingResources())
+    {
+        // Ring Containers would get full if we continued on
+        // Flush current Command List to execute what we have
+        FlushCommandList(CheckpointType::MIDFRAME);
+
+        // We have to re-check right now, but this should always pass
+        bool flushNeeded = DeclareRingResources();
+        D3D12NI_ASSERT(!flushNeeded, "Right after flushing we still need more space in Ring Containers. Allocating too much?");
+    }
 
     // there can only be one Pipeline State on a command list
     // To prevent using an incorrect Pipeline State after this Apply call we'll reset the compute PSO flag
@@ -1056,7 +1063,16 @@ bool RenderingContext::Apply()
 
 bool RenderingContext::ApplyCompute()
 {
-    DeclareComputeRingResources();
+    if (DeclareComputeRingResources())
+    {
+        // Ring Containers would get full if we continued on
+        // Flush current Command List to execute what we have
+        FlushCommandList(CheckpointType::MIDFRAME);
+
+        // We have to re-check right now, but this should always pass
+        bool flushNeeded = DeclareComputeRingResources();
+        D3D12NI_ASSERT(!flushNeeded, "Right after flushing we still need more space in Ring Containers. Allocating too much?");
+    }
 
     // there can only be one Pipeline State on a command list
     // To prevent using an incorrect Pipeline State after this Apply call we'll reset the graphics' PSO flag

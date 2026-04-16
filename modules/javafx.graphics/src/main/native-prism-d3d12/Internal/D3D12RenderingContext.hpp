@@ -238,8 +238,8 @@ class RenderingContext
     void ExecuteCurrentCommandList();
     void ClearAppliedFlags();
 
-    void DeclareRingResources();
-    void DeclareComputeRingResources();
+    bool DeclareRingResources();
+    bool DeclareComputeRingResources();
 
 public:
     RenderingContext(const NIPtr<NativeDevice>& nativeDevice);

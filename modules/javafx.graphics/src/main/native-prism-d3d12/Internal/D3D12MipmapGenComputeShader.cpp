@@ -67,7 +67,7 @@ bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mo
     return true;
 }
 
-bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures)
+bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures, const Shader::ConstantBuffer& constants)
 {
     if (mConstantBufferStorage.size() != sizeof(CBuffer))
     {
@@ -81,7 +81,7 @@ bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures)
         return false;
     }
 
-    const CBuffer* cb = reinterpret_cast<const CBuffer*>(mConstantBufferStorage.data());
+    const CBuffer* cb = reinterpret_cast<const CBuffer*>(constants.data());
     memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, cb, sizeof(CBuffer));
 
     // write source mip level as SRV (our input)

@@ -560,6 +560,11 @@ inline size_t GetPixelFormatBPP(PixelFormat f)
 } // namespace D3D12
 
 
+// suppresses compilation warnings when a variable is unused
+// this is effectively a noop but it is often used in tandem with
+// D3D12NI_ASSERT as asserts are compiled out on Release
+#define D3D12NI_UNUSED(x) (void)(x)
+
 // checks provided hr, if it fails prints errMsg with hr's value and returns ret
 #define D3D12NI_RET_IF_FAILED(hr, ret, errMsg) do { \
     if (FAILED(hr)) { \
@@ -604,7 +609,7 @@ inline size_t GetPixelFormatBPP(PixelFormat f)
 
 #else // DEBUG
 
-#define D3D12NI_ASSERT(x, msg, ...) do { } while (0)
+#define D3D12NI_ASSERT(x, msg, ...) do { D3D12NI_UNUSED(x); } while (0)
 
 #endif // DEBUG
 

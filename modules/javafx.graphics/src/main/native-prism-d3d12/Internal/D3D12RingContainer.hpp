@@ -62,7 +62,7 @@ public:
 
         bool Declare(size_t size)
         {
-            mTaken += Internal::Utils::Align(size, mThreshold);
+            mTaken += Internal::Utils::Align(size, mAlignment);
             return (mTaken >= mThreshold);
         }
 

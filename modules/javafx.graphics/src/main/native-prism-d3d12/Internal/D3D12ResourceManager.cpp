@@ -179,7 +179,7 @@ bool ResourceManager::PrepareShaderResources(const NIPtr<Shader>& shader, Shader
     // ex. MipmapGenComputeShader wants to populate Texture's subresources when generating mip levels instead of
     // simply viewing Textures as a whole resource, including all of its subresources.
     // As such, it makes more sense to let Shaders decide how to write Views onto Descriptors we just prepared for them.
-    if (!shader->PrepareDescriptors(mTextures)) return false;
+    if (!shader->PrepareDescriptors(mTextures, constants.buffer)) return false;
 
     return true;
 }
