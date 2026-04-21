@@ -238,6 +238,7 @@ public:
     bool Apply();
     bool ApplyCompute();
     void Clear(float r, float g, float b, float a, bool clearDepth);
+    void ClearDepth(const D3D12_CPU_DESCRIPTOR_HANDLE& dsv);
     void Draw(uint32_t elements, uint32_t vbOffset);
     void Draw(uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox);
     void Dispatch(uint32_t x, uint32_t y, uint32_t z);

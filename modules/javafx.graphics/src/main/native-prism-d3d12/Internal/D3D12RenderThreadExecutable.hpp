@@ -57,11 +57,19 @@ struct ClearRenderTargetArgs
     D3D12_CPU_DESCRIPTOR_HANDLE rtv;
     Pixel_RGBA32_FLOAT rgba;
     D3D12_RECT clearRect;
+    bool hasRect;
+
+    ClearRenderTargetArgs(D3D12_CPU_DESCRIPTOR_HANDLE rtv, float r, float g, float b, float a)
+        : rtv(rtv), rgba(), clearRect(), hasRect(false)
+    {
+        rgba.r = r;
+        rgba.g = g;
+        rgba.b = b;
+        rgba.a = a;
+    }
 
     ClearRenderTargetArgs(D3D12_CPU_DESCRIPTOR_HANDLE rtv, float r, float g, float b, float a, const D3D12_RECT& clearRect)
-        : rtv(rtv)
-        , rgba()
-        , clearRect(clearRect)
+        : rtv(rtv), rgba(), clearRect(clearRect), hasRect(true)
     {
         rgba.r = r;
         rgba.g = g;
@@ -75,11 +83,14 @@ struct ClearDepthStencilArgs
     D3D12_CPU_DESCRIPTOR_HANDLE dsv;
     float depth;
     D3D12_RECT clearRect;
+    bool hasRect;
+
+    ClearDepthStencilArgs(D3D12_CPU_DESCRIPTOR_HANDLE dsv, float depth)
+        : dsv(dsv), depth(depth), clearRect(), hasRect(false)
+    {}
 
     ClearDepthStencilArgs(D3D12_CPU_DESCRIPTOR_HANDLE dsv, float depth, const D3D12_RECT& clearRect)
-        : dsv(dsv)
-        , depth(depth)
-        , clearRect(clearRect)
+        : dsv(dsv), depth(depth), clearRect(clearRect), hasRect(true)
     {}
 };
 
@@ -361,30 +372,57 @@ public:
 class ClearRenderTargetAction: public RenderThreadDataExecutable<ClearRenderTargetArgs>
 {
 public:
+    ClearRenderTargetAction(D3D12_CPU_DESCRIPTOR_HANDLE rtv, float r, float g, float b, float a)
+        : RenderThreadDataExecutable(ClearRenderTargetArgs(rtv, r, g, b, a))
+    {}
+
     ClearRenderTargetAction(D3D12_CPU_DESCRIPTOR_HANDLE rtv, float r, float g, float b, float a, const D3D12_RECT& clearRect)
         : RenderThreadDataExecutable(ClearRenderTargetArgs(rtv, r, g, b, a, clearRect))
     {}
 
     void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
-        commandList->ClearRenderTargetView(
-            mData.rtv,
-            reinterpret_cast<const float*>(&mData.rgba),
-            1, &mData.clearRect
-        );
+        if (mData.hasRect)
+        {
+            commandList->ClearRenderTargetView(
+                mData.rtv,
+                reinterpret_cast<const float*>(&mData.rgba),
+                1, &mData.clearRect
+            );
+        }
+        else
+        {
+            commandList->ClearRenderTargetView(
+                mData.rtv,
+                reinterpret_cast<const float*>(&mData.rgba),
+                0, nullptr
+            );
+        }
     }
 };
 
 class ClearDepthStencilAction: public RenderThreadDataExecutable<ClearDepthStencilArgs>
 {
 public:
+    ClearDepthStencilAction(D3D12_CPU_DESCRIPTOR_HANDLE dsv, float depth)
+        : RenderThreadDataExecutable(ClearDepthStencilArgs(dsv, depth))
+    {}
+
     ClearDepthStencilAction(D3D12_CPU_DESCRIPTOR_HANDLE dsv, float depth, const D3D12_RECT& clearRect)
         : RenderThreadDataExecutable(ClearDepthStencilArgs(dsv, depth, clearRect))
     {}
 
+
     void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
     {
-        commandList->ClearDepthStencilView(mData.dsv, D3D12_CLEAR_FLAG_DEPTH, mData.depth, 0, 1, &mData.clearRect);
+        if (mData.hasRect)
+        {
+            commandList->ClearDepthStencilView(mData.dsv, D3D12_CLEAR_FLAG_DEPTH, mData.depth, 0, 1, &mData.clearRect);
+        }
+        else
+        {
+            commandList->ClearDepthStencilView(mData.dsv, D3D12_CLEAR_FLAG_DEPTH, mData.depth, 0, 0, nullptr);
+        }
     }
 };
 

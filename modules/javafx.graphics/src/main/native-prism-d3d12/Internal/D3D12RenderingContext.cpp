@@ -435,6 +435,13 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
     }
 }
 
+// this is a pass-through to initialize the depth texture for an RTT
+// we do this separately than the regular Clear() command when initializing depth textures
+void RenderingContext::ClearDepth(const D3D12_CPU_DESCRIPTOR_HANDLE& dsv)
+{
+    mRTPayload->AddStep(CreateRTExec<ClearDepthStencilAction>(mPayloadAllocator, dsv, 1.0f));
+}
+
 void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset)
 {
     BBox invalidBox;
