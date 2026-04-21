@@ -121,7 +121,7 @@ int NativeInstance::GetAdapterOrdinal(HMONITOR monitor)
             output->GetDesc(&outputDesc);
             D3D12NI_LOG_DEBUG(" \\_ output #%d: %ws (monitor %p)", outputIdx, outputDesc.DeviceName, outputDesc.Monitor);
             if (outputDesc.Monitor == monitor) {
-                ret = outputIdx;
+                ret = adapterIdx;
                 break;
             }
 
