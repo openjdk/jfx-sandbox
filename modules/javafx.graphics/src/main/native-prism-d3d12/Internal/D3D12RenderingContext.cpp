@@ -83,7 +83,6 @@ void RenderingContext::EnsureBoundTextureStates(D3D12_RESOURCE_STATES state)
     if (mRenderTarget.Get()->HasDepthTexture())
         QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-
     for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
     {
         const NIPtr<TextureBase>& tex = mResourceManager.GetTexture(i);
@@ -226,15 +225,14 @@ RenderingContext::VertexSubregion RenderingContext::GetNewRegionForVertices(uint
         // rendering more vertices might utilize the Ring Buffer better if we just reserve a separate space for them
         mVertexRingBuffer->DeclareRequired(vertexCount * 8 * sizeof(float));
         Internal::GPURingBuffer::GPURegion region = mVertexRingBuffer->ReserveCPU(vertexCount * 8 * sizeof(float));
-
-        VertexSubregion separateRegion;
-        separateRegion.subregion = region.cpuRegion;
-        if (!separateRegion)
+        if (!region)
         {
             D3D12NI_LOG_ERROR("2D Vertex Ring Buffer allocation failed");
             return VertexSubregion();
         }
 
+        VertexSubregion separateRegion;
+        separateRegion.subregion = region.cpuRegion;
         separateRegion.view.BufferLocation = region.gpuRegion.gpu;
         separateRegion.view.SizeInBytes = static_cast<UINT>(region.gpuRegion.size);
         separateRegion.view.StrideInBytes = sizeof(Vertex_2D);
@@ -400,8 +398,6 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
 {
     if (!mRenderTarget.IsSet()) return;
 
-    // LKTODO I think Apply is not needed here...?
-    //mRenderTarget.Apply(mNativeDevice->GetCurrentCommandList(), mState);
     DescriptorData rtData = mRenderTarget.Get()->GetRTVDescriptorData();
 
     // if the RTT was NOT fully used we don't have to clear the whole thing
@@ -750,7 +746,7 @@ BBox RenderingContext::SetVertexBufferForQuads(const Internal::MemoryView<float>
     BBox box;
 
     VertexSubregion vertexRegion = GetNewRegionForVertices(vertexCount);
-    if (!vertexRegion) box;
+    if (!vertexRegion) return box;
 
     box = AssembleVertexData(vertexRegion.subregion.cpu, vertices, colors, vertexCount);
     SetVertexBuffer(vertexRegion.view);

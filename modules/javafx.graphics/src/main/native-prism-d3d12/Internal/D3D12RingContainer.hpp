@@ -47,7 +47,6 @@ class RingContainer: public IWaitableOperation
     size_t mUsed; // total data used inside the ring buffer
     size_t mUncommitted; // total data that has not been committed yet
     size_t mHead; // head of all used data
-    size_t mTail; // tail of all used data
 
     struct Checkpoint
     {
@@ -95,6 +94,7 @@ protected:
     NIPtr<NativeDevice> mNativeDevice;
     size_t mSize;
     size_t mAlignment;
+    size_t mTail; // tail of all used data
     uint32_t mProfilerSourceID;
 
     // Initializes some internal common fields. Should be called at

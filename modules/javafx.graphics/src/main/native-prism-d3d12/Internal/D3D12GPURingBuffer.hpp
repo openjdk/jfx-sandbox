@@ -48,6 +48,11 @@ public:
     {
         RingBuffer::Region cpuRegion;
         RingBuffer::Region gpuRegion;
+
+        operator bool()
+        {
+            return (cpuRegion.operator bool());
+        }
     };
 
 private:
@@ -56,6 +61,7 @@ private:
     D3D12_RESOURCE_STATES mGPUResourceState;
     size_t mChunkToTransferStart;
     size_t mChunkToTransferSize;
+    size_t mLastReserveTail;
 
 public:
     GPURingBuffer(const NIPtr<NativeDevice>& nativeDevice);

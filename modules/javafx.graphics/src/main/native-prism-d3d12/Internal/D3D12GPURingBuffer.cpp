@@ -83,6 +83,7 @@ bool GPURingBuffer::Init(size_t flushThreshold, size_t alignment, size_t size)
 
     mChunkToTransferStart = 0;
     mChunkToTransferSize = 0;
+    mLastReserveTail = 0;
 
     return true;
 }
@@ -92,6 +93,7 @@ GPURingBuffer::GPURegion GPURingBuffer::ReserveCPU(size_t size)
     GPURegion result;
 
     result.cpuRegion = RingBuffer::Reserve(size);
+    if (!result.cpuRegion) return GPURegion();
 
     // fill gpu region struct based on cpu region
     // we assume both buffers
@@ -100,7 +102,17 @@ GPURingBuffer::GPURegion GPURingBuffer::ReserveCPU(size_t size)
     result.gpuRegion.offsetFromStart = result.cpuRegion.offsetFromStart;
     result.gpuRegion.gpu = mGPUResourcePtr + result.gpuRegion.offsetFromStart;
 
-    mChunkToTransferSize += result.gpuRegion.size;
+    if (mLastReserveTail > mTail)
+    {
+        // wrap around
+        mChunkToTransferSize += (mSize - mLastReserveTail) + mTail;
+    }
+    else
+    {
+        mChunkToTransferSize += (mTail - mLastReserveTail);
+    }
+
+    mLastReserveTail = mTail;
     return result;
 }
 
