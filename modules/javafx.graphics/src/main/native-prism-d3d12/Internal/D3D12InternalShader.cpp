@@ -59,7 +59,7 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
     int32_t textureCountFromVariant = -1;
 
     // try an exact name search first
-    auto resources = InternalShaderResource::InternalShaders.find(name);
+    auto resources = InternalShaderResource::InternalShaders.find(name.c_str());
     if (resources == InternalShaderResource::InternalShaders.end())
     {
         // It is possible we try to load a variant of an internal shader
@@ -73,7 +73,7 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
         }
 
         std::string basename = name.substr(0, underscore);
-        resources = InternalShaderResource::InternalShaders.find(basename);
+        resources = InternalShaderResource::InternalShaders.find(basename.c_str());
         if (resources == InternalShaderResource::InternalShaders.end())
         {
             D3D12NI_LOG_ERROR("Cannot locate resources for internal shader %s", name.c_str());
@@ -105,19 +105,13 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
             mResourceData.cbufferDTableSingleSize = constantBuffer.size;
             mResourceData.cbufferDTableCount = constantBuffer.count;
 
-            for (uint32_t i = 0; i < constantBuffer.count; ++i)
-            {
-                ResourceAssignment assignment(constantBuffer.type, constantBuffer.rootIndex, i, constantBuffer.size, constantBufferTotalSize);
+            // adding entire CBuffer table as one big blob - we will split it on SetConstants()
+            uint32_t totalSize = constantBuffer.size * constantBuffer.count;
+            ResourceAssignment assignment(constantBuffer.type, constantBuffer.rootIndex, 0, constantBuffer.size, constantBufferTotalSize);
 
-                std::string name = constantBuffer.name;
-                name += '[';
-                name += std::to_string(i);
-                name += ']';
-
-                AddShaderResource(name, assignment);
-                mCBufferDTableRegions.emplace_back(assignment);
-                constantBufferTotalSize += constantBuffer.size;
-            }
+            AddShaderResource(constantBuffer.name, assignment);
+            mCBufferDTableRegions.emplace_back(assignment);
+            constantBufferTotalSize += totalSize;
         }
         else
         {
@@ -163,7 +157,7 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
     for (const auto& r: mShaderResourceAssignments)
     {
         const ResourceAssignment& ra = r.second;
-        D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first.c_str(), ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
+        D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first, ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
     }
 
     return true;

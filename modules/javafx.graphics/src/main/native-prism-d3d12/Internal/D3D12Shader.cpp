@@ -29,7 +29,7 @@
 namespace D3D12 {
 namespace Internal {
 
-void Shader::AddShaderResource(const std::string& name, const ResourceAssignment& resource)
+void Shader::AddShaderResource(const char* name, const ResourceAssignment& resource)
 {
     mShaderResourceAssignments.emplace(name, resource);
 }
@@ -62,14 +62,14 @@ bool Shader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER
     return true;
 }
 
-bool Shader::SetConstants(const std::string& name, const void* data, size_t size)
+bool Shader::SetConstants(const char* name, const void* data, size_t size)
 {
     // parameters were mostly validated at JNI entry point already
     // so we can only check if resource exists in the map
     auto resourceIt = mShaderResourceAssignments.find(name);
     if (resourceIt == mShaderResourceAssignments.end())
     {
-        D3D12NI_LOG_ERROR("Shader resource named %s not found in shader %s", name.c_str(), mName.c_str());
+        D3D12NI_LOG_ERROR("Shader resource named %s not found in shader %s", name, mName.c_str());
         return false;
     }
 
@@ -83,16 +83,24 @@ bool Shader::SetConstants(const std::string& name, const void* data, size_t size
     return true;
 }
 
-bool Shader::SetConstantsInArray(const std::string& name, uint32_t idx, const void* data, size_t size)
+bool Shader::SetConstantsInArray(const char* name, uint32_t idx, const void* data, size_t size)
 {
     // parameters were mostly validated at JNI entry point already
     // so we can only check if resource exists in the map
-    std::string resourceName = name;
-    resourceName += '[';
-    resourceName += std::to_string(idx);
-    resourceName += ']';
+    auto resourceIt = mShaderResourceAssignments.find(name);
+    if (resourceIt == mShaderResourceAssignments.end())
+    {
+        D3D12NI_LOG_ERROR("Shader resource named %s not found in shader %s", name, mName.c_str());
+        return false;
+    }
 
-    return SetConstants(resourceName, data, size);
+    const ResourceAssignment& resource = resourceIt->second;
+    uint8_t* dstDataPtr = mConstantBufferStorage.data() + resource.offsetInCBStorage + (idx * resource.sizeInCBStorage);
+    const uint8_t* srcDataPtr = reinterpret_cast<const uint8_t*>(data);
+    memcpy(dstDataPtr, srcDataPtr, size);
+
+    mConstantsDirty = true;
+    return true;
 }
 
 } // namespace Internal

@@ -29,8 +29,7 @@
 #include "D3D12Constants.hpp"
 #include "D3D12ShaderSlots.hpp"
 
-#include <unordered_map>
-#include <string>
+#include <map>
 #include <vector>
 
 
@@ -39,7 +38,7 @@ namespace InternalShaderResource {
 
 struct ResourceBinding
 {
-    std::string name;
+    const char* name;
     ResourceAssignmentType type;
     uint32_t rootIndex; // NOTE: this value CAN be equal across multiple entries
                      // uniforms that are ex. together in a struct exist within the same shader slot
@@ -57,7 +56,7 @@ struct ShaderResources
     ResourceBindings samplers;
 };
 
-using ShaderResourceCollection = std::unordered_map<std::string, ShaderResources>;
+using ShaderResourceCollection = std::map<const char*, ShaderResources, CStringComparer>;
 
 
 ResourceBindings PassThroughVSConstantBuffers = {

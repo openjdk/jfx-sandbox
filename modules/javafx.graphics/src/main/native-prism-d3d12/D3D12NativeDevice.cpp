@@ -513,7 +513,7 @@ void NativeDevice::SetScissor(bool enabled, int x1, int y1, int x2, int y2)
     mRenderingContext->SetScissor(enabled, scissor);
 }
 
-bool NativeDevice::SetShaderConstants(const NIPtr<NativeShader>& shader, const std::string& name, const void* data, size_t size)
+bool NativeDevice::SetShaderConstants(const NIPtr<NativeShader>& shader, const char* name, const void* data, size_t size)
 {
     return shader->SetConstants(name, data, size);
 }
@@ -1050,7 +1050,6 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetSha
 
     D3D12::Internal::JNIBuffer<jfloatArray> buffer(env, floatBuf, nullptr);
     D3D12::Internal::JNIString nameJStr(env, name);
-    std::string nameStr(nameJStr);
 
     if (buffer.Data() == nullptr) return false;
     if (offset + count > buffer.Size()) return false;
@@ -1060,7 +1059,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetSha
 
     const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(buffer.Data()) + offsetBytes;
 
-    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->SetShaderConstants(shader, nameStr, srcPtr, sizeBytes);
+    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->SetShaderConstants(shader, nameJStr, srcPtr, sizeBytes);
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetShaderConstantsI
@@ -1078,7 +1077,6 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetSha
 
     D3D12::Internal::JNIBuffer<jintArray> buffer(env, intBuf, nullptr);
     D3D12::Internal::JNIString nameJStr(env, name);
-    std::string nameStr(nameJStr);
 
     if (buffer.Data() == nullptr) return false;
     if (offset + count > buffer.Size()) return false;
@@ -1088,7 +1086,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetSha
 
     const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(buffer.Data()) + offsetBytes;
 
-    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->SetShaderConstants(shader, nameStr, srcPtr, sizeBytes);
+    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->SetShaderConstants(shader, nameJStr, srcPtr, sizeBytes);
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetTexture

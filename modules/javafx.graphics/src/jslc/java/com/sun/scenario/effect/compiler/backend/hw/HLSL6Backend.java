@@ -391,8 +391,7 @@ public class HLSL6Backend extends SLBackend {
                 #pragma once
 
                 #include <vector>
-                #include <string>
-                #include <unordered_map>
+                #include <map>
 
                 namespace D3D12 {
                 namespace JSLC {
@@ -409,14 +408,23 @@ public class HLSL6Backend extends SLBackend {
 
                 struct ResourceBinding
                 {
-                    std::string name;
+                    const char* name;
                     ResourceBindingType type;
                     int slot;
                     int count;
                 };
 
+                class CStringComparer
+                {
+                public:
+                    bool operator()(const char* const a, const char* const b) const
+                    {
+                        return std::strcmp(a, b) < 0;
+                    }
+                };
+
                 using ShaderResourceCollection = std::vector<ResourceBinding>;
-                using ShaderCollection = std::unordered_map<std::string, ShaderResourceCollection&>;
+                using ShaderCollection = std::map<const char*, ShaderResourceCollection&, CStringComparer>;
 
                 } // namespace JSLC
                 } // namespace D3D12

@@ -105,10 +105,10 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
         return false;
     }
 
-    auto resources = JSLC::DecoraShaders.find(mName);
+    auto resources = JSLC::DecoraShaders.find(mName.c_str());
     if (resources == JSLC::DecoraShaders.end())
     {
-        resources = JSLC::PrismShaders.find(mName);
+        resources = JSLC::PrismShaders.find(mName.c_str());
         if (resources == JSLC::PrismShaders.end())
         {
             D3D12NI_LOG_ERROR("Couldn't find %s shader resource data", mName.c_str());
@@ -123,7 +123,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
 
         for (auto& r: mShaderResources)
         {
-            D3D12NI_LOG_DEBUG("  \\_ %s (%s, %d, %d)", r.name.c_str(), ResourceTypeToString(r.type), r.slot, r.count);
+            D3D12NI_LOG_DEBUG("  \\_ %s (%s, %d, %d)", r.name, ResourceTypeToString(r.type), r.slot, r.count);
         }
     }
     else
@@ -190,7 +190,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     for (const auto& r: mShaderResourceAssignments)
     {
         const ResourceAssignment& ra = r.second;
-        D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first.c_str(), ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
+        D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first, ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
     }
 
     // NativeShader (Phong/Decora) assume we need only one big constant buffer for all data

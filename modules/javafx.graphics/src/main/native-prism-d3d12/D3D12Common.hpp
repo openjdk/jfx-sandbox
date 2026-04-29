@@ -38,6 +38,8 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <cstring>
+#include <cmath>
 #include <cassert>
 #include <algorithm>
 
@@ -163,6 +165,20 @@ void FreeNIObject(jlong ptr)
     NIPtr<T>* niPtr = reinterpret_cast<NIPtr<T>*>(ptr);
     delete niPtr;
 }
+
+
+// const char* hasher and comparator for (unordered_)maps
+// without it maps hash and compare raw pointers
+class CStringComparer
+{
+public:
+    bool operator()(const char* const a, const char* const b) const
+    {
+        return std::strcmp(a, b) < 0;
+    }
+};
+
+
 
 // bytes per pixel calculator
 // only covers pixel formats supported by JFX
