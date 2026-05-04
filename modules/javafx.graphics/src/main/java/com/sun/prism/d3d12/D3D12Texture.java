@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -167,12 +167,16 @@ class D3D12Texture extends BaseTexture<D3D12Resource<D3D12TextureData>> {
         try (D3D12Utils.AutoReleasableMediaFrame mf =
                 new D3D12Utils.AutoReleasableMediaFrame(frame)) {
             ByteBuffer pixels = mf.get().getBufferForPlane(0);
+            PixelFormat format = mf.get().getPixelFormat();
+            checkUpdateParams(
+                pixels, format, 0, 0, 0, 0,
+                mf.get().getEncodedWidth(), mf.get().getEncodedHeight(), mf.get().strideForPlane(0)
+            );
 
             if (!skipFlush) {
                 mContext.flushVertexBuffer();
             }
 
-            PixelFormat format = mf.get().getPixelFormat();
             boolean res;
 
             if (format.getDataType() == PixelFormat.DataType.INT) {
