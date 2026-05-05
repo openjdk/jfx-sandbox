@@ -168,10 +168,6 @@ class D3D12Texture extends BaseTexture<D3D12Resource<D3D12TextureData>> {
                 new D3D12Utils.AutoReleasableMediaFrame(frame)) {
             ByteBuffer pixels = mf.get().getBufferForPlane(0);
             PixelFormat format = mf.get().getPixelFormat();
-            checkUpdateParams(
-                pixels, format, 0, 0, 0, 0,
-                mf.get().getEncodedWidth(), mf.get().getEncodedHeight(), mf.get().strideForPlane(0)
-            );
 
             if (!skipFlush) {
                 mContext.flushVertexBuffer();
@@ -180,12 +176,20 @@ class D3D12Texture extends BaseTexture<D3D12Resource<D3D12TextureData>> {
             boolean res;
 
             if (format.getDataType() == PixelFormat.DataType.INT) {
+                checkUpdateParams(
+                    pixels.asIntBuffer(), format, 0, 0, 0, 0,
+                    mf.get().getEncodedWidth(), mf.get().getEncodedHeight(), mf.get().strideForPlane(0)
+                );
                 res = mContext.getDevice().updateTexture(getNativeTexture(),
                                                         pixels.asIntBuffer(), format,
                                                         0, 0, 0, 0,
                                                         mf.get().getEncodedWidth(), mf.get().getEncodedHeight(),
                                                         mf.get().strideForPlane(0));
             } else {
+                checkUpdateParams(
+                    pixels, format, 0, 0, 0, 0,
+                    mf.get().getEncodedWidth(), mf.get().getEncodedHeight(), mf.get().strideForPlane(0)
+                );
                 res = mContext.getDevice().updateTexture(getNativeTexture(),
                                                         pixels, format,
                                                         0, 0, 0, 0,
