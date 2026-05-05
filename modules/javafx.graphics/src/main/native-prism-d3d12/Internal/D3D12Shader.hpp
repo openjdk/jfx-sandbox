@@ -115,7 +115,7 @@ public:
     bool SetConstants(const char* name, const void* data, size_t size);
     bool SetConstantsInArray(const char* name, uint32_t idx, const void* data, size_t size);
 
-    virtual bool PrepareDescriptors(const TextureBank& textures, const ConstantBuffer& constants) = 0;
+    virtual bool PrepareDescriptors(const TextureBank& textures, void* data, size_t size) = 0;
     virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const = 0;
 
     // Inline getters

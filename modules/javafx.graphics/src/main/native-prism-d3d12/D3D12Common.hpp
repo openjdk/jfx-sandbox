@@ -632,6 +632,7 @@ inline size_t GetPixelFormatBPP(PixelFormat f)
 
 namespace D3D12 {
 
+// Descriptor-related structs used to move to RenderPayload
 template <typename DescriptorType>
 struct DescriptorBinding
 {

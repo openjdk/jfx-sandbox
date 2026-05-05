@@ -92,8 +92,8 @@ public:
     }
 };
 
-template <typename T, typename Executable>
-class RenderingParameter: public RenderingStep
+template <typename T>
+class RenderingDataStep: public RenderingStep
 {
     bool mIsSet;
 
@@ -106,24 +106,19 @@ protected:
         mIsSet = true;
     }
 
-    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const override final
-    {
-        return CreateRTExec<Executable>(allocator, mParameter);
-    }
-
     bool CanBeSkipped() const override final
     {
         return (!mIsSet || RenderingStep::CanBeSkipped());
     }
 
 public:
-    RenderingParameter()
+    RenderingDataStep()
         : RenderingStep()
         , mParameter()
         , mIsSet(false)
     {}
 
-    ~RenderingParameter() = default;
+    ~RenderingDataStep() = default;
 
     void Set(T prop)
     {
@@ -147,14 +142,28 @@ public:
     }
 };
 
-template <typename Executable>
-class ShaderConstantsResource: public RenderingParameter<NIPtr<Shader>, Executable>
+// generic rendering parameter initialized directly from the parameter
+template <typename T, typename Executable>
+class RenderingParameter: public RenderingDataStep<T>
 {
-public:
-    ShaderConstantsResource()
-        : RenderingParameter()
-    {}
+protected:
+    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const override
+    {
+        return CreateRTExec<Executable>(allocator, mParameter);
+    }
+};
 
+// special case of data step for shader constants
+template <typename Executable>
+class ShaderConstantsResource: public RenderingDataStep<NIPtr<Shader>>
+{
+protected:
+    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const override
+    {
+        return CreateRTExec<Executable>(allocator, ResourceManager::ShaderConstants(allocator, mParameter->GetConstantStorage().data(), mParameter->GetConstantStorage().size()));
+    }
+
+public:
     virtual void AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload) override
     {
         if (CanBeSkipped() && !mParameter->AreConstantsDirty()) return;

@@ -29,6 +29,7 @@
 #include "../D3D12Constants.hpp"
 
 #include "D3D12IWaitableOperation.hpp"
+#include "D3D12LinearAllocator.hpp"
 #include "D3D12RingBuffer.hpp"
 #include "D3D12RingDescriptorHeap.hpp"
 #include "D3D12SamplerStorage.hpp"
@@ -84,6 +85,46 @@ namespace Internal {
 
 class ResourceManager: public IWaitableOperation
 {
+public:
+    struct ShaderConstants
+    {
+        // NOTE: This temporary buffer will technically be freed when Executable is freed. However, the
+        // free happens when RenderPayload gets freed and deallocates all steps added to it.
+        // Because we ensure that each Payload executes all steps needed to draw/dispatch, ResourceManager
+        // will consume these pointers while they're still allocated, making this safe to use.
+        size_t size;
+        std::unique_ptr<void, LinearAllocatorDeleter<void>> buffer;
+
+        ShaderConstants()
+            : size(0)
+            , buffer(nullptr, LinearAllocatorDeleter<void>(nullptr))
+        {}
+
+        ShaderConstants(LinearAllocator& allocator, const void* srcData, size_t srcSize)
+            : size(srcSize)
+            , buffer(allocator.Allocate(static_cast<uint32_t>(size)), LinearAllocatorDeleter<void>(&allocator))
+        {
+            memcpy(buffer.get(), srcData, srcSize);
+        }
+
+        ShaderConstants(const ShaderConstants& other) = delete;
+        ShaderConstants& operator=(const ShaderConstants& other) = delete;
+
+        ShaderConstants(ShaderConstants&& other)
+            : size(other.size)
+            , buffer(std::move(other.buffer))
+        {
+        }
+
+        ShaderConstants& operator=(ShaderConstants&& other)
+        {
+            size = other.size;
+            buffer = std::move(other.buffer);
+            return *this;
+        }
+    };
+
+private:
     struct RuntimeParametersStash
     {
         NIPtr<Shader> vertexShader;
@@ -94,7 +135,7 @@ class ResourceManager: public IWaitableOperation
     struct ShaderConstantsData
     {
         bool dirty;
-        Shader::ConstantBuffer buffer;
+        ShaderConstants constants;
     };
 
     NIPtr<NativeDevice> mNativeDevice;
@@ -136,9 +177,9 @@ public:
     void SetVertexShader(const NIPtr<Shader>& shader);
     void SetPixelShader(const NIPtr<Shader>& shader);
     void SetComputeShader(const NIPtr<Shader>& shader);
-    void SetVertexShaderConstants(Shader::ConstantBuffer&& constants);
-    void SetPixelShaderConstants(Shader::ConstantBuffer&& constants);
-    void SetComputeShaderConstants(Shader::ConstantBuffer&& constants);
+    void SetVertexShaderConstants(ShaderConstants&& constants);
+    void SetPixelShaderConstants(ShaderConstants&& constants);
+    void SetComputeShaderConstants(ShaderConstants&& constants);
     void SetTextures(const TextureBank& bank);
     void SetTexture(uint32_t slot, const NIPtr<TextureBase>& tex);
 

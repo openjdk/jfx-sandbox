@@ -179,7 +179,7 @@ bool ResourceManager::PrepareShaderResources(const NIPtr<Shader>& shader, Shader
     // ex. MipmapGenComputeShader wants to populate Texture's subresources when generating mip levels instead of
     // simply viewing Textures as a whole resource, including all of its subresources.
     // As such, it makes more sense to let Shaders decide how to write Views onto Descriptors we just prepared for them.
-    if (!shader->PrepareDescriptors(mTextures, constants.buffer)) return false;
+    if (!shader->PrepareDescriptors(mTextures, constants.constants.buffer.get(), constants.constants.size)) return false;
 
     return true;
 }
@@ -379,22 +379,22 @@ void ResourceManager::SetComputeShader(const NIPtr<Shader>& shader)
     mComputeShader = shader;
 }
 
-void ResourceManager::SetVertexShaderConstants(Shader::ConstantBuffer&& constants)
+void ResourceManager::SetVertexShaderConstants(ShaderConstants&& constants)
 {
     mVertexShaderConstants.dirty = true;
-    mVertexShaderConstants.buffer = std::move(constants);
+    mVertexShaderConstants.constants = std::move(constants);
 }
 
-void ResourceManager::SetPixelShaderConstants(Shader::ConstantBuffer&& constants)
+void ResourceManager::SetPixelShaderConstants(ShaderConstants&& constants)
 {
     mPixelShaderConstants.dirty = true;
-    mPixelShaderConstants.buffer = std::move(constants);
+    mPixelShaderConstants.constants = std::move(constants);
 }
 
-void ResourceManager::SetComputeShaderConstants(Shader::ConstantBuffer&& constants)
+void ResourceManager::SetComputeShaderConstants(ShaderConstants&& constants)
 {
     mComputeShaderConstants.dirty = true;
-    mComputeShaderConstants.buffer = std::move(constants);
+    mComputeShaderConstants.constants = std::move(constants);
 }
 
 

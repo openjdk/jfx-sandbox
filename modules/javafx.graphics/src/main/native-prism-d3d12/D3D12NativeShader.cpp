@@ -201,7 +201,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     return true;
 }
 
-bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures, const Shader::ConstantBuffer& constants)
+bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures, void* data, size_t size)
 {
     for (uint32_t i = 0; i < mResourceData.textureCount; ++i)
     {
@@ -220,7 +220,7 @@ bool NativeShader::PrepareDescriptors(const Internal::TextureBank& textures, con
             return false;
         }
 
-        memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, constants.data(), constants.size());
+        memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, data, size);
     }
 
     return true;

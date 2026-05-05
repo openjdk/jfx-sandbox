@@ -103,6 +103,14 @@ struct CopyTextureArgs
     uint32_t dsty;
     D3D12_TEXTURE_COPY_LOCATION srcLoc;
     D3D12_BOX srcBox;
+
+    CopyTextureArgs(const D3D12_TEXTURE_COPY_LOCATION& dstLoc, uint32_t dstx, uint32_t dsty, const D3D12_TEXTURE_COPY_LOCATION& srcLoc, const D3D12_BOX& srcBox)
+        : dstLoc(dstLoc), dstx(dstx), dsty(dsty), srcLoc(srcLoc), srcBox(srcBox)
+    {}
+
+    CopyTextureArgs(const D3D12_TEXTURE_COPY_LOCATION& dstLoc, uint32_t dstx, uint32_t dsty, const D3D12_TEXTURE_COPY_LOCATION& srcLoc)
+        : dstLoc(dstLoc), dstx(dstx), dsty(dsty), srcLoc(srcLoc), srcBox()
+    {}
 };
 
 struct CopyBufferRegionArgs
@@ -112,18 +120,30 @@ struct CopyBufferRegionArgs
     D3D12ResourcePtr src;
     uint64_t srcOffset;
     uint64_t size;
+
+    CopyBufferRegionArgs(const D3D12ResourcePtr& dst, uint64_t dstOffset, const D3D12ResourcePtr& src, uint64_t srcOffset, uint64_t size)
+        : dst(dst), dstOffset(dstOffset), src(src), srcOffset(srcOffset), size(size)
+    {}
 };
 
 struct CopyResourceArgs
 {
     D3D12ResourcePtr dst;
     D3D12ResourcePtr src;
+
+    CopyResourceArgs(const D3D12ResourcePtr& dst, const D3D12ResourcePtr& src)
+        : dst(dst), src(src)
+    {}
 };
 
 struct DrawArgs
 {
     uint32_t elements;
     uint32_t vbOffset;
+
+    DrawArgs(uint32_t elements, uint32_t vbOffset)
+        : elements(elements), vbOffset(vbOffset)
+    {}
 };
 
 struct DispatchArgs
@@ -131,6 +151,10 @@ struct DispatchArgs
     uint32_t x;
     uint32_t y;
     uint32_t z;
+
+    DispatchArgs(uint32_t x, uint32_t y, uint32_t z)
+        : x(x), y(y), z(z)
+    {}
 };
 
 struct ResolveArgs
@@ -138,6 +162,10 @@ struct ResolveArgs
     ID3D12Resource* dst;
     ID3D12Resource* src;
     DXGI_FORMAT format;
+
+    ResolveArgs(ID3D12Resource* dst, ID3D12Resource* src, DXGI_FORMAT format)
+        : dst(dst), src(src), format(format)
+    {}
 };
 
 struct ResolveRegionArgs
@@ -148,6 +176,10 @@ struct ResolveRegionArgs
     ID3D12Resource* src;
     D3D12_RECT srcRect;
     DXGI_FORMAT format;
+
+    ResolveRegionArgs(ID3D12Resource* dst, uint32_t dstx, uint32_t dsty, ID3D12Resource* src, const D3D12_RECT& srcRect, DXGI_FORMAT format)
+        : dst(dst), dstx(dstx), dsty(dsty), src(src), srcRect(srcRect), format(format)
+    {}
 };
 
 struct GraphicsShaders
@@ -167,6 +199,10 @@ struct ResourceBarrierGroup
 {
     ResourceBarrierArray barriers;
     uint32_t count;
+
+    ResourceBarrierGroup(const ResourceBarrierArray& barriers, uint32_t count)
+        : barriers(barriers), count(count)
+    {}
 };
 
 // Descriptor bindings-related bits are in D3D12Common.hpp to make them visible to Shaders
@@ -193,6 +229,16 @@ public:
     RenderThreadDataExecutable(const T& data)
         : mData(data)
     {}
+
+    RenderThreadDataExecutable(T&& data)
+        : mData(std::move(data))
+    {}
+
+    template <typename ...Args>
+    RenderThreadDataExecutable(Args&&... args)
+        : mData(std::forward<Args>(args)...)
+    {
+    }
 };
 
 using RenderThreadExecutableDeleter = LinearAllocatorDeleter<RenderThreadExecutable>;
@@ -396,12 +442,12 @@ class CopyTextureAction: public RenderThreadDataExecutable<CopyTextureArgs>
 
 public:
     CopyTextureAction(D3D12_TEXTURE_COPY_LOCATION dstLoc, uint32_t dstx, uint32_t dsty, D3D12_TEXTURE_COPY_LOCATION srcLoc, D3D12_BOX srcBox)
-        : RenderThreadDataExecutable({dstLoc, dstx, dsty, srcLoc, srcBox})
+        : RenderThreadDataExecutable(dstLoc, dstx, dsty, srcLoc, srcBox)
         , hasBox(true)
     {}
 
     CopyTextureAction(D3D12_TEXTURE_COPY_LOCATION dstLoc, uint32_t dstx, uint32_t dsty, D3D12_TEXTURE_COPY_LOCATION srcLoc)
-        : RenderThreadDataExecutable({dstLoc, dstx, dsty, srcLoc, {}})
+        : RenderThreadDataExecutable(dstLoc, dstx, dsty, srcLoc)
         , hasBox(false)
     {}
 
@@ -415,7 +461,7 @@ class CopyBufferRegionAction: public RenderThreadDataExecutable<CopyBufferRegion
 {
 public:
     CopyBufferRegionAction(const D3D12ResourcePtr& dst, uint64_t dstOffset, const D3D12ResourcePtr& src, uint64_t srcOffset, uint64_t size)
-        : RenderThreadDataExecutable({dst, dstOffset, src, srcOffset, size})
+        : RenderThreadDataExecutable(dst, dstOffset, src, srcOffset, size)
     {}
 
     void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
@@ -428,7 +474,7 @@ class CopyResourceAction: public RenderThreadDataExecutable<CopyResourceArgs>
 {
 public:
     CopyResourceAction(const D3D12ResourcePtr& dst, const D3D12ResourcePtr& src)
-        : RenderThreadDataExecutable({dst, src})
+        : RenderThreadDataExecutable(dst, src)
     {}
 
     void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
@@ -441,7 +487,7 @@ class DrawAction: public RenderThreadDataExecutable<DrawArgs>
 {
 public:
     DrawAction(uint32_t elements, uint32_t vbOffset)
-        : RenderThreadDataExecutable({elements, vbOffset})
+        : RenderThreadDataExecutable(elements, vbOffset)
     {}
 
     void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
@@ -454,7 +500,7 @@ class ResolveAction: public RenderThreadDataExecutable<ResolveArgs>
 {
 public:
     ResolveAction(ID3D12Resource* dst, ID3D12Resource* src, DXGI_FORMAT format)
-        : RenderThreadDataExecutable({dst, src, format})
+        : RenderThreadDataExecutable(dst, src, format)
     {}
 
     void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
@@ -467,7 +513,7 @@ class ResolveRegionAction: public RenderThreadDataExecutable<ResolveRegionArgs>
 {
 public:
     ResolveRegionAction(ID3D12Resource* dst, uint32_t dstx, uint32_t dsty, ID3D12Resource* src, D3D12_RECT srcRect, DXGI_FORMAT format)
-        : RenderThreadDataExecutable({dst, dstx, dsty, src, srcRect, format})
+        : RenderThreadDataExecutable(dst, dstx, dsty, src, srcRect, format)
     {}
 
     void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
@@ -482,7 +528,7 @@ class ResourceBarrierAction: public RenderThreadDataExecutable<ResourceBarrierGr
 {
 public:
     ResourceBarrierAction(const ResourceBarrierArray& data, uint32_t count)
-        : RenderThreadDataExecutable({data, count})
+        : RenderThreadDataExecutable(data, count)
     {}
 
     void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
@@ -533,12 +579,13 @@ public:
     }
 };
 
-class SetVertexShaderConstantsAction: public RenderThreadDataExecutable<Shader::ConstantBuffer>
+class SetVertexShaderConstantsAction: public RenderThreadDataExecutable<ResourceManager::ShaderConstants>
 {
 public:
-    SetVertexShaderConstantsAction(const NIPtr<Shader>& vertexShader)
-        : RenderThreadDataExecutable(vertexShader->GetConstantStorage())
-    {}
+    SetVertexShaderConstantsAction(ResourceManager::ShaderConstants&& constants)
+        : RenderThreadDataExecutable(std::move(constants))
+    {
+    }
 
     void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
     {
@@ -546,11 +593,11 @@ public:
     }
 };
 
-class SetPixelShaderConstantsAction: public RenderThreadDataExecutable<Shader::ConstantBuffer>
+class SetPixelShaderConstantsAction: public RenderThreadDataExecutable<ResourceManager::ShaderConstants>
 {
 public:
-    SetPixelShaderConstantsAction(const NIPtr<Shader>& pixelShader)
-        : RenderThreadDataExecutable(pixelShader->GetConstantStorage())
+    SetPixelShaderConstantsAction(ResourceManager::ShaderConstants&& constants)
+        : RenderThreadDataExecutable(std::move(constants))
     {}
 
     void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final
@@ -614,7 +661,7 @@ class DispatchAction: public RenderThreadDataExecutable<DispatchArgs>
 {
 public:
     DispatchAction(uint32_t x, uint32_t y, uint32_t z)
-        : RenderThreadDataExecutable({x, y, z})
+        : RenderThreadDataExecutable(x, y, z)
     {}
 
     void Execute(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState&) override final
@@ -639,11 +686,11 @@ public:
     }
 };
 
-class SetComputeShaderConstantsAction: public RenderThreadDataExecutable<Shader::ConstantBuffer>
+class SetComputeShaderConstantsAction: public RenderThreadDataExecutable<ResourceManager::ShaderConstants>
 {
 public:
-    SetComputeShaderConstantsAction(const NIPtr<Shader>& computeShader)
-        : RenderThreadDataExecutable(computeShader->GetConstantStorage())
+    SetComputeShaderConstantsAction(ResourceManager::ShaderConstants&& constants)
+        : RenderThreadDataExecutable(std::move(constants))
     {}
 
     void Execute(const D3D12GraphicsCommandListPtr&, RenderThreadState& state) override final

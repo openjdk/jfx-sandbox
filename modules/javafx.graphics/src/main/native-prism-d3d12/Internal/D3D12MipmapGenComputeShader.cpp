@@ -67,11 +67,11 @@ bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mo
     return true;
 }
 
-bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures, const Shader::ConstantBuffer& constants)
+bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures, void* data, size_t size)
 {
-    if (mConstantBufferStorage.size() != sizeof(CBuffer))
+    if (size != sizeof(CBuffer))
     {
-        D3D12NI_LOG_ERROR("MipmapGenCS: Invalid Constant Buffer Storage");
+        D3D12NI_LOG_ERROR("MipmapGenCS: Invalid Constant Buffer data");
         return false;
     }
 
@@ -81,7 +81,7 @@ bool MipmapGenComputeShader::PrepareDescriptors(const TextureBank& textures, con
         return false;
     }
 
-    const CBuffer* cb = reinterpret_cast<const CBuffer*>(constants.data());
+    const CBuffer* cb = reinterpret_cast<const CBuffer*>(data);
     memcpy(mDescriptorData.ConstantDataDirectRegion.cpu, cb, sizeof(CBuffer));
 
     // write source mip level as SRV (our input)
