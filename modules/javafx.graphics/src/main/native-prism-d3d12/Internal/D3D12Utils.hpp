@@ -25,9 +25,15 @@
 
 #pragma once
 
+// TODO: D3D12: This should be un-silenced and conversion should be done via WinAPI
+#ifndef _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+#endif
+
 #include <algorithm>
 #include <codecvt>
 #include <string>
+
 
 namespace D3D12 {
 namespace Internal {
@@ -88,12 +94,12 @@ public:
         return size;
     };
 
-    static inline std::wstring Utils::ToWString(const std::string& s)
+    static inline std::wstring ToWString(const std::string& s)
     {
         return mConverter.from_bytes(s);
     }
 
-    static inline std::string Utils::ToString(const std::wstring& s)
+    static inline std::string ToString(const std::wstring& s)
     {
         return mConverter.to_bytes(s);
     }

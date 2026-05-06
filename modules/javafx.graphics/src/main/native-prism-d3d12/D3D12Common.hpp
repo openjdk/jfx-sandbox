@@ -27,6 +27,11 @@
 
 #define NOMINMAX
 
+// TODO: D3D12: This should be un-silenced and conversion should be done via WinAPI
+#ifndef _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+#endif
+
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include <dxgidebug.h>

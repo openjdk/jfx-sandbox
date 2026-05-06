@@ -63,7 +63,8 @@ std::string Config::GetPropertyInternal(const char* propertyName)
 
     if (propValueStr == nullptr) return std::string();
 
-    const char* propValue = mJNIEnv->GetStringUTFChars(propValueStr, false);
+    jboolean isCopy = false;
+    const char* propValue = mJNIEnv->GetStringUTFChars(propValueStr, &isCopy);
     std::string ret(propValue);
     mJNIEnv->ReleaseStringUTFChars(propValueStr, propValue);
     return ret;

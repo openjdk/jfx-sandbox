@@ -87,7 +87,7 @@ DescriptorData DescriptorAllocator::Allocate(uint32_t count)
         return DescriptorData();
     }
 
-    auto& heapIt = mHeaps.find(mLastHeapID);
+    auto heapIt = mHeaps.find(mLastHeapID);
     D3D12NI_ASSERT(heapIt != mHeaps.end(), "Cannot find available descriptor allocator!");
 
     DescriptorData data = heapIt->second.Allocate(count);

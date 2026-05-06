@@ -149,7 +149,7 @@ class RenderingParameter: public RenderingDataStep<T>
 protected:
     RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const override
     {
-        return CreateRTExec<Executable>(allocator, mParameter);
+        return CreateRTExec<Executable>(allocator, RenderingDataStep<T>::mParameter);
     }
 };
 

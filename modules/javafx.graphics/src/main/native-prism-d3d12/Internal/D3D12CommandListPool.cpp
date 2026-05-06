@@ -112,7 +112,7 @@ bool CommandListPool::Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount
 {
     #if DEBUG
     // for debugging
-    wchar_t* typeStr;
+    const wchar_t* typeStr;
     switch (type)
     {
     case D3D12_COMMAND_LIST_TYPE_DIRECT:
@@ -230,7 +230,7 @@ D3D12GraphicsCommandListPtr CommandListPool::AdvanceCommandList()
     D3D12NI_ASSERT(CurrentCommandListData().state == CommandListState::Active, "Invalid Command List #%d state %d", mCurrentCommandList, CurrentCommandListData().state);
 
     HRESULT hr = CurrentCommandListData().commandList->Close();
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to close Command List");
+    D3D12NI_RET_IF_FAILED(hr, nullptr, "Failed to close Command List");
 
     CurrentCommandListData().state = CommandListState::Closed;
 

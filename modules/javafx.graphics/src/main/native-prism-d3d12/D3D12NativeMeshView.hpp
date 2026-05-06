@@ -89,7 +89,7 @@ public:
                   float enabled, float ca, float la, float qa, float isAttenuated, float maxRange,
                   float dirX, float dirY, float dirZ, float innerAngle, float outerAngle, float falloff);
 
-    inline const PSColorSpec& NativeMeshView::GetPSColorSpec()
+    inline const PSColorSpec& GetPSColorSpec()
     {
         // get diffuse and specular colors from the material
         mColorsPS.diffuse = mMaterial->GetDiffuseColor();
