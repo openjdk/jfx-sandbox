@@ -80,30 +80,9 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
 
 void RingContainer::PrintHumanReadableSize()
 {
-    auto SizeReducer = [](size_t size, char& unit) -> size_t
-    {
-        uint32_t reductions = 0;
-        while (size > 1024 && reductions < 3)
-        {
-            size /= 1024;
-            reductions++;
-        }
-
-        switch (reductions)
-        {
-        case 0: unit = ' '; break;
-        case 1: unit = 'K'; break;
-        case 2: unit = 'M'; break;
-        case 3: unit = 'G'; break;
-        default: unit = '?'; break;
-        }
-
-        return size;
-    };
-
     char unitSize, unitThreshold;
-    size_t printedSize = SizeReducer(mSize, unitSize);
-    size_t printedThreshold = SizeReducer(mFlushThreshold, unitThreshold);
+    size_t printedSize = Utils::PrettifySize(mSize, unitSize);
+    size_t printedThreshold = Utils::PrettifySize(mFlushThreshold, unitThreshold);
 
     D3D12NI_LOG_INFO("%s - %d%c (%d) size, %d%c (%d) flush threshold",
         mDebugName.c_str(),

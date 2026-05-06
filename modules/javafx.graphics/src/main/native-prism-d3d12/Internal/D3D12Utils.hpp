@@ -67,6 +67,27 @@ public:
         return static_cast<uint32_t>(std::floor(std::log2(std::max<uint32_t>(width, height)))) + 1;
     }
 
+    static inline size_t PrettifySize(size_t size, char& unit)
+    {
+        uint32_t reductions = 0;
+        while (size > 1024 && reductions < 3)
+        {
+            size >>= 10; // aka. div by 1024 (2^10)
+            reductions++;
+        }
+
+        switch (reductions)
+        {
+        case 0: unit = ' '; break;
+        case 1: unit = 'K'; break;
+        case 2: unit = 'M'; break;
+        case 3: unit = 'G'; break;
+        default: unit = '?'; break;
+        }
+
+        return size;
+    };
+
     static inline std::wstring Utils::ToWString(const std::string& s)
     {
         return mConverter.from_bytes(s);

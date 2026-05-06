@@ -56,14 +56,18 @@ LinearAllocator::~LinearAllocator()
 // chunk to prevent further allocations
 void LinearAllocator::MoveToNewChunk()
 {
-    // TODO: D3D12: A small optimization would be to avoid allocating a new chunk every frame
-    // (and freeing the old one). Ideally we would hit a large enough chunk size that the entire
-    // frame would fit in it, and then it would be reclaimed. However, since RenderingContext always
-    // assumes there is always a Payload available for use, it will always hold the Chunk alive.
-    // Investigate if it's even worth it.
+    bool haveToIncrease = false;
     while (mUsedBeforeLastMove > mSizePerChunk)
     {
+        haveToIncrease = true;
         mSizePerChunk += CHUNK_SIZE;
+    }
+
+    if (haveToIncrease)
+    {
+        char unit = ' ';
+        size_t prettySize = Utils::PrettifySize(mSizePerChunk, unit);
+        D3D12NI_LOG_WARN("LinearAllocator: Chunk size deemed too small, increased to %d%c", prettySize, unit);
     }
 
     mUsedBeforeLastMove = 0;
@@ -72,8 +76,6 @@ void LinearAllocator::MoveToNewChunk()
 
 void* LinearAllocator::Allocate(uint32_t size)
 {
-    std::unique_lock<std::mutex> lock(mAllocatorMutex);
-
     // align to 8 bytes (64-bits)
     uint32_t alignedSize = Utils::Align<uint32_t>(size, 8);
 
@@ -81,6 +83,7 @@ void* LinearAllocator::Allocate(uint32_t size)
     {
         // mark we used a whole chunk
         // this will be used next MoveToNextChunk() to preallocate larger memory chunks
+        D3D12NI_LOG_WARN("LinearAllocator: must expand!");
         mUsedBeforeLastMove += CHUNK_SIZE;
         Expand();
     }
@@ -107,8 +110,6 @@ void LinearAllocator::Free(void* ptr)
     // we know Main Thread won't ever free anything or allocate it on a different chunk
     // than the current one.
     {
-        std::unique_lock<std::mutex> lock(mAllocatorMutex);
-
         if (header->parentChunk == mCurrentChunk)
         {
             mCurrentChunk->Free(ptr);

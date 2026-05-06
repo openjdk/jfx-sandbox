@@ -43,6 +43,7 @@ RenderPayloadPtr RenderingContext::ReplaceRTPayload()
     D3D12NI_ASSERT(mMainThreadTid == std::this_thread::get_id(), "CreateRTPayload() has to be called by the main thread");
 
     RenderPayloadPtr ret(std::move(mRTPayload));
+    mPayloadAllocator.MoveToNewChunk();
     mRTPayload.reset(mPayloadAllocator.Construct<RenderPayload>());
     return ret;
 }

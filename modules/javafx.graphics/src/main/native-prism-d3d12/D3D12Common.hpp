@@ -167,7 +167,7 @@ void FreeNIObject(jlong ptr)
 }
 
 
-// const char* hasher and comparator for (unordered_)maps
+// const char* comparator for (unordered_)maps
 // without it maps hash and compare raw pointers
 class CStringComparer
 {
