@@ -155,6 +155,10 @@ class LinearAllocatorDeleter
     LinearAllocator* mAllocator;
 
 public:
+    LinearAllocatorDeleter()
+        : mAllocator(nullptr)
+    {}
+
     LinearAllocatorDeleter(LinearAllocator* a)
         : mAllocator(a)
     {}

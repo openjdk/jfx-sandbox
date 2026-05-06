@@ -49,7 +49,7 @@ namespace Internal {
 class ShaderLibrary
 {
 private:
-    std::unordered_map<std::string, NIPtr<Shader>> mShaders;
+    std::map<std::string, NIPtr<Shader>> mShaders;
 
 public:
     ShaderLibrary() = default;

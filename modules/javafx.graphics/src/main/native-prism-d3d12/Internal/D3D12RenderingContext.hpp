@@ -161,7 +161,7 @@ class RenderingContext
     RingContainer::Tracker mConstantRingBufferTracker;
     RingContainer::Tracker mDescriptorHeapTracker;
     RingContainer::Tracker mSamplerHeapTracker;
-    NIPtr<Internal::GPURingBuffer> mVertexRingBuffer; // used for 2D Vertex data which for performance should reside on GPU-side
+    NIPtr<Internal::RingBuffer> mVertexRingBuffer; // used for 2D Vertex data which for performance should reside on GPU-side
     std::thread::id mMainThreadTid;
 
     struct ClearOptState

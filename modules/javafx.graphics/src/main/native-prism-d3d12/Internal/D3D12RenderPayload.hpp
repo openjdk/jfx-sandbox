@@ -44,35 +44,36 @@ class RenderPayload
 private:
     static const uint32_t PAYLOAD_SIZE = 1024;
     static const uint32_t PAYLOAD_LIMIT = PAYLOAD_SIZE - 48;
-    using StepList = std::vector<RenderThreadExecutablePtr>;
+    using StepList = std::array<RenderThreadExecutablePtr, PAYLOAD_SIZE>;
 
     StepList mSteps;
+    uint32_t mCurrentStep;
 
 public:
     RenderPayload()
         : mSteps()
+        , mCurrentStep(0)
     {
-        mSteps.reserve(PAYLOAD_SIZE);
     }
 
     bool AddStep(RenderThreadExecutablePtr&& executable)
     {
-        mSteps.emplace_back(std::move(executable));
-        return (mSteps.size() > PAYLOAD_LIMIT);
+        mSteps[mCurrentStep] = std::move(executable);
+        mCurrentStep++;
+        return (mCurrentStep > PAYLOAD_LIMIT);
     }
 
     void ApplySteps(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state)
     {
-        for (uint32_t i = 0; i < mSteps.size(); ++i)
+        for (uint32_t i = 0; i < mCurrentStep; ++i)
         {
             mSteps[i]->Execute(commandList, state);
         }
     }
 
-
     bool HasWork() const
     {
-        return (mSteps.size() > 0);
+        return (mCurrentStep > 0);
     }
 };
 

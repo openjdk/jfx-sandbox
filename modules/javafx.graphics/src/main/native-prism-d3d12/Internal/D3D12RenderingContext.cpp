@@ -224,7 +224,7 @@ RenderingContext::VertexSubregion RenderingContext::GetNewRegionForVertices(uint
     {
         // rendering more vertices might utilize the Ring Buffer better if we just reserve a separate space for them
         mVertexRingBuffer->DeclareRequired(vertexCount * 8 * sizeof(float));
-        Internal::GPURingBuffer::GPURegion region = mVertexRingBuffer->ReserveCPU(vertexCount * 8 * sizeof(float));
+        Internal::RingBuffer::Region region = mVertexRingBuffer->Reserve(vertexCount * 8 * sizeof(float));
         if (!region)
         {
             D3D12NI_LOG_ERROR("2D Vertex Ring Buffer allocation failed");
@@ -232,9 +232,9 @@ RenderingContext::VertexSubregion RenderingContext::GetNewRegionForVertices(uint
         }
 
         VertexSubregion separateRegion;
-        separateRegion.subregion = region.cpuRegion;
-        separateRegion.view.BufferLocation = region.gpuRegion.gpu;
-        separateRegion.view.SizeInBytes = static_cast<UINT>(region.gpuRegion.size);
+        separateRegion.subregion = region;
+        separateRegion.view.BufferLocation = region.gpu;
+        separateRegion.view.SizeInBytes = static_cast<UINT>(region.size);
         separateRegion.view.StrideInBytes = sizeof(Vertex_2D);
 
         return separateRegion;
@@ -245,14 +245,14 @@ RenderingContext::VertexSubregion RenderingContext::GetNewRegionForVertices(uint
         // reserve space on Ring Buffer
         mVertexRingBuffer->DeclareRequired(Constants::MAX_BATCH_VERTICES * 8 * sizeof(float));
 
-        Internal::GPURingBuffer::GPURegion newVertexRegion = mVertexRingBuffer->ReserveCPU(Constants::MAX_BATCH_VERTICES * 8 * sizeof(float));
-        if (!newVertexRegion.cpuRegion)
+        Internal::RingBuffer::Region newVertexRegion = mVertexRingBuffer->Reserve(Constants::MAX_BATCH_VERTICES * 8 * sizeof(float));
+        if (!newVertexRegion)
         {
             D3D12NI_LOG_ERROR("2D Vertex Ring Buffer allocation failed");
             return VertexSubregion();
         }
 
-        m2DVertexBatch.AssignNewRegion(newVertexRegion.cpuRegion, newVertexRegion.gpuRegion);
+        m2DVertexBatch.AssignNewRegion(newVertexRegion, newVertexRegion);
     }
 
     return m2DVertexBatch.Subregion(vertexCount);
@@ -1100,9 +1100,9 @@ void RenderingContext::ExecuteCurrentCommandList()
 {
     // FinalizeCommandList() will wait until the RenderThread is emptied
     D3D12GraphicsCommandListPtr cmdList = mRenderThread.FinalizeCommandList(mPayloadAllocator, ReplaceRTPayload());
-    if (mVertexRingBuffer->HasUncommittedData())
+    if (0) //(mVertexRingBuffer->HasUncommittedData())
     {
-        mVertexRingBuffer->RecordTransferToGPU();
+        //mVertexRingBuffer->RecordTransferToGPU();
         D3D12GraphicsCommandListPtr copyVertexBufferList = mRenderThread.FinalizeCommandList(mPayloadAllocator, ReplaceRTPayload());
 
         // Copy vertex buffer list must happen before just-recorded list, this is

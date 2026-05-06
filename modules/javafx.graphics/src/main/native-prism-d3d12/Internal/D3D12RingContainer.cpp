@@ -38,7 +38,7 @@ void RingContainer::CheckThreshold()
 {
     if (mUncommitted > mFlushThreshold)
     {
-        D3D12NI_LOG_ERROR("CheckThreshold wanted a midframe flush! Maybe it shouldn't do that");
+        D3D12NI_LOG_ERROR("%s: CheckThreshold wanted a midframe flush! Maybe it shouldn't do that", mDebugName.c_str());
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Signal);
         mNativeDevice->NotifyMidframeFlushNeeded();
     }
