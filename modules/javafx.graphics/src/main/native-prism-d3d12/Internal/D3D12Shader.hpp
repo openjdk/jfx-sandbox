@@ -92,7 +92,7 @@ protected:
         {}
     };
 
-    using ResourceAssignmentCollection = std::map<const char*, ResourceAssignment, CStringComparer>;
+    using ResourceAssignmentCollection = std::unordered_map<std::string_view, ResourceAssignment>;
 
     std::string mName;
     ShaderPipelineMode mMode;
@@ -112,8 +112,8 @@ public:
     Shader();
 
     virtual bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize);
-    bool SetConstants(const char* name, const void* data, size_t size);
-    bool SetConstantsInArray(const char* name, uint32_t idx, const void* data, size_t size);
+    bool SetConstants(const std::string_view& name, const void* data, size_t size);
+    bool SetConstantsInArray(const std::string_view& name, uint32_t idx, const void* data, size_t size);
 
     virtual bool PrepareDescriptors(const TextureBank& textures, void* data, size_t size) = 0;
     virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const = 0;

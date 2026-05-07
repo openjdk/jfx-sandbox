@@ -119,16 +119,19 @@ class LinearAllocator
             D3D12NI_ASSERT(header->magic == DATA_MAGIC, "Invalid Magic, this data pointer is not valid or belonging to us");
             D3D12NI_ASSERT(header->parentChunk == this, "Invalid parent chunk in data header");
 
+            size_t size = header->size;
             header->~DataHeader();
             mAllocations--;
+
+            #if DEBUG
+            memset(header, 0xcdcdcdcd, sizeof(DataHeader) + size);
+            #endif
         }
     };
 
     std::list<Chunk> mChunks;
     size_t mSizePerChunk;
-    size_t mUsedBeforeLastMove;
     Chunk* mCurrentChunk;
-    std::mutex mAllocatorMutex;
 
     void Expand();
 

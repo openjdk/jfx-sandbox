@@ -420,6 +420,11 @@ void ResourceManager::SetTexture(uint32_t slot, const NIPtr<TextureBase>& tex)
     }
 }
 
+void ResourceManager::FinishFrame()
+{
+    // invalidate shader constants, they will be reapplied and this will let us free space in the Allocator
+}
+
 void ResourceManager::StashParameters()
 {
     mRuntimeParametersStash.vertexShader = mVertexShader;

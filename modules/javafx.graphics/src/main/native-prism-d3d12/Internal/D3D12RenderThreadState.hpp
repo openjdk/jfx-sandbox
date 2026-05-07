@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,46 +27,25 @@
 
 #include "../D3D12Common.hpp"
 
-#include "D3D12Shader.hpp"
-
-#include <functional>
-#include <string>
-#include <string_view>
-#include <unordered_map>
+#include "D3D12PSOManager.hpp"
+#include "D3D12CommandListPool.hpp"
+#include "D3D12ResourceManager.hpp"
 
 
 namespace D3D12 {
 namespace Internal {
 
-/**
- * A library of internal shaders. These are used to store all 3D variants
- * and utility shaders like PassthroughVS.
- *
- * Because this stores only bytecode and has no correlation to any Device,
- * we can initialize all of it inside our D3D12NativeInstance.
- *
- * Bytecodes are deep-copied and stored within the Library to ensure access
- * to them at all times.
- */
-class ShaderLibrary
+struct RenderThreadState
 {
-private:
-    std::map<std::string, NIPtr<Shader>, std::less<>> mShaders;
+    PSOManager PSOManager;
+    CommandListPool commandListPool;
+    ResourceManager resourceManager;
 
-public:
-    ShaderLibrary() = default;
-    ~ShaderLibrary() = default;
-
-    ShaderLibrary(const ShaderLibrary&) = delete;
-    ShaderLibrary(ShaderLibrary&&) = delete;
-    ShaderLibrary& operator=(const ShaderLibrary&) = delete;
-    ShaderLibrary& operator=(ShaderLibrary&&) = delete;
-
-    bool Load(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize);
-
-    inline const NIPtr<Shader>& GetShaderData(const std::string_view& name) const
+    RenderThreadState(const NIPtr<NativeDevice>& nativeDevice)
+        : PSOManager(nativeDevice)
+        , commandListPool(nativeDevice)
+        , resourceManager(nativeDevice)
     {
-        return mShaders.find(name)->second;
     }
 };
 

@@ -62,11 +62,11 @@ bool Shader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER
     return true;
 }
 
-bool Shader::SetConstants(const char* name, const void* data, size_t size)
+bool Shader::SetConstants(const std::string_view& name, const void* data, size_t size)
 {
     // parameters were mostly validated at JNI entry point already
     // so we can only check if resource exists in the map
-    auto resourceIt = mShaderResourceAssignments.find(name);
+    const auto& resourceIt = mShaderResourceAssignments.find(name);
     if (resourceIt == mShaderResourceAssignments.end())
     {
         D3D12NI_LOG_ERROR("Shader resource named %s not found in shader %s", name, mName.c_str());
@@ -83,11 +83,11 @@ bool Shader::SetConstants(const char* name, const void* data, size_t size)
     return true;
 }
 
-bool Shader::SetConstantsInArray(const char* name, uint32_t idx, const void* data, size_t size)
+bool Shader::SetConstantsInArray(const std::string_view& name, uint32_t idx, const void* data, size_t size)
 {
     // parameters were mostly validated at JNI entry point already
     // so we can only check if resource exists in the map
-    auto resourceIt = mShaderResourceAssignments.find(name);
+    const auto& resourceIt = mShaderResourceAssignments.find(name);
     if (resourceIt == mShaderResourceAssignments.end())
     {
         D3D12NI_LOG_ERROR("Shader resource named %s not found in shader %s", name, mName.c_str());

@@ -33,6 +33,7 @@
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12LinearAllocator.hpp"
 #include "D3D12Matrix.hpp"
+#include "D3D12RenderThreadState.hpp"
 #include "D3D12RenderPayload.hpp"
 #include "D3D12PSOManager.hpp"
 

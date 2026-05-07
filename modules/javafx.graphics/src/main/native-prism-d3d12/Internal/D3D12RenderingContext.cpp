@@ -1101,16 +1101,18 @@ void RenderingContext::ExecuteCurrentCommandList()
 {
     // FinalizeCommandList() will wait until the RenderThread is emptied
     D3D12GraphicsCommandListPtr cmdList = mRenderThread.FinalizeCommandList(mPayloadAllocator, ReplaceRTPayload());
+
+
     if (0) //(mVertexRingBuffer->HasUncommittedData())
     {
         //mVertexRingBuffer->RecordTransferToGPU();
-        D3D12GraphicsCommandListPtr copyVertexBufferList = mRenderThread.FinalizeCommandList(mPayloadAllocator, ReplaceRTPayload());
+        //D3D12GraphicsCommandListPtr copyVertexBufferList = mRenderThread.FinalizeCommandList(mPayloadAllocator, ReplaceRTPayload(moveAllocatorToNewChunk));
 
         // Copy vertex buffer list must happen before just-recorded list, this is
         // to ensure the copy will be executed first. This lets the driver merge the
         // lists and parallelize them better. Synchronization will be done via barriers.
-        ID3D12CommandList* lists[2] = { copyVertexBufferList.Get(), cmdList.Get() };
-        mCommandQueue->ExecuteCommandLists(2, lists);
+        //ID3D12CommandList* lists[2] = { copyVertexBufferList.Get(), cmdList.Get() };
+        //mCommandQueue->ExecuteCommandLists(2, lists);
     }
     else
     {
@@ -1170,8 +1172,6 @@ void RenderingContext::FinishFrame()
 
     ClearAppliedFlags();
     m2DVertexBatch.Invalidate();
-
-    mPayloadAllocator.MoveToNewChunk();
 }
 
 } // namespace Internal

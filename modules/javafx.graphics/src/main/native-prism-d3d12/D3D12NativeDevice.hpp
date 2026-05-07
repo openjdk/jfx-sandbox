@@ -172,7 +172,7 @@ public:
         return mSRVAllocator;
     }
 
-    const NIPtr<Internal::Shader>& GetInternalShader(const std::string& name) const
+    const NIPtr<Internal::Shader>& GetInternalShader(const std::string_view& name) const
     {
         return mShaderLibrary->GetShaderData(name);
     }

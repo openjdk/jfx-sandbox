@@ -182,6 +182,7 @@ public:
     void SetComputeShaderConstants(ShaderConstants&& constants);
     void SetTextures(const TextureBank& bank);
     void SetTexture(uint32_t slot, const NIPtr<TextureBase>& tex);
+    void FinishFrame();
 
     void StashParameters();
     void RestoreStashedParameters();

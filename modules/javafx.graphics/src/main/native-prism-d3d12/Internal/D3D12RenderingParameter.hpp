@@ -160,7 +160,8 @@ class ShaderConstantsResource: public RenderingDataStep<NIPtr<Shader>>
 protected:
     RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const override
     {
-        return CreateRTExec<Executable>(allocator, ResourceManager::ShaderConstants(allocator, mParameter->GetConstantStorage().data(), mParameter->GetConstantStorage().size()));
+        ResourceManager::ShaderConstants constants(allocator, mParameter->GetConstantStorage().data(), mParameter->GetConstantStorage().size());
+        return CreateRTExec<Executable>(allocator, std::move(constants));
     }
 
 public:

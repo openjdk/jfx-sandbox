@@ -29,30 +29,15 @@
 
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12LinearAllocator.hpp"
-#include "D3D12PSOManager.hpp"
-#include "D3D12ResourceManager.hpp"
-#include "D3D12TextureBase.hpp"
+#include "D3D12RenderThreadState.hpp"
 
 #include <memory>
 #include <algorithm>
+#include <list>
 
 
 namespace D3D12 {
 namespace Internal {
-
-struct RenderThreadState
-{
-    PSOManager PSOManager;
-    CommandListPool commandListPool;
-    ResourceManager resourceManager;
-
-    RenderThreadState(const NIPtr<NativeDevice>& nativeDevice)
-        : PSOManager(nativeDevice)
-        , commandListPool(nativeDevice)
-        , resourceManager(nativeDevice)
-    {
-    }
-};
 
 struct ClearRenderTargetArgs
 {

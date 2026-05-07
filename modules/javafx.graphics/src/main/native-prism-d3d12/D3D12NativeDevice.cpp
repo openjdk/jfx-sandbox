@@ -72,7 +72,14 @@ bool NativeDevice::Build2DIndexBuffer()
 
 const NIPtr<Internal::Shader>& NativeDevice::GetPhongPixelShader(const PhongShaderSpec& spec) const
 {
-    std::string name(Constants::PHONG_PS_NAME);
+    std::array<char, 16> name;
+    size_t nameLen = Constants::PHONG_PS_NAME.length();
+    memcpy(name.data(), Constants::PHONG_PS_NAME.c_str(), nameLen);
+
+    const auto appendCharToName = [](std::array<char, 16>& name, size_t& len, char c)
+    {
+        name[len++] = c;
+    };
 
     uint32_t lightCount = spec.lightCount;
     if (lightCount > 3) lightCount = 3;
@@ -80,8 +87,14 @@ const NIPtr<Internal::Shader>& NativeDevice::GetPhongPixelShader(const PhongShad
     if (lightCount == 0)
     {
         // no light count - only determine whether we need self illumination or not
-        if (spec.isSelfIllum) return GetInternalShader(name + "_i");
-        else return GetInternalShader(name);
+        if (spec.isSelfIllum)
+        {
+            appendCharToName(name, nameLen, '_');
+            appendCharToName(name, nameLen, 'i');
+        }
+
+        appendCharToName(name, nameLen, 0);
+        return GetInternalShader(name.data());
     }
 
     char mapping = 0;
@@ -102,13 +115,14 @@ const NIPtr<Internal::Shader>& NativeDevice::GetPhongPixelShader(const PhongShad
 
     char light = '0' + spec.lightCount;
 
-    name += '_';
-    name += mapping;
-    name += light;
-    name += specular;
-    if (spec.isSelfIllum) name += 'i';
+    appendCharToName(name, nameLen, '_');
+    appendCharToName(name, nameLen, mapping);
+    appendCharToName(name, nameLen, light);
+    appendCharToName(name, nameLen, specular);
+    if (spec.isSelfIllum) appendCharToName(name, nameLen, 'i');
 
-    return GetInternalShader(name);
+    appendCharToName(name, nameLen, 0);
+    return GetInternalShader(name.data());
 }
 
 
