@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -296,7 +296,7 @@ class D3D12ResourceFactory extends BaseShaderFactory {
         // Default to creating an RTT with dirty bbox enabled
         // Realistically only SwapChain will want an offscreen RTT with dirty bbox opts disabled, so
         // it can manually call the full overload below. Other RTTs should have this enabled.
-        return createRTTexture(width, height, wrapMode, false, true);
+        return createRTTexture(width, height, wrapMode, msaa, true);
     }
 
     public RTTexture createRTTexture(int width, int height, WrapMode wrapMode, boolean msaa, boolean enableDirtyBBox) {
