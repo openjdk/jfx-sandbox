@@ -529,6 +529,20 @@ void RenderingContext::Resolve(const NIPtr<TextureBase>& dstTexture, const NIPtr
     mRTPayload->AddStep(CreateRTExec<ResolveAction>(mPayloadAllocator, dstTexture->GetResource().Get(), srcTexture->GetResource().Get(), resolveFormat));
 }
 
+void RenderingContext::ResolveRegion(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
+                                     const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
+                                     DXGI_FORMAT resolveFormat)
+{
+    ResolveRegion(dstRT->GetTexture(), dstx, dsty, srcTexture, srcx, srcy, srcw, srch, resolveFormat);
+    dstRT->UpdateDirtyBBox(BBox(
+        static_cast<float>(dstx),
+        static_cast<float>(dsty),
+        static_cast<float>(dstx + srcw),
+        static_cast<float>(dsty + srch)
+    ));
+
+}
+
 void RenderingContext::ResolveRegion(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
                                      const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
                                      DXGI_FORMAT resolveFormat)
@@ -544,6 +558,18 @@ void RenderingContext::ResolveRegion(const NIPtr<TextureBase>& dstTexture, uint3
     SubmitResourceTransitions();
 
     mRTPayload->AddStep(CreateRTExec<ResolveRegionAction>(mPayloadAllocator, dstTexture->GetResource().Get(), dstx, dsty, srcTexture->GetResource().Get(), srcRect, resolveFormat));
+}
+
+void RenderingContext::CopyTexture(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
+                                   const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch)
+{
+    CopyTexture(dstRT->GetTexture(), dstx, dsty, srcTexture, srcx, srcy, srcw, srch);
+    dstRT->UpdateDirtyBBox(BBox(
+        static_cast<float>(dstx),
+        static_cast<float>(dsty),
+        static_cast<float>(dstx + srcw),
+        static_cast<float>(dsty + srch)
+    ));
 }
 
 void RenderingContext::CopyTexture(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,

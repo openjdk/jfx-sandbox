@@ -281,15 +281,23 @@ struct Pixel_BGRA8_UNORM
 
 struct BBox
 {
-    // mapping to D3D12_RECT:
+    // These are absolute coordinates in texture's space, or in other words:
+    //   width = max.x - min.x; height = max.y - min.y;
+    //
+    // Mapping to D3D12_RECT:
     //    min.x == left, min.y == top
     //    max.x == right, max.y == bottom
     Coords_XY_FLOAT min;
     Coords_XY_FLOAT max;
 
-    BBox()
-        : min{std::numeric_limits<float>::max(), std::numeric_limits<float>::max()}
-        , max{0.0f, 0.0f}
+    BBox() // initializes an invalid BBox
+        : BBox(std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), 0.0f, 0.0f)
+    {
+    }
+
+    BBox(float minx, float miny, float maxx, float maxy)
+        : min{minx, miny}
+        , max{maxx, maxy}
     {
     }
 
@@ -303,22 +311,26 @@ struct BBox
 
     inline void Merge(const BBox& other)
     {
-        Merge(other.min.x, other.min.y, other.max.x, other.max.y);
+        if (!other.Valid()) return;
+
+        // dirty bbox applies to RTTs only, so its dimensions cannot be less than 0
+        // otherwise further checks we do (ex. Inside() ) might not work
+        BBox maxed(
+            std::max(other.min.x, 0.0f),
+            std::max(other.min.y, 0.0f),
+            std::max(other.max.x, 0.0f),
+            std::max(other.max.y, 0.0f)
+        );
+
+        min.x = std::min(min.x, maxed.min.x);
+        min.y = std::min(min.y, maxed.min.y);
+        max.x = std::max(max.x, maxed.max.x);
+        max.y = std::max(max.y, maxed.max.y);
     }
 
     inline void Merge(float minx, float miny, float maxx, float maxy)
     {
-        // dirty bbox applies to RTTs only, so its dimensions cannot be less than 0
-        // otherwise further checks we do (ex. Inside() ) might not work
-        minx = std::max(minx, 0.0f);
-        miny = std::max(miny, 0.0f);
-        maxx = std::max(maxx, 0.0f);
-        maxy = std::max(maxy, 0.0f);
-
-        min.x = std::min(min.x, minx);
-        min.y = std::min(min.y, miny);
-        max.x = std::max(max.x, maxx);
-        max.y = std::max(max.y, maxy);
+        Merge(BBox(minx, miny, maxx, maxy));
     }
 
     inline bool Inside(const float minx, const float miny, const float maxx, const float maxy) const
@@ -345,6 +357,8 @@ struct BBox
     inline bool Valid() const
     {
         // bbox is valid only when it's max coords are higher than min coords
+        // we don't consider equal coords as valid either, it would mean 0 width
+        // or 0 height which is not an actual area
         return (min.x < max.x) && (min.y < max.y);
     }
 };

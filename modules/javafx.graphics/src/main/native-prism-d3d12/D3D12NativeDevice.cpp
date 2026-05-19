@@ -561,12 +561,12 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
     {
         if (srcRT->GetMSAASamples() == 1)
         {
-            mRenderingContext->CopyTexture(dstRT->GetTexture(), dst.x0, dst.y0, srcRT->GetTexture(), src.x0, src.y0, srcWidth, srcHeight);
+            mRenderingContext->CopyTexture(dstRT, dst.x0, dst.y0, srcRT->GetTexture(), src.x0, src.y0, srcWidth, srcHeight);
         }
         else
         {
             // use ResolveSubresourceRegion
-            mRenderingContext->ResolveRegion(dstRT->GetTexture(), dst.x0, dst.y0, srcRT->GetTexture(), src.x0, src.y0, srcWidth, srcHeight, dstRT->GetFormat());
+            mRenderingContext->ResolveRegion(dstRT, dst.x0, dst.y0, srcRT->GetTexture(), src.x0, src.y0, srcWidth, srcHeight, dstRT->GetFormat());
         }
     }
     else
