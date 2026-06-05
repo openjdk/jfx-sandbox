@@ -34,8 +34,8 @@
 namespace D3D12 {
 namespace Internal {
 
-RingBuffer::RingBuffer(const NIPtr<NativeDevice>& nativeDevice)
-    : RingContainer(nativeDevice)
+RingBuffer::RingBuffer(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback)
+    : RingContainer(nativeDevice, flushCallback, waitCallback)
     , mBufferResource()
     , mCPUPtr(nullptr)
     , mGPUPtr(0)

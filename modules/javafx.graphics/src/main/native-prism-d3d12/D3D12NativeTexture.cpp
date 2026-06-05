@@ -192,10 +192,10 @@ bool NativeTexture::Init(UINT width, UINT height, DXGI_FORMAT format, D3D12_RESO
 
 UINT64 NativeTexture::GetSize()
 {
-    if (!GetResource()) return -1;
+    if (!GetD3D12Resource()) return -1;
 
     D3D12_RESOURCE_DESC resDesc;
-    resDesc = GetResource()->GetDesc();
+    resDesc = GetD3D12Resource()->GetDesc();
 
     return resDesc.Width * resDesc.Height * resDesc.DepthOrArraySize * GetDXGIFormatBPP(resDesc.Format);
 }
@@ -207,7 +207,7 @@ bool NativeTexture::Resize(UINT width, UINT height)
     mResourceDesc.Width = width;
     mResourceDesc.Height = height;
 
-    mNativeDevice->MarkResourceDisposed(GetResource());
+    mNativeDevice->MarkResourceDisposed(GetD3D12Resource());
 
     return InitInternal(mResourceDesc);
 }
@@ -238,7 +238,7 @@ void NativeTexture::WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& desc
         srvDesc.Texture2D.PlaneSlice = 0;
         srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
-        mNativeDevice->GetDevice()->CreateShaderResourceView(GetResource().Get(), &srvDesc, descriptorCpu);
+        mNativeDevice->GetDevice()->CreateShaderResourceView(GetD3D12Resource().Get(), &srvDesc, descriptorCpu);
     }
 }
 
@@ -250,7 +250,7 @@ void NativeTexture::WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& desc
     uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
     uavDesc.Texture2D.MipSlice = mipSlice;
 
-    mNativeDevice->GetDevice()->CreateUnorderedAccessView(GetResource().Get(), nullptr, &uavDesc, descriptorCpu);
+    mNativeDevice->GetDevice()->CreateUnorderedAccessView(GetD3D12Resource().Get(), nullptr, &uavDesc, descriptorCpu);
 }
 
 } // namespace D3D12

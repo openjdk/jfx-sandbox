@@ -62,65 +62,22 @@ void RenderingContext::SubmitRTPayload()
 
 void RenderingContext::RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect)
 {
-    QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-    if (mRenderTarget.Get()->HasDepthTexture())
-        QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    SubmitResourceTransitions();
-
-    mRTPayload->AddStep(CreateRTExec<ClearRenderTargetAction>(mPayloadAllocator, mRenderTarget.Get()->GetRTVDescriptorData().CPU(0), r, g, b, a, clearRect));
+    mRTPayload->AddStep(CreateRTExec<ClearRenderTargetAction>(mPayloadAllocator, mRenderTarget.Get(), r, g, b, a, clearRect));
     // NOTE: Here we check by NativeRenderTarget::HasDepthTexture() and not IsDepthTestEnabled()
     // Prism can sometimes set the RTT with depth test disabled, but then request its clear with
     // the depth texture (ex. hello.HelloViewOrder) and only afterwards re-set the RTT again enabling
     // depth testing. So we have to disregard the depth test flag, otherwise we would miss this DSV clear.
     if (clearDepth && mRenderTarget.Get()->HasDepthTexture())
     {
-        mRTPayload->AddStep(CreateRTExec<ClearDepthStencilAction>(mPayloadAllocator, mRenderTarget.Get()->GetDSVDescriptorData().CPU(0), 1.0f, clearRect));
+        mRTPayload->AddStep(CreateRTExec<ClearDepthStencilAction>(mPayloadAllocator,
+            mRenderTarget.Get()->GetDepthTexture(), mRenderTarget.Get()->GetDSVDescriptorData().CPU(0),  1.0f, clearRect
+        ));
     }
 }
 
 void RenderingContext::EnsureBoundTextureStates(D3D12_RESOURCE_STATES state)
 {
-    QueueTextureTransition(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-    if (mRenderTarget.Get()->HasDepthTexture())
-        QueueTextureTransition(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-    for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
-    {
-        const NIPtr<TextureBase>& tex = mTextures.GetTexture(i);
-        if (tex) QueueTextureTransition(tex, state);
-    }
-
-    SubmitResourceTransitions();
-}
-
-void RenderingContext::QueueTextureTransition(const NIPtr<Internal::TextureBase>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource)
-{
-    if (tex->GetResourceState(subresource) == newState) return;
-
-    QueueResourceTransition(tex->GetResource(), tex->GetResourceState(subresource), newState, subresource);
-    tex->SetResourceState(newState, subresource);
-}
-
-void RenderingContext::QueueResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource)
-{
-    D3D12NI_ZERO_STRUCT(mBarrierQueue[mBarrierQueueSize]);
-    mBarrierQueue[mBarrierQueueSize].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    mBarrierQueue[mBarrierQueueSize].Transition.pResource = resource.Get();
-    mBarrierQueue[mBarrierQueueSize].Transition.StateBefore = oldState;
-    mBarrierQueue[mBarrierQueueSize].Transition.StateAfter = newState;
-    mBarrierQueue[mBarrierQueueSize].Transition.Subresource = subresource;
-    ++mBarrierQueueSize;
-
-    // TODO: D3D12: this 8 should be a constant somewhere
-    if (mBarrierQueueSize == 8) SubmitResourceTransitions();
-}
-
-void RenderingContext::SubmitResourceTransitions()
-{
-    if (mBarrierQueueSize == 0) return;
-
-    mRTPayload->AddStep(CreateRTExec<ResourceBarrierAction>(mPayloadAllocator, mBarrierQueue, mBarrierQueueSize));
-    mBarrierQueueSize = 0;
+    mRTPayload->AddStep(CreateRTExec<EnsureStatesAction>(mPayloadAllocator, mRenderTarget.Get(), state));
 }
 
 RenderingContext::QuadVertices RenderingContext::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst)
@@ -221,7 +178,7 @@ BBox RenderingContext::AssembleVertexData(void* buffer, const Internal::MemoryVi
 
 RenderingContext::VertexSubregion RenderingContext::GetNewRegionForVertices(uint32_t vertexCount)
 {
-    if (vertexCount > (Constants::MAX_BATCH_VERTICES / 2))
+    /*if (vertexCount > (Constants::MAX_BATCH_VERTICES / 2))
     {
         // rendering more vertices might utilize the Ring Buffer better if we just reserve a separate space for them
         mVertexRingBuffer->DeclareRequired(vertexCount * 8 * sizeof(float));
@@ -256,7 +213,9 @@ RenderingContext::VertexSubregion RenderingContext::GetNewRegionForVertices(uint
         m2DVertexBatch.AssignNewRegion(newVertexRegion, newVertexRegion);
     }
 
-    return m2DVertexBatch.Subregion(vertexCount);
+    return m2DVertexBatch.Subregion(vertexCount);*/
+    // LKTODO move to RenderThread
+    return VertexSubregion();
 }
 
 void RenderingContext::ClearAppliedFlags()
@@ -284,72 +243,14 @@ void RenderingContext::ClearAppliedFlags()
     mComputeShaderConstants.ClearApplied();
 }
 
-bool RenderingContext::DeclareRingResources()
-{
-    Shader::ResourceData vsData = mVertexShader.Get()->GetResourceData();
-    Shader::ResourceData psData = mPixelShader.Get()->GetResourceData();
-
-    // constant data vs
-    size_t totalConstantDataSize =
-        Utils::Align<size_t>(vsData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) +
-        Utils::Align<size_t>(vsData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) * vsData.cbufferDTableCount;
-
-    // constant data ps
-    totalConstantDataSize +=
-        Utils::Align<size_t>(psData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) +
-        Utils::Align<size_t>(psData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) * psData.cbufferDTableCount;
-
-    if (mConstantRingBufferTracker.Declare(totalConstantDataSize))
-    {
-        return true;
-    }
-
-    // descriptors
-    size_t totalDescriptorCount = vsData.textureCount + vsData.uavCount + psData.textureCount + psData.uavCount;
-    if (mDescriptorHeapTracker.Declare(totalDescriptorCount))
-    {
-        return true;
-    }
-
-    // samplers should never cross the threshold
-    // if they do we need to figure out some optimization for them instead
-    return false;
-}
-
-bool RenderingContext::DeclareComputeRingResources()
-{
-    Shader::ResourceData csData = mComputeShader.Get()->GetResourceData();
-
-    // constant data
-    size_t totalConstantDataSize =
-        Utils::Align<size_t>(csData.cbufferDirectSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) +
-        Utils::Align<size_t>(csData.cbufferDTableSingleSize, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT) * csData.cbufferDTableCount;
-
-    if (mConstantRingBufferTracker.Declare(totalConstantDataSize))
-    {
-        return true;
-    }
-
-    // descriptors
-    size_t totalDescriptorCount = csData.textureCount + csData.uavCount;
-    if (mDescriptorHeapTracker.Declare(totalDescriptorCount))
-    {
-        return true;
-    }
-
-    return false;
-}
-
 
 RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mPayloadAllocator()
-    , mCommandQueue()
     , mRenderThread(nativeDevice)
     , mRTPayload(nullptr, LinearAllocatorDeleter<RenderPayload>(&mPayloadAllocator))
-    , mCheckpointQueue()
     , m2DVertexBatch()
-    , mVertexRingBuffer()
+    //, mVertexRingBuffer()
     , mClearOptState()
     , mIndexBuffer()
     , mVertexBuffer()
@@ -370,8 +271,6 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     , mComputeShader()
     , mComputeShaderConstants()
     , mUsedRTs()
-    , mBarrierQueue()
-    , mBarrierQueueSize(0)
 {
     D3D12NI_LOG_DEBUG("RenderingContext: D3D12 API opts are %s", Config::IsApiOptsEnabled() ? "enabled" : "disabled");
 
@@ -405,53 +304,33 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
 
 bool RenderingContext::Init()
 {
-    D3D12_COMMAND_QUEUE_DESC cqDesc;
-    D3D12NI_ZERO_STRUCT(cqDesc);
-    cqDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    cqDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-    cqDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-
-    // TODO Command Queue should probably reside in Command List Pool
-    //      Same with all Execute/Signal logic & checkpoints
-    HRESULT hr = mNativeDevice->GetDevice()->CreateCommandQueue(&cqDesc, IID_PPV_ARGS(&mCommandQueue));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Direct Command Queue");
-
-    hr = mCommandQueue->SetName(L"Main Command Queue");
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to name Direct Command Queue");
-
-    hr = mNativeDevice->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create in-device Fence");
-
     if (!mRenderThread.Init())
     {
         D3D12NI_LOG_ERROR("Failed to initialize Render Thread");
         return false;
     }
 
-    mConstantRingBufferTracker = mRenderThread.GetConstantRingBufferTracker();
-    mDescriptorHeapTracker= mRenderThread.GetDescriptorHeapTracker();
-    mSamplerHeapTracker = mRenderThread.GetSamplerHeapTracker();
-
+    // LKTODO Move to RenderTHread
     // TODO adjust thresholds if this idea works fine for memory optimization
-    mVertexRingBuffer = std::make_shared<Internal::GPURingBuffer>(mNativeDevice);
+    /*mVertexRingBuffer = std::make_shared<Internal::GPURingBuffer>(mNativeDevice, std::bind(FlushCommandList, this, CheckpointType::MIDFRAME));
     mVertexRingBuffer->SetDebugName("2D Vertex GPU Ring Buffer");
     if (!mVertexRingBuffer->Init(Internal::Config::MainRingBufferThreshold(), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT))
     {
         D3D12NI_LOG_ERROR("Failed to initialize 2D Vertex Ring Buffer");
         return false;
-    }
+    }*/
 
     return true;
 }
 
 void RenderingContext::Release()
 {
-    mRenderThread.WaitForCompletion();
-    mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
-    mCheckpointQueue.PrintStats();
+    // empty current payload and make sure it's freed on the other side
+    // this prevents the assertion in Free() when running in DebugNative
+    mPayloadAllocator.MoveToNewChunk();
+    mRenderThread.Execute(std::move(mRTPayload));
 
-    mRenderThread.Exit();
-
+    mRenderThread.Exit(); // Exit() will also internally wait
     mNativeDevice.reset();
 }
 
@@ -494,9 +373,9 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
 
 // this is a pass-through to initialize the depth texture for an RTT
 // we do this separately than the regular Clear() command when initializing depth textures
-void RenderingContext::ClearDepth(const D3D12_CPU_DESCRIPTOR_HANDLE& dsv)
+void RenderingContext::ClearDepth(const NIPtr<NativeTexture>& depthTexture, const D3D12_CPU_DESCRIPTOR_HANDLE& dsv)
 {
-    mRTPayload->AddStep(CreateRTExec<ClearDepthStencilAction>(mPayloadAllocator, dsv, 1.0f));
+    mRTPayload->AddStep(CreateRTExec<ClearDepthStencilAction>(mPayloadAllocator, depthTexture, dsv, 1.0f));
 }
 
 void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset)
@@ -581,15 +460,14 @@ void RenderingContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
     }
 }
 
-void RenderingContext::Resolve(const NIPtr<TextureBase>& dstTexture, const NIPtr<TextureBase>& srcTexture, DXGI_FORMAT resolveFormat)
+bool RenderingContext::PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion)
 {
-    QueueTextureTransition(srcTexture, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
-    QueueTextureTransition(dstTexture, D3D12_RESOURCE_STATE_RESOLVE_DEST);
-    SubmitResourceTransitions();
+    mRTPayload->AddStep(CreateRTExec<PrepareSwapChainAction>(mPayloadAllocator, swapChain, dirtyRegion));
 
-    mRTPayload->AddStep(CreateRTExec<ResolveAction>(mPayloadAllocator, dstTexture->GetResource().Get(), srcTexture->GetResource().Get(), resolveFormat));
+    return true;
 }
 
+/* LKTODO restore when clear opts are restored
 void RenderingContext::ResolveRegion(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
                                      const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
                                      DXGI_FORMAT resolveFormat)
@@ -603,9 +481,24 @@ void RenderingContext::ResolveRegion(const NIPtr<IRenderTarget>& dstRT, uint32_t
     ));
 
 }
+*/
+bool RenderingContext::Present(const NIPtr<NativeSwapChain>& swapChain)
+{
+    swapChain->WaitForAvailableBuffer();
 
-void RenderingContext::ResolveRegion(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
-                                     const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
+    mRTPayload->AddStep(CreateRTExec<PresentAction>(mPayloadAllocator, swapChain));
+    SubmitRTPayload();
+
+    return true;
+}
+
+void RenderingContext::Resolve(const NIPtr<ITrackedResource>& dstTexture, const NIPtr<ITrackedResource>& srcTexture, DXGI_FORMAT resolveFormat)
+{
+    mRTPayload->AddStep(CreateRTExec<ResolveAction>(mPayloadAllocator, dstTexture, srcTexture, resolveFormat));
+}
+
+void RenderingContext::ResolveRegion(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
+                                     const NIPtr<ITrackedResource>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
                                      DXGI_FORMAT resolveFormat)
 {
     D3D12_RECT srcRect;
@@ -614,13 +507,10 @@ void RenderingContext::ResolveRegion(const NIPtr<TextureBase>& dstTexture, uint3
     srcRect.right = srcx + srcw;
     srcRect.bottom = srcy + srch;
 
-    QueueTextureTransition(srcTexture, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
-    QueueTextureTransition(dstTexture, D3D12_RESOURCE_STATE_RESOLVE_DEST);
-    SubmitResourceTransitions();
-
-    mRTPayload->AddStep(CreateRTExec<ResolveRegionAction>(mPayloadAllocator, dstTexture->GetResource().Get(), dstx, dsty, srcTexture->GetResource().Get(), srcRect, resolveFormat));
+    mRTPayload->AddStep(CreateRTExec<ResolveRegionAction>(mPayloadAllocator, dstTexture, dstx, dsty, srcTexture, srcRect, resolveFormat));
 }
 
+/* LKTODO restore when clear opts are restored
 void RenderingContext::CopyTexture(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
                                    const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch)
 {
@@ -632,14 +522,14 @@ void RenderingContext::CopyTexture(const NIPtr<IRenderTarget>& dstRT, uint32_t d
         static_cast<float>(dsty + srch)
     ));
 }
-
-void RenderingContext::CopyTexture(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
-                                   const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch)
+*/
+void RenderingContext::CopyTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
+                                   const NIPtr<ITrackedResource>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch)
 {
     D3D12_TEXTURE_COPY_LOCATION srcLoc;
     D3D12NI_ZERO_STRUCT(srcLoc);
     srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-    srcLoc.pResource = srcTexture->GetResource().Get();
+    srcLoc.pResource = nullptr;
     srcLoc.SubresourceIndex = 0;
 
     D3D12_BOX srcBox;
@@ -654,22 +544,18 @@ void RenderingContext::CopyTexture(const NIPtr<TextureBase>& dstTexture, uint32_
     D3D12_TEXTURE_COPY_LOCATION dstLoc;
     D3D12NI_ZERO_STRUCT(dstLoc);
     dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-    dstLoc.pResource = dstTexture->GetResource().Get();
+    dstLoc.pResource = nullptr;
     dstLoc.SubresourceIndex = 0;
 
-    QueueTextureTransition(srcTexture, D3D12_RESOURCE_STATE_COPY_SOURCE);
-    QueueTextureTransition(dstTexture, D3D12_RESOURCE_STATE_COPY_DEST);
-    SubmitResourceTransitions();
-
-    mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstLoc, dstx, dsty, srcLoc, srcBox));
+    mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstTexture, dstLoc, dstx, dsty, srcTexture, srcLoc, srcBox));
 }
 
-void RenderingContext::CopyTexture(const Buffer& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
-                                   uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch)
+void RenderingContext::CopyTextureToBuffer(const Buffer& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
+                                          uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch)
 {
     D3D12_TEXTURE_COPY_LOCATION srcLoc;
     D3D12NI_ZERO_STRUCT(srcLoc);
-    srcLoc.pResource = srcTexture->GetResource().Get();
+    srcLoc.pResource = nullptr; // will be set by RenderThread with the ResourceProvider API
     srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
     srcLoc.SubresourceIndex = 0;
 
@@ -692,13 +578,10 @@ void RenderingContext::CopyTexture(const Buffer& dstBuffer, uint32_t dstStride, 
     dstLoc.PlacedFootprint.Footprint.Format = srcTexture->GetFormat();
     dstLoc.PlacedFootprint.Offset = 0;
 
-    QueueTextureTransition(srcTexture, D3D12_RESOURCE_STATE_COPY_SOURCE);
-    SubmitResourceTransitions();
-
-    mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstLoc, 0, 0, srcLoc, srcBox));
+    mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, nullptr, dstLoc, 0, 0, srcTexture, srcLoc, srcBox));
 }
 
-void RenderingContext::CopyToTexture(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
+void RenderingContext::CopyToTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
                                      ID3D12Resource* srcResource, uint32_t srcw, uint32_t srch, uint64_t srcOffset,
                                      uint32_t srcStride, DXGI_FORMAT format)
 {
@@ -715,16 +598,11 @@ void RenderingContext::CopyToTexture(const NIPtr<TextureBase>& dstTexture, uint3
 
     D3D12_TEXTURE_COPY_LOCATION dstLoc;
     D3D12NI_ZERO_STRUCT(dstLoc);
-    dstLoc.pResource = dstTexture->GetResource().Get();
+    dstLoc.pResource = nullptr; // set later by RenderThread
     dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
     dstLoc.SubresourceIndex = 0;
 
-    // Ensure we are in COPY_DEST state. Texture can be now bound to RenderingContext
-    // and exist in a different state.
-    QueueTextureTransition(dstTexture, D3D12_RESOURCE_STATE_COPY_DEST);
-    SubmitResourceTransitions();
-
-    mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstLoc, dstx, dsty, srcLoc));
+    mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstTexture, dstLoc, dstx, dsty, nullptr, srcLoc));
 }
 
 void RenderingContext::CopyBufferRegion(const D3D12ResourcePtr& dst, uint64_t dstOffset, const D3D12ResourcePtr& src, uint64_t srcOffset, uint64_t size)
@@ -751,8 +629,7 @@ bool RenderingContext::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
     uint32_t srcHeight = static_cast<uint32_t>(texture->GetHeight());
 
     // transition entire texture with mips to UAV state
-    QueueTextureTransition(texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    SubmitResourceTransitions();
+    TransitionTrackedResource(texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     // starting from 1, level 0 is our base mip level
     // also note, we're divinding by 2 a lot, so to make it faster we'll bit-shift instead
@@ -780,18 +657,16 @@ bool RenderingContext::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
         cs->SetConstants("gData", &constants, sizeof(constants));
 
         // transition base level to non-PS-resource
-        QueueTextureTransition(texture, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                               Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
+        TransitionTrackedResource(texture, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                                  Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
 
         // each thread group manages an 8x8 square, so we need to dispatch (width/8) X groups and (height/8) Y groups
-        SubmitResourceTransitions();
-
         Dispatch(std::max<UINT>(srcWidth >> 3, 1), std::max<UINT>(srcHeight >> 3, 1), 1);
 
         // transition base level back to UAV
         // this should make all subresources have the same state again
-        QueueTextureTransition(texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                               Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
+        TransitionTrackedResource(texture, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                  Utils::CalcSubresource(mipBase, texture->GetMipLevels(), 0));
 
         srcWidth >>= constants.numLevels;
         srcHeight >>= constants.numLevels;
@@ -799,6 +674,63 @@ bool RenderingContext::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
 
     return true;
 }
+
+void RenderingContext::TransitionTrackedResource(const NIPtr<ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+{
+    D3D12_RESOURCE_BARRIER barrier;
+    D3D12NI_ZERO_STRUCT(barrier);
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = nullptr;
+    barrier.Transition.StateAfter = newState;
+    barrier.Transition.Subresource = subresource;
+
+    mRTPayload->AddStep(CreateRTExec<ResourceBarrierAction>(mPayloadAllocator, resource, barrier));
+}
+
+void RenderingContext::TransitionResource(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+{
+    if (oldState == newState) return;
+
+    D3D12_RESOURCE_BARRIER barrier;
+    D3D12NI_ZERO_STRUCT(barrier);
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = resource.Get();
+    barrier.Transition.StateBefore = oldState;
+    barrier.Transition.StateAfter = newState;
+    barrier.Transition.Subresource = subresource;
+
+    mRTPayload->AddStep(CreateRTExec<ResourceBarrierAction>(mPayloadAllocator, nullptr, barrier));
+}
+/*
+void RenderingContext::QueueTextureTransition(const NIPtr<Internal::ITrackedResource>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+{
+    if (tex->GetResourceState(subresource) == newState) return;
+
+    QueueResourceTransition(tex->GetResource(), tex->GetResourceState(subresource), newState, subresource);
+    tex->SetResourceState(newState, subresource);
+}
+
+void RenderingContext::QueueResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+{
+    D3D12NI_ZERO_STRUCT(mBarrierQueue[mBarrierQueueSize]);
+    mBarrierQueue[mBarrierQueueSize].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    mBarrierQueue[mBarrierQueueSize].Transition.pResource = resource.Get();
+    mBarrierQueue[mBarrierQueueSize].Transition.StateBefore = oldState;
+    mBarrierQueue[mBarrierQueueSize].Transition.StateAfter = newState;
+    mBarrierQueue[mBarrierQueueSize].Transition.Subresource = subresource;
+    ++mBarrierQueueSize;
+
+    // TODO: D3D12: this 8 should be a constant somewhere
+    if (mBarrierQueueSize == 8) SubmitResourceTransitions();
+}
+
+void RenderingContext::SubmitResourceTransitions()
+{
+    if (mBarrierQueueSize == 0) return;
+
+    mRTPayload->AddStep(CreateRTExec<ResourceBarrierAction>(mPayloadAllocator, mBarrierQueue, mBarrierQueueSize));
+    mBarrierQueueSize = 0;
+}*/
 
 void RenderingContext::ClearTextureUnit(uint32_t unit)
 {
@@ -1020,17 +952,6 @@ void RenderingContext::RestoreStashedParameters()
 
 bool RenderingContext::Apply()
 {
-    if (DeclareRingResources())
-    {
-        // Ring Containers would get full if we continued on
-        // Flush current Command List to execute what we have
-        FlushCommandList(CheckpointType::MIDFRAME);
-
-        // We have to re-check right now, but this should always pass
-        bool flushNeeded = DeclareRingResources();
-        D3D12NI_ASSERT(!flushNeeded, "Right after flushing we still need more space in Ring Containers. Allocating too much?");
-    }
-
     // there can only be one Pipeline State on a command list
     // To prevent using an incorrect Pipeline State after this Apply call we'll reset the compute PSO flag
     // other settings (RootSignatures, Descriptors etc) are all set separately
@@ -1064,17 +985,6 @@ bool RenderingContext::Apply()
 
 bool RenderingContext::ApplyCompute()
 {
-    if (DeclareComputeRingResources())
-    {
-        // Ring Containers would get full if we continued on
-        // Flush current Command List to execute what we have
-        FlushCommandList(CheckpointType::MIDFRAME);
-
-        // We have to re-check right now, but this should always pass
-        bool flushNeeded = DeclareComputeRingResources();
-        D3D12NI_ASSERT(!flushNeeded, "Right after flushing we still need more space in Ring Containers. Allocating too much?");
-    }
-
     // there can only be one Pipeline State on a command list
     // To prevent using an incorrect Pipeline State after this Apply call we'll reset the graphics' PSO flag
     mPipelineState.ClearApplied();
@@ -1096,45 +1006,15 @@ bool RenderingContext::ApplyCompute()
     return true;
 }
 
-// private
-void RenderingContext::ExecuteCurrentCommandList()
-{
-    // FinalizeCommandList() will wait until the RenderThread is emptied
-    D3D12GraphicsCommandListPtr cmdList = mRenderThread.FinalizeCommandList(mPayloadAllocator, ReplaceRTPayload());
-
-
-    if (0) //(mVertexRingBuffer->HasUncommittedData())
-    {
-        //mVertexRingBuffer->RecordTransferToGPU();
-        //D3D12GraphicsCommandListPtr copyVertexBufferList = mRenderThread.FinalizeCommandList(mPayloadAllocator, ReplaceRTPayload(moveAllocatorToNewChunk));
-
-        // Copy vertex buffer list must happen before just-recorded list, this is
-        // to ensure the copy will be executed first. This lets the driver merge the
-        // lists and parallelize them better. Synchronization will be done via barriers.
-        //ID3D12CommandList* lists[2] = { copyVertexBufferList.Get(), cmdList.Get() };
-        //mCommandQueue->ExecuteCommandLists(2, lists);
-    }
-    else
-    {
-        // GPU vertex ring buffer was not used, we don't need to transfer any data
-        // simply submit this Command List for execution and move on
-        ID3D12CommandList* lists[1] = { cmdList.Get() };
-        mCommandQueue->ExecuteCommandLists(1, lists);
-    }
-
-    mConstantRingBufferTracker.Reset();
-    mDescriptorHeapTracker.Reset();
-    mSamplerHeapTracker.Reset();
-}
-
 void RenderingContext::FlushCommandList(CheckpointType type)
 {
     D3D12NI_ASSERT(mMainThreadTid == std::this_thread::get_id(), "FlushCommandLists() has to be called by the main thread");
 
     // submit existing RenderThread payload if there's any leftover commands there
     // and finish executing RenderThread payload
-    ExecuteCurrentCommandList();
-    mNativeDevice->Signal(type);
+    mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload);
+    mRenderThread.ScheduleSignal(mPayloadAllocator, mRTPayload, type);
+    mRenderThread.Execute(ReplaceRTPayload());
 
     ClearAppliedFlags();
     m2DVertexBatch.Invalidate();
@@ -1142,26 +1022,23 @@ void RenderingContext::FlushCommandList(CheckpointType type)
 
 bool RenderingContext::WaitForNextCheckpoint(CheckpointType type)
 {
-    return mCheckpointQueue.WaitForNextCheckpoint(type);
+    return mRenderThread.WaitForCheckpoint(mPayloadAllocator, type);
 }
 
-// Signal() is separate and not called everytime Execute() is called
-// because we need to call it in SwapChain after we Present()
-void RenderingContext::Signal(uint64_t fenceValue, CheckpointType type, Waitable&& waitable)
+void RenderingContext::Signal(CheckpointType type)
 {
-    HRESULT hr = mCommandQueue->Signal(mFence.Get(), fenceValue);
-    D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to signal event on completion");
-
-    hr = mFence->SetEventOnCompletion(fenceValue, waitable.GetHandle());
-    D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to set Fence event on completion");
-
-    mCheckpointQueue.AddCheckpoint(type, std::move(waitable));
+    mRenderThread.ScheduleSignal(mPayloadAllocator, mRTPayload, type);
+    mRenderThread.Execute(ReplaceRTPayload());
 }
 
+// called after SwapChain::Prepare() and right before SwapChain::Present(). See D3D12SwapChain.java
+// for reference.
 void RenderingContext::FinishFrame()
 {
-    ExecuteCurrentCommandList();
-    mRenderThread.AdvanceCommandAllocator();
+    mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload);
+    mRenderThread.ScheduleCommandAllocatorAdvance(mPayloadAllocator, mRTPayload);
+
+    // skipping Signal() and Execute() here, will be done by Present()
 
     for (const auto& rt: mUsedRTs)
     {

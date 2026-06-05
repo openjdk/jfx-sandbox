@@ -64,7 +64,7 @@ private:
     size_t mLastReserveTail;
 
 public:
-    GPURingBuffer(const NIPtr<NativeDevice>& nativeDevice);
+    GPURingBuffer(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback);
     virtual ~GPURingBuffer();
 
     /**

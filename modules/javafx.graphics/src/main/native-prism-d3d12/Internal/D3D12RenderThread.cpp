@@ -66,13 +66,95 @@ void RenderThread::WorkerMain()
         if (!curPayload) continue;
 
         // record what is needed on the Command List
-        curPayload->ApplySteps(mState.commandListPool.CurrentCommandList(), mState);
+        if (!curPayload->ApplySteps(mState))
+        {
+            D3D12NI_LOG_ERROR("RenderThread: Failed to apply current payload's steps. This should not happen. Pausing execution.");
+            mWorkerDone = true;
+        }
     }
+
+    mCheckpointQueue.PrintStats();
 }
+
+void RenderThread::ExecuteCurrentCommandList()
+{
+    D3D12NI_ASSERT(std::this_thread::get_id() == mWorkerThread.get_id(), "This routine must be called from Render Thread");
+
+    D3D12GraphicsCommandListPtr cmdList = mState->commandListPool.AdvanceCommandList();
+    if (!cmdList)
+    {
+        D3D12NI_LOG_ERROR("RenderThread: Received empty Command List, aborting execution.");
+        return;
+    }
+
+    ID3D12CommandList* lists[1] = { cmdList.Get() };
+    mCommandQueue->ExecuteCommandLists(1, lists);
+}
+
+void RenderThread::AdvanceCommandAllocator()
+{
+    mState->commandListPool.AdvanceAllocator();
+}
+
+void RenderThread::Signal(CheckpointType type)
+{
+    mFenceValue++;
+    if (mFenceValue == 0) mFenceValue++;
+
+    // mark this point in time in places that need it
+    {
+        std::unique_lock<std::mutex> lock(mWaitableOpsMutex);
+
+        for (Internal::IWaitableOperation* op: mWaitableOps)
+        {
+            op->OnQueueSignal(mFenceValue);
+        }
+    }
+
+    Waitable waitable(mFenceValue, [this](uint64_t fenceValue) -> bool
+    {
+        std::unique_lock<std::mutex> lock(mWaitableOpsMutex);
+
+        for (Internal::IWaitableOperation* op: mWaitableOps)
+        {
+            op->OnFenceSignaled(fenceValue);
+        }
+
+        return true;
+    });
+
+    HRESULT hr = mCommandQueue->Signal(mCommandQueueFence.Get(), mFenceValue);
+    D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to signal event on completion");
+
+    hr = mCommandQueueFence->SetEventOnCompletion(mFenceValue, waitable.GetHandle());
+    D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to set Fence event on completion");
+
+    mCheckpointQueue.AddCheckpoint(type, std::move(waitable));
+}
+
+void RenderThread::FlushCommandListInternal(CheckpointType type)
+{
+    D3D12NI_ASSERT(std::this_thread::get_id() == mWorkerThread.get_id(), "This routine must be called from Render Thread");
+
+    ExecuteCurrentCommandList();
+    Signal(type);
+}
+
+void RenderThread::WaitForCheckpointInternal(CheckpointType type)
+{
+    D3D12NI_ASSERT(std::this_thread::get_id() == mWorkerThread.get_id(), "This routine must be called from Render Thread");
+    mCheckpointQueue.WaitForNextCheckpoint(type);
+}
+
 
 RenderThread::RenderThread(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
-    , mState(nativeDevice)
+    , mCommandQueue()
+    , mCommandQueueFence()
+    , mFenceValue(0)
+    , mWaitableOps()
+    , mCheckpointQueue()
+    , mState()
     , mNullPayload(nullptr, LinearAllocatorDeleter<RenderPayload>(nullptr))
     , mPayloadAvailableCV()
     , mPayloadQueueMutex()
@@ -85,22 +167,50 @@ RenderThread::RenderThread(const NIPtr<NativeDevice>& nativeDevice)
 
 bool RenderThread::Init()
 {
-    if (!mState.PSOManager.Init())
+    mState = std::make_unique<RenderThreadState>(mNativeDevice,
+        std::bind(&RenderThread::FlushCommandListInternal, this, std::placeholders::_1),
+        std::bind(&RenderThread::WaitForCheckpointInternal, this, std::placeholders::_1),
+        std::bind(&RenderThread::Signal, this, std::placeholders::_1)
+    );
+    if (!mState)
+    {
+        D3D12NI_LOG_ERROR("Failed to create RenderThreadState");
+        return false;
+    }
+
+    if (!mState->PSOManager.Init())
     {
         D3D12NI_LOG_ERROR("Failed to initialize PSO Manager");
         return false;
     }
 
-    if (!mState.resourceManager.Init())
+    if (!mState->resourceManager.Init())
     {
         D3D12NI_LOG_ERROR("Failed to initialize Resource Manager");
         return false;
     }
 
+    D3D12_COMMAND_QUEUE_DESC cqDesc;
+    D3D12NI_ZERO_STRUCT(cqDesc);
+    cqDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    cqDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+    cqDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+
+    // TODO Command Queue should probably reside in Command List Pool
+    //      Same with all Execute/Signal logic & checkpoints
+    HRESULT hr = mNativeDevice->GetDevice()->CreateCommandQueue(&cqDesc, IID_PPV_ARGS(&mCommandQueue));
+    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Direct Command Queue");
+
+    hr = mCommandQueue->SetName(L"Main Command Queue");
+    D3D12NI_RET_IF_FAILED(hr, false, "Failed to name Direct Command Queue");
+
+    hr = mNativeDevice->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mCommandQueueFence));
+    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create in-device Fence");
+
     // NOTE: Command List Pool requires to have as many Command Allocators as SwapChain buffers + 1
     // This is the minimum we need (one per frame) and also ensures an extra one to pre-record more commands
     // if both SwapChain buffers are full.
-    if (!mState.commandListPool.Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 16, 4))
+    if (!mState->commandListPool.Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 16, 4))
     {
         D3D12NI_LOG_ERROR("Failed to initialize Command List Pool");
         return false;
@@ -109,20 +219,84 @@ bool RenderThread::Init()
     return true;
 }
 
-void RenderThread::Execute(RenderPayloadPtr&& payload)
+void RenderThread::RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp)
+{
+    std::unique_lock<std::mutex> lock(mWaitableOpsMutex);
+
+    mWaitableOps.emplace_back(waitableOp);
+}
+
+void RenderThread::UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp)
+{
+    std::unique_lock<std::mutex> lock(mWaitableOpsMutex);
+
+    for (size_t i = 0; i < mWaitableOps.size(); ++i)
+    {
+        if (mWaitableOps[i] == waitableOp)
+        {
+            if (i != mWaitableOps.size() - 1)
+            {
+                mWaitableOps[i] = mWaitableOps[mWaitableOps.size() - 1];
+            }
+
+            mWaitableOps.pop_back();
+        }
+    }
+}
+
+NIPtr<Waitable> RenderThread::Execute(RenderPayloadPtr&& payload)
 {
     D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::Execute() can only be called from main thread");
+
+    const NIPtr<Waitable>& waitable = payload->GetWaitable();
 
     std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
     mPayloadQueue.emplace(std::move(payload));
 
     mPayloadAvailableCV.notify_one();
+    return waitable;
 }
 
-void RenderThread::WaitForCompletion()
+void RenderThread::ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload)
 {
-    D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::WaitForCompletion() can only be called from main thread");
+    D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::ScheduleCommandListSubmit() can only be called from main thread");
 
+    payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::ExecuteCurrentCommandList, this)));
+}
+
+void RenderThread::ScheduleCommandAllocatorAdvance(LinearAllocator& allocator, RenderPayloadPtr& payload)
+{
+    D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::ScheduleCommandAllocatorAdvance() can only be called from main thread");
+
+    payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::AdvanceCommandAllocator, this)));
+}
+
+void RenderThread::ScheduleSignal(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type)
+{
+    D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::ScheduleSignal() can only be called from main thread");
+
+    payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::Signal, this, type)));
+}
+
+bool RenderThread::WaitForCheckpoint(LinearAllocator& allocator, CheckpointType type)
+{
+    D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::WaitForCheckpoint() can only be called from main thread");
+
+    // TODO: We allocate a whole Payload for just one step here. Could be worth optimizing to save space on the Allocator.
+    RenderPayloadPtr payload(allocator.Construct<RenderPayload>(), LinearAllocatorDeleter<RenderPayload>(&allocator));
+    payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::WaitForCheckpointInternal, this, type)));
+    NIPtr<Waitable> w = Execute(std::move(payload));
+    if (!w->Wait())
+    {
+        D3D12NI_LOG_ERROR("Failed to wait for RenderThread's checkpoint");
+        return false;
+    }
+
+    return true;
+}
+
+void RenderThread::WaitUntilIdle()
+{
     std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
     while (mPayloadQueue.size() != 0)
     {
@@ -130,30 +304,19 @@ void RenderThread::WaitForCompletion()
     }
 }
 
-D3D12GraphicsCommandListPtr RenderThread::FinalizeCommandList(LinearAllocator& allocator, RenderPayloadPtr&& payload)
-{
-    D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::FinalizeCommandList() can only be called from main thread");
-
-    // Command List has to be closed by the Render Thread, otherwise we risk thread safety
-    // We'll do this by a custom Payload that will be added to the Queue and executed
-    // First grab the reference to the current Command List - we can be sure this is what we return
-    const D3D12GraphicsCommandListPtr& currentList = mState.commandListPool.CurrentCommandListRef();
-
-    // Then submit the payload advancing the command list
-    payload->AddStep(CreateRTExec<AdvanceCommandList>(allocator));
-    Execute(std::move(payload));
-    WaitForCompletion();
-
-    // this list should now be closed and we can return it for execution on a Command Queue
-    return currentList;
-}
-
 void RenderThread::Exit()
 {
+    D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::Exit() can only be called from main thread");
+
+    WaitUntilIdle();
+
     mWorkerDone = true;
     mPayloadAvailableCV.notify_one();
 
     mWorkerThread.join();
+
+    // free up RT resources
+    mState.reset();
 }
 
 } // namespace Internal

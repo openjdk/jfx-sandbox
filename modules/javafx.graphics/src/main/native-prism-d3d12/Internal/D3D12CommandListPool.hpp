@@ -59,6 +59,7 @@ class CommandListPool: public IWaitableOperation
     };
 
     NIPtr<NativeDevice> mNativeDevice;
+    CheckpointCallback mWaitCallback;
     uint32_t mCommandListProfilerID;
     uint32_t mCommandAllocatorProfilerID;
     std::vector<CommandListData> mCommandLists;
@@ -76,7 +77,7 @@ class CommandListPool: public IWaitableOperation
     }
 
 public:
-    CommandListPool(const NIPtr<NativeDevice>& nativeDevice);
+    CommandListPool(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& waitCallback);
     ~CommandListPool();
 
     bool Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount, size_t commandAllocators);

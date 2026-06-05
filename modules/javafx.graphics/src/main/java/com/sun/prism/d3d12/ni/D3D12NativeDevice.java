@@ -102,6 +102,8 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
                                            int srcx, int srcy,
                                            int srcw, int srch,
                                            int srcscan);
+    private native boolean nPrepareSwapChain(long ptr, long swapChainPtr, long left, long top, long right, long bottom);
+    private native boolean nPresent(long ptr, long swapChainPtr);
     private native void nFinishFrame(long ptr);
 
     public boolean checkFormatSupport(PixelFormat format) {
@@ -264,6 +266,14 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
         } else {
             throw new IllegalArgumentException("Buffer of this type is not supported: " + buf);
         }
+    }
+
+    public boolean prepareSwapChain(D3D12NativeSwapChain swapChain, long left, long top, long right, long bottom) {
+        return nPrepareSwapChain(ptr, swapChain.ptr, left, top, right, bottom);
+    }
+
+    public boolean present(D3D12NativeSwapChain swapChain) {
+        return nPresent(ptr, swapChain.ptr);
     }
 
     public void finishFrame() {

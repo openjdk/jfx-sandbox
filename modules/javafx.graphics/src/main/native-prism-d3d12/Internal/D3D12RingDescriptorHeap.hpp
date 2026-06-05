@@ -55,7 +55,7 @@ class RingDescriptorHeap: public RingContainer
     UINT mIncrementSize;
 
 public:
-    RingDescriptorHeap(const NIPtr<NativeDevice>& device);
+    RingDescriptorHeap(const NIPtr<NativeDevice>& device, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback);
     ~RingDescriptorHeap() = default;
 
     /**

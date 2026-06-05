@@ -28,6 +28,7 @@
 #include "../D3D12Common.hpp"
 
 #include "D3D12DescriptorData.hpp"
+#include "D3D12ITrackedResource.hpp"
 #include "D3D12TextureBase.hpp"
 
 
@@ -37,7 +38,7 @@ namespace Internal {
 // TODO: D3D12: Cleanup - this class should be renamed to "RenderTargetBase"
 //              and many common parts of both NativeRenderTarget and NativeSwapChain
 //              should be added here.
-class IRenderTarget
+class IRenderTarget: public ITrackedResource
 {
 protected:
     enum class BBoxTrackingState

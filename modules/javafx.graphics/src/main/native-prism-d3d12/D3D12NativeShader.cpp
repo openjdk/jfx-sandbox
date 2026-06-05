@@ -190,7 +190,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     for (const auto& r: mShaderResourceAssignments)
     {
         const ResourceAssignment& ra = r.second;
-        D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first, ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
+        D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first.data(), ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
     }
 
     // NativeShader (Phong/Decora) assume we need only one big constant buffer for all data

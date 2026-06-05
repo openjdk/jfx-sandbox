@@ -33,6 +33,8 @@ namespace Internal {
 
 void LinearAllocator::Expand()
 {
+    D3D12NI_ASSERT(std::this_thread::get_id() == mInitThreadId, "Expand() can only be called by the initializing (main) thread");
+
     D3D12NI_LOG_TRACE("--- LinearAllocator - expanding with new chunk size %d (current chunks %d) ---", mSizePerChunk, mChunks.size());
     mChunks.emplace_back(mSizePerChunk);
     mCurrentChunk = &mChunks.back();
@@ -42,6 +44,7 @@ LinearAllocator::LinearAllocator()
     : mChunks()
     , mSizePerChunk(CHUNK_SIZE)
     , mCurrentChunk(nullptr)
+    , mInitThreadId(std::this_thread::get_id())
 {
     Expand();
 }
@@ -59,6 +62,8 @@ void LinearAllocator::MoveToNewChunk()
 
 void* LinearAllocator::Allocate(uint32_t size)
 {
+    D3D12NI_ASSERT(std::this_thread::get_id() == mInitThreadId, "Allocate() can only be called by the initializing (main) thread");
+
     // align to 8 bytes (64-bits)
     uint32_t alignedSize = Utils::Align<uint32_t>(size, 8);
 
@@ -78,23 +83,31 @@ void* LinearAllocator::Allocate(uint32_t size)
 
 void LinearAllocator::Free(void* ptr)
 {
+    // NOTE: Below assertion is right 99.9999% of the time. The only exception is when
+    // we close the application and cleanup leftover resources, ex. in ResourceManager.
+    // Those will be done after RenderThread completed and we rejoined it though.
+    // For cleaner exit messaging in DebugNative the assertion is commented out. Restore
+    // it if there are threading issues to be debugged in this area.
+    //D3D12NI_ASSERT(std::this_thread::get_id() != mInitThreadId, "Free() can only be called by the worker/render thread");
+
     uint8_t* dataPtr = reinterpret_cast<uint8_t*>(ptr);
     DataHeader* header = reinterpret_cast<DataHeader*>(dataPtr - sizeof(DataHeader));
 
     if (header->magic != DATA_MAGIC)
     {
         D3D12NI_LOG_ERROR("Cannot free, invalid magic at data header for pointer %p", ptr);
-        assert(false);
+        assert(false); // LKDEBUG
         return;
     }
 
-    header->parentChunk->Free(ptr);
-    if (header->parentChunk->FullyFreed())
+    Chunk* chunk = header->parentChunk; // preserving the pointer, Free() will destroy it
+    chunk->Free(ptr);
+    if (chunk->FullyFreed())
     {
         for (std::list<Chunk>::iterator it = mChunks.begin(); it != mChunks.end(); ++it)
         {
             Chunk& c = *it;
-            if (header->parentChunk == &c)
+            if (chunk == &c)
             {
                 D3D12NI_LOG_TRACE("--- LinearAllocator - Freeing chunk size %d (currently %d chunks) ---", c.mSize, mChunks.size());
                 mChunks.erase(it);

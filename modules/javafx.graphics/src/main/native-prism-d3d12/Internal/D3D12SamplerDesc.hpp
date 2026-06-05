@@ -27,7 +27,6 @@
 
 #include "../D3D12Common.hpp"
 
-#include <functional>
 #include <string>
 
 

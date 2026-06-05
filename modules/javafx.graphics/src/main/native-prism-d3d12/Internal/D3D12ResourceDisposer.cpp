@@ -35,15 +35,10 @@ ResourceDisposer::ResourceDisposer(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mPageablesToPurge()
 {
-    mNativeDevice->RegisterWaitableOperation(this);
 }
 
 ResourceDisposer::~ResourceDisposer()
 {
-    // NOTE: Destructor should be called only after we purged the GPU queues
-    // It will clear all remaining references for Textures and we have to
-    // be sure they are not in use by the GPU
-    mNativeDevice->UnregisterWaitableOperation(this);
 }
 
 void ResourceDisposer::MarkDisposed(const D3D12PageablePtr& pageable)

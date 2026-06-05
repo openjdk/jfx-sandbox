@@ -52,7 +52,17 @@ namespace Internal {
 class RenderThread
 {
     NIPtr<NativeDevice> mNativeDevice;
-    RenderThreadState mState;
+    D3D12CommandQueuePtr mCommandQueue;
+    D3D12FencePtr mCommandQueueFence;
+    uint64_t mFenceValue;
+    std::vector<Internal::IWaitableOperation*> mWaitableOps;
+    std::mutex mWaitableOpsMutex;
+    CheckpointQueue mCheckpointQueue;
+    std::unique_ptr<RenderThreadState> mState;
+
+    //NIPtr<Internal::RingBuffer> mVertexRingBuffer; // used for small texture uploads to prevent Committed Resource allocation
+    //NIPtr<Internal::RingBuffer> mDataRingBuffer; // used for small texture uploads to prevent Committed Resource allocation
+
     RenderPayloadPtr mNullPayload; // used to leave FetchPayload() without returning a temporary ref
 
     std::condition_variable mPayloadAvailableCV;
@@ -64,35 +74,32 @@ class RenderThread
 
     RenderPayloadPtr& FetchPayload();
     void WorkerMain();
+    void ExecuteCurrentCommandList();
+    void AdvanceCommandAllocator();
+    void FlushCommandListInternal(CheckpointType type);
+    void WaitForCheckpointInternal(CheckpointType type);
+    void Signal(CheckpointType type);
 
 public:
     RenderThread(const NIPtr<NativeDevice>& nativeDevice);
     ~RenderThread() = default;
 
     bool Init();
-    void Execute(RenderPayloadPtr&& payload);
-    void WaitForCompletion();
-    D3D12GraphicsCommandListPtr FinalizeCommandList(LinearAllocator& allocator, RenderPayloadPtr&& payload);
+    void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
+    void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
+    NIPtr<Waitable> Execute(RenderPayloadPtr&& payload);
+    void ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload);
+    void ScheduleCommandAllocatorAdvance(LinearAllocator& allocator, RenderPayloadPtr& payload);
+    void SchedulePresent(LinearAllocator& allocator, RenderPayloadPtr& payload, const PresentArgs& presentArgs, CheckpointType checkpointType);
+    void ScheduleSignal(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type);
+    bool WaitForCheckpoint(LinearAllocator& allocator, CheckpointType type);
+    void WaitUntilIdle();
     void Exit();
 
-    inline void AdvanceCommandAllocator()
+    inline const D3D12CommandQueuePtr& GetCommandQueue() const
     {
-        mState.commandListPool.AdvanceAllocator();
-    }
-
-    inline RingContainer::Tracker GetConstantRingBufferTracker()
-    {
-        return mState.resourceManager.CreateConstantRingBufferTracker();
-    }
-
-    inline RingContainer::Tracker GetDescriptorHeapTracker()
-    {
-        return mState.resourceManager.CreateDescriptorHeapTracker();
-    }
-
-    inline RingContainer::Tracker GetSamplerHeapTracker()
-    {
-        return mState.resourceManager.CreateSamplerHeapTracker();
+        // LKTODO check if we can avoid that
+        return mCommandQueue;
     }
 };
 

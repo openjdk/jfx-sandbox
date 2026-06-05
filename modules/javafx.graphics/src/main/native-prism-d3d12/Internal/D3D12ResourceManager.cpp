@@ -184,27 +184,25 @@ bool ResourceManager::PrepareShaderResources(const NIPtr<Shader>& shader, Shader
     return true;
 }
 
-ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice)
+ResourceManager::ResourceManager(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback)
     : mNativeDevice(nativeDevice)
     , mVertexShader()
     , mPixelShader()
     , mTextures()
     , mSamplerStorage(nativeDevice)
-    , mDescriptorHeap(nativeDevice)
-    , mSamplerHeap(nativeDevice)
-    , mConstantRingBuffer(nativeDevice)
+    , mDescriptorHeap(nativeDevice, flushCallback, waitCallback)
+    , mSamplerHeap(nativeDevice, flushCallback, waitCallback)
+    , mConstantRingBuffer(nativeDevice, flushCallback, waitCallback)
     , mCurrentSamplerBinding()
     , mLastSamplerDescriptors()
     , mSamplerRegionReserveProfilerID(UINT32_MAX)
 {
-    mNativeDevice->RegisterWaitableOperation(this);
+    mNativeDevice->GetRenderingContext()->RegisterWaitableOperation(this);
     mSamplerRegionReserveProfilerID = Profiler::Instance().RegisterSource("ResourceManager Sampler Region Reserve");
 }
 
 ResourceManager::~ResourceManager()
 {
-    mNativeDevice->UnregisterWaitableOperation(this);
-
     for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
     {
         mTextures[i].reset();
@@ -215,6 +213,8 @@ ResourceManager::~ResourceManager()
     mPixelShader.reset();
     mRuntimeParametersStash.vertexShader.reset();
     mRuntimeParametersStash.pixelShader.reset();
+
+    mNativeDevice->GetRenderingContext()->UnregisterWaitableOperation(this);
     mNativeDevice.reset();
 
     D3D12NI_LOG_DEBUG("ResourceManager destroyed");
@@ -262,6 +262,10 @@ bool ResourceManager::Init()
     mDescriptorHeap.SetDebugName("CBV/SRV/UAV Descriptor Heap");
     mSamplerHeap.SetDebugName("Sampler Heap");
     mConstantRingBuffer.SetDebugName("Constant Ring Buffer");
+
+    mNativeDevice->GetRenderingContext()->RegisterWaitableOperation(&mDescriptorHeap);
+    mNativeDevice->GetRenderingContext()->RegisterWaitableOperation(&mSamplerHeap);
+    mNativeDevice->GetRenderingContext()->RegisterWaitableOperation(&mConstantRingBuffer);
 
     return true;
 }

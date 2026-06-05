@@ -34,7 +34,6 @@
 
 #include <map>
 #include <string>
-#include <functional>
 
 
 namespace D3D12 {

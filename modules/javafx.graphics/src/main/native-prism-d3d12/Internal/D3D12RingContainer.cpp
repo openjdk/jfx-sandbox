@@ -40,7 +40,7 @@ void RingContainer::CheckThreshold()
     {
         D3D12NI_LOG_ERROR("%s: CheckThreshold wanted a midframe flush! Maybe it shouldn't do that", mDebugName.c_str());
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Signal);
-        mNativeDevice->NotifyMidframeFlushNeeded();
+        mFlushCallback(CheckpointType::MIDFRAME);
     }
 }
 
@@ -58,7 +58,7 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
             // somewhere else) to prevent it from triggering.
             D3D12NI_LOG_WARN("Triggered a mid-frame Command List flush right before waiting for next checkpoint."
                 "This might cause some glitches and generally should be prevented");
-            mNativeDevice->GetRenderingContext()->FlushCommandList(CheckpointType::MIDFRAME);
+            mFlushCallback(CheckpointType::MIDFRAME);
         }
 
         // await for any waitable set by FlushCommandList()
@@ -67,12 +67,7 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
         //    mDebugName.c_str(), mUsed, mUncommitted, mFlushThreshold, mSize
         //);
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Wait);
-        bool waitSuccess = mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ANY);
-        if (!waitSuccess)
-        {
-            D3D12NI_LOG_WARN("Failed to wait on mid-frame waitable");
-            return false;
-        }
+        mWaitCallback(CheckpointType::ANY);
     }
 
     return true;
@@ -91,26 +86,30 @@ void RingContainer::PrintHumanReadableSize()
     );
 }
 
-RingContainer::RingContainer(const NIPtr<NativeDevice>& nativeDevice)
-    : mNativeDevice(nativeDevice)
-    , mSize(0)
-    , mAlignment(0)
-    , mProfilerSourceID(0)
-    , mFlushThreshold(0)
+RingContainer::RingContainer(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback)
+    : mFlushThreshold(0)
     , mUsed(0)
     , mUncommitted(0)
     , mHead(0)
+    , mFlushCallback(flushCallback)
+    , mWaitCallback(waitCallback)
+    , mCheckpoints()
+    , mDebugName()
+    , mNativeDevice(nativeDevice)
+    , mSize(0)
+    , mAlignment(0)
     , mTail(0)
+    , mProfilerSourceID(0)
 {
-    mNativeDevice->RegisterWaitableOperation(this);
     mDebugName = "Ring Container";
 
+    mNativeDevice->GetRenderingContext()->RegisterWaitableOperation(this);
     mProfilerSourceID = Profiler::Instance().RegisterSource(mDebugName);
 }
 
 RingContainer::~RingContainer()
 {
-    mNativeDevice->UnregisterWaitableOperation(this);
+    mNativeDevice->GetRenderingContext()->UnregisterWaitableOperation(this);
     mNativeDevice.reset();
 
     D3D12NI_LOG_TRACE("%s destroyed", mDebugName.c_str());
@@ -250,7 +249,7 @@ void RingContainer::DeclareRequired(size_t size)
     if ((mUncommitted > 0) && (mUncommitted + realSizeNeeded > mFlushThreshold))
     {
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Signal);
-        mNativeDevice->GetRenderingContext()->FlushCommandList(CheckpointType::MIDFRAME);
+        mFlushCallback(CheckpointType::MIDFRAME);
     }
 }
 

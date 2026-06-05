@@ -31,6 +31,7 @@
 
 #include "D3D12LinearAllocator.hpp"
 #include "D3D12RenderThreadExecutable.hpp"
+#include "D3D12Waitable.hpp"
 
 #include <array>
 
@@ -46,12 +47,14 @@ private:
     static const uint32_t PAYLOAD_LIMIT = PAYLOAD_SIZE - 48;
     using StepList = std::array<RenderThreadExecutablePtr, PAYLOAD_SIZE>;
 
+    NIPtr<Waitable> mWaitable;
     StepList mSteps;
     uint32_t mCurrentStep;
 
 public:
     RenderPayload()
-        : mSteps()
+        : mWaitable(std::make_shared<Waitable>())
+        , mSteps()
         , mCurrentStep(0)
     {
     }
@@ -63,17 +66,24 @@ public:
         return (mCurrentStep > PAYLOAD_LIMIT);
     }
 
-    void ApplySteps(const D3D12GraphicsCommandListPtr& commandList, RenderThreadState& state)
+    bool ApplySteps(const std::unique_ptr<RenderThreadState>& state)
     {
         for (uint32_t i = 0; i < mCurrentStep; ++i)
         {
-            mSteps[i]->Execute(commandList, state);
+            mSteps[i]->Execute(state->commandListPool.CurrentCommandList(), state);
         }
+
+        return mWaitable->Signal();
     }
 
     bool HasWork() const
     {
         return (mCurrentStep > 0);
+    }
+
+    inline const NIPtr<Waitable>& GetWaitable() const
+    {
+        return mWaitable;
     }
 };
 

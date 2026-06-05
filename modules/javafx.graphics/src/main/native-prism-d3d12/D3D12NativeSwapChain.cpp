@@ -49,7 +49,6 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
     {
         mTextureBuffers.resize(mBufferCount);
         mRTVs.resize(mBufferCount);
-        mWaitFenceValues.resize(mBufferCount);
     }
 
     D3D12_RENDER_TARGET_VIEW_DESC rtvDesc;
@@ -79,9 +78,7 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
 
         mNativeDevice->GetDevice()->CreateRenderTargetView(buffer.Get(), &rtvDesc, mRTVs[i].CPU(0));
 
-        mWaitFenceValues[i] = 0;
-
-        mTextureBuffers[i] = (std::make_shared<Internal::TextureBase>());
+        mTextureBuffers[i] = std::make_shared<Internal::TextureBase>();
         mTextureBuffers[i]->Init(buffer, 1, D3D12_RESOURCE_STATE_COMMON);
     }
 
@@ -92,9 +89,9 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mSwapChain()
     , mTextureBuffers()
+    , mTextureStates()
     , mRTVs()
     , mWaitFenceValues()
-    , mSubmittedFrameCount(0)
     , mBufferCount(0)
     , mCurrentBufferIdx(0)
     , mDirtyRegion()
@@ -107,17 +104,16 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
     , mHeight(0)
     , mNullTexture()
 {
-    mNativeDevice->RegisterWaitableOperation(this);
     mProfilerSourceID = Internal::Profiler::Instance().RegisterSource("SwapChain");
+    mNativeDevice->GetRenderingContext()->RegisterWaitableOperation(this);
 }
 
 NativeSwapChain::~NativeSwapChain()
 {
-    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
-    D3D12NI_ASSERT(mSubmittedFrameCount == 0, "SwapChain destructor: called before waiting for all frames! Frame count = %u", mSubmittedFrameCount);
+    mNativeDevice->GetRenderingContext()->WaitUntilIdle();
+    D3D12NI_ASSERT(mWaitFenceValues.size() == 0, "SwapChain destructor: called before waiting for all frames! Frame count = %u", mWaitFenceValues.size());
 
     Internal::Profiler::Instance().RemoveSource(mProfilerSourceID);
-    mNativeDevice->UnregisterWaitableOperation(this);
 
     for (size_t i = 0; i < mTextureBuffers.size(); ++i)
     {
@@ -128,6 +124,8 @@ NativeSwapChain::~NativeSwapChain()
     mTextureBuffers.clear();
 
     mSwapChain.Reset();
+
+    mNativeDevice->GetRenderingContext()->UnregisterWaitableOperation(this);
     mNativeDevice.reset();
 
     D3D12NI_LOG_DEBUG("SwapChain destroyed");
@@ -190,31 +188,37 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
     // TODO: D3D12: Also note fullscreen related requirements
     mPresentFlags = mVSyncEnabled ? 0 : DXGI_PRESENT_ALLOW_TEARING;
 
-    D3D12_RESOURCE_DESC bufDesc = mTextureBuffers[0]->GetResource()->GetDesc();
+    D3D12_RESOURCE_DESC bufDesc = mTextureBuffers[0]->GetD3D12Resource()->GetDesc();
     mWidth = static_cast<UINT>(bufDesc.Width);
     mHeight = static_cast<UINT>(bufDesc.Height);
 
     return true;
 }
 
-bool NativeSwapChain::Prepare(LONG left, LONG top, LONG right, LONG bottom)
+// called by QuantumRenderer Thread
+void NativeSwapChain::WaitForAvailableBuffer()
 {
-    mDirtyRegion.left = left;
-    mDirtyRegion.top = top;
-    mDirtyRegion.right = right;
-    mDirtyRegion.bottom = bottom;
+    std::unique_lock<std::mutex> lock(mWaitFenceMutex);
 
-    mNativeDevice->GetRenderingContext()->QueueTextureTransition(GetTexture(), D3D12_RESOURCE_STATE_PRESENT);
-    mNativeDevice->GetRenderingContext()->SubmitResourceTransitions();
+    while (mWaitFenceValues.size() > mBufferCount)
+    {
+        mAvailableBufferCV.wait(lock);
+    }
+}
+
+// called by Render Thread
+bool NativeSwapChain::Prepare(const D3D12_RECT& dirtyRegion)
+{
+    mDirtyRegion = dirtyRegion;
 
     return true;
 }
 
-bool NativeSwapChain::Present()
+// called by Render Thread
+bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadState>& rtState)
 {
     DXGI_PRESENT_PARAMETERS params;
     D3D12NI_ZERO_STRUCT(params);
-
     if (mDirtyRegion.left >= 0 && mDirtyRegion.top >= 0 &&
         mDirtyRegion.right >= 0 && mDirtyRegion.bottom >= 0)
     {
@@ -223,32 +227,28 @@ bool NativeSwapChain::Present()
     }
 
     HRESULT hr = mSwapChain->Present1(mSwapInterval, mPresentFlags, &params);
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to Present on Swap Chain");
+    D3D12NI_RET_IF_FAILED(hr, false, "RenderThread: Failed to present swapchain image");
 
-    // NOTE: We fetch fenceValue here instead in OnQueueSignal() to cover multiple-Stage
-    // scenario. Each Stage has its own SwapChain and each SwapChain must know when it was
-    // actually signaling the Queue. We have no way of knowing that from OnQueueSignal().
-    // CloseWindowTest system test is a good confidence check for that case.
-    Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Internal::Profiler::Event::Signal);
-    uint64_t fenceValue = mNativeDevice->Signal(CheckpointType::ENDFRAME);
-    if (fenceValue == 0)
-    {
-        D3D12NI_LOG_ERROR("Failed to Signal after Present");
-        return false;
-    }
-
-    mWaitFenceValues[mCurrentBufferIdx] = fenceValue;
-    mSubmittedFrameCount++;
+    rtState->signal(CheckpointType::ENDFRAME);
 
     // await older frames
-    while (mSubmittedFrameCount >= mBufferCount)
     {
-        Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Internal::Profiler::Event::Wait);
-        if (!mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ENDFRAME))
+        std::unique_lock<std::mutex> lock(mWaitFenceMutex);
+
+        while (mWaitFenceValues.size() > mBufferCount)
         {
-            D3D12NI_LOG_ERROR("Failed to wait for old frame to complete");
-            return false;
+            Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Internal::Profiler::Event::Wait);
+            //  TODO restore and bring error reporting to RenderThread
+            // if (!rtState->waitForCheckpoint(CheckpointType::ENDFRAME))
+            // {
+            //     D3D12NI_LOG_ERROR("Failed to wait for old frame to complete");
+            //     return false;
+            // }
+
+            rtState->waitForCheckpoint(CheckpointType::ENDFRAME);
         }
+
+        mAvailableBufferCV.notify_all();
     }
 
     mCurrentBufferIdx = mSwapChain->GetCurrentBackBufferIndex();
@@ -259,7 +259,7 @@ bool NativeSwapChain::Present()
 bool NativeSwapChain::Resize(UINT width, UINT height)
 {
     // before Resize we need to wait for all frames
-    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
+    mNativeDevice->GetRenderingContext()->WaitUntilIdle();
 
     // since all frames were completed, reset all Buffer references before resizing
     for (size_t i = 0; i < mTextureBuffers.size(); ++i)
@@ -277,31 +277,27 @@ bool NativeSwapChain::Resize(UINT width, UINT height)
 
     mCurrentBufferIdx = mSwapChain->GetCurrentBackBufferIndex();
 
-    D3D12_RESOURCE_DESC desc = mTextureBuffers[0]->GetResource()->GetDesc();
+    D3D12_RESOURCE_DESC desc = mTextureBuffers[0]->GetD3D12Resource()->GetDesc();
     mWidth = static_cast<UINT>(desc.Width);
     mHeight = static_cast<UINT>(desc.Height);
 
     return true;
 }
 
+// called by Render Thread
 void NativeSwapChain::OnQueueSignal(uint64_t fenceValue)
 {
-    // noop
+    mWaitFenceValues.push(fenceValue);
 }
 
+// called by Render Thread
 void NativeSwapChain::OnFenceSignaled(uint64_t fenceValue)
 {
-    for (size_t i = 0; i < mWaitFenceValues.size(); ++i)
+    if (mWaitFenceValues.size() > 0 && mWaitFenceValues.front() == fenceValue)
     {
-        if (mWaitFenceValues[i] == fenceValue)
-        {
-            mWaitFenceValues[i] = 0;
-            mSubmittedFrameCount--;
-            break;
-        }
+        mWaitFenceValues.pop();
     }
 }
-
 
 } // namespace D3D12
 
@@ -317,27 +313,6 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeSwapChain_nRelease
     if (!ptr) return;
 
     D3D12::FreeNIObject<D3D12::NativeSwapChain>(ptr);
-}
-
-JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeSwapChain_nPrepare
-    (JNIEnv* env, jobject obj, jlong ptr, jlong left, jlong top, jlong right, jlong bottom)
-{
-    if (!ptr) return false;
-
-    return D3D12::GetNIObject<D3D12::NativeSwapChain>(ptr)->Prepare(
-        static_cast<LONG>(left),
-        static_cast<LONG>(top),
-        static_cast<LONG>(right),
-        static_cast<LONG>(bottom)
-    );
-}
-
-JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeSwapChain_nPresent
-    (JNIEnv* env, jobject obj, jlong ptr)
-{
-    if (!ptr) return false;
-
-    return D3D12::GetNIObject<D3D12::NativeSwapChain>(ptr)->Present();
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeSwapChain_nResize

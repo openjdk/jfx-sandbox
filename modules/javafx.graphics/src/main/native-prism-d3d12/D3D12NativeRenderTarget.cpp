@@ -95,9 +95,7 @@ bool NativeRenderTarget::EnsureHasDepthBuffer()
 
     Refresh();
 
-    mNativeDevice->GetRenderingContext()->QueueTextureTransition(mDepthTexture, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    mNativeDevice->GetRenderingContext()->SubmitResourceTransitions();
-    mNativeDevice->GetRenderingContext()->ClearDepth(mDSVDescriptor.CPU(0));
+    mNativeDevice->GetRenderingContext()->ClearDepth(mDepthTexture, mDSVDescriptor.cpu);
 
     D3D12NI_LOG_TRACE("--- RenderTarget %s uses depth texture %s ---", mTexture->GetName().c_str(), mDepthTexture->GetName().c_str());
     return true;
@@ -112,7 +110,7 @@ bool NativeRenderTarget::Refresh()
     desc.Texture2D.MipSlice = 0;
     desc.Texture2D.PlaneSlice = 0;
 
-    mNativeDevice->GetDevice()->CreateRenderTargetView(mTexture->GetResource().Get(), &desc, mDescriptors.CPU(0));
+    mNativeDevice->GetDevice()->CreateRenderTargetView(mTexture->GetD3D12Resource().Get(), &desc, mDescriptors.CPU(0));
 
     mWidth = mTexture->GetWidth();
     mHeight = mTexture->GetHeight();
@@ -128,7 +126,7 @@ bool NativeRenderTarget::Refresh()
         dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
         dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
         dsvDesc.Texture2D.MipSlice = 0;
-        mNativeDevice->GetDevice()->CreateDepthStencilView(mDepthTexture->GetResource().Get(), &dsvDesc, mDSVDescriptor.cpu);
+        mNativeDevice->GetDevice()->CreateDepthStencilView(mDepthTexture->GetD3D12Resource().Get(), &dsvDesc, mDSVDescriptor.cpu);
     }
 
     return true;

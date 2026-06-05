@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,6 +58,23 @@ public:
     bool EnsureHasDepthBuffer();
     bool Refresh();
     void SetDepthTestEnabled(bool enabled);
+
+    // ITrackedResource overrides
+
+    inline const D3D12ResourcePtr& GetD3D12Resource() const override
+    {
+        return GetTexture()->GetD3D12Resource();
+    }
+
+    inline D3D12_RESOURCE_STATES GetD3D12ResourceState(uint32_t subresource) const override
+    {
+        return GetTexture()->GetD3D12ResourceState(subresource);
+    }
+
+    inline void SetD3D12ResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource) override
+    {
+        GetTexture()->SetD3D12ResourceState(newState, subresource);
+    }
 
 
     // IRenderTarget overrides

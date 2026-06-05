@@ -38,8 +38,6 @@
 #include "D3D12RenderThreadExecutable.hpp"
 #include "D3D12RenderPayload.hpp"
 
-#include <functional>
-
 
 namespace D3D12 {
 namespace Internal {

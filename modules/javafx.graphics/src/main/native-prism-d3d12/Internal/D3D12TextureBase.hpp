@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "D3D12Common.hpp"
 #include "D3D12Constants.hpp"
 
+#include "D3D12ITrackedResource.hpp"
 #include "D3D12SamplerDesc.hpp"
 
 #include <array>
@@ -39,7 +40,7 @@ namespace Internal {
 /**
  *
  */
-class TextureBase
+class TextureBase: public ITrackedResource
 {
 protected:
     D3D12ResourcePtr mResource;
@@ -59,24 +60,24 @@ public:
     {
         mResource = resource;
         mStates.resize(subresourceCount);
-        SetResourceState(initialState);
+        SetD3D12ResourceState(initialState);
     }
 
     virtual void WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipLevels = 0, UINT mostDetailedMip = 0) {}
     virtual void WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipSlice) {}
 
-    inline const D3D12ResourcePtr& GetResource() const
+    const D3D12ResourcePtr& GetD3D12Resource() const override
     {
         return mResource;
     }
 
-    inline D3D12_RESOURCE_STATES GetResourceState(uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+    D3D12_RESOURCE_STATES GetD3D12ResourceState(uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) const override
     {
         if (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) return mStates[0];
         else return mStates[subresource];
     }
 
-    inline void SetResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+    void SetD3D12ResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) override
     {
         if (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
         {

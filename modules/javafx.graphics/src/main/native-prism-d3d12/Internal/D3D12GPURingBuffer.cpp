@@ -34,8 +34,8 @@
 namespace D3D12 {
 namespace Internal {
 
-GPURingBuffer::GPURingBuffer(const NIPtr<NativeDevice>& nativeDevice)
-    : RingBuffer(nativeDevice)
+GPURingBuffer::GPURingBuffer(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback)
+    : RingBuffer(nativeDevice, flushCallback, waitCallback)
     , mGPUBufferResource()
 {
 }
@@ -121,8 +121,7 @@ void GPURingBuffer::RecordTransferToGPU()
     // we assume Current Command List is empty, this should be called right after Pool::AdvanceCommandList()
     const NIPtr<RenderingContext>& context = mNativeDevice->GetRenderingContext();
 
-    context->QueueResourceTransition(mGPUBufferResource, mGPUResourceState, D3D12_RESOURCE_STATE_COPY_DEST);
-    context->SubmitResourceTransitions();
+    context->TransitionResource(mGPUBufferResource, mGPUResourceState, D3D12_RESOURCE_STATE_COPY_DEST);
 
     if (mChunkToTransferStart + mChunkToTransferSize > mSize)
     {
@@ -160,8 +159,7 @@ void GPURingBuffer::RecordTransferToGPU()
 
     mChunkToTransferSize = 0;
 
-    context->QueueResourceTransition(mGPUBufferResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
-    context->SubmitResourceTransitions();
+    context->TransitionResource(mGPUBufferResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
     mGPUResourceState = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
 }
 

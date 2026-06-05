@@ -199,16 +199,16 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
         mOffscreenRTT.unlock();
 
         if (dirtyregion == null) {
-            return mSwapChain.prepare(-1, -1, -1, -1);
+            return mContext.getDevice().prepareSwapChain(mSwapChain, -1, -1, -1, -1);
         } else {
-            return mSwapChain.prepare(dirtyregion.x, dirtyregion.y, dirtyregion.width, dirtyregion.height);
+            return mContext.getDevice().prepareSwapChain(mSwapChain, dirtyregion.x, dirtyregion.y, dirtyregion.width, dirtyregion.height);
         }
     }
 
     @Override
     public boolean present() {
         mContext.getDevice().finishFrame();
-        return mSwapChain.present();
+        return mContext.getDevice().present(mSwapChain);
     }
 
     @Override

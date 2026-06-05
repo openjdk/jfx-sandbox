@@ -28,11 +28,12 @@
 #include "../D3D12Common.hpp"
 
 #include "../D3D12NativeTexture.hpp"
+#include "../D3D12NativeSwapChain.hpp"
 
 #include "D3D12Buffer.hpp"
 #include "D3D12CheckpointQueue.hpp"
 #include "D3D12CommandListPool.hpp"
-#include "D3D12GPURingBuffer.hpp"
+//#include "D3D12GPURingBuffer.hpp"
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12LinearAllocator.hpp"
 #include "D3D12Matrix.hpp"
@@ -152,16 +153,9 @@ class RenderingContext
 
     NIPtr<NativeDevice> mNativeDevice;
     LinearAllocator mPayloadAllocator;
-    D3D12CommandQueuePtr mCommandQueue;
-    D3D12FencePtr mFence;
     RenderThread mRenderThread;
     RenderPayloadPtr mRTPayload;
-    CheckpointQueue mCheckpointQueue;
     VertexBatch m2DVertexBatch;
-    RingContainer::Tracker mConstantRingBufferTracker;
-    RingContainer::Tracker mDescriptorHeapTracker;
-    RingContainer::Tracker mSamplerHeapTracker;
-    NIPtr<Internal::RingBuffer> mVertexRingBuffer; // used for 2D Vertex data which for performance should reside on GPU-side
     std::thread::id mMainThreadTid;
 
     struct ClearOptState
@@ -221,9 +215,9 @@ class RenderingContext
     // only apply for one frame - afterwards we need to invalidate those bboxes and
     // start tracking anew
     std::unordered_set<NIPtr<Internal::IRenderTarget>> mUsedRTs;
-
+/* LKTODO remove
     ResourceBarrierArray mBarrierQueue;
-    uint32_t mBarrierQueueSize;
+    uint32_t mBarrierQueueSize;*/
 
     void RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect);
     void EnsureBoundTextureStates(D3D12_RESOURCE_STATES state);
@@ -251,34 +245,30 @@ public:
     bool Apply();
     bool ApplyCompute();
     void Clear(float r, float g, float b, float a, bool clearDepth);
-    void ClearDepth(const D3D12_CPU_DESCRIPTOR_HANDLE& dsv);
+    void ClearDepth(const NIPtr<NativeTexture>& depthTexture, const D3D12_CPU_DESCRIPTOR_HANDLE& dsv);
     void Draw(uint32_t elements, uint32_t vbOffset);
     void Draw(uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox);
     void Dispatch(uint32_t x, uint32_t y, uint32_t z);
+    bool PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion);
+    bool Present(const NIPtr<NativeSwapChain>& swapChain);
 
-    void Resolve(const NIPtr<TextureBase>& dstTexture, const NIPtr<TextureBase>& srcTexture, DXGI_FORMAT resolveFormat);
-    void ResolveRegion(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
-                       const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
+    void Resolve(const NIPtr<ITrackedResource>& dstTexture, const NIPtr<ITrackedResource>& srcTexture, DXGI_FORMAT resolveFormat);
+    void ResolveRegion(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
+                       const NIPtr<ITrackedResource>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
                        DXGI_FORMAT resolveFormat);
-    void ResolveRegion(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
-                       const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
-                       DXGI_FORMAT resolveFormat);
-    void CopyTexture(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
-                     const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
-    void CopyTexture(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
-                     const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
-    void CopyTexture(const Buffer& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
-                     uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
-    void CopyToTexture(const NIPtr<TextureBase>& dstTexture, uint32_t dstx, uint32_t dsty,
+    void CopyTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
+                     const NIPtr<ITrackedResource>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
+    void CopyTextureToBuffer(const Buffer& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
+                             uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
+    void CopyToTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
                        ID3D12Resource* srcResource, uint32_t srcw, uint32_t srch, uint64_t srcOffset,
                        uint32_t srcStride, DXGI_FORMAT format);
     void CopyBufferRegion(const D3D12ResourcePtr& dst, uint64_t dstOffset, const D3D12ResourcePtr& src, uint64_t srcOffset, uint64_t size);
     void CopyResource(const D3D12ResourcePtr& dst, const D3D12ResourcePtr& src);
     bool GenerateMipmaps(const NIPtr<NativeTexture>& texture);
 
-    void QueueTextureTransition(const NIPtr<Internal::TextureBase>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-    void QueueResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-    void SubmitResourceTransitions();
+    void TransitionTrackedResource(const NIPtr<ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+    void TransitionResource(const D3D12ResourcePtr& resource,  D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
     void ClearTextureUnit(uint32_t unit);
     void SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView);
@@ -302,18 +292,28 @@ public:
 
     void FlushCommandList(CheckpointType type);
     bool WaitForNextCheckpoint(CheckpointType type);
-    void Signal(uint64_t fenceValue, CheckpointType type, Waitable&& waitable);
+    void Signal(CheckpointType type);
     void FinishFrame();
 
     // exposed for SwapChain
-    inline const D3D12CommandQueuePtr& GetCommandQueue() const
+    inline const D3D12CommandQueuePtr& GetCommandQueue()
     {
-        return mCommandQueue;
+        return mRenderThread.GetCommandQueue();
     }
 
-    inline bool CheckpointQueueEmpty() const
+    inline void WaitUntilIdle()
     {
-        return mCheckpointQueue.Empty();
+        mRenderThread.WaitUntilIdle();
+    }
+
+    inline void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp)
+    {
+        mRenderThread.RegisterWaitableOperation(waitableOp);
+    }
+
+    inline void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp)
+    {
+        mRenderThread.UnregisterWaitableOperation(waitableOp);
     }
 };
 

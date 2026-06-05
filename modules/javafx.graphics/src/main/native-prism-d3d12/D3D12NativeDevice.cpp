@@ -135,7 +135,6 @@ NativeDevice::NativeDevice()
     , mProfilerTransferWaitSourceID(0)
     , mProfilerFrameTimeID(0)
     , mMidframeFlushNeeded(false)
-    , mWaitableOps()
     , mRootSignatureManager()
     , mRenderingContext()
     , mResourceDisposer()
@@ -147,7 +146,7 @@ NativeDevice::NativeDevice()
     , mCurrent2DShader()
     , m2DCompositeMode()
     , m2DIndexBuffer()
-    , mRingBuffer()
+    //, mRingBuffer() // LKTODO Move to RenderingContext
 {
 }
 
@@ -171,6 +170,8 @@ NativeDevice::~NativeDevice()
 bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibrary>& shaderLibrary)
 {
     if (adapter == nullptr) return false;
+
+    assert(false); // LKDEBUG
 
     mShaderLibrary = shaderLibrary;
     mAdapter = adapter;
@@ -216,13 +217,14 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
         return false;
     }
 
+    /* LKTODO reactivate after CommandQueue is moved to RenderThread
     mRingBuffer = std::make_shared<Internal::RingBuffer>(shared_from_this());
     mRingBuffer->SetDebugName("Main Ring Buffer");
     if (!mRingBuffer->Init(Internal::Config::MainRingBufferThreshold(), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT))
     {
         D3D12NI_LOG_ERROR("Failed to initialize main Ring Buffer");
         return false;
-    }
+    }*/
 
     mRTVAllocator = std::make_shared<Internal::DescriptorAllocator>(shared_from_this());
     if (!mRTVAllocator->Init(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false))
@@ -266,9 +268,7 @@ void NativeDevice::Release()
     D3D12NI_LOG_DEBUG("Releasing Device resources");
 
     // ensures the pipeline is purged
-    mRenderingContext->WaitForNextCheckpoint(CheckpointType::ALL);
-
-    mWaitableOps.clear();
+    mRenderingContext->WaitUntilIdle();
 
     if (mRenderingContext)
     {
@@ -575,12 +575,12 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
     {
         if (srcRT->GetMSAASamples() == 1)
         {
-            mRenderingContext->CopyTexture(dstRT, dst.x0, dst.y0, srcRT->GetTexture(), src.x0, src.y0, srcWidth, srcHeight);
+            mRenderingContext->CopyTexture(dstRT, dst.x0, dst.y0, srcRT, src.x0, src.y0, srcWidth, srcHeight);
         }
         else
         {
             // use ResolveSubresourceRegion
-            mRenderingContext->ResolveRegion(dstRT, dst.x0, dst.y0, srcRT->GetTexture(), src.x0, src.y0, srcWidth, srcHeight, dstRT->GetFormat());
+            mRenderingContext->ResolveRegion(dstRT, dst.x0, dst.y0, srcRT, src.x0, src.y0, srcWidth, srcHeight, dstRT->GetFormat());
         }
     }
     else
@@ -599,11 +599,13 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
                 return false;
             }
 
-            mRenderingContext->Resolve(intermediateTexture, srcRT->GetTexture(), srcRT->GetFormat());
+            mRenderingContext->Resolve(intermediateTexture, srcRT, srcRT->GetFormat());
             sourceTexture = intermediateTexture;
         }
         else
         {
+            // NOTE: Assumes srcRT will NOT be NativeSwapChain. Otherwise this can desync with Render Thread.
+            // (technically it cannot be a SwapChain because we enforced srcRT to be NativeRenderTarget...)
             sourceTexture = srcRT->GetTexture();
         }
 
@@ -663,9 +665,9 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
         return false;
     }
 
-    mRenderingContext->CopyTexture(readbackBuffer, static_cast<uint32_t>(readbackStride), texture, srcx, srcy, srcw, srch);
+    mRenderingContext->CopyTextureToBuffer(readbackBuffer, static_cast<uint32_t>(readbackStride), texture, srcx, srcy, srcw, srch);
 
-    // Flush the Command Queue to ensure data was read and wait for itF
+    // Flush the Command Queue to ensure data was read and wait for it
     Internal::Profiler::Instance().MarkEvent(mProfilerTransferWaitSourceID, Internal::Profiler::Event::Wait);
     mRenderingContext->FlushCommandList(CheckpointType::TRANSFER);
     mRenderingContext->WaitForNextCheckpoint(CheckpointType::TRANSFER);
@@ -720,8 +722,9 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
     Internal::TextureUploader uploader;
     uploader.SetSource(data, dataSizeBytes, srcFormat, srcx, srcy, srcw, srch, srcstride);
 
-    size_t copyThreshold = mRingBuffer->FlushThreshold();
-    bool useStagingBuffer = targetSize > copyThreshold;
+    // LKTODO reactivate after CommandQueue is moved to RenderThread
+    size_t copyThreshold = 0;//mRingBuffer->FlushThreshold();
+    bool useStagingBuffer = true;//targetSize > copyThreshold;
 
     Internal::RingBuffer::Region ringRegion;
     Internal::Buffer stagingBuffer(shared_from_this());
@@ -740,15 +743,15 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
     else
     {
         // copying smaller textures will go via the Ring Buffer to prevent unnecessary allocation
-        mRingBuffer->DeclareRequired(targetSize);
-        ringRegion = mRingBuffer->Reserve(targetSize);
-        if (ringRegion.cpu == nullptr)
-        {
-            D3D12NI_LOG_ERROR("Failed to reserve space in the Ring Buffer (full?)");
-            return false;
-        }
+        // mRingBuffer->DeclareRequired(targetSize);
+        // ringRegion = mRingBuffer->Reserve(targetSize);
+        // if (ringRegion.cpu == nullptr)
+        // {
+        //     D3D12NI_LOG_ERROR("Failed to reserve space in the Ring Buffer (full?)");
+        //     return false;
+        // }
 
-        uploader.SetTarget(ringRegion.cpu, ringRegion.size, texture->GetFormat());
+        // uploader.SetTarget(ringRegion.cpu, ringRegion.size, texture->GetFormat());
     }
 
     if (!uploader.Upload())
@@ -764,13 +767,23 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
 
     mRenderingContext->CopyToTexture(
         texture, dstx, dsty,
-        useStagingBuffer ? stagingBuffer.GetResource().Get() : mRingBuffer->GetResource().Get(), srcw, srch,
+        /*useStagingBuffer ?*/ stagingBuffer.GetResource().Get() /*: mRingBuffer->GetResource().Get()*/, srcw, srch,
         useStagingBuffer ? 0 : ringRegion.offsetFromStart, uploader.GetTargetStride(), uploader.GetTargetFormat()
     );
 
     mRenderingContext->GenerateMipmaps(texture);
 
     return true;
+}
+
+bool NativeDevice::PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion)
+{
+    return mRenderingContext->PrepareSwapChain(swapChain, dirtyRegion);
+}
+
+bool NativeDevice::Present(const NIPtr<NativeSwapChain>& swapChain)
+{
+    return mRenderingContext->Present(swapChain);
 }
 
 void NativeDevice::FinishFrame()
@@ -781,54 +794,6 @@ void NativeDevice::FinishFrame()
     Internal::Profiler::Instance().MarkFrameEnd();
     Internal::Profiler::Instance().TimingEnd(mProfilerFrameTimeID);
     Internal::Profiler::Instance().TimingStart(mProfilerFrameTimeID);
-}
-
-void NativeDevice::RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp)
-{
-    mWaitableOps.emplace_back(waitableOp);
-}
-
-void NativeDevice::UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp)
-{
-    for (size_t i = 0; i < mWaitableOps.size(); ++i)
-    {
-        if (mWaitableOps[i] == waitableOp)
-        {
-            if (i != mWaitableOps.size() - 1)
-            {
-                mWaitableOps[i] = mWaitableOps[mWaitableOps.size() - 1];
-            }
-
-            mWaitableOps.pop_back();
-        }
-    }
-}
-
-// Signal() is separate and not called everytime Execute() is called
-// because we need to call it in SwapChain after we Present()
-uint64_t NativeDevice::Signal(CheckpointType type)
-{
-    mFenceValue++;
-    if (mFenceValue == 0) mFenceValue++;
-
-    // mark this point in time in places that need it
-    for (Internal::IWaitableOperation* op: mWaitableOps)
-    {
-        op->OnQueueSignal(mFenceValue);
-    }
-
-    Internal::Waitable waitable(mFenceValue, [this](uint64_t fenceValue) -> bool
-    {
-        for (Internal::IWaitableOperation* op: mWaitableOps)
-        {
-            op->OnFenceSignaled(fenceValue);
-        }
-
-        return true;
-    });
-
-    mRenderingContext->Signal(mFenceValue, type, std::move(waitable));
-    return mFenceValue;
 }
 
 } // namespace D3D12
@@ -1301,6 +1266,37 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nUpdate
     return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->UpdateTexture(tex, data.Data(), data.Size(),
         static_cast<D3D12::PixelFormat>(pixelFormat), dstx, dsty, srcx, srcy, srcw, srch, srcscan
     );
+}
+
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nPrepareSwapChain
+    (JNIEnv* env, jobject obj, jlong ptr, jlong swapChainPtr, jlong left, jlong top, jlong right, jlong bottom)
+{
+    if (!ptr) return false;
+    if (!swapChainPtr) return false;
+
+    const D3D12::NIPtr<D3D12::NativeSwapChain>& swapChain = D3D12::GetNIObject<D3D12::NativeSwapChain>(swapChainPtr);
+    if (!swapChain) return false;
+
+    D3D12_RECT dirtyRegion {
+        static_cast<LONG>(left),
+        static_cast<LONG>(top),
+        static_cast<LONG>(right),
+        static_cast<LONG>(bottom)
+    };
+
+    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->PrepareSwapChain(swapChain, dirtyRegion);
+}
+
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nPresent
+    (JNIEnv* env, jobject obj, jlong ptr, jlong swapChainPtr)
+{
+    if (!ptr) return false;
+    if (!swapChainPtr) return false;
+
+    const D3D12::NIPtr<D3D12::NativeSwapChain>& swapChain = D3D12::GetNIObject<D3D12::NativeSwapChain>(swapChainPtr);
+    if (!swapChain) return false;
+
+    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->Present(swapChain);
 }
 
 JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nFinishFrame

@@ -49,10 +49,9 @@ void CommandListPool::WaitForAvailableCommandList()
 {
     Profiler::Instance().MarkEvent(mCommandListProfilerID, Profiler::Event::Wait);
 
-    while (mCommandLists[mCurrentCommandList].state == CommandListState::Closed &&
-           !mNativeDevice->GetRenderingContext()->CheckpointQueueEmpty())
+    while (mCommandLists[mCurrentCommandList].state == CommandListState::Closed)
     {
-        mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ANY);
+        mWaitCallback(CheckpointType::ANY);
     }
 
     // if this assertion ever triggers, there is something terribly wrong
@@ -65,10 +64,9 @@ void CommandListPool::WaitForAvailableCommandAllocator()
 {
     Profiler::Instance().MarkEvent(mCommandAllocatorProfilerID, Profiler::Event::Wait);
 
-    while (mCommandAllocators[mCurrentCommandAllocator].state == CommandListState::Closed &&
-           !mNativeDevice->GetRenderingContext()->CheckpointQueueEmpty())
+    while (mCommandAllocators[mCurrentCommandAllocator].state == CommandListState::Closed)
     {
-        mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ENDFRAME);
+        mWaitCallback(CheckpointType::ENDFRAME);
     }
 
     // if this assertion ever triggers there is something terribly wrong
@@ -77,14 +75,16 @@ void CommandListPool::WaitForAvailableCommandAllocator()
     );
 }
 
-CommandListPool::CommandListPool(const NIPtr<NativeDevice>& nativeDevice)
+CommandListPool::CommandListPool(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& waitCallback)
     : mNativeDevice(nativeDevice)
+    , mWaitCallback(waitCallback)
     , mCommandLists()
     , mCurrentCommandList(0)
     , mCommandAllocators()
     , mCurrentCommandAllocator(0)
 {
-    mNativeDevice->RegisterWaitableOperation(this);
+    mNativeDevice->GetRenderingContext()->RegisterWaitableOperation(this);
+
     mCommandListProfilerID = Profiler::Instance().RegisterSource("Command List Pool");
     mCommandAllocatorProfilerID = Profiler::Instance().RegisterSource("Command Allocator Pool");
 }
@@ -104,7 +104,7 @@ CommandListPool::~CommandListPool()
         mCommandAllocators[i].allocator.Reset();
     }
 
-    mNativeDevice->UnregisterWaitableOperation(this);
+    mNativeDevice->GetRenderingContext()->UnregisterWaitableOperation(this);
     mNativeDevice.reset();
 }
 

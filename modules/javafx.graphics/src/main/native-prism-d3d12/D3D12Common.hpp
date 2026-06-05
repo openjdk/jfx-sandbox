@@ -47,6 +47,7 @@
 #include <cmath>
 #include <cassert>
 #include <algorithm>
+#include <functional>
 
 #include "Internal/D3D12Logger.hpp"
 
@@ -461,6 +462,9 @@ enum class CheckpointType: uint32_t
     TRANSFER = (1 << 2),
     ANY = 0xFFFFFFFF, // For situations where checkpoint type doesn't matter, ex. RingContainer
 };
+
+// for RingContainer and CommandListPool
+using CheckpointCallback = std::function<void(CheckpointType)>;
 
 // mirrors CompositeMode.java
 enum class CompositeMode: unsigned char

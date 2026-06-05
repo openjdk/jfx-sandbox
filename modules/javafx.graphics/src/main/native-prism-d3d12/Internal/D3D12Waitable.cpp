@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,6 +84,25 @@ bool Waitable::Wait()
     if (mWaitFinishedCallback)
     {
         return mWaitFinishedCallback(mFenceValue);
+    }
+
+    return true;
+}
+
+bool Waitable::Signal()
+{
+    if (!mEventHandle)
+    {
+        D3D12NI_LOG_ERROR("Failed to signal() the waitable - event handle is invalid");
+        return false;
+    }
+
+    BOOL result = SetEvent(mEventHandle);
+    if (!result)
+    {
+        _com_error e(HRESULT_FROM_WIN32(GetLastError()));
+        D3D12NI_LOG_ERROR("Failed to Signal Event handle: %x (%ws)", e.Error(), e.ErrorMessage());
+        return false;
     }
 
     return true;

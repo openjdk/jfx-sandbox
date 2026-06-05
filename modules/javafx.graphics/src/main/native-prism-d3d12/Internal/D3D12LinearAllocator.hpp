@@ -30,6 +30,7 @@
 #include <memory>
 #include <list>
 #include <mutex>
+#include <thread>
 
 
 namespace D3D12 {
@@ -132,6 +133,7 @@ class LinearAllocator
     std::list<Chunk> mChunks;
     size_t mSizePerChunk;
     Chunk* mCurrentChunk;
+    std::thread::id mInitThreadId;
 
     void Expand();
 
@@ -168,7 +170,7 @@ public:
 
     void operator()(T* ptr) const
     {
-        if (mAllocator)
+        if (mAllocator && ptr)
         {
             ptr->~T();
             mAllocator->Free(ptr);

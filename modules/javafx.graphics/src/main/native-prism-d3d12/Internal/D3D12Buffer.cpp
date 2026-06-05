@@ -155,13 +155,12 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
     {
         postCopyOldState = D3D12_RESOURCE_STATE_COPY_DEST;
 
-        mNativeDevice->GetRenderingContext()->QueueResourceTransition(mBufferResource, initialState, postCopyOldState);
-        mNativeDevice->GetRenderingContext()->SubmitResourceTransitions();
+        mNativeDevice->GetRenderingContext()->TransitionResource(mBufferResource, initialState, postCopyOldState);
         mNativeDevice->GetRenderingContext()->CopyResource(mBufferResource, stagingResource);
     }
 
     // transition our Default-heap resource to its desired state
-    mNativeDevice->GetRenderingContext()->QueueResourceTransition(mBufferResource, postCopyOldState, finalState);
+    mNativeDevice->GetRenderingContext()->TransitionResource(mBufferResource, postCopyOldState, finalState);
 
     // pass Staging Buffer along to release after the command list is flushed
     if (stagingResource) mNativeDevice->MarkResourceDisposed(stagingResource);

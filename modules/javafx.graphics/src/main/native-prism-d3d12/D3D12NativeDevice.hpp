@@ -67,7 +67,6 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     uint32_t mProfilerTransferWaitSourceID;
     uint32_t mProfilerFrameTimeID;
     bool mMidframeFlushNeeded;
-    std::vector<Internal::IWaitableOperation*> mWaitableOps;
 
     NIPtr<Internal::RootSignatureManager> mRootSignatureManager;
     NIPtr<Internal::RenderingContext> mRenderingContext;
@@ -81,7 +80,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::Shader> mCurrent2DShader;
     CompositeMode m2DCompositeMode;
     NIPtr<Internal::Buffer> m2DIndexBuffer;
-    NIPtr<Internal::RingBuffer> mRingBuffer; // used for smaller read-once-by-GPU data (ex. texture upload)
+    //NIPtr<Internal::RingBuffer> mRingBuffer; // used for smaller read-once-by-GPU data (ex. texture upload)
 
     struct Transforms
     {
@@ -138,14 +137,14 @@ public:
     bool UpdateTexture(const NIPtr<NativeTexture>& texture, const void* data, size_t pixelCount, PixelFormat srcFormat,
                        uint32_t dstx, uint32_t dsty, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch, uint32_t srcstride);
 
+    bool PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion);
+    bool Present(const NIPtr<NativeSwapChain>& swapChain);
     void FinishFrame();
-    void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
-    void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
 
     // NOTE: Signal is only exposed due to SwapChain requiring it to signal after Present
     // In any other cases, FlushCommandList() will implicitly call it.
     // TODO: D3D12: Maybe it would be worth to figure out how to private this?
-    uint64_t Signal(CheckpointType type);
+    //uint64_t Signal(CheckpointType type);
 
     const D3D12DevicePtr& GetDevice()
     {

@@ -50,8 +50,8 @@ static const wchar_t* TranslateDescriptorHeapTypeToString(D3D12_DESCRIPTOR_HEAP_
 namespace D3D12 {
 namespace Internal {
 
-RingDescriptorHeap::RingDescriptorHeap(const NIPtr<NativeDevice>& device)
-    : RingContainer(device)
+RingDescriptorHeap::RingDescriptorHeap(const NIPtr<NativeDevice>& device, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback)
+    : RingContainer(device, flushCallback, waitCallback)
     , mHeap()
     , mShaderVisible(false)
     , mIncrementSize(0)

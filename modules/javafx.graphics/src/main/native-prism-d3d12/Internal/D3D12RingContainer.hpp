@@ -44,39 +44,13 @@ namespace Internal {
  */
 class RingContainer: public IWaitableOperation
 {
-public:
-    class Tracker
-    {
-        size_t mThreshold;
-        size_t mAlignment;
-        size_t mTaken;
-
-    public:
-        Tracker() = default;
-
-        Tracker(size_t threshold, size_t alignment)
-            : mThreshold(threshold)
-            , mAlignment(alignment)
-            , mTaken(0)
-        {}
-
-        bool Declare(size_t size)
-        {
-            mTaken += Internal::Utils::Align(size, mAlignment);
-            return (mTaken >= mThreshold);
-        }
-
-        void Reset()
-        {
-            mTaken = 0;
-        }
-    };
-
 private:
     size_t mFlushThreshold;
     size_t mUsed; // total data used inside the ring buffer
     size_t mUncommitted; // total data that has not been committed yet
     size_t mHead; // head of all used data
+    CheckpointCallback mFlushCallback;
+    CheckpointCallback mWaitCallback;
 
     struct Checkpoint
     {
@@ -137,13 +111,8 @@ protected:
     Region ReserveInternal(size_t size);
 
 public:
-    RingContainer(const NIPtr<NativeDevice>& nativeDevice);
+    RingContainer(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback);
     virtual ~RingContainer() = 0;
-
-    Tracker CreateTracker() const
-    {
-        return Tracker(mFlushThreshold, mAlignment);
-    }
 
     /**
      * Informs Ring Container that we will require @p size bytes/slots of data in order to

@@ -74,7 +74,7 @@ protected:
     D3D12_GPU_VIRTUAL_ADDRESS mGPUPtr;
 
 public:
-    RingBuffer(const NIPtr<NativeDevice>& nativeDevice);
+    RingBuffer(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback);
     virtual ~RingBuffer();
 
     /**

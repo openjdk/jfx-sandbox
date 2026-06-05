@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,19 +32,9 @@ public final class D3D12NativeSwapChain extends D3D12NativeObject {
     }
 
     @Override protected native void nReleaseNativeObject(long ptr);
-    private native boolean nPrepare(long ptr, long left, long top, long right, long bottom);
-    private native boolean nPresent(long ptr);
     private native boolean nResize(long ptr, int width, int height);
     private native int nGetWidth(long ptr);
     private native int nGetHeight(long ptr);
-
-    public boolean prepare(long left, long top, long right, long bottom) {
-        return nPrepare(ptr, left, top, right, bottom);
-    }
-
-    public boolean present() {
-        return nPresent(ptr);
-    }
 
     public boolean resize(int width, int height) {
         return nResize(ptr, width, height);

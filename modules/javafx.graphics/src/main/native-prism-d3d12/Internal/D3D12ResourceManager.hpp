@@ -163,7 +163,8 @@ private:
     bool PrepareShaderResources(const NIPtr<Shader>& shader, ShaderConstantsData& constants);
 
 public:
-    ResourceManager(const NIPtr<NativeDevice>& nativeDevice);
+    // callbacks are provided by RenderThread
+    ResourceManager(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback);
     ~ResourceManager();
 
     bool Init();
@@ -203,21 +204,6 @@ public:
     inline const D3D12DescriptorHeapPtr& GetSamplerHeap() const
     {
         return mSamplerHeap.GetHeap();
-    }
-
-    inline RingContainer::Tracker CreateConstantRingBufferTracker() const
-    {
-        return mConstantRingBuffer.CreateTracker();
-    }
-
-    inline RingContainer::Tracker CreateDescriptorHeapTracker() const
-    {
-        return mDescriptorHeap.CreateTracker();
-    }
-
-    inline RingContainer::Tracker CreateSamplerHeapTracker() const
-    {
-        return mSamplerHeap.CreateTracker();
     }
 };
 

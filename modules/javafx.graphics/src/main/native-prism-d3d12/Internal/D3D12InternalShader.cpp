@@ -157,7 +157,7 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
     for (const auto& r: mShaderResourceAssignments)
     {
         const ResourceAssignment& ra = r.second;
-        D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first, ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
+        D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first.data(), ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
     }
 
     return true;

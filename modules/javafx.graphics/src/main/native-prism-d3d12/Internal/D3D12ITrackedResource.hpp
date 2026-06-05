@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,51 +25,22 @@
 
 #pragma once
 
-#include "D3D12Common.hpp"
+#include "../D3D12Common.hpp"
 
 
 namespace D3D12 {
 namespace Internal {
 
-// TODO: This should be renamed to D3D12QueueWaitable or something similar to differentiate it
-// from RenderPayload
-class Waitable
+// This provides an interface to fetch ID3D12Resource pointer from backend objects.
+// This allows us to fetch the resource inside the Render Thread when it's actually needed.
+// Resolves situations like SwapChain having multiple buffers and switching between them
+// after RenderThread presents a frame.
+class ITrackedResource
 {
 public:
-    using WaitFinishedCallback = std::function<bool(uint64_t)>;
-
-private:
-    // TODO: D3D12: potential optimization - fetch the Event handle from a pool
-    HANDLE mEventHandle;
-    uint64_t mFenceValue;
-    WaitFinishedCallback mWaitFinishedCallback;
-    bool mWaitCompleted;
-
-public:
-    Waitable();
-    Waitable(uint64_t fenceValue);
-    Waitable(uint64_t fenceValue, const WaitFinishedCallback& waitCallback);
-    Waitable(Waitable&& other);
-    ~Waitable();
-
-    Waitable(const Waitable& other) = delete;
-    Waitable& operator=(const Waitable& other) = delete;
-
-    bool Wait();
-
-    // NOTE: When Waitable is used with CommandQueue and Fence Signal() should not be used;
-    // those will signal the EventHandle on their own.
-    bool Signal();
-
-    inline void SetFinishedCallback(const WaitFinishedCallback& waitCallback)
-    {
-        mWaitFinishedCallback = waitCallback;
-    }
-
-    inline const HANDLE& GetHandle() const
-    {
-        return mEventHandle;
-    }
+    virtual const D3D12ResourcePtr& GetD3D12Resource() const = 0;
+    virtual D3D12_RESOURCE_STATES GetD3D12ResourceState(uint32_t subresource) const = 0;
+    virtual void SetD3D12ResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource) = 0;
 };
 
 } // namespace Internal
