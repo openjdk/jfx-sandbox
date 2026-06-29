@@ -35,15 +35,30 @@ void LinearAllocator::Expand()
 {
     D3D12NI_ASSERT(std::this_thread::get_id() == mInitThreadId, "Expand() can only be called by the initializing (main) thread");
 
-    D3D12NI_LOG_TRACE("--- LinearAllocator - expanding with new chunk size %d (current chunks %d) ---", mSizePerChunk, mChunks.size());
-    mChunks.emplace_back(mSizePerChunk);
-    mCurrentChunk = &mChunks.back();
+    std::unique_lock<std::mutex> lock(mChunkResetMutex);
+
+    if (!mAvailableChunks.empty())
+    {
+        mChunksInUse.emplace_back(std::move(mAvailableChunks.front()));
+        mAvailableChunks.pop_front();
+        mCurrentChunk = &mChunksInUse.back();
+        return;
+    }
+
+    // no available chunks, allocate a new one
+    D3D12NI_LOG_TRACE("--- LinearAllocator - expanding with new chunk size %d (%d chunks in use) ---", mSizePerChunk, mChunksInUse.size());
+    mChunksInUse.emplace_back(mSizePerChunk);
+    mCurrentChunk = &mChunksInUse.back();
+    return;
 }
 
 LinearAllocator::LinearAllocator()
-    : mChunks()
+    : mCurrentChunk(nullptr)
+    , mChunksInUse()
+    , mAvailableChunks()
+    , mEmptyChunks()
+    , mChunkResetMutex()
     , mSizePerChunk(CHUNK_SIZE)
-    , mCurrentChunk(nullptr)
     , mInitThreadId(std::this_thread::get_id())
 {
     Expand();
@@ -69,11 +84,8 @@ void* LinearAllocator::Allocate(uint32_t size)
 
     if (!mCurrentChunk->Fits(alignedSize))
     {
-        // increase chunk size
-        mSizePerChunk += CHUNK_SIZE;
-
         // TODO: D3D12: This log could just be a TRACE log. After debugging issues change it back.
-        D3D12NI_LOG_WARN("LinearAllocator: must expand! increasing used to %d", mSizePerChunk);
+        D3D12NI_LOG_TRACE("LinearAllocator: must expand! Cannot allocate %d bytes (aligned %d), increasing used to %d", size, alignedSize, mSizePerChunk);
         Expand();
     }
 
@@ -100,22 +112,26 @@ void LinearAllocator::Free(void* ptr)
         return;
     }
 
-    Chunk* chunk = header->parentChunk; // preserving the pointer, Free() will destroy it
-    chunk->Free(ptr);
-    if (chunk->FullyFreed())
+    Chunk* parentChunk = header->parentChunk; // preserving the pointer, Free() will destroy it
+    parentChunk->Free(ptr);
+    if (parentChunk->FullyFreed())
     {
-        for (std::list<Chunk>::iterator it = mChunks.begin(); it != mChunks.end(); ++it)
+        std::unique_lock<std::mutex> lock(mChunkResetMutex);
+
+        // Clean-up Chunk and move it to empty chunks list
+        // We will reclaim it via ResetChunks() after the frame ends
+        for (std::list<Chunk>::iterator it = mChunksInUse.begin(); it != mChunksInUse.end(); ++it)
         {
             Chunk& c = *it;
-            if (chunk == &c)
+            if (parentChunk->mPtr == c.mPtr)
             {
-                D3D12NI_LOG_TRACE("--- LinearAllocator - Freeing chunk size %d (currently %d chunks) ---", c.mSize, mChunks.size());
-                mChunks.erase(it);
+                mEmptyChunks.emplace_back(std::move(*it));
+                mChunksInUse.erase(it);
                 return;
             }
         }
 
-        D3D12NI_ASSERT(0, "Couldn't find parent chunk on the chunk list. This should not happen.");
+        D3D12NI_ASSERT(0, "Couldn't find parent chunk on the chunks-in-use list. This should not happen.");
     }
 
     return;
@@ -152,6 +168,47 @@ void LinearAllocator::Free(void* ptr)
     }
 */
     D3D12NI_ASSERT(0, "Trying to free a pointer not belonging to the allocator, or something went wrong somewhere. This should not happen.");
+}
+
+void LinearAllocator::ResetChunks()
+{
+    D3D12NI_ASSERT(std::this_thread::get_id() == mInitThreadId, "Allocate() can only be called by the initializing (main) thread");
+
+    std::unique_lock<std::mutex> lock(mChunkResetMutex);
+
+#if DEBUG
+    uint32_t ctr = 0;
+
+    if (mEmptyChunks.size() > 0)
+    {
+        D3D12NI_LOG_TRACE("--- LinearAllocator Reset - Garbage-collecting %d chunks: ---", mEmptyChunks.size());
+        for (Chunk& c: mEmptyChunks)
+        {
+            D3D12NI_LOG_TRACE("        -> #%d: %d bytes", ctr, c.mSize);
+            ctr++;
+        }
+    }
+
+    ctr = 0;
+#endif
+
+    for (std::list<Chunk>::iterator it = mEmptyChunks.begin(); it != mEmptyChunks.end(); ++it)
+    {
+        if (it->mSize == mSizePerChunk)
+        {
+            D3D12NI_LOG_TRACE("--- LinearAllocator Reset - Preserving #%d - %d-byte chunk---", ctr, it->mSize);
+            it->Reclaim();
+            mAvailableChunks.emplace_back(std::move(*it));
+        }
+
+        #if DEBUG
+        ctr++;
+        #endif
+    }
+
+    mEmptyChunks.clear();
+
+    D3D12NI_LOG_TRACE("--- LinearAllocator Reset - Garbage-collection complete ---");
 }
 
 } // namespace Internal

@@ -116,7 +116,6 @@ void Log(LogLevel level, const char* file, int line, const char* fmt, ...)
     char logLine[2048];
 
     {
-        // TODO: D3D12: On Release builds this causes access violation
         std::lock_guard<std::mutex> printLock(writeMutex);
 
         if (Config::IsColorLogsEnabled())

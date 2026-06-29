@@ -43,7 +43,7 @@ namespace Internal {
 class RenderPayload
 {
 private:
-    static const uint32_t PAYLOAD_SIZE = 5120;
+    static const uint32_t PAYLOAD_SIZE = 10240;
     static const uint32_t PAYLOAD_LIMIT = PAYLOAD_SIZE - 48;
     using StepList = std::array<RenderThreadExecutablePtr, PAYLOAD_SIZE>;
 

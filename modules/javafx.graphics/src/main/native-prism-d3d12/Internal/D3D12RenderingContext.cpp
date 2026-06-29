@@ -299,7 +299,7 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
 
     mMainThreadTid = std::this_thread::get_id();
 
-    ReplaceRTPayload();
+    mRTPayload.reset(mPayloadAllocator.Construct<RenderPayload>());
 }
 
 bool RenderingContext::Init()
@@ -701,36 +701,6 @@ void RenderingContext::TransitionResource(const D3D12ResourcePtr& resource, D3D1
 
     mRTPayload->AddStep(CreateRTExec<ResourceBarrierAction>(mPayloadAllocator, nullptr, barrier));
 }
-/*
-void RenderingContext::QueueTextureTransition(const NIPtr<Internal::ITrackedResource>& tex, D3D12_RESOURCE_STATES newState, uint32_t subresource)
-{
-    if (tex->GetResourceState(subresource) == newState) return;
-
-    QueueResourceTransition(tex->GetResource(), tex->GetResourceState(subresource), newState, subresource);
-    tex->SetResourceState(newState, subresource);
-}
-
-void RenderingContext::QueueResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource)
-{
-    D3D12NI_ZERO_STRUCT(mBarrierQueue[mBarrierQueueSize]);
-    mBarrierQueue[mBarrierQueueSize].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    mBarrierQueue[mBarrierQueueSize].Transition.pResource = resource.Get();
-    mBarrierQueue[mBarrierQueueSize].Transition.StateBefore = oldState;
-    mBarrierQueue[mBarrierQueueSize].Transition.StateAfter = newState;
-    mBarrierQueue[mBarrierQueueSize].Transition.Subresource = subresource;
-    ++mBarrierQueueSize;
-
-    // TODO: D3D12: this 8 should be a constant somewhere
-    if (mBarrierQueueSize == 8) SubmitResourceTransitions();
-}
-
-void RenderingContext::SubmitResourceTransitions()
-{
-    if (mBarrierQueueSize == 0) return;
-
-    mRTPayload->AddStep(CreateRTExec<ResourceBarrierAction>(mPayloadAllocator, mBarrierQueue, mBarrierQueueSize));
-    mBarrierQueueSize = 0;
-}*/
 
 void RenderingContext::ClearTextureUnit(uint32_t unit)
 {
@@ -1039,6 +1009,7 @@ void RenderingContext::FinishFrame()
     mRenderThread.ScheduleCommandAllocatorAdvance(mPayloadAllocator, mRTPayload);
 
     // skipping Signal() and Execute() here, will be done by Present()
+    mPayloadAllocator.ResetChunks();
 
     for (const auto& rt: mUsedRTs)
     {

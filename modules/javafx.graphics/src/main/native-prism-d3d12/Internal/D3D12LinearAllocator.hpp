@@ -74,9 +74,21 @@ class LinearAllocator
             , mAllocations(0)
         {}
 
+        Chunk(Chunk&& other)
+            : mPtr(other.mPtr)
+            , mSize(other.mSize)
+            , mTaken(other.mTaken)
+            , mAllocations(other.mAllocations)
+        {
+            other.mPtr = nullptr;
+            other.mSize = 0;
+            other.mTaken = 0;
+            other.mAllocations = 0;
+        }
+
         ~Chunk()
         {
-            std::free(mPtr);
+            if (mPtr) std::free(mPtr);
         }
 
         bool Fits(uint32_t size)
@@ -130,9 +142,12 @@ class LinearAllocator
         }
     };
 
-    std::list<Chunk> mChunks;
-    size_t mSizePerChunk;
     Chunk* mCurrentChunk;
+    std::list<Chunk> mChunksInUse;
+    std::list<Chunk> mAvailableChunks;
+    std::list<Chunk> mEmptyChunks; // RenderThread deposits used and freed chunks here
+    std::mutex mChunkResetMutex;
+    size_t mSizePerChunk;
     std::thread::id mInitThreadId;
 
     void Expand();
@@ -144,6 +159,7 @@ public:
     void MoveToNewChunk();
     void* Allocate(uint32_t size);
     void Free(void* ptr);
+    void ResetChunks();
 
     template <typename T, typename ...Args>
     T* Construct(Args&&... args)
