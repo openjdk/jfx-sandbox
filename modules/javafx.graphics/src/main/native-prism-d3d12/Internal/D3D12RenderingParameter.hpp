@@ -30,6 +30,7 @@
 #include "../D3D12Constants.hpp"
 #include "../D3D12NativeShader.hpp"
 
+#include "D3D12RenderingStep.hpp"
 #include "D3D12CommandListPool.hpp"
 #include "D3D12Config.hpp"
 #include "D3D12IRenderTarget.hpp"
@@ -42,112 +43,22 @@
 namespace D3D12 {
 namespace Internal {
 
-class RenderingStep
-{
-public:
-    // Dependency callback. Should return true if step should be applied.
-    // We assume the step should be unconditionally applied if there is no dependency set.
-    using StepDependency = std::function<bool()>;
-
-private:
-    bool mIsApplied;
-    const bool mOptimizeApply;
-    StepDependency mDependency;
-
-protected:
-    virtual RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const = 0;
-
-    virtual bool CanBeSkipped() const
-    {
-        return (mOptimizeApply && mIsApplied) || (mDependency && !mDependency());
-    }
-
-public:
-    RenderingStep()
-        : mIsApplied(false)
-        , mOptimizeApply(Config::IsApiOptsEnabled())
-        , mDependency()
-    {}
-
-    virtual ~RenderingStep() {}
-
-    virtual void AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload)
-    {
-        if (CanBeSkipped()) return;
-
-        payload->AddStep(CreateExecutable(allocator));
-        mIsApplied = true;
-    }
-
-    void ClearApplied()
-    {
-        mIsApplied = false;
-    }
-
-    void SetDependency(const StepDependency& dependency)
-    {
-        mDependency = dependency;
-    }
-};
-
-template <typename T>
-class RenderingDataStep: public RenderingStep
-{
-    bool mIsSet;
-
-protected:
-    T mParameter;
-
-    void FlagSet()
-    {
-        ClearApplied();
-        mIsSet = true;
-    }
-
-    bool CanBeSkipped() const override final
-    {
-        return (!mIsSet || RenderingStep::CanBeSkipped());
-    }
-
-public:
-    RenderingDataStep()
-        : RenderingStep()
-        , mParameter()
-        , mIsSet(false)
-    {}
-
-    ~RenderingDataStep() = default;
-
-    void Set(T prop)
-    {
-        mParameter = prop;
-        FlagSet();
-    }
-
-    void Unset()
-    {
-        mIsSet = false;
-    }
-
-    T& Get()
-    {
-        return mParameter;
-    }
-
-    bool IsSet() const
-    {
-        return mIsSet;
-    }
-};
-
 // generic rendering parameter initialized directly from the parameter
 template <typename T, typename Executable>
 class RenderingParameter: public RenderingDataStep<T>
 {
-protected:
-    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const override
+    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const
     {
-        return CreateRTExec<Executable>(allocator, RenderingDataStep<T>::mParameter);
+        return CreateRTExec<Executable>(allocator, this->mParameter);
+    }
+
+public:
+    void AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload)
+    {
+        if (this->CanBeSkipped()) return;
+
+        payload->AddStep(CreateExecutable(allocator));
+        this->mIsApplied = true;
     }
 };
 
@@ -155,34 +66,25 @@ protected:
 template <typename Executable>
 class ShaderConstantsResource: public RenderingDataStep<NIPtr<Shader>>
 {
-protected:
-    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const override
+    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const
     {
         ResourceManager::ShaderConstants constants(allocator, mParameter->GetConstantStorage().data(), mParameter->GetConstantStorage().size());
         return CreateRTExec<Executable>(allocator, std::move(constants));
     }
 
 public:
-    virtual void AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload) override
+    void AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload)
     {
-        if (CanBeSkipped() && !mParameter->AreConstantsDirty()) return;
+        if (RenderingDataStep<NIPtr<Shader>>::CanBeSkipped() && !mParameter->AreConstantsDirty()) return;
 
         payload->AddStep(CreateExecutable(allocator));
         mParameter->SetConstantsDirty(false);
+        this->mIsApplied = true;
     }
 };
 
 
 // Graphics parameters //
-
-class DescriptorHeapsRenderingStep: public RenderingStep
-{
-public:
-    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const override final
-    {
-        return CreateRTExec<ApplyDescriptorHeaps>(allocator);
-    }
-};
 
 class PipelineStateRenderingParameter: public RenderingParameter<GraphicsPSOParameters, ApplyPipelineState>
 {

@@ -227,17 +227,6 @@ struct DescriptorHeaps
     D3D12DescriptorHeapPtr heap;
     D3D12DescriptorHeapPtr samplerHeap;
 };
-/*
-using ResourceBarrierArray = std::array<D3D12_RESOURCE_BARRIER, 8>;
-struct ResourceBarrierGroup
-{
-    ResourceBarrierArray barriers;
-    uint32_t count;
-
-    ResourceBarrierGroup(const ResourceBarrierArray& barriers, uint32_t count)
-        : barriers(barriers), count(count)
-    {}
-};*/
 
 struct ResourceBarrierArgs
 {
@@ -294,19 +283,6 @@ RenderThreadExecutablePtr CreateRTExec(LinearAllocator& allocator, Args&&... arg
 
 // Graphics render thread actions //
 
-class ApplyDescriptorHeaps: public RenderThreadExecutable
-{
-public:
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
-    {
-        ID3D12DescriptorHeap* heaps[2] = {
-            state->resourceManager.GetHeap().Get(),
-            state->resourceManager.GetSamplerHeap().Get(),
-        };
-        commandList->SetDescriptorHeaps(2, heaps);
-    }
-};
-
 class ApplyIndexBuffer: public RenderThreadDataExecutable<D3D12_INDEX_BUFFER_VIEW>
 {
 public:
@@ -314,9 +290,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>&) override final
+    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        commandList->IASetIndexBuffer(&mData);
+        rtState->indexBuffer.Set(mData);
     }
 };
 
@@ -327,10 +303,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        const D3D12PipelineStatePtr& pso = state->PSOManager.GetPSO(mData);
-        commandList->SetPipelineState(pso.Get());
+        rtState->pipelineState.Set(rtState->PSOManager.GetPSO(mData));
     }
 };
 
@@ -341,9 +316,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>&) override final
+    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        commandList->IASetPrimitiveTopology(mData);
+        rtState->primitiveTopology.Set(mData);
     }
 };
 
@@ -354,14 +329,23 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
         if (!mData) return;
 
         const Internal::DescriptorData& rtData = mData->GetRTVDescriptorData();
-        commandList->OMSetRenderTargets(
-            rtData.count, &rtData.cpu, true, mData->IsDepthTestEnabled() ? &mData->GetDSVDescriptorData().cpu : nullptr
-        );
+        if (mData->IsDepthTestEnabled())
+        {
+            rtState->renderTarget.Set(RenderTargetCommandListData(
+                rtData.count, rtData.cpu, mData->GetDSVDescriptorData().cpu
+            ));
+        }
+        else
+        {
+            rtState->renderTarget.Set(RenderTargetCommandListData(
+                rtData.count, rtData.cpu
+            ));
+        }
     }
 };
 
@@ -372,9 +356,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>&) override final
+    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        commandList->SetGraphicsRootSignature(mData.Get());
+        rtState->graphicsRootSignature.Set(mData);
     }
 };
 
@@ -385,9 +369,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>&) override final
+    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        commandList->RSSetScissorRects(1, &mData);
+        rtState->scissor.Set(mData);
     }
 };
 
@@ -398,9 +382,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>&) override final
+    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        commandList->IASetVertexBuffers(0, 1, &mData);
+        rtState->vertexBuffer.Set(mData);
     }
 };
 
@@ -411,9 +395,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>&) override final
+    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        commandList->RSSetViewports(1, &mData);
+        rtState->viewport.Set(mData);
     }
 };
 
@@ -574,7 +558,7 @@ public:
         : RenderThreadDataExecutable(elements, vbOffset)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
         commandList->DrawIndexedInstanced(mData.elements, 1, 0, mData.vbOffset, 0);
     }
@@ -762,9 +746,22 @@ public:
 class ApplyResources: public RenderThreadExecutable
 {
 public:
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        state->resourceManager.ApplyResources(commandList);
+        // LKTODO HACK
+        if (!rtState->heapsApplied)
+        {
+            ID3D12DescriptorHeap* heaps[2] = {
+                rtState->resourceManager.GetHeap().Get(),
+                rtState->resourceManager.GetSamplerHeap().Get(),
+            };
+            commandList->SetDescriptorHeaps(2, heaps);
+
+            rtState->heapsApplied = true;
+        }
+
+        rtState->ApplySteps(commandList);
+        rtState->resourceManager.ApplyResources(commandList);
     }
 };
 

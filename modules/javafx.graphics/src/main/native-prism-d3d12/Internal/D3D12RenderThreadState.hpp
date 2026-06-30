@@ -27,6 +27,8 @@
 
 #include "../D3D12Common.hpp"
 
+#include "D3D12RenderingStep.hpp"
+
 #include "D3D12PSOManager.hpp"
 #include "D3D12CheckpointQueue.hpp"
 #include "D3D12CommandListPool.hpp"
@@ -36,61 +38,157 @@
 namespace D3D12 {
 namespace Internal {
 
-struct RenderThreadState
+template <typename T>
+class CommandListDataStep: public RenderingDataStep<T>
 {
+protected:
+    virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const = 0;
+
+public:
+    void Apply(const D3D12GraphicsCommandListPtr& commandList)
+    {
+        if (this->CanBeSkipped()) return;
+
+        this->ApplyImpl(commandList);
+        this->mIsApplied = true;
+    }
+};
+
+class IndexBufferCommandListStep: public CommandListDataStep<D3D12_INDEX_BUFFER_VIEW>
+{
+protected:
+    virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
+    {
+        commandList->IASetIndexBuffer(&this->mParameter);
+    }
+};
+
+class VertexBufferCommandListStep: public CommandListDataStep<D3D12_VERTEX_BUFFER_VIEW>
+{
+protected:
+    virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
+    {
+        commandList->IASetVertexBuffers(0, 1, &this->mParameter);
+    }
+};
+
+class PrimitiveTopologyCommandListStep: public CommandListDataStep<D3D12_PRIMITIVE_TOPOLOGY>
+{
+protected:
+    virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
+    {
+        commandList->IASetPrimitiveTopology(this->mParameter);
+    }
+};
+
+class ScissorCommandListStep: public CommandListDataStep<D3D12_RECT>
+{
+protected:
+    virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
+    {
+        commandList->RSSetScissorRects(1, &this->mParameter);
+    }
+};
+
+class ViewportCommandListStep: public CommandListDataStep<D3D12_VIEWPORT>
+{
+protected:
+    virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
+    {
+        commandList->RSSetViewports(1, &this->mParameter);
+    }
+};
+
+class PipelineStateCommandListStep: public CommandListDataStep<D3D12PipelineStatePtr>
+{
+protected:
+    virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
+    {
+        commandList->SetPipelineState(mParameter.Get());
+    }
+};
+
+class GraphicsRootSignatureCommandListStep: public CommandListDataStep<D3D12RootSignaturePtr>
+{
+protected:
+    virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
+    {
+        commandList->SetGraphicsRootSignature(mParameter.Get());
+    }
+};
+
+struct RenderTargetCommandListData
+{
+    UINT count;
+    D3D12_CPU_DESCRIPTOR_HANDLE rtv;
+    D3D12_CPU_DESCRIPTOR_HANDLE dsv;
+
+    RenderTargetCommandListData()
+        : RenderTargetCommandListData(0, D3D12_CPU_DESCRIPTOR_HANDLE{0}, D3D12_CPU_DESCRIPTOR_HANDLE{0})
+    {}
+
+    RenderTargetCommandListData(UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE& rtv)
+        : RenderTargetCommandListData(count, rtv, D3D12_CPU_DESCRIPTOR_HANDLE{0})
+    {}
+
+    RenderTargetCommandListData(UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE& rtv, const D3D12_CPU_DESCRIPTOR_HANDLE& dsv)
+        : count(count), rtv(rtv), dsv(dsv)
+    {}
+};
+
+class RenderTargetCommandListStep: public CommandListDataStep<RenderTargetCommandListData>
+{
+protected:
+    virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
+    {
+        commandList->OMSetRenderTargets(
+            mParameter.count, &mParameter.rtv, true, mParameter.dsv.ptr > 0 ? &mParameter.dsv : nullptr
+        );
+    }
+};
+
+class RenderThreadState
+{
+public:
     PSOManager PSOManager;
     CommandListPool commandListPool; // TODO move to RenderThread internals
     ResourceManager resourceManager;
     Internal::RingBuffer vertexRingBuffer; // used for 2D Vertex data
     std::array<D3D12_RESOURCE_BARRIER, 8> barrierQueue;
     uint32_t barrierQueueSize;
+    bool heapsApplied;
 
     // RT callbacks to control command lists
     CheckpointCallback flushCommandList;
     CheckpointCallback waitForCheckpoint;
     CheckpointCallback signal;
 
-    RenderThreadState(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback, const CheckpointCallback& signalCallback)
-        : PSOManager(nativeDevice)
-        , commandListPool(nativeDevice, waitCallback)
-        , resourceManager(nativeDevice, flushCallback, waitCallback)
-        , vertexRingBuffer(nativeDevice, flushCallback, waitCallback)
-        , barrierQueue()
-        , barrierQueueSize(0)
-        , flushCommandList(flushCallback)
-        , waitForCheckpoint(waitCallback)
-        , signal(signalCallback)
-    {
-    }
+    // RenderThread-side render parameters. This mostly clones what RenderingContext has.
+    // RenderingContext updates these via RTExecutables and those are reflected on CommandLists.
+    // The reason for duplicating these is to both reduce Command List records, as well as to
+    // restore the Command List to its "known state" when internally RenderThread flushes
+    // the Command List
+    /*
+    PipelineStateRenderingParameter mPipelineState;
+    RenderTargetRenderingParameter mRenderTarget;
+    */
+    IndexBufferCommandListStep indexBuffer;
+    VertexBufferCommandListStep vertexBuffer;
+    PrimitiveTopologyCommandListStep primitiveTopology;
+    ScissorCommandListStep scissor;
+    ViewportCommandListStep viewport;
+    PipelineStateCommandListStep pipelineState;
+    RenderTargetCommandListStep renderTarget;
+    GraphicsRootSignatureCommandListStep graphicsRootSignature;
 
-    void QueueTextureTransition(const NIPtr<Internal::ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
-    {
-        if (resource->GetD3D12ResourceState(subresource) == newState) return;
+    RenderThreadState(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback, const CheckpointCallback& signalCallback);
 
-        QueueResourceTransition(resource->GetD3D12Resource(), resource->GetD3D12ResourceState(subresource), newState, subresource);
-        resource->SetD3D12ResourceState(newState, subresource);
-    }
+    void QueueTextureTransition(const NIPtr<Internal::ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+    void QueueResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+    void SubmitResourceTransitions(const D3D12GraphicsCommandListPtr& commandList);
 
-    void QueueResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
-    {
-        D3D12NI_ZERO_STRUCT(barrierQueue[barrierQueueSize]);
-        barrierQueue[barrierQueueSize].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-        barrierQueue[barrierQueueSize].Transition.pResource = resource.Get();
-        barrierQueue[barrierQueueSize].Transition.StateBefore = oldState;
-        barrierQueue[barrierQueueSize].Transition.StateAfter = newState;
-        barrierQueue[barrierQueueSize].Transition.Subresource = subresource;
-        ++barrierQueueSize;
-
-        if (barrierQueueSize == barrierQueue.size()) SubmitResourceTransitions(commandListPool.CurrentCommandListRef());
-    }
-
-    void SubmitResourceTransitions(const D3D12GraphicsCommandListPtr& commandList)
-    {
-        if (barrierQueueSize == 0) return;
-
-        commandList->ResourceBarrier(barrierQueueSize, barrierQueue.data());
-        barrierQueueSize = 0;
-    }
+    void ApplySteps(const D3D12GraphicsCommandListPtr& commandList);
+    void ClearAppliedSteps();
 };
 
 } // namespace Internal

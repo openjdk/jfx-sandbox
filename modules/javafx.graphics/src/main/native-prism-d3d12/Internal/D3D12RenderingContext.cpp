@@ -222,7 +222,6 @@ void RenderingContext::ClearAppliedFlags()
 {
     mIndexBuffer.ClearApplied();
     mVertexBuffer.ClearApplied();
-    mDescriptorHeaps.ClearApplied();
     mPipelineState.ClearApplied();
     mPrimitiveTopology.ClearApplied();
     mRootSignature.ClearApplied();
@@ -254,7 +253,6 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     , mClearOptState()
     , mIndexBuffer()
     , mVertexBuffer()
-    , mDescriptorHeaps()
     , mPipelineState()
     , mPrimitiveTopology()
     , mRenderTarget()
@@ -282,7 +280,6 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
         return pso.IsSet();
     };
     mRootSignature.SetDependency(psoDep);
-    mDescriptorHeaps.SetDependency(psoDep);
 
     // Use the default scissor only if other custom scissor rect is not set
     // See SetRenderTarget() for more details
@@ -940,7 +937,6 @@ bool RenderingContext::Apply()
     mRenderTarget.AddToPayload(mPayloadAllocator, mRTPayload);
     mPipelineState.AddToPayload(mPayloadAllocator, mRTPayload);
     mRootSignature.AddToPayload(mPayloadAllocator, mRTPayload);
-    mDescriptorHeaps.AddToPayload(mPayloadAllocator, mRTPayload);
     mViewport.AddToPayload(mPayloadAllocator, mRTPayload);
     mScissor.AddToPayload(mPayloadAllocator, mRTPayload);
     mDefaultScissor.AddToPayload(mPayloadAllocator, mRTPayload);
@@ -969,7 +965,6 @@ bool RenderingContext::ApplyCompute()
     // command list recording steps
     mComputePipelineState.AddToPayload(mPayloadAllocator, mRTPayload);
     mComputeRootSignature.AddToPayload(mPayloadAllocator, mRTPayload);
-    mDescriptorHeaps.AddToPayload(mPayloadAllocator, mRTPayload);
 
     mRTPayload->AddStep(CreateRTExec<ApplyComputeResources>(mPayloadAllocator));
 

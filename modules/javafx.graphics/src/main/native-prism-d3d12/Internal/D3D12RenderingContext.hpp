@@ -183,7 +183,6 @@ class RenderingContext
     // Graphics Pipeline
     IndexBufferRenderingParameter mIndexBuffer;
     VertexBufferRenderingParameter mVertexBuffer;
-    DescriptorHeapsRenderingStep mDescriptorHeaps;
     PipelineStateRenderingParameter mPipelineState;
     RootSignatureRenderingParameter mRootSignature;
     PrimitiveTopologyRenderingParameter mPrimitiveTopology;
@@ -215,9 +214,6 @@ class RenderingContext
     // only apply for one frame - afterwards we need to invalidate those bboxes and
     // start tracking anew
     std::unordered_set<NIPtr<Internal::IRenderTarget>> mUsedRTs;
-/* LKTODO remove
-    ResourceBarrierArray mBarrierQueue;
-    uint32_t mBarrierQueueSize;*/
 
     void RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect);
     void EnsureBoundTextureStates(D3D12_RESOURCE_STATES state);
