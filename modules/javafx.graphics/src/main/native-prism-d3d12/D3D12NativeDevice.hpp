@@ -70,7 +70,6 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
 
     NIPtr<Internal::RootSignatureManager> mRootSignatureManager;
     NIPtr<Internal::RenderingContext> mRenderingContext;
-    NIPtr<Internal::ResourceDisposer> mResourceDisposer;
     NIPtr<Internal::DescriptorAllocator> mRTVAllocator;
     NIPtr<Internal::DescriptorAllocator> mDSVAllocator;
     NIPtr<Internal::DescriptorAllocator> mSRVAllocator;
@@ -79,8 +78,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::Shader> mPhongVS;
     NIPtr<Internal::Shader> mCurrent2DShader;
     CompositeMode m2DCompositeMode;
-    NIPtr<Internal::Buffer> m2DIndexBuffer;
-    //NIPtr<Internal::RingBuffer> mRingBuffer; // used for smaller read-once-by-GPU data (ex. texture upload)
+    NIPtr<Internal::RingBuffer> mRingBuffer; // used for smaller read-once-by-GPU data (ex. texture upload)
 
     struct Transforms
     {
@@ -89,7 +87,6 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
         Internal::Matrix<float> viewProjTransform;
     } mTransforms;
 
-    bool Build2DIndexBuffer();
     const NIPtr<Internal::Shader>& GetPhongPixelShader(const PhongShaderSpec& spec) const;
 
 public:
@@ -179,12 +176,6 @@ public:
     const NIPtr<Internal::RenderingContext>& GetRenderingContext() const
     {
         return mRenderingContext;
-    }
-
-    // TODO This can be removed?
-    inline void NotifyMidframeFlushNeeded()
-    {
-        mMidframeFlushNeeded = true;
     }
 };
 

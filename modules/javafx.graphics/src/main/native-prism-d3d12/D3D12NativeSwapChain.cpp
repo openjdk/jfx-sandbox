@@ -111,6 +111,7 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
 NativeSwapChain::~NativeSwapChain()
 {
     mNativeDevice->GetRenderingContext()->WaitUntilIdle();
+    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
     D3D12NI_ASSERT(mWaitFenceValues.size() == 0, "SwapChain destructor: called before waiting for all frames! Frame count = %u", mWaitFenceValues.size());
 
     Internal::Profiler::Instance().RemoveSource(mProfilerSourceID);

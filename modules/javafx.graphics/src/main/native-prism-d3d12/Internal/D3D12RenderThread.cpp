@@ -92,6 +92,7 @@ void RenderThread::ExecuteCurrentCommandList()
 
     mState->heapsApplied = false; // LKTODO HACKY
     mState->ClearAppliedSteps();
+    mState->Invalidate2DVertexBatch();
 }
 
 void RenderThread::AdvanceCommandAllocator()
@@ -181,15 +182,9 @@ bool RenderThread::Init()
         return false;
     }
 
-    if (!mState->PSOManager.Init())
+    if (!mState->Init())
     {
-        D3D12NI_LOG_ERROR("Failed to initialize PSO Manager");
-        return false;
-    }
-
-    if (!mState->resourceManager.Init())
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize Resource Manager");
+        D3D12NI_LOG_ERROR("Failed to initialize RenderThread's State object");
         return false;
     }
 
@@ -209,15 +204,6 @@ bool RenderThread::Init()
 
     hr = mNativeDevice->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mCommandQueueFence));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create in-device Fence");
-
-    // NOTE: Command List Pool requires to have as many Command Allocators as SwapChain buffers + 1
-    // This is the minimum we need (one per frame) and also ensures an extra one to pre-record more commands
-    // if both SwapChain buffers are full.
-    if (!mState->commandListPool.Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 16, 4))
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize Command List Pool");
-        return false;
-    }
 
     return true;
 }

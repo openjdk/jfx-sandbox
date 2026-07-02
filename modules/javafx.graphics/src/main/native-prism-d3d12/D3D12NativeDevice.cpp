@@ -42,34 +42,6 @@
 
 namespace D3D12 {
 
-bool NativeDevice::Build2DIndexBuffer()
-{
-    // For 2D, Index Buffer is provided by the backend and has the same structure.
-    std::array<uint16_t, Constants::MAX_BATCH_QUADS * 6> indexBufferArray;
-
-    // stolen from D3DContext.cc
-    for (uint16_t i = 0; i != Constants::MAX_BATCH_QUADS; ++i) {
-        uint16_t vtx = i * 4;
-        uint16_t idx = i * 6;
-        indexBufferArray[idx + 0] = vtx + 0;
-        indexBufferArray[idx + 1] = vtx + 1;
-        indexBufferArray[idx + 2] = vtx + 2;
-        indexBufferArray[idx + 3] = vtx + 2;
-        indexBufferArray[idx + 4] = vtx + 1;
-        indexBufferArray[idx + 5] = vtx + 3;
-    }
-
-    m2DIndexBuffer = std::make_shared<Internal::Buffer>(shared_from_this());
-    if (!m2DIndexBuffer->Init(indexBufferArray.data(), indexBufferArray.size() * sizeof(uint16_t),
-            D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATE_INDEX_BUFFER))
-    {
-        D3D12NI_LOG_ERROR("Failed to build 2D Index Buffer");
-        return false;
-    }
-
-    return true;
-}
-
 const NIPtr<Internal::Shader>& NativeDevice::GetPhongPixelShader(const PhongShaderSpec& spec) const
 {
     std::array<char, 16> name;
@@ -137,7 +109,6 @@ NativeDevice::NativeDevice()
     , mMidframeFlushNeeded(false)
     , mRootSignatureManager()
     , mRenderingContext()
-    , mResourceDisposer()
     , mRTVAllocator()
     , mDSVAllocator()
     , mShaderLibrary()
@@ -145,7 +116,6 @@ NativeDevice::NativeDevice()
     , mPhongVS()
     , mCurrent2DShader()
     , m2DCompositeMode()
-    , m2DIndexBuffer()
     //, mRingBuffer() // LKTODO Move to RenderingContext
 {
 }
@@ -210,13 +180,6 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
         return false;
     }
 
-    mResourceDisposer = std::make_shared<Internal::ResourceDisposer>(shared_from_this());
-    if (!mResourceDisposer)
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize Resource Disposer");
-        return false;
-    }
-
     /* LKTODO reactivate after CommandQueue is moved to RenderThread
     mRingBuffer = std::make_shared<Internal::RingBuffer>(shared_from_this());
     mRingBuffer->SetDebugName("Main Ring Buffer");
@@ -251,8 +214,6 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     mDSVAllocator->SetName("DepthStencilView Descriptor Heap");
     mSRVAllocator->SetName("CBV/SRV/UAV Descriptor Heap");
 
-    if (!Build2DIndexBuffer()) return false;
-
     mPassthroughVS = GetInternalShader(Constants::PASSTHROUGH_VS_NAME);
     mPhongVS = GetInternalShader(Constants::PHONG_VS_NAME);
 
@@ -276,12 +237,10 @@ void NativeDevice::Release()
         mRenderingContext.reset();
     }
 
-    if (m2DIndexBuffer) m2DIndexBuffer.reset();
     if (mShaderLibrary) mShaderLibrary.reset();
     if (mRTVAllocator) mRTVAllocator.reset();
     if (mDSVAllocator) mDSVAllocator.reset();
     if (mSRVAllocator) mSRVAllocator.reset();
-    if (mResourceDisposer) mResourceDisposer.reset();
     if (mRootSignatureManager) mRootSignatureManager.reset();
 
     mPassthroughVS.reset();
@@ -381,7 +340,7 @@ int NativeDevice::GetMaximumTextureSize() const
 
 void NativeDevice::MarkResourceDisposed(const D3D12PageablePtr& pageable)
 {
-    mResourceDisposer->MarkDisposed(pageable);
+    mRenderingContext->DisposePageable(pageable);
 }
 
 void NativeDevice::Clear(float r, float g, float b, float a, bool clearDepth)
@@ -405,14 +364,6 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     }
 
     // set up common parameters
-    // whatever is already set will be filtered out by RenderingContext
-    D3D12_INDEX_BUFFER_VIEW ibView;
-    ibView.BufferLocation = m2DIndexBuffer->GetGPUPtr();
-    ibView.SizeInBytes = static_cast<UINT>(m2DIndexBuffer->Size());
-    ibView.Format = DXGI_FORMAT_R16_UINT;
-    mRenderingContext->SetIndexBuffer(ibView);
-
-    // TODO this SetConstants call should be done more efficiently ie. only when transforms change
     Internal::Matrix<float> wvp = mTransforms.viewProjTransform.Mul(mTransforms.worldTransform);
     mPassthroughVS->SetConstants("WorldViewProj", wvp.Data(), sizeof(Internal::Matrix<float>));
 
@@ -422,18 +373,7 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     mRenderingContext->SetCullMode(D3D12_CULL_MODE_NONE);
     mRenderingContext->SetFillMode(D3D12_FILL_MODE_SOLID);
 
-    // TODO - maybe it would make more sense to merge this Set into "DrawQuads" in RenderingContext
-    uint32_t vbOffset = 0;
-    BBox dirtyBBox = mRenderingContext->SetVertexBufferForQuads(vertices, colors, vertexCount, vbOffset);
-
-    // draw the quads converting vertexCount to indexCount - 1 quad is 4 vertices, or 6 indices
-    mRenderingContext->Draw((vertexCount / 4) * 6, vbOffset, dirtyBBox);
-
-    if (mMidframeFlushNeeded)
-    {
-        mRenderingContext->FlushCommandList(CheckpointType::MIDFRAME);
-        mMidframeFlushNeeded = false;
-    }
+    mRenderingContext->DrawQuads(vertices, colors, vertexCount);
 }
 
 void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
@@ -466,18 +406,6 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
 
     const NIPtr<NativeMesh>& mesh = meshView->GetMesh();
 
-    D3D12_VERTEX_BUFFER_VIEW vbView;
-    vbView.BufferLocation = mesh->GetVertexBuffer()->GetGPUPtr();
-    vbView.SizeInBytes = static_cast<UINT>(mesh->GetVertexBuffer()->Size());
-    vbView.StrideInBytes = 9 * sizeof(float); // 3 * modelVertexPos; 2 * texD; 4 * modelVertexNormal
-    mRenderingContext->SetVertexBuffer(vbView);
-
-    D3D12_INDEX_BUFFER_VIEW ibView;
-    ibView.BufferLocation = mesh->GetIndexBuffer()->GetGPUPtr();
-    ibView.SizeInBytes = static_cast<UINT>(mesh->GetIndexBuffer()->Size());
-    ibView.Format = mesh->GetIndexBufferFormat();
-    mRenderingContext->SetIndexBuffer(ibView);
-
     mRenderingContext->SetCompositeMode(CompositeMode::SRC_OVER);
     mRenderingContext->SetCullMode(meshView->GetCullMode());
     mRenderingContext->SetFillMode(meshView->GetFillMode());
@@ -487,13 +415,7 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
         mRenderingContext->SetTexture(i, material->GetMap(static_cast<TextureMapType>(i)));
     }
 
-    mRenderingContext->Draw(mesh->GetIndexCount(), 0);
-
-    if (mMidframeFlushNeeded)
-    {
-        mRenderingContext->FlushCommandList(CheckpointType::MIDFRAME);
-        mMidframeFlushNeeded = false;
-    }
+    mRenderingContext->DrawMeshView(meshView);
 }
 
 void NativeDevice::SetCompositeMode(CompositeMode mode)
@@ -609,12 +531,6 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
             sourceTexture = srcRT->GetTexture();
         }
 
-        D3D12_INDEX_BUFFER_VIEW ibView;
-        ibView.BufferLocation = m2DIndexBuffer->GetGPUPtr();
-        ibView.SizeInBytes = static_cast<UINT>(m2DIndexBuffer->Size());
-        ibView.Format = DXGI_FORMAT_R16_UINT;
-        mRenderingContext->SetIndexBuffer(ibView);
-
         const NIPtr<Internal::Shader>& blitShader = GetInternalShader("BlitPS");
 
         // temporarily store whatever context state we have right now
@@ -633,10 +549,11 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
 
         // prepare quad vertices for blitting
         // TODO - maybe it would make more sense to merge this into "DrawBlitQuad" in RenderingContext
+       /* LKTODO restore blit
         uint32_t vbOffset = 0;
         BBox box = mRenderingContext->SetVertexBufferForBlit(src, dst, vbOffset);
 
-        mRenderingContext->Draw(6, vbOffset, box);
+        mRenderingContext->Draw(6, vbOffset, box);*/
 
         // restore original context parameters
         mRenderingContext->RestoreStashedParameters();
@@ -945,7 +862,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nRenderQuad
     D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->RenderQuads(
         D3D12::Internal::MemoryView<float>(reinterpret_cast<const float*>(vertsArray.Data()), vertsArray.Size()),
         D3D12::Internal::MemoryView<signed char>(reinterpret_cast<const signed char*>(colorsArray.Data()), colorsArray.Size()),
-        static_cast<UINT>(elementCount)
+        static_cast<uint32_t>(elementCount)
     );
 }
 

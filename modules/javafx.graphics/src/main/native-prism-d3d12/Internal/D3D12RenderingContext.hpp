@@ -48,114 +48,12 @@
 namespace D3D12 {
 namespace Internal {
 
-/**
- * Stores information about current state of the Renderer and records parameter
- * setting commands on a Command List as needed.
- *
- * JFX assumes the "old API" behavior - API has a context and some things that were
- * set in the Context remain there. With D3D12, due to different API design this is
- * not the case:
- *   - There is no global Context which would be responsible for such behavior
- *   - Rendering parameters (ex. VBs, IBs, PSOs...) are set via a Command
- *     List and are assumed to be local only within that Command List
- *
- * That means, if we ever want to submit a Command List and start recording to a new
- * one, many objects related to current rendering state are lost and must be re-recorded.
- *
- * This class handles that problem while making sure we don't produce any redundant API
- * calls (aka. command records).
- */
 class RenderingContext
 {
-    using QuadVertices = std::array<Vertex_2D, 4>;
-
-    struct VertexSubregion
-    {
-        uint32_t startOffset; // counted in vertices since start of entire region
-        Internal::RingBuffer::Region subregion;
-        D3D12_VERTEX_BUFFER_VIEW view;
-
-        VertexSubregion()
-            : startOffset(0)
-            , subregion()
-            , view()
-        {}
-
-        operator bool() const
-        {
-            return subregion.operator bool();
-        }
-    };
-
-    class VertexBatch
-    {
-        uint32_t mTaken;
-        Internal::RingBuffer::Region mCPURegion;
-        Internal::RingBuffer::Region mGPURegion;
-        D3D12_VERTEX_BUFFER_VIEW mView;
-
-        size_t ElementsToBytes(size_t elements)
-        {
-            return elements * sizeof(Vertex_2D);
-        }
-
-    public:
-        VertexBatch()
-            : mTaken(0)
-            , mCPURegion()
-            , mGPURegion()
-            , mView()
-        {}
-
-        inline uint32_t Available() const
-        {
-            return (Constants::MAX_BATCH_VERTICES - mTaken);
-        }
-
-        inline bool Valid() const
-        {
-            return mCPURegion.operator bool();
-        }
-
-        inline void Invalidate()
-        {
-            mCPURegion = Internal::RingBuffer::Region();
-            mGPURegion = Internal::RingBuffer::Region();
-            mTaken = 0;
-            D3D12NI_ZERO_STRUCT(mView);
-        }
-
-        void AssignNewRegion(const Internal::RingBuffer::Region& cpuRegion, const Internal::RingBuffer::Region& gpuRegion)
-        {
-            mCPURegion = cpuRegion;
-            mGPURegion = gpuRegion;
-            mTaken = 0;
-
-            mView.BufferLocation = gpuRegion.gpu;
-            mView.SizeInBytes = static_cast<UINT>(gpuRegion.size);
-            mView.StrideInBytes = sizeof(Vertex_2D); // 3x pos, 1x uint32 color, 2x uv, 2x uv
-        }
-
-        VertexSubregion Subregion(uint32_t elements)
-        {
-            D3D12NI_ASSERT(elements <= (Constants::MAX_BATCH_VERTICES - mTaken), "Attempted to exceed VB Batch size");
-            D3D12NI_ASSERT(mCPURegion == true, "No assigned vertex buffer region");
-
-            VertexSubregion result;
-            result.subregion = mCPURegion.Subregion(ElementsToBytes(mTaken), ElementsToBytes(elements));
-            result.startOffset = mTaken;
-            result.view = mView;
-
-            mTaken += elements;
-            return result;
-        }
-    };
-
     NIPtr<NativeDevice> mNativeDevice;
     LinearAllocator mPayloadAllocator;
     RenderThread mRenderThread;
     RenderPayloadPtr mRTPayload;
-    VertexBatch m2DVertexBatch;
     std::thread::id mMainThreadTid;
 
     struct ClearOptState
@@ -181,8 +79,6 @@ class RenderingContext
     } mRuntimeParametersStash;
 
     // Graphics Pipeline
-    IndexBufferRenderingParameter mIndexBuffer;
-    VertexBufferRenderingParameter mVertexBuffer;
     PipelineStateRenderingParameter mPipelineState;
     RootSignatureRenderingParameter mRootSignature;
     PrimitiveTopologyRenderingParameter mPrimitiveTopology;
@@ -220,10 +116,6 @@ class RenderingContext
     RenderPayloadPtr ReplaceRTPayload(); // creates new payload, returns old one
     void SubmitRTPayload();
 
-    QuadVertices AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst);
-    BBox AssembleVertexData(void* buffer, const Internal::MemoryView<float>& vertices,
-                            const Internal::MemoryView<signed char>& colors, UINT elementCount);
-    VertexSubregion GetNewRegionForVertices(uint32_t vertexCount);
     void SyncToRenderThread();
     void ExecuteCurrentCommandList();
     void ClearAppliedFlags();
@@ -238,12 +130,14 @@ public:
     bool Init();
     void Release();
 
+    void DisposePageable(const D3D12PageablePtr& pageable);
+
     bool Apply();
     bool ApplyCompute();
     void Clear(float r, float g, float b, float a, bool clearDepth);
     void ClearDepth(const NIPtr<NativeTexture>& depthTexture, const D3D12_CPU_DESCRIPTOR_HANDLE& dsv);
-    void Draw(uint32_t elements, uint32_t vbOffset);
-    void Draw(uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox);
+    void DrawQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors, uint32_t vertexCount);
+    void DrawMeshView(const NIPtr<NativeMeshView>& meshView);
     void Dispatch(uint32_t x, uint32_t y, uint32_t z);
     bool PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion);
     bool Present(const NIPtr<NativeSwapChain>& swapChain);
@@ -267,11 +161,6 @@ public:
     void TransitionResource(const D3D12ResourcePtr& resource,  D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
     void ClearTextureUnit(uint32_t unit);
-    void SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView);
-    void SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView);
-    BBox SetVertexBufferForQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors,
-                                 uint32_t vertexCount, uint32_t& retOffset);
-    BBox SetVertexBufferForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst, uint32_t& retOffset);
     void SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget);
     void SetScissor(bool enabled, const D3D12_RECT& scissor);
     void SetTexture(uint32_t unit, const NIPtr<TextureBase>& texture);

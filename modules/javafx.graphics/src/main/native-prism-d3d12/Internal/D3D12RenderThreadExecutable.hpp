@@ -34,6 +34,7 @@
 #include "D3D12LinearAllocator.hpp"
 #include "D3D12RenderThreadState.hpp"
 #include "D3D12Debug.hpp"
+#include "MemoryView.hpp"
 
 #include <memory>
 #include <algorithm>
@@ -535,19 +536,19 @@ public:
         : RenderThreadDataExecutable(rt, texState)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        state->QueueTextureTransition(mData.rt->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        rtState->QueueTextureTransition(mData.rt->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
         if (mData.rt->HasDepthTexture())
-            state->QueueTextureTransition(mData.rt->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            rtState->QueueTextureTransition(mData.rt->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
         for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
         {
-            const NIPtr<TextureBase>& tex = state->resourceManager.GetTexture(i);
-            if (tex) state->QueueTextureTransition(tex, mData.texState);
+            const NIPtr<TextureBase>& tex = rtState->resourceManager.GetTexture(i);
+            if (tex) rtState->QueueTextureTransition(tex, mData.texState);
         }
 
-        state->SubmitResourceTransitions(commandList);
+        rtState->SubmitResourceTransitions(commandList);
     }
 };
 
@@ -775,10 +776,10 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        const D3D12PipelineStatePtr& pso = state->PSOManager.GetPSO(mData);
-        commandList->SetPipelineState(pso.Get());
+        const D3D12PipelineStatePtr& pso = rtState->PSOManager.GetPSO(mData);
+        rtState->pipelineState.Set(pso);
     }
 };
 
@@ -789,9 +790,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>&) override final
+    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        commandList->SetComputeRootSignature(mData.Get());
+        rtState->computeRootSignature.Set(mData);
     }
 };
 
@@ -802,8 +803,9 @@ public:
         : RenderThreadDataExecutable(x, y, z)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>&) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
+        rtState->ApplyComputeSteps(commandList);
         commandList->Dispatch(mData.x, mData.y, mData.z);
     }
 };
@@ -877,6 +879,75 @@ public:
     void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>&) override final
     {
         mData();
+    }
+};
+
+class DisposePageableAction: public RenderThreadDataExecutable<D3D12PageablePtr>
+{
+public:
+    DisposePageableAction(const D3D12PageablePtr& pageable)
+        : RenderThreadDataExecutable(pageable)
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
+    {
+        if (rtState)
+        {
+            rtState->resourceDisposer.MarkDisposed(mData);
+        }
+    }
+};
+
+class DrawQuadsAction: public RenderThreadExecutable
+{
+    LinearAllocator& mAllocator;
+    uint32_t mVertexCount;
+    float* mVertexData;
+    signed char* mColorData;
+
+public:
+    DrawQuadsAction(LinearAllocator& allocator, const MemoryView<float>& vertices, const MemoryView<signed char>& colors, uint32_t vertexCount)
+        : mAllocator(allocator)
+        , mVertexCount(vertexCount)
+        , mVertexData(reinterpret_cast<float*>(allocator.Allocate(static_cast<uint32_t>(vertices.Size()))))
+        , mColorData(reinterpret_cast<signed char*>(allocator.Allocate(static_cast<uint32_t>(colors.Size()))))
+    {
+        memcpy(mVertexData, vertices.Data(), vertices.Size());
+        memcpy(mColorData, colors.Data(), colors.Size());
+    }
+
+    ~DrawQuadsAction()
+    {
+        if (mVertexData)
+        {
+            mAllocator.Free(mVertexData);
+        }
+
+        if (mColorData)
+        {
+            mAllocator.Free(mColorData);
+        }
+    }
+
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
+    {
+        uint32_t vbOffset = 0;
+        BBox box = rtState->PrepareQuadsDraw(mVertexData, mColorData, mVertexCount, vbOffset);
+        rtState->Draw(commandList, (mVertexCount / 4) * 6, vbOffset, box);
+    }
+};
+
+class DrawMeshViewAction: public RenderThreadDataExecutable<NIPtr<NativeMeshView>>
+{
+public:
+    DrawMeshViewAction(const NIPtr<NativeMeshView>& meshView)
+        : RenderThreadDataExecutable(meshView)
+    {}
+
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
+    {
+        rtState->PrepareMeshViewDraw(mData);
+        rtState->Draw(commandList, mData->GetMesh()->GetIndexCount(), 0);
     }
 };
 

@@ -80,148 +80,8 @@ void RenderingContext::EnsureBoundTextureStates(D3D12_RESOURCE_STATES state)
     mRTPayload->AddStep(CreateRTExec<EnsureStatesAction>(mPayloadAllocator, mRenderTarget.Get(), state));
 }
 
-RenderingContext::QuadVertices RenderingContext::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst)
-{
-    uint32_t srcWidth = src.x1 - src.x0;
-    uint32_t srcHeight = src.y1 - src.y0;
-    uint32_t dstWidth = dst.x1 - dst.x0;
-    uint32_t dstHeight = dst.y1 - dst.y0;
-
-    // default viewport coordinates are from -1 to 1
-    // so destination has to be doubled and shifted from 0-2 range to -1-1 range
-    Coords_UV_FLOAT srcTexelSize{ 1.0f / srcWidth, 1.0f / srcHeight };
-    Coords_UV_FLOAT dstTexelSize{ 2.0f / dstWidth, 2.0f / dstHeight };
-
-    // dstBox V coord is inverted because of d3d12's coordinate system
-    Coords_UV_FLOAT srcBoxTexelsMin{ src.x0 * srcTexelSize.u, src.y0 * srcTexelSize.v };
-    Coords_UV_FLOAT srcBoxTexelsMax{ src.x1 * srcTexelSize.u, src.y1 * srcTexelSize.v };
-    Coords_UV_FLOAT dstBoxTexelsMin{ (dst.x0 * dstTexelSize.u) - 1.0f, (dst.y1 * dstTexelSize.v) - 1.0f };
-    Coords_UV_FLOAT dstBoxTexelsMax{ (dst.x1 * dstTexelSize.u) - 1.0f, (dst.y0 * dstTexelSize.v) - 1.0f };
-
-    QuadVertices result;
-
-    // Build a fullscreen quad used for slow blit path
-    result[0].pos.x = dstBoxTexelsMin.u;
-    result[0].pos.y = dstBoxTexelsMin.v;
-    result[0].uv1.u = srcBoxTexelsMin.u;
-    result[0].uv1.v = srcBoxTexelsMin.v;
-
-    result[1].pos.x = dstBoxTexelsMin.u;
-    result[1].pos.y = dstBoxTexelsMax.v;
-    result[1].uv1.u = srcBoxTexelsMin.u;
-    result[1].uv1.v = srcBoxTexelsMax.v;
-
-    result[2].pos.x = dstBoxTexelsMax.u;
-    result[2].pos.y = dstBoxTexelsMin.v;
-    result[2].uv1.u = srcBoxTexelsMax.u;
-    result[2].uv1.v = srcBoxTexelsMin.v;
-
-    result[3].pos.x = dstBoxTexelsMax.u;
-    result[3].pos.y = dstBoxTexelsMax.v;
-    result[3].uv1.u = srcBoxTexelsMax.u;
-    result[3].uv1.v = srcBoxTexelsMax.v;
-
-    for (uint32_t i = 0; i < result.size(); ++i)
-    {
-        result[i].pos.z = 0.0f;
-        result[i].color.r = 255;
-        result[i].color.g = 255;
-        result[i].color.b = 255;
-        result[i].color.a = 255;
-        result[i].uv2 = result[i].uv1;
-    }
-
-    return result;
-}
-
-// NOTE technically we don't query buffer ptr's size, but this function assumes we reserved enough
-// space already.
-BBox RenderingContext::AssembleVertexData(void* buffer, const Internal::MemoryView<float>& vertices,
-                                          const Internal::MemoryView<signed char>& colors, UINT elementCount)
-{
-    Vertex_2D* bufVertices = reinterpret_cast<Vertex_2D*>(buffer);
-    BBox bbox;
-
-    size_t vertIdx = 0;
-    size_t colorIdx = 0;
-    for (UINT i = 0; i < elementCount; ++i)
-    {
-        D3D12NI_ASSERT(vertIdx < vertices.Size(), "Exceeded vertex array size");
-        D3D12NI_ASSERT(colorIdx < colors.Size(), "Exceeded color array size");
-        bufVertices[i].pos.x = vertices.Data()[vertIdx++];
-        bufVertices[i].pos.y = vertices.Data()[vertIdx++];
-        bufVertices[i].pos.z = vertices.Data()[vertIdx++];
-        bufVertices[i].color.r = colors.Data()[colorIdx++];
-        bufVertices[i].color.g = colors.Data()[colorIdx++];
-        bufVertices[i].color.b = colors.Data()[colorIdx++];
-        bufVertices[i].color.a = colors.Data()[colorIdx++];
-        bufVertices[i].uv1.u = vertices.Data()[vertIdx++];
-        bufVertices[i].uv1.v = vertices.Data()[vertIdx++];
-        bufVertices[i].uv2.u = vertices.Data()[vertIdx++];
-        bufVertices[i].uv2.v = vertices.Data()[vertIdx++];
-    }
-
-    if (elementCount == 4)
-    {
-        // only create a valid bbox when we render a quad
-        // quad is the only way we can be sure bbox is valid
-        // TODO: D3D12: maybe we should lift that limitation some day, would require reworking
-        // bbox merging though and might be too heavy CPU wise
-        for (UINT i = 0; i < elementCount; ++i)
-        {
-            bbox.Merge(bufVertices[i].pos.x, bufVertices[i].pos.y, bufVertices[i].pos.x, bufVertices[i].pos.y);
-        }
-    }
-
-    return bbox;
-}
-
-RenderingContext::VertexSubregion RenderingContext::GetNewRegionForVertices(uint32_t vertexCount)
-{
-    /*if (vertexCount > (Constants::MAX_BATCH_VERTICES / 2))
-    {
-        // rendering more vertices might utilize the Ring Buffer better if we just reserve a separate space for them
-        mVertexRingBuffer->DeclareRequired(vertexCount * 8 * sizeof(float));
-        Internal::RingBuffer::Region region = mVertexRingBuffer->Reserve(vertexCount * 8 * sizeof(float));
-        if (!region)
-        {
-            D3D12NI_LOG_ERROR("2D Vertex Ring Buffer allocation failed");
-            return VertexSubregion();
-        }
-
-        VertexSubregion separateRegion;
-        separateRegion.subregion = region;
-        separateRegion.view.BufferLocation = region.gpu;
-        separateRegion.view.SizeInBytes = static_cast<UINT>(region.size);
-        separateRegion.view.StrideInBytes = sizeof(Vertex_2D);
-
-        return separateRegion;
-    }
-
-    if (!m2DVertexBatch.Valid() || vertexCount > m2DVertexBatch.Available())
-    {
-        // reserve space on Ring Buffer
-        mVertexRingBuffer->DeclareRequired(Constants::MAX_BATCH_VERTICES * 8 * sizeof(float));
-
-        Internal::RingBuffer::Region newVertexRegion = mVertexRingBuffer->Reserve(Constants::MAX_BATCH_VERTICES * 8 * sizeof(float));
-        if (!newVertexRegion)
-        {
-            D3D12NI_LOG_ERROR("2D Vertex Ring Buffer allocation failed");
-            return VertexSubregion();
-        }
-
-        m2DVertexBatch.AssignNewRegion(newVertexRegion, newVertexRegion);
-    }
-
-    return m2DVertexBatch.Subregion(vertexCount);*/
-    // LKTODO move to RenderThread
-    return VertexSubregion();
-}
-
 void RenderingContext::ClearAppliedFlags()
 {
-    mIndexBuffer.ClearApplied();
-    mVertexBuffer.ClearApplied();
     mPipelineState.ClearApplied();
     mPrimitiveTopology.ClearApplied();
     mRootSignature.ClearApplied();
@@ -248,11 +108,7 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     , mPayloadAllocator()
     , mRenderThread(nativeDevice)
     , mRTPayload(nullptr, LinearAllocatorDeleter<RenderPayload>(&mPayloadAllocator))
-    , m2DVertexBatch()
-    //, mVertexRingBuffer()
     , mClearOptState()
-    , mIndexBuffer()
-    , mVertexBuffer()
     , mPipelineState()
     , mPrimitiveTopology()
     , mRenderTarget()
@@ -307,16 +163,6 @@ bool RenderingContext::Init()
         return false;
     }
 
-    // LKTODO Move to RenderTHread
-    // TODO adjust thresholds if this idea works fine for memory optimization
-    /*mVertexRingBuffer = std::make_shared<Internal::GPURingBuffer>(mNativeDevice, std::bind(FlushCommandList, this, CheckpointType::MIDFRAME));
-    mVertexRingBuffer->SetDebugName("2D Vertex GPU Ring Buffer");
-    if (!mVertexRingBuffer->Init(Internal::Config::MainRingBufferThreshold(), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT))
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize 2D Vertex Ring Buffer");
-        return false;
-    }*/
-
     return true;
 }
 
@@ -326,9 +172,18 @@ void RenderingContext::Release()
     // this prevents the assertion in Free() when running in DebugNative
     mPayloadAllocator.MoveToNewChunk();
     mRenderThread.Execute(std::move(mRTPayload));
+    mRTPayload.reset();
 
     mRenderThread.Exit(); // Exit() will also internally wait
     mNativeDevice.reset();
+}
+
+void RenderingContext::DisposePageable(const D3D12PageablePtr& pageable)
+{
+    if (mRTPayload)
+    {
+        mRTPayload->AddStep(CreateRTExec<DisposePageableAction>(mPayloadAllocator, pageable));
+    }
 }
 
 void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth)
@@ -375,71 +230,33 @@ void RenderingContext::ClearDepth(const NIPtr<NativeTexture>& depthTexture, cons
     mRTPayload->AddStep(CreateRTExec<ClearDepthStencilAction>(mPayloadAllocator, depthTexture, dsv, 1.0f));
 }
 
-void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset)
+void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors, uint32_t vertexCount)
 {
-    BBox invalidBox;
-    Draw(elements, vbOffset, invalidBox);
-}
-
-void RenderingContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox)
-{
-    bool clearDiscarded = false;
-    CompositeMode currentCompositeMode = mPipelineState.Get().compositeMode;
-
-    if (mClearOptState.clearDelayed)
-    {
-        // Check if we can discard this clear.
-        // The clear can be discarded if we use composite mode SRC_OVER and
-        // this draw call will overwrite the entire to-be-cleared area of the RTT.
-        //
-        // NOTE: compared to other parts related to Clear optimization here we're being
-        // a bit more cautions with coordinates - min bbox gets ceil-ed while max bbox gets floor-ed.
-        // There can be situations where despite coordinates crossing the 0.5 rounding "barrier" the
-        // runtime won't actually render and overwrite pixels on the RTT (happens occasionally in CircleBlendAdd
-        // renderperf test). This will create single-frame artifacts, because old RTT contents won't be
-        // overwritten by the primitive we want to draw. To prevent those occasional artifacts we must push
-        // a Clear() through here - under-estimating BBox coordinates makes it possible and ensures visual
-        // correctness when using clear optimizations.
-        if (currentCompositeMode == CompositeMode::SRC_OVER && dirtyBBox.Valid() &&
-            std::ceil(dirtyBBox.min.x) <= mClearOptState.clearRect.left  && std::ceil(dirtyBBox.min.y) <= mClearOptState.clearRect.top &&
-            std::floor(dirtyBBox.max.x) >= mClearOptState.clearRect.right && std::floor(dirtyBBox.max.y) >= mClearOptState.clearRect.bottom)
-        {
-            clearDiscarded = true;
-            SetCompositeMode(CompositeMode::SRC);
-        }
-        else
-        {
-            RecordClear(0.0f, 0.0f, 0.0f, 0.0f, mClearOptState.clearDepth, mClearOptState.clearRect);
-        }
-
-        mClearOptState.clearDelayed = false;
-    }
-
-    // apply Context settings to the payload
     if (!Apply())
     {
-        D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping draw call.");
+        D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping Draw Quads call.");
         return;
     }
 
-    // we separately ensure that textures bound to the Context are in correct state
-    // there can be a situation where a Texture was bound to the Context and then updated
-    // via updateTexture(). Its state will have to be re-set back to PIXEL_SHADER_RESOURCE
-    // before the draw call.
     EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-    // Tell RenderThread to submit a Draw command and record what we have
-    if (mRTPayload->AddStep(CreateRTExec<DrawAction>(mPayloadAllocator, elements, vbOffset)))
+    if (mRTPayload->AddStep(CreateRTExec<DrawQuadsAction>(mPayloadAllocator, mPayloadAllocator, vertices, colors, vertexCount)))
     {
         SubmitRTPayload();
     }
+}
 
-    mRenderTarget.Get()->UpdateDirtyBBox(dirtyBBox);
-
-    if (clearDiscarded)
+void RenderingContext::DrawMeshView(const NIPtr<NativeMeshView>& meshView)
+{
+    if (!Apply())
     {
-        // restore original composite mode
-        SetCompositeMode(currentCompositeMode);
+        D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping Draw Mesh View call.");
+        return;
+    }
+
+    EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    if (mRTPayload->AddStep(CreateRTExec<DrawMeshViewAction>(mPayloadAllocator, meshView)))
+    {
+        SubmitRTPayload();
     }
 }
 
@@ -706,6 +523,7 @@ void RenderingContext::ClearTextureUnit(uint32_t unit)
     mTextures.SetTexture(unit, nullptr);
 }
 
+/* LKTODO remove
 void RenderingContext::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView)
 {
     if (mIndexBuffer.Get().BufferLocation == ibView.BufferLocation &&
@@ -714,31 +532,6 @@ void RenderingContext::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView)
         return;
 
     mIndexBuffer.Set(ibView);
-}
-
-void RenderingContext::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView)
-{
-    if (mVertexBuffer.Get().BufferLocation == vbView.BufferLocation &&
-        mVertexBuffer.Get().SizeInBytes == vbView.SizeInBytes &&
-        mVertexBuffer.Get().StrideInBytes == vbView.StrideInBytes)
-        return;
-
-    mVertexBuffer.Set(vbView);
-}
-
-BBox RenderingContext::SetVertexBufferForQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors,
-                                               uint32_t vertexCount, uint32_t& retOffset)
-{
-    BBox box;
-
-    VertexSubregion vertexRegion = GetNewRegionForVertices(vertexCount);
-    if (!vertexRegion) return box;
-
-    box = AssembleVertexData(vertexRegion.subregion.cpu, vertices, colors, vertexCount);
-    SetVertexBuffer(vertexRegion.view);
-
-    retOffset = vertexRegion.startOffset;
-    return box;
 }
 
 BBox RenderingContext::SetVertexBufferForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst, uint32_t& retOffset)
@@ -759,7 +552,7 @@ BBox RenderingContext::SetVertexBufferForBlit(const Coords_Box_UINT32& src, cons
     }
 
     return box;
-}
+}*/
 
 void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
 {
@@ -941,8 +734,6 @@ bool RenderingContext::Apply()
     mScissor.AddToPayload(mPayloadAllocator, mRTPayload);
     mDefaultScissor.AddToPayload(mPayloadAllocator, mRTPayload);
     mPrimitiveTopology.AddToPayload(mPayloadAllocator, mRTPayload);
-    mVertexBuffer.AddToPayload(mPayloadAllocator, mRTPayload);
-    mIndexBuffer.AddToPayload(mPayloadAllocator, mRTPayload);
 
     mRTPayload->AddStep(CreateRTExec<ApplyResources>(mPayloadAllocator));
 
@@ -982,7 +773,6 @@ void RenderingContext::FlushCommandList(CheckpointType type)
     mRenderThread.Execute(ReplaceRTPayload());
 
     ClearAppliedFlags();
-    m2DVertexBatch.Invalidate();
 }
 
 bool RenderingContext::WaitForNextCheckpoint(CheckpointType type)
@@ -1014,7 +804,6 @@ void RenderingContext::FinishFrame()
     mUsedRTs.clear();
 
     ClearAppliedFlags();
-    m2DVertexBatch.Invalidate();
 }
 
 } // namespace Internal
