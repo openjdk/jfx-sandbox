@@ -56,7 +56,7 @@ void ResourceDisposer::MarkDisposed(const D3D12PageablePtr& pageable)
 }
 
 
-void ResourceDisposer::OnQueueSignal(uint64_t fenceValue)
+void ResourceDisposer::OnQueueSignal(CheckpointType, uint64_t fenceValue)
 {
     if (!mPageablesToPurge.empty() && mPageablesToPurge.back().fenceValue == 0)
     {
@@ -64,7 +64,7 @@ void ResourceDisposer::OnQueueSignal(uint64_t fenceValue)
     }
 }
 
-void ResourceDisposer::OnFenceSignaled(uint64_t fenceValue)
+void ResourceDisposer::OnFenceSignaled(CheckpointType, uint64_t fenceValue)
 {
     while (!mPageablesToPurge.empty())
     {

@@ -229,7 +229,7 @@ void NativeDevice::Release()
     D3D12NI_LOG_DEBUG("Releasing Device resources");
 
     // ensures the pipeline is purged
-    mRenderingContext->WaitUntilIdle();
+    mRenderingContext->WaitForNextCheckpoint(CheckpointType::ALL);
 
     if (mRenderingContext)
     {
@@ -340,7 +340,10 @@ int NativeDevice::GetMaximumTextureSize() const
 
 void NativeDevice::MarkResourceDisposed(const D3D12PageablePtr& pageable)
 {
-    mRenderingContext->DisposePageable(pageable);
+    // This MIGHT be called when cleaning up on close, when RenderingContext is already destroyed.
+    // Prevent any potential issues - if RenderingContext is gone pageables can be
+    // safely cleaned by the main thread.
+    if (mRenderingContext) mRenderingContext->DisposePageable(pageable);
 }
 
 void NativeDevice::Clear(float r, float g, float b, float a, bool clearDepth)

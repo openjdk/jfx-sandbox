@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ public:
      * Most commonly used to mark the point in time as "during execution" and
      * prepare to free it later on.
      */
-    virtual void OnQueueSignal(uint64_t fenceValue) = 0;
+    virtual void OnQueueSignal(CheckpointType type, uint64_t fenceValue) = 0;
 
     /**
      * Called when any backend part waits on a Waitable and the wait completes.
@@ -62,7 +62,7 @@ public:
      * Can also be thought as when GPU execution has completed. Can be used to
      * mark resources as freed and no longer under GPU utilization.
      */
-    virtual void OnFenceSignaled(uint64_t fenceValue) = 0;
+    virtual void OnFenceSignaled(CheckpointType type, uint64_t fenceValue) = 0;
 };
 
 } // namespace Internal

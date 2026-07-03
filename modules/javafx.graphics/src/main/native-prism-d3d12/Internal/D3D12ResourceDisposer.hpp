@@ -66,8 +66,8 @@ public:
 
     void MarkDisposed(const D3D12PageablePtr& pageable);
 
-    virtual void OnQueueSignal(uint64_t fenceValue) override;
-    virtual void OnFenceSignaled(uint64_t fenceValue) override;
+    virtual void OnQueueSignal(CheckpointType, uint64_t fenceValue) override;
+    virtual void OnFenceSignaled(CheckpointType, uint64_t fenceValue) override;
 };
 
 } // namespace D3D12

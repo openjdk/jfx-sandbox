@@ -126,13 +126,13 @@ public:
      * used up to this point as belonging to just-recorded Command List and free it up after
      * associated Fence is signaled.
      */
-    void OnQueueSignal(uint64_t fenceValue) override;
+    void OnQueueSignal(CheckpointType, uint64_t fenceValue) override;
 
     /**
      * Called when appropriate fence is signaled and the wait is successful. This will inform
      * the ring container that previously registered block of memory is now available to be reused.
      */
-    void OnFenceSignaled(uint64_t fenceValue) override;
+    void OnFenceSignaled(CheckpointType, uint64_t fenceValue) override;
 
     void SetDebugName(const std::string& name);
 

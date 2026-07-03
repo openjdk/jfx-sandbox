@@ -47,9 +47,10 @@ class NativeSwapChain: public Internal::IRenderTarget, Internal::IWaitableOperat
     std::vector<NIPtr<Internal::TextureBase>> mTextureBuffers;
     std::vector<D3D12_RESOURCE_STATES> mTextureStates;
     std::vector<Internal::DescriptorData> mRTVs;
-    std::queue<uint64_t> mWaitFenceValues;
-    std::mutex mWaitFenceMutex;
+    std::queue<uint64_t> mWaitFenceValues; // for Render Thread-side tracking and synchronization
     std::condition_variable mAvailableBufferCV;
+    std::mutex mAvailableBufferMutex;
+    uint32_t mRecordedPresentCount; // for main thread-side tracking
     uint32_t mProfilerSourceID;
     UINT mBufferCount;
     UINT mCurrentBufferIdx;
@@ -118,8 +119,8 @@ public:
 
     // IWaitableOperation overrides
 
-    void OnQueueSignal(uint64_t fenceValue) override;
-    void OnFenceSignaled(uint64_t fenceValue) override;
+    void OnQueueSignal(CheckpointType type, uint64_t fenceValue) override;
+    void OnFenceSignaled(CheckpointType type, uint64_t fenceValue) override;
 
 
     // IRenderTarget overrides

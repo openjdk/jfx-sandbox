@@ -111,17 +111,17 @@ void RenderThread::Signal(CheckpointType type)
 
         for (Internal::IWaitableOperation* op: mWaitableOps)
         {
-            op->OnQueueSignal(mFenceValue);
+            op->OnQueueSignal(type, mFenceValue);
         }
     }
 
-    Waitable waitable(mFenceValue, [this](uint64_t fenceValue) -> bool
+    Waitable waitable(mFenceValue, [this, type](uint64_t fenceValue) -> bool
     {
         std::unique_lock<std::mutex> lock(mWaitableOpsMutex);
 
         for (Internal::IWaitableOperation* op: mWaitableOps)
         {
-            op->OnFenceSignaled(fenceValue);
+            op->OnFenceSignaled(type, fenceValue);
         }
 
         return true;
@@ -297,7 +297,7 @@ void RenderThread::Exit()
 {
     D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::Exit() can only be called from main thread");
 
-    WaitUntilIdle();
+    if (mWorkerDone) return;
 
     mWorkerDone = true;
     mPayloadAvailableCV.notify_one();

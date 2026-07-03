@@ -92,6 +92,9 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
     , mTextureStates()
     , mRTVs()
     , mWaitFenceValues()
+    , mAvailableBufferCV()
+    , mAvailableBufferMutex()
+    , mRecordedPresentCount(0)
     , mBufferCount(0)
     , mCurrentBufferIdx(0)
     , mDirtyRegion()
@@ -199,9 +202,10 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
 // called by QuantumRenderer Thread
 void NativeSwapChain::WaitForAvailableBuffer()
 {
-    std::unique_lock<std::mutex> lock(mWaitFenceMutex);
+    std::unique_lock<std::mutex> lock(mAvailableBufferMutex);
 
-    while (mWaitFenceValues.size() > mBufferCount)
+    mRecordedPresentCount++;
+    while (mRecordedPresentCount > mBufferCount)
     {
         mAvailableBufferCV.wait(lock);
     }
@@ -233,23 +237,17 @@ bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadContex
     context->signal(CheckpointType::ENDFRAME);
 
     // await older frames
+    while (mWaitFenceValues.size() > mBufferCount)
     {
-        std::unique_lock<std::mutex> lock(mWaitFenceMutex);
+        Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Internal::Profiler::Event::Wait);
+        //  TODO restore and bring error reporting to RenderThread
+        // if (!context->waitForCheckpoint(CheckpointType::ENDFRAME))
+        // {
+        //     D3D12NI_LOG_ERROR("Failed to wait for old frame to complete");
+        //     return false;
+        // }
 
-        while (mWaitFenceValues.size() > mBufferCount)
-        {
-            Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Internal::Profiler::Event::Wait);
-            //  TODO restore and bring error reporting to RenderThread
-            // if (!context->waitForCheckpoint(CheckpointType::ENDFRAME))
-            // {
-            //     D3D12NI_LOG_ERROR("Failed to wait for old frame to complete");
-            //     return false;
-            // }
-
-            context->waitForCheckpoint(CheckpointType::ENDFRAME);
-        }
-
-        mAvailableBufferCV.notify_all();
+        context->waitForCheckpoint(CheckpointType::ENDFRAME);
     }
 
     mCurrentBufferIdx = mSwapChain->GetCurrentBackBufferIndex();
@@ -286,17 +284,27 @@ bool NativeSwapChain::Resize(UINT width, UINT height)
 }
 
 // called by Render Thread
-void NativeSwapChain::OnQueueSignal(uint64_t fenceValue)
+void NativeSwapChain::OnQueueSignal(CheckpointType type, uint64_t fenceValue)
 {
-    mWaitFenceValues.push(fenceValue);
+    if (type == CheckpointType::ENDFRAME)
+    {
+        mWaitFenceValues.push(fenceValue);
+    }
 }
 
 // called by Render Thread
-void NativeSwapChain::OnFenceSignaled(uint64_t fenceValue)
+void NativeSwapChain::OnFenceSignaled(CheckpointType type, uint64_t fenceValue)
 {
-    if (mWaitFenceValues.size() > 0 && mWaitFenceValues.front() == fenceValue)
+    if (type == CheckpointType::ENDFRAME && mWaitFenceValues.size() > 0 && mWaitFenceValues.front() == fenceValue)
     {
         mWaitFenceValues.pop();
+
+        {
+            std::unique_lock<std::mutex> lock(mAvailableBufferMutex);
+
+            mRecordedPresentCount--;
+            mAvailableBufferCV.notify_all();
+        }
     }
 }
 

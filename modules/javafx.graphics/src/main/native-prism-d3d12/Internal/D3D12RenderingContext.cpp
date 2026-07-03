@@ -108,6 +108,7 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     , mPayloadAllocator()
     , mRenderThread(nativeDevice)
     , mRTPayload(nullptr, LinearAllocatorDeleter<RenderPayload>(&mPayloadAllocator))
+    , mMainThreadTid(std::this_thread::get_id())
     , mClearOptState()
     , mPipelineState()
     , mPrimitiveTopology()
@@ -150,8 +151,6 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     };
     mComputeRootSignature.SetDependency(computePsoDep);
 
-    mMainThreadTid = std::this_thread::get_id();
-
     mRTPayload.reset(mPayloadAllocator.Construct<RenderPayload>());
 }
 
@@ -170,9 +169,12 @@ void RenderingContext::Release()
 {
     // empty current payload and make sure it's freed on the other side
     // this prevents the assertion in Free() when running in DebugNative
-    mPayloadAllocator.MoveToNewChunk();
-    mRenderThread.Execute(std::move(mRTPayload));
-    mRTPayload.reset();
+    if (mRTPayload)
+    {
+        mPayloadAllocator.MoveToNewChunk();
+        if (mRTPayload->HasWork()) mRenderThread.Execute(std::move(mRTPayload));
+        mRTPayload.reset();
+    }
 
     mRenderThread.Exit(); // Exit() will also internally wait
     mNativeDevice.reset();
@@ -182,6 +184,10 @@ void RenderingContext::DisposePageable(const D3D12PageablePtr& pageable)
 {
     if (mRTPayload)
     {
+        // Let RenderThread dispose of our resource. This is to make sure both RT and GPU
+        // are done using it.
+        // If mRTPayload is not valid (aka empty) then the Render Thread is off because
+        // we already stopped it and are closing. Then the main thread can free the resource whenever.
         mRTPayload->AddStep(CreateRTExec<DisposePageableAction>(mPayloadAllocator, pageable));
     }
 }

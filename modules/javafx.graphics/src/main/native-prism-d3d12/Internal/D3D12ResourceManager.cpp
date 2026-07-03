@@ -458,14 +458,14 @@ void ResourceManager::RestoreStashedParameters()
     }
 }
 
-void ResourceManager::OnQueueSignal(uint64_t)
+void ResourceManager::OnQueueSignal(CheckpointType, uint64_t)
 {
     // here we have to clear last used sampler descriptor regions
     // those belong to the previous command list now and should not be reused by us anymore
     mLastSamplerDescriptors.clear();
 }
 
-void ResourceManager::OnFenceSignaled(uint64_t)
+void ResourceManager::OnFenceSignaled(CheckpointType, uint64_t)
 {
     // noop
 }
