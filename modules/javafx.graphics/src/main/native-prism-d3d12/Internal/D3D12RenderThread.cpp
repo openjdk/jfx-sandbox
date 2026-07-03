@@ -90,7 +90,6 @@ void RenderThread::ExecuteCurrentCommandList()
     ID3D12CommandList* lists[1] = { cmdList.Get() };
     mCommandQueue->ExecuteCommandLists(1, lists);
 
-    mState->heapsApplied = false; // LKTODO HACKY
     mState->ClearAppliedSteps();
     mState->Invalidate2DVertexBatch();
 }

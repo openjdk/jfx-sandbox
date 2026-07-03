@@ -220,7 +220,6 @@ RenderThreadState::RenderThreadState(const NIPtr<NativeDevice>& nativeDevice, co
     , resourceDisposer(nativeDevice)
     , barrierQueue()
     , barrierQueueSize(0)
-    , heapsApplied(false) // LKTODO HACKY and needs to be solved better
     , flushCommandList(flushCallback)
     , waitForCheckpoint(waitCallback)
     , signal(signalCallback)
@@ -240,6 +239,11 @@ bool RenderThreadState::Init()
         D3D12NI_LOG_ERROR("Failed to initialize Resource Manager");
         return false;
     }
+
+    // Descriptor Heaps are set once from ResourceManager. They still need to be
+    // re-applied every Command List, so we run them via CommandListSteps, but
+    // Quantum-thread-side will not modify them.
+    descriptorHeaps.Set({resourceManager.GetHeap(), resourceManager.GetSamplerHeap()});
 
     mVertexRingBuffer.SetDebugName("2D Vertex GPU Ring Buffer");
     if (!mVertexRingBuffer.Init(Config::MainRingBufferThreshold(), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT))
@@ -303,12 +307,14 @@ void RenderThreadState::ApplySteps(const D3D12GraphicsCommandListPtr& commandLis
     viewport.Apply(commandList);
     renderTarget.Apply(commandList);
     pipelineState.Apply(commandList);
+    descriptorHeaps.Apply(commandList);
     graphicsRootSignature.Apply(commandList);
 }
 
 void RenderThreadState::ApplyComputeSteps(const D3D12GraphicsCommandListPtr& commandList)
 {
     pipelineState.Apply(commandList);
+    descriptorHeaps.Apply(commandList);
     computeRootSignature.Apply(commandList);
 }
 
@@ -321,6 +327,7 @@ void RenderThreadState::ClearAppliedSteps()
     viewport.ClearApplied();
     renderTarget.ClearApplied();
     pipelineState.ClearApplied();
+    descriptorHeaps.ClearApplied();
     graphicsRootSignature.ClearApplied();
     computeRootSignature.ClearApplied();
 }
@@ -365,16 +372,6 @@ void RenderThreadState::Draw(const D3D12GraphicsCommandListPtr& commandList, uin
 
         mClearOptState.clearDelayed = false;
     }*/
-
-    // apply Context settings to the payload
-    /*if (!ApplySteps(commandList))
-    {
-        D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping draw call.");
-        return;
-    }*/
-
-    // LKTODO error reporting back to RT
-    ApplySteps(commandList);
 
     // Do the draw
     commandList->DrawIndexedInstanced(elements, 1, 0, vbOffset, 0);

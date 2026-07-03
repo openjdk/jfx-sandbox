@@ -749,18 +749,6 @@ class ApplyResources: public RenderThreadExecutable
 public:
     void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        // LKTODO HACK
-        if (!rtState->heapsApplied)
-        {
-            ID3D12DescriptorHeap* heaps[2] = {
-                rtState->resourceManager.GetHeap().Get(),
-                rtState->resourceManager.GetSamplerHeap().Get(),
-            };
-            commandList->SetDescriptorHeaps(2, heaps);
-
-            rtState->heapsApplied = true;
-        }
-
         rtState->ApplySteps(commandList);
         rtState->resourceManager.ApplyResources(commandList);
     }
@@ -805,7 +793,6 @@ public:
 
     void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        rtState->ApplyComputeSteps(commandList);
         commandList->Dispatch(mData.x, mData.y, mData.z);
     }
 };
@@ -855,9 +842,10 @@ public:
 class ApplyComputeResources: public RenderThreadExecutable
 {
 public:
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
     {
-        state->resourceManager.ApplyComputeResources(commandList);
+        rtState->ApplyComputeSteps(commandList);
+        rtState->resourceManager.ApplyComputeResources(commandList);
     }
 };
 

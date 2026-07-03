@@ -111,6 +111,19 @@ protected:
     }
 };
 
+class DescriptorHeapsCommandListStep: public CommandListDataStep<std::array<D3D12DescriptorHeapPtr, 2>>
+{
+public:
+    virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
+    {
+        ID3D12DescriptorHeap* heaps[2] = {
+            mParameter[0].Get(),
+            mParameter[1].Get()
+        };
+        commandList->SetDescriptorHeaps(2, heaps);
+    }
+};
+
 class GraphicsRootSignatureCommandListStep: public CommandListDataStep<D3D12RootSignaturePtr>
 {
 protected:
@@ -281,7 +294,6 @@ public:
     ResourceDisposer resourceDisposer;
     std::array<D3D12_RESOURCE_BARRIER, 8> barrierQueue;
     uint32_t barrierQueueSize;
-    bool heapsApplied;
 
     // RT callbacks to control command lists
     CheckpointCallback flushCommandList;
@@ -301,6 +313,7 @@ public:
     ScissorCommandListStep scissor;
     ViewportCommandListStep viewport;
     PipelineStateCommandListStep pipelineState;
+    DescriptorHeapsCommandListStep descriptorHeaps;
     RenderTargetCommandListStep renderTarget;
     GraphicsRootSignatureCommandListStep graphicsRootSignature;
 
