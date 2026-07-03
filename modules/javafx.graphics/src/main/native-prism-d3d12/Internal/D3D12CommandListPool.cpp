@@ -82,6 +82,7 @@ CommandListPool::CommandListPool(const NIPtr<NativeDevice>& nativeDevice, const 
     , mCurrentCommandList(0)
     , mCommandAllocators()
     , mCurrentCommandAllocator(0)
+    , mNullCommandList()
 {
     mNativeDevice->GetRenderingContext()->RegisterWaitableOperation(this);
 
@@ -225,12 +226,12 @@ void CommandListPool::OnFenceSignaled(uint64_t fenceValue)
     }
 }
 
-D3D12GraphicsCommandListPtr CommandListPool::AdvanceCommandList()
+const D3D12GraphicsCommandListPtr& CommandListPool::AdvanceCommandList()
 {
     D3D12NI_ASSERT(CurrentCommandListData().state == CommandListState::Active, "Invalid Command List #%d state %d", mCurrentCommandList, CurrentCommandListData().state);
 
     HRESULT hr = CurrentCommandListData().commandList->Close();
-    D3D12NI_RET_IF_FAILED(hr, nullptr, "Failed to close Command List");
+    D3D12NI_RET_IF_FAILED(hr, mNullCommandList, "Failed to close Command List");
 
     CurrentCommandListData().state = CommandListState::Closed;
 

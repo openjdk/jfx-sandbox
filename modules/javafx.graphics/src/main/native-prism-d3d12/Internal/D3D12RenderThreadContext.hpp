@@ -189,7 +189,7 @@ protected:
  * This class handles that problem while making sure we don't produce any redundant API
  * calls (aka. command records).
  */
-class RenderThreadState
+class RenderThreadContext
 {
     using QuadVertices = std::array<Vertex_2D, 4>;
 
@@ -275,6 +275,7 @@ class RenderThreadState
         }
     };
 
+    CommandListPool mCommandListPool;
     VertexBatch m2DVertexBatch;
     Internal::Buffer m2DIndexBuffer;
     Internal::RingBuffer mVertexRingBuffer; // used for 2D Vertex data
@@ -289,7 +290,6 @@ class RenderThreadState
 
 public:
     PSOManager PSOManager;
-    CommandListPool commandListPool; // TODO move to RenderThread internals
     ResourceManager resourceManager;
     ResourceDisposer resourceDisposer;
     std::array<D3D12_RESOURCE_BARRIER, 8> barrierQueue;
@@ -320,27 +320,46 @@ public:
     // Compute
     ComputeRootSignatureCommandListStep computeRootSignature;
 
-    RenderThreadState(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback, const CheckpointCallback& signalCallback);
+    RenderThreadContext(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback, const CheckpointCallback& signalCallback);
     bool Init();
+    void ExecuteCurrentCommandList();
 
     void QueueTextureTransition(const NIPtr<Internal::ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
     void QueueResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-    void SubmitResourceTransitions(const D3D12GraphicsCommandListPtr& commandList);
+    void SubmitResourceTransitions();
 
-    void ApplySteps(const D3D12GraphicsCommandListPtr& commandList);
-    void ApplyComputeSteps(const D3D12GraphicsCommandListPtr& commandList);
+    void ApplySteps();
+    void ApplyComputeSteps();
     void ClearAppliedSteps();
 
     BBox PrepareQuadsDraw(float* vertices, signed char* colors, uint32_t vertexCount, uint32_t& vbOffset);
     void PrepareMeshViewDraw(const NIPtr<NativeMeshView>& meshView);
-    void Draw(const D3D12GraphicsCommandListPtr& commandList, uint32_t elements, uint32_t vbOffset);
-    void Draw(const D3D12GraphicsCommandListPtr& commandList, uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox);
+    void Draw(uint32_t elements, uint32_t vbOffset);
+    void Draw(uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox);
+    void Dispatch(uint32_t x, uint32_t y, uint32_t z);
 
     inline void Invalidate2DVertexBatch()
     {
         m2DVertexBatch.Invalidate();
     }
+
+    inline const D3D12GraphicsCommandListPtr& CommandList()
+    {
+        return mCommandListPool.CurrentCommandList();
+    }
+
+    inline void AdvanceCommandAllocator()
+    {
+        mCommandListPool.AdvanceAllocator();
+    }
+
+    inline const D3D12GraphicsCommandListPtr& AdvanceCommandList()
+    {
+        return mCommandListPool.AdvanceCommandList();
+    }
 };
+
+using RenderThreadContextPtr = std::unique_ptr<RenderThreadContext>;
 
 } // namespace Internal
 } // namespace D3D12

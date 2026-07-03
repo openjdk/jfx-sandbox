@@ -23,13 +23,13 @@
  * questions.
  */
 
-#include "D3D12RenderThreadState.hpp"
+#include "D3D12RenderThreadContext.hpp"
 
 
 namespace D3D12 {
 namespace Internal {
 
-bool RenderThreadState::Build2DIndexBuffer()
+bool RenderThreadContext::Build2DIndexBuffer()
 {
     // For 2D, Index Buffer is provided by the backend and has the same structure.
     std::array<uint16_t, Constants::MAX_BATCH_QUADS * 6> indexBufferArray;
@@ -56,7 +56,7 @@ bool RenderThreadState::Build2DIndexBuffer()
     return true;
 }
 
-RenderThreadState::QuadVertices RenderThreadState::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst)
+RenderThreadContext::QuadVertices RenderThreadContext::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst)
 {
     uint32_t srcWidth = src.x1 - src.x0;
     uint32_t srcHeight = src.y1 - src.y0;
@@ -112,7 +112,7 @@ RenderThreadState::QuadVertices RenderThreadState::AssembleVertexQuadForBlit(con
 
 // NOTE technically we don't query buffer ptr's size, but this function assumes we reserved enough
 // space already.
-BBox RenderThreadState::AssembleVertexData(void* buffer, const float* vertices,
+BBox RenderThreadContext::AssembleVertexData(void* buffer, const float* vertices,
                                           const signed char* colors, size_t elementCount)
 {
     Vertex_2D* bufVertices = reinterpret_cast<Vertex_2D*>(buffer);
@@ -150,7 +150,7 @@ BBox RenderThreadState::AssembleVertexData(void* buffer, const float* vertices,
     return bbox;
 }
 
-RenderThreadState::VertexSubregion RenderThreadState::GetNewRegionForVertices(uint32_t vertexCount)
+RenderThreadContext::VertexSubregion RenderThreadContext::GetNewRegionForVertices(uint32_t vertexCount)
 {
     if (vertexCount > (Constants::MAX_BATCH_VERTICES / 2))
     {
@@ -190,7 +190,7 @@ RenderThreadState::VertexSubregion RenderThreadState::GetNewRegionForVertices(ui
     return m2DVertexBatch.Subregion(vertexCount);
 }
 
-void RenderThreadState::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView)
+void RenderThreadContext::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView)
 {
     if (indexBuffer.Get().BufferLocation == ibView.BufferLocation &&
         indexBuffer.Get().SizeInBytes == ibView.SizeInBytes &&
@@ -200,7 +200,7 @@ void RenderThreadState::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView)
     indexBuffer.Set(ibView);
 }
 
-void RenderThreadState::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView)
+void RenderThreadContext::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView)
 {
     if (vertexBuffer.Get().BufferLocation == vbView.BufferLocation &&
         vertexBuffer.Get().SizeInBytes == vbView.SizeInBytes &&
@@ -210,12 +210,12 @@ void RenderThreadState::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView)
     vertexBuffer.Set(vbView);
 }
 
-RenderThreadState::RenderThreadState(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback, const CheckpointCallback& signalCallback)
-    : m2DVertexBatch()
+RenderThreadContext::RenderThreadContext(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback, const CheckpointCallback& signalCallback)
+    : mCommandListPool(nativeDevice, waitCallback)
+    , m2DVertexBatch()
     , m2DIndexBuffer(nativeDevice)
     , mVertexRingBuffer(nativeDevice, flushCallback, waitCallback)
     , PSOManager(nativeDevice)
-    , commandListPool(nativeDevice, waitCallback)
     , resourceManager(nativeDevice, flushCallback, waitCallback)
     , resourceDisposer(nativeDevice)
     , barrierQueue()
@@ -226,7 +226,7 @@ RenderThreadState::RenderThreadState(const NIPtr<NativeDevice>& nativeDevice, co
 {
 }
 
-bool RenderThreadState::Init()
+bool RenderThreadContext::Init()
 {
     if (!PSOManager.Init())
     {
@@ -255,7 +255,7 @@ bool RenderThreadState::Init()
     // NOTE: Command List Pool requires to have as many Command Allocators as SwapChain buffers + 1
     // This is the minimum we need (one per frame) and also ensures an extra one to pre-record more commands
     // if both SwapChain buffers are full.
-    if (!commandListPool.Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 16, 4))
+    if (!mCommandListPool.Init(D3D12_COMMAND_LIST_TYPE_DIRECT, 16, 4))
     {
         D3D12NI_LOG_ERROR("Failed to initialize Command List Pool");
         return false;
@@ -269,7 +269,7 @@ bool RenderThreadState::Init()
     return true;
 }
 
-void RenderThreadState::QueueTextureTransition(const NIPtr<Internal::ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+void RenderThreadContext::QueueTextureTransition(const NIPtr<Internal::ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource)
 {
     if (resource->GetD3D12ResourceState(subresource) == newState) return;
 
@@ -277,7 +277,7 @@ void RenderThreadState::QueueTextureTransition(const NIPtr<Internal::ITrackedRes
     resource->SetD3D12ResourceState(newState, subresource);
 }
 
-void RenderThreadState::QueueResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+void RenderThreadContext::QueueResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource)
 {
     D3D12NI_ZERO_STRUCT(barrierQueue[barrierQueueSize]);
     barrierQueue[barrierQueueSize].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -287,19 +287,29 @@ void RenderThreadState::QueueResourceTransition(const D3D12ResourcePtr& resource
     barrierQueue[barrierQueueSize].Transition.Subresource = subresource;
     ++barrierQueueSize;
 
-    if (barrierQueueSize == barrierQueue.size()) SubmitResourceTransitions(commandListPool.CurrentCommandListRef());
+    if (barrierQueueSize == barrierQueue.size()) SubmitResourceTransitions();
 }
 
-void RenderThreadState::SubmitResourceTransitions(const D3D12GraphicsCommandListPtr& commandList)
+void RenderThreadContext::SubmitResourceTransitions()
 {
     if (barrierQueueSize == 0) return;
 
-    commandList->ResourceBarrier(barrierQueueSize, barrierQueue.data());
+    CommandList()->ResourceBarrier(barrierQueueSize, barrierQueue.data());
     barrierQueueSize = 0;
 }
 
-void RenderThreadState::ApplySteps(const D3D12GraphicsCommandListPtr& commandList)
+void RenderThreadContext::ApplySteps()
 {
+    // TODO error reporting
+    resourceManager.DeclareRingResources();
+    if (!resourceManager.PrepareResources())
+    {
+        D3D12NI_LOG_ERROR("RenderThread: Failed to prepare resources for draw call");
+        return;
+    }
+
+    const D3D12GraphicsCommandListPtr& commandList = CommandList();
+
     indexBuffer.Apply(commandList);
     vertexBuffer.Apply(commandList);
     primitiveTopology.Apply(commandList);
@@ -309,16 +319,30 @@ void RenderThreadState::ApplySteps(const D3D12GraphicsCommandListPtr& commandLis
     pipelineState.Apply(commandList);
     descriptorHeaps.Apply(commandList);
     graphicsRootSignature.Apply(commandList);
+
+    resourceManager.ApplyResources(commandList);
 }
 
-void RenderThreadState::ApplyComputeSteps(const D3D12GraphicsCommandListPtr& commandList)
+void RenderThreadContext::ApplyComputeSteps()
 {
+    // TODO error reporting
+    resourceManager.DeclareComputeRingResources();
+    if (!resourceManager.PrepareComputeResources())
+    {
+        D3D12NI_LOG_ERROR("RenderThread: Failed to prepare resources for draw call");
+        return;
+    }
+
+    const D3D12GraphicsCommandListPtr& commandList = CommandList();
+
     pipelineState.Apply(commandList);
     descriptorHeaps.Apply(commandList);
     computeRootSignature.Apply(commandList);
+
+    resourceManager.ApplyComputeResources(commandList);
 }
 
-void RenderThreadState::ClearAppliedSteps()
+void RenderThreadContext::ClearAppliedSteps()
 {
     indexBuffer.ClearApplied();
     vertexBuffer.ClearApplied();
@@ -332,13 +356,13 @@ void RenderThreadState::ClearAppliedSteps()
     computeRootSignature.ClearApplied();
 }
 
-void RenderThreadState::Draw(const D3D12GraphicsCommandListPtr& commandList, uint32_t elements, uint32_t vbOffset)
+void RenderThreadContext::Draw(uint32_t elements, uint32_t vbOffset)
 {
     BBox invalidBox;
-    Draw(commandList, elements, vbOffset, invalidBox);
+    Draw(elements, vbOffset, invalidBox);
 }
 
-void RenderThreadState::Draw(const D3D12GraphicsCommandListPtr& commandList, uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox)
+void RenderThreadContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox)
 {
     /* LKTODO clear opts restore
     bool clearDiscarded = false;
@@ -373,8 +397,11 @@ void RenderThreadState::Draw(const D3D12GraphicsCommandListPtr& commandList, uin
         mClearOptState.clearDelayed = false;
     }*/
 
+    // TODO error reporting
+    ApplySteps();
+
     // Do the draw
-    commandList->DrawIndexedInstanced(elements, 1, 0, vbOffset, 0);
+    CommandList()->DrawIndexedInstanced(elements, 1, 0, vbOffset, 0);
 
     /* LKTODO restore clear opts
     mRenderTarget.Get()->UpdateDirtyBBox(dirtyBBox);
@@ -386,7 +413,14 @@ void RenderThreadState::Draw(const D3D12GraphicsCommandListPtr& commandList, uin
     }*/
 }
 
-BBox RenderThreadState::PrepareQuadsDraw(float* vertices, signed char* colors, uint32_t vertexCount, uint32_t& vbOffset)
+void RenderThreadContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
+{
+    ApplyComputeSteps();
+
+    CommandList()->Dispatch(x, y, z);
+}
+
+BBox RenderThreadContext::PrepareQuadsDraw(float* vertices, signed char* colors, uint32_t vertexCount, uint32_t& vbOffset)
 {
     D3D12_INDEX_BUFFER_VIEW ibView;
     ibView.BufferLocation = m2DIndexBuffer.GetGPUPtr();
@@ -406,7 +440,7 @@ BBox RenderThreadState::PrepareQuadsDraw(float* vertices, signed char* colors, u
     return box;
 }
 
-void RenderThreadState::PrepareMeshViewDraw(const NIPtr<NativeMeshView>& meshView)
+void RenderThreadContext::PrepareMeshViewDraw(const NIPtr<NativeMeshView>& meshView)
 {
     const NIPtr<NativeMesh>& mesh = meshView->GetMesh();
 

@@ -524,16 +524,6 @@ void RenderingContext::ClearTextureUnit(uint32_t unit)
 }
 
 /* LKTODO remove
-void RenderingContext::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView)
-{
-    if (mIndexBuffer.Get().BufferLocation == ibView.BufferLocation &&
-        mIndexBuffer.Get().Format == ibView.Format &&
-        mIndexBuffer.Get().SizeInBytes == ibView.SizeInBytes)
-        return;
-
-    mIndexBuffer.Set(ibView);
-}
-
 BBox RenderingContext::SetVertexBufferForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst, uint32_t& retOffset)
 {
     BBox box;
@@ -724,9 +714,6 @@ bool RenderingContext::Apply()
     mVertexShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload);
     mPixelShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload);
 
-    mRTPayload->AddStep(CreateRTExec<PrepareResources>(mPayloadAllocator));
-
-    // Prepare a payload to record on the Command List
     mRenderTarget.AddToPayload(mPayloadAllocator, mRTPayload);
     mPipelineState.AddToPayload(mPayloadAllocator, mRTPayload);
     mRootSignature.AddToPayload(mPayloadAllocator, mRTPayload);
@@ -734,8 +721,6 @@ bool RenderingContext::Apply()
     mScissor.AddToPayload(mPayloadAllocator, mRTPayload);
     mDefaultScissor.AddToPayload(mPayloadAllocator, mRTPayload);
     mPrimitiveTopology.AddToPayload(mPayloadAllocator, mRTPayload);
-
-    mRTPayload->AddStep(CreateRTExec<ApplyResources>(mPayloadAllocator));
 
     return true;
 }
@@ -750,14 +735,8 @@ bool RenderingContext::ApplyCompute()
     mTextures.AddToPayload(mPayloadAllocator, mRTPayload);
     mComputeShader.AddToPayload(mPayloadAllocator, mRTPayload);
     mComputeShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload);
-
-    mRTPayload->AddStep(CreateRTExec<PrepareComputeResources>(mPayloadAllocator));
-
-    // command list recording steps
     mComputePipelineState.AddToPayload(mPayloadAllocator, mRTPayload);
     mComputeRootSignature.AddToPayload(mPayloadAllocator, mRTPayload);
-
-    mRTPayload->AddStep(CreateRTExec<ApplyComputeResources>(mPayloadAllocator));
 
     return true;
 }

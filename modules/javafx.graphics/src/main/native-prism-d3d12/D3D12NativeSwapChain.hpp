@@ -30,7 +30,7 @@
 #include "Internal/D3D12IRenderTarget.hpp"
 #include "Internal/D3D12IWaitableOperation.hpp"
 #include "Internal/D3D12TextureBase.hpp"
-#include "Internal/D3D12RenderThreadState.hpp"
+#include "Internal/D3D12RenderThreadContext.hpp"
 
 #include <vector>
 #include <queue>
@@ -73,9 +73,11 @@ public:
 
     bool Init(const DXGIFactoryPtr& factory, HWND hwnd);
     void WaitForAvailableBuffer();
-    bool Prepare(const D3D12_RECT& dirtyRegion);
-    bool Present(const std::unique_ptr<Internal::RenderThreadState>& rtState);
     bool Resize(UINT width, UINT height);
+
+    // runs on Render Thread
+    bool Prepare(const D3D12_RECT& dirtyRegion);
+    bool Present(const std::unique_ptr<Internal::RenderThreadContext>& context);
 
     inline const D3D12ResourcePtr& GetBuffer(int index) const
     {

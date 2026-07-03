@@ -32,7 +32,7 @@
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12ITrackedResource.hpp"
 #include "D3D12LinearAllocator.hpp"
-#include "D3D12RenderThreadState.hpp"
+#include "D3D12RenderThreadContext.hpp"
 #include "D3D12Debug.hpp"
 #include "MemoryView.hpp"
 
@@ -242,7 +242,7 @@ struct ResourceBarrierArgs
 class RenderThreadExecutable
 {
 public:
-    virtual void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) = 0;
+    virtual void Execute(const RenderThreadContextPtr& context) = 0;
     virtual ~RenderThreadExecutable() {}
 };
 
@@ -291,9 +291,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        rtState->indexBuffer.Set(mData);
+        context->indexBuffer.Set(mData);
     }
 };
 
@@ -304,9 +304,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        rtState->pipelineState.Set(rtState->PSOManager.GetPSO(mData));
+        context->pipelineState.Set(context->PSOManager.GetPSO(mData));
     }
 };
 
@@ -317,9 +317,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        rtState->primitiveTopology.Set(mData);
+        context->primitiveTopology.Set(mData);
     }
 };
 
@@ -330,20 +330,20 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
         if (!mData) return;
 
         const Internal::DescriptorData& rtData = mData->GetRTVDescriptorData();
         if (mData->IsDepthTestEnabled())
         {
-            rtState->renderTarget.Set(RenderTargetCommandListData(
+            context->renderTarget.Set(RenderTargetCommandListData(
                 rtData.count, rtData.cpu, mData->GetDSVDescriptorData().cpu
             ));
         }
         else
         {
-            rtState->renderTarget.Set(RenderTargetCommandListData(
+            context->renderTarget.Set(RenderTargetCommandListData(
                 rtData.count, rtData.cpu
             ));
         }
@@ -357,9 +357,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        rtState->graphicsRootSignature.Set(mData);
+        context->graphicsRootSignature.Set(mData);
     }
 };
 
@@ -370,9 +370,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        rtState->scissor.Set(mData);
+        context->scissor.Set(mData);
     }
 };
 
@@ -383,9 +383,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        rtState->vertexBuffer.Set(mData);
+        context->vertexBuffer.Set(mData);
     }
 };
 
@@ -396,9 +396,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        rtState->viewport.Set(mData);
+        context->viewport.Set(mData);
     }
 };
 
@@ -416,14 +416,14 @@ public:
         : RenderThreadDataExecutable(ClearRenderTargetArgs(rt, r, g, b, a, clearRect))
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        state->QueueTextureTransition(mData.rt->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-        state->SubmitResourceTransitions(commandList);
+        context->QueueTextureTransition(mData.rt->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        context->SubmitResourceTransitions();
 
         if (mData.hasRect)
         {
-            commandList->ClearRenderTargetView(
+            context->CommandList()->ClearRenderTargetView(
                 mData.rt->GetRTVDescriptorData().CPU(0),
                 reinterpret_cast<const float*>(&mData.rgba),
                 1, &mData.clearRect
@@ -431,7 +431,7 @@ public:
         }
         else
         {
-            commandList->ClearRenderTargetView(
+            context->CommandList()->ClearRenderTargetView(
                 mData.rt->GetRTVDescriptorData().CPU(0),
                 reinterpret_cast<const float*>(&mData.rgba),
                 0, nullptr
@@ -452,18 +452,18 @@ public:
     {}
 
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        state->QueueTextureTransition(mData.dt, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-        state->SubmitResourceTransitions(commandList);
+        context->QueueTextureTransition(mData.dt, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        context->SubmitResourceTransitions();
 
         if (mData.hasRect)
         {
-            commandList->ClearDepthStencilView(mData.dsv, D3D12_CLEAR_FLAG_DEPTH, mData.depth, 0, 1, &mData.clearRect);
+            context->CommandList()->ClearDepthStencilView(mData.dsv, D3D12_CLEAR_FLAG_DEPTH, mData.depth, 0, 1, &mData.clearRect);
         }
         else
         {
-            commandList->ClearDepthStencilView(mData.dsv, D3D12_CLEAR_FLAG_DEPTH, mData.depth, 0, 0, nullptr);
+            context->CommandList()->ClearDepthStencilView(mData.dsv, D3D12_CLEAR_FLAG_DEPTH, mData.depth, 0, 0, nullptr);
         }
     }
 };
@@ -483,23 +483,23 @@ public:
         , hasBox(false)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
         // resolve D3D12 resources if locations have them as null, this can matter for ex. SwapChain
         if (mData.dstLoc.pResource == nullptr)
         {
             mData.dstLoc.pResource = mData.dstResource->GetD3D12Resource().Get();
-            state->QueueTextureTransition(mData.dstResource, D3D12_RESOURCE_STATE_COPY_DEST);
+            context->QueueTextureTransition(mData.dstResource, D3D12_RESOURCE_STATE_COPY_DEST);
         }
 
         if (mData.srcLoc.pResource == nullptr)
         {
             mData.srcLoc.pResource = mData.srcResource->GetD3D12Resource().Get();
-            state->QueueTextureTransition(mData.srcResource, D3D12_RESOURCE_STATE_COPY_SOURCE);
+            context->QueueTextureTransition(mData.srcResource, D3D12_RESOURCE_STATE_COPY_SOURCE);
         }
 
-        state->SubmitResourceTransitions(commandList);
-        commandList->CopyTextureRegion(&mData.dstLoc, mData.dstx, mData.dsty, 0, &mData.srcLoc, hasBox ? &mData.srcBox : nullptr);
+        context->SubmitResourceTransitions();
+        context->CommandList()->CopyTextureRegion(&mData.dstLoc, mData.dstx, mData.dsty, 0, &mData.srcLoc, hasBox ? &mData.srcBox : nullptr);
     }
 };
 
@@ -510,9 +510,9 @@ public:
         : RenderThreadDataExecutable(dst, dstOffset, src, srcOffset, size)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        commandList->CopyBufferRegion(mData.dst.Get(), mData.dstOffset, mData.src.Get(), mData.srcOffset, mData.size);
+        context->CommandList()->CopyBufferRegion(mData.dst.Get(), mData.dstOffset, mData.src.Get(), mData.srcOffset, mData.size);
     }
 };
 
@@ -523,9 +523,9 @@ public:
         : RenderThreadDataExecutable(dst, src)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        commandList->CopyResource(mData.dst.Get(), mData.src.Get());
+        context->CommandList()->CopyResource(mData.dst.Get(), mData.src.Get());
     }
 };
 
@@ -536,19 +536,19 @@ public:
         : RenderThreadDataExecutable(rt, texState)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        rtState->QueueTextureTransition(mData.rt->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        context->QueueTextureTransition(mData.rt->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
         if (mData.rt->HasDepthTexture())
-            rtState->QueueTextureTransition(mData.rt->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            context->QueueTextureTransition(mData.rt->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
         for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
         {
-            const NIPtr<TextureBase>& tex = rtState->resourceManager.GetTexture(i);
-            if (tex) rtState->QueueTextureTransition(tex, mData.texState);
+            const NIPtr<TextureBase>& tex = context->resourceManager.GetTexture(i);
+            if (tex) context->QueueTextureTransition(tex, mData.texState);
         }
 
-        rtState->SubmitResourceTransitions(commandList);
+        context->SubmitResourceTransitions();
     }
 };
 
@@ -559,9 +559,9 @@ public:
         : RenderThreadDataExecutable(elements, vbOffset)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        commandList->DrawIndexedInstanced(mData.elements, 1, 0, mData.vbOffset, 0);
+        context->CommandList()->DrawIndexedInstanced(mData.elements, 1, 0, mData.vbOffset, 0);
     }
 };
 
@@ -572,12 +572,12 @@ public:
         : RenderThreadDataExecutable(swapchain, dirtyRegion)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
         mData.swapChain->Prepare(mData.dirtyRegion);
 
-        state->QueueTextureTransition(mData.swapChain->GetTexture(), D3D12_RESOURCE_STATE_PRESENT);
-        state->SubmitResourceTransitions(commandList);
+        context->QueueTextureTransition(mData.swapChain->GetTexture(), D3D12_RESOURCE_STATE_PRESENT);
+        context->SubmitResourceTransitions();
     }
 };
 
@@ -588,9 +588,9 @@ public:
         : RenderThreadDataExecutable(swapchain)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        mData.swapChain->Present(state);
+        mData.swapChain->Present(context);
     }
 };
 
@@ -601,13 +601,13 @@ public:
         : RenderThreadDataExecutable(dst, src, format)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        state->QueueTextureTransition(mData.src, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
-        state->QueueTextureTransition(mData.dst, D3D12_RESOURCE_STATE_RESOLVE_DEST);
-        state->SubmitResourceTransitions(commandList);
+        context->QueueTextureTransition(mData.src, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+        context->QueueTextureTransition(mData.dst, D3D12_RESOURCE_STATE_RESOLVE_DEST);
+        context->SubmitResourceTransitions();
 
-        commandList->ResolveSubresource(mData.dst->GetD3D12Resource().Get(), 0, mData.src->GetD3D12Resource().Get(), 0, mData.format);
+        context->CommandList()->ResolveSubresource(mData.dst->GetD3D12Resource().Get(), 0, mData.src->GetD3D12Resource().Get(), 0, mData.format);
     }
 };
 
@@ -618,13 +618,13 @@ public:
         : RenderThreadDataExecutable(dst, dstx, dsty, src, srcRect, format)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        state->QueueTextureTransition(mData.src, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
-        state->QueueTextureTransition(mData.dst, D3D12_RESOURCE_STATE_RESOLVE_DEST);
-        state->SubmitResourceTransitions(commandList);
+        context->QueueTextureTransition(mData.src, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+        context->QueueTextureTransition(mData.dst, D3D12_RESOURCE_STATE_RESOLVE_DEST);
+        context->SubmitResourceTransitions();
 
-        commandList->ResolveSubresourceRegion(mData.dst->GetD3D12Resource().Get(), 0, mData.dstx, mData.dsty,
+        context->CommandList()->ResolveSubresourceRegion(mData.dst->GetD3D12Resource().Get(), 0, mData.dstx, mData.dsty,
                                               mData.src->GetD3D12Resource().Get(), 0, &mData.srcRect,
                                               mData.format, D3D12_RESOLVE_MODE_AVERAGE);
     }
@@ -640,7 +640,7 @@ public:
         : RenderThreadDataExecutable(resource, barrier)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>&) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
         bool resourceViaProvider = (mData.barrier.Transition.pResource == nullptr);
 
@@ -653,7 +653,7 @@ public:
             mData.barrier.Transition.StateBefore = oldState;
         }
 
-        commandList->ResourceBarrier(1, &mData.barrier);
+        context->CommandList()->ResourceBarrier(1, &mData.barrier);
 
         if (resourceViaProvider)
         {
@@ -672,9 +672,9 @@ public:
         : RenderThreadDataExecutable(bank)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        state->resourceManager.SetTextures(mData);
+        context->resourceManager.SetTextures(mData);
     }
 };
 
@@ -685,9 +685,9 @@ public:
         : RenderThreadDataExecutable(shader)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        state->resourceManager.SetVertexShader(mData);
+        context->resourceManager.SetVertexShader(mData);
     }
 };
 
@@ -698,9 +698,9 @@ public:
         : RenderThreadDataExecutable(shader)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        state->resourceManager.SetPixelShader(mData);
+        context->resourceManager.SetPixelShader(mData);
     }
 };
 
@@ -712,9 +712,9 @@ public:
     {
     }
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        state->resourceManager.SetVertexShaderConstants(std::move(mData));
+        context->resourceManager.SetVertexShaderConstants(std::move(mData));
     }
 };
 
@@ -725,32 +725,9 @@ public:
         : RenderThreadDataExecutable(std::move(constants))
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        state->resourceManager.SetPixelShaderConstants(std::move(mData));
-    }
-};
-
-class PrepareResources: public RenderThreadExecutable
-{
-public:
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& state) override final
-    {
-        state->resourceManager.DeclareRingResources();
-        if (!state->resourceManager.PrepareResources())
-        {
-            D3D12NI_LOG_ERROR("RenderThread: Failed to prepare resources for draw call");
-        }
-    }
-};
-
-class ApplyResources: public RenderThreadExecutable
-{
-public:
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
-    {
-        rtState->ApplySteps(commandList);
-        rtState->resourceManager.ApplyResources(commandList);
+        context->resourceManager.SetPixelShaderConstants(std::move(mData));
     }
 };
 
@@ -764,10 +741,10 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        const D3D12PipelineStatePtr& pso = rtState->PSOManager.GetPSO(mData);
-        rtState->pipelineState.Set(pso);
+        const D3D12PipelineStatePtr& pso = context->PSOManager.GetPSO(mData);
+        context->pipelineState.Set(pso);
     }
 };
 
@@ -778,9 +755,9 @@ public:
         : RenderThreadDataExecutable(data)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        rtState->computeRootSignature.Set(mData);
+        context->computeRootSignature.Set(mData);
     }
 };
 
@@ -791,9 +768,9 @@ public:
         : RenderThreadDataExecutable(x, y, z)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        commandList->Dispatch(mData.x, mData.y, mData.z);
+        context->Dispatch(mData.x, mData.y, mData.z);
     }
 };
 
@@ -807,9 +784,9 @@ public:
         : RenderThreadDataExecutable(shader)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        state->resourceManager.SetComputeShader(mData);
+        context->resourceManager.SetComputeShader(mData);
     }
 };
 
@@ -820,32 +797,9 @@ public:
         : RenderThreadDataExecutable(std::move(constants))
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& state) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        state->resourceManager.SetComputeShaderConstants(std::move(mData));
-    }
-};
-
-class PrepareComputeResources: public RenderThreadExecutable
-{
-public:
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& state) override final
-    {
-        state->resourceManager.DeclareComputeRingResources();
-        if (!state->resourceManager.PrepareComputeResources())
-        {
-            D3D12NI_LOG_ERROR("RenderThread: Failed to prepare resources for dispatch call");
-        }
-    }
-};
-
-class ApplyComputeResources: public RenderThreadExecutable
-{
-public:
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
-    {
-        rtState->ApplyComputeSteps(commandList);
-        rtState->resourceManager.ApplyComputeResources(commandList);
+        context->resourceManager.SetComputeShaderConstants(std::move(mData));
     }
 };
 
@@ -864,7 +818,7 @@ class InternalRenderThreadRoutine: public RenderThreadDataExecutable<std::functi
     {}
 
 public:
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>&) override final
+    void Execute(const RenderThreadContextPtr&) override final
     {
         mData();
     }
@@ -877,11 +831,11 @@ public:
         : RenderThreadDataExecutable(pageable)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr&, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        if (rtState)
+        if (context)
         {
-            rtState->resourceDisposer.MarkDisposed(mData);
+            context->resourceDisposer.MarkDisposed(mData);
         }
     }
 };
@@ -917,11 +871,11 @@ public:
         }
     }
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
         uint32_t vbOffset = 0;
-        BBox box = rtState->PrepareQuadsDraw(mVertexData, mColorData, mVertexCount, vbOffset);
-        rtState->Draw(commandList, (mVertexCount / 4) * 6, vbOffset, box);
+        BBox box = context->PrepareQuadsDraw(mVertexData, mColorData, mVertexCount, vbOffset);
+        context->Draw((mVertexCount / 4) * 6, vbOffset, box);
     }
 };
 
@@ -932,10 +886,10 @@ public:
         : RenderThreadDataExecutable(meshView)
     {}
 
-    void Execute(const D3D12GraphicsCommandListPtr& commandList, const std::unique_ptr<RenderThreadState>& rtState) override final
+    void Execute(const RenderThreadContextPtr& context) override final
     {
-        rtState->PrepareMeshViewDraw(mData);
-        rtState->Draw(commandList, mData->GetMesh()->GetIndexCount(), 0);
+        context->PrepareMeshViewDraw(mData);
+        context->Draw(mData->GetMesh()->GetIndexCount(), 0);
     }
 };
 

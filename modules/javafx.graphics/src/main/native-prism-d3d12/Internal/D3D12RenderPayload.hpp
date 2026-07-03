@@ -66,11 +66,11 @@ public:
         return (mCurrentStep > PAYLOAD_LIMIT);
     }
 
-    bool ApplySteps(const std::unique_ptr<RenderThreadState>& state)
+    bool ApplySteps(const RenderThreadContextPtr& context)
     {
         for (uint32_t i = 0; i < mCurrentStep; ++i)
         {
-            mSteps[i]->Execute(state->commandListPool.CurrentCommandList(), state);
+            mSteps[i]->Execute(context);
         }
 
         return mWaitable->Signal();

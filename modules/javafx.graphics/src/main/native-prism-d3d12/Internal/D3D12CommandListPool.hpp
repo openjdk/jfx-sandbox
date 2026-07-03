@@ -66,6 +66,7 @@ class CommandListPool: public IWaitableOperation
     size_t mCurrentCommandList;
     std::vector<CommandAllocatorData> mCommandAllocators;
     size_t mCurrentCommandAllocator;
+    D3D12GraphicsCommandListPtr mNullCommandList; // for error returning
 
     void ResetCurrentCommandList();
     void WaitForAvailableCommandList();
@@ -83,7 +84,7 @@ public:
     bool Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount, size_t commandAllocators);
     void OnQueueSignal(uint64_t fenceValue) override;
     void OnFenceSignaled(uint64_t fenceValue) override;
-    D3D12GraphicsCommandListPtr AdvanceCommandList();
+    const D3D12GraphicsCommandListPtr& AdvanceCommandList();
     void AdvanceAllocator();
 
     inline const D3D12GraphicsCommandListPtr& CurrentCommandList()

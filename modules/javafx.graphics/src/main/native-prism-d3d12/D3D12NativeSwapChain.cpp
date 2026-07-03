@@ -216,7 +216,7 @@ bool NativeSwapChain::Prepare(const D3D12_RECT& dirtyRegion)
 }
 
 // called by Render Thread
-bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadState>& rtState)
+bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadContext>& context)
 {
     DXGI_PRESENT_PARAMETERS params;
     D3D12NI_ZERO_STRUCT(params);
@@ -230,7 +230,7 @@ bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadState>
     HRESULT hr = mSwapChain->Present1(mSwapInterval, mPresentFlags, &params);
     D3D12NI_RET_IF_FAILED(hr, false, "RenderThread: Failed to present swapchain image");
 
-    rtState->signal(CheckpointType::ENDFRAME);
+    context->signal(CheckpointType::ENDFRAME);
 
     // await older frames
     {
@@ -240,13 +240,13 @@ bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadState>
         {
             Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Internal::Profiler::Event::Wait);
             //  TODO restore and bring error reporting to RenderThread
-            // if (!rtState->waitForCheckpoint(CheckpointType::ENDFRAME))
+            // if (!context->waitForCheckpoint(CheckpointType::ENDFRAME))
             // {
             //     D3D12NI_LOG_ERROR("Failed to wait for old frame to complete");
             //     return false;
             // }
 
-            rtState->waitForCheckpoint(CheckpointType::ENDFRAME);
+            context->waitForCheckpoint(CheckpointType::ENDFRAME);
         }
 
         mAvailableBufferCV.notify_all();

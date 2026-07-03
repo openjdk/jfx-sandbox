@@ -66,7 +66,7 @@ void RenderThread::WorkerMain()
         if (!curPayload) continue;
 
         // record what is needed on the Command List
-        if (!curPayload->ApplySteps(mState))
+        if (!curPayload->ApplySteps(mContext))
         {
             D3D12NI_LOG_ERROR("RenderThread: Failed to apply current payload's steps. This should not happen. Pausing execution.");
             mWorkerDone = true;
@@ -80,7 +80,7 @@ void RenderThread::ExecuteCurrentCommandList()
 {
     D3D12NI_ASSERT(std::this_thread::get_id() == mWorkerThread.get_id(), "This routine must be called from Render Thread");
 
-    D3D12GraphicsCommandListPtr cmdList = mState->commandListPool.AdvanceCommandList();
+    D3D12GraphicsCommandListPtr cmdList = mContext->AdvanceCommandList();
     if (!cmdList)
     {
         D3D12NI_LOG_ERROR("RenderThread: Received empty Command List, aborting execution.");
@@ -90,13 +90,14 @@ void RenderThread::ExecuteCurrentCommandList()
     ID3D12CommandList* lists[1] = { cmdList.Get() };
     mCommandQueue->ExecuteCommandLists(1, lists);
 
-    mState->ClearAppliedSteps();
-    mState->Invalidate2DVertexBatch();
+    mContext->ClearAppliedSteps();
+    mContext->Invalidate2DVertexBatch();
 }
 
 void RenderThread::AdvanceCommandAllocator()
 {
-    mState->commandListPool.AdvanceAllocator();
+    // TODO this should be a separate "FinishFrame" command from D3D12RenderThreadExecutable.hpp
+    mContext->AdvanceCommandAllocator();
 }
 
 void RenderThread::Signal(CheckpointType type)
@@ -157,7 +158,7 @@ RenderThread::RenderThread(const NIPtr<NativeDevice>& nativeDevice)
     , mFenceValue(0)
     , mWaitableOps()
     , mCheckpointQueue()
-    , mState()
+    , mContext()
     , mNullPayload(nullptr, LinearAllocatorDeleter<RenderPayload>(nullptr))
     , mPayloadAvailableCV()
     , mPayloadQueueMutex()
@@ -170,18 +171,18 @@ RenderThread::RenderThread(const NIPtr<NativeDevice>& nativeDevice)
 
 bool RenderThread::Init()
 {
-    mState = std::make_unique<RenderThreadState>(mNativeDevice,
+    mContext = std::make_unique<RenderThreadContext>(mNativeDevice,
         std::bind(&RenderThread::FlushCommandListInternal, this, std::placeholders::_1),
         std::bind(&RenderThread::WaitForCheckpointInternal, this, std::placeholders::_1),
         std::bind(&RenderThread::Signal, this, std::placeholders::_1)
     );
-    if (!mState)
+    if (!mContext)
     {
         D3D12NI_LOG_ERROR("Failed to create RenderThreadState");
         return false;
     }
 
-    if (!mState->Init())
+    if (!mContext->Init())
     {
         D3D12NI_LOG_ERROR("Failed to initialize RenderThread's State object");
         return false;
@@ -304,7 +305,7 @@ void RenderThread::Exit()
     mWorkerThread.join();
 
     // free up RT resources
-    mState.reset();
+    mContext.reset();
 }
 
 } // namespace Internal

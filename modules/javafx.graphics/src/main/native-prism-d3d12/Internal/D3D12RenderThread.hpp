@@ -33,7 +33,7 @@
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12LinearAllocator.hpp"
 #include "D3D12Matrix.hpp"
-#include "D3D12RenderThreadState.hpp"
+#include "D3D12RenderThreadContext.hpp"
 #include "D3D12RenderPayload.hpp"
 #include "D3D12PSOManager.hpp"
 
@@ -58,7 +58,7 @@ class RenderThread
     std::vector<Internal::IWaitableOperation*> mWaitableOps;
     std::mutex mWaitableOpsMutex;
     CheckpointQueue mCheckpointQueue;
-    std::unique_ptr<RenderThreadState> mState;
+    RenderThreadContextPtr mContext;
 
     //NIPtr<Internal::RingBuffer> mVertexRingBuffer; // used for small texture uploads to prevent Committed Resource allocation
     //NIPtr<Internal::RingBuffer> mDataRingBuffer; // used for small texture uploads to prevent Committed Resource allocation
