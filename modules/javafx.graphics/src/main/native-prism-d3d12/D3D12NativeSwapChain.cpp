@@ -237,7 +237,7 @@ bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadContex
     context->signal(CheckpointType::ENDFRAME);
 
     // await older frames
-    while (mWaitFenceValues.size() > mBufferCount)
+    while (mWaitFenceValues.size() >= mBufferCount)
     {
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Internal::Profiler::Event::Wait);
         //  TODO restore and bring error reporting to RenderThread

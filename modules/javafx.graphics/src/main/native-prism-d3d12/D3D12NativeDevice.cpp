@@ -141,7 +141,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
 {
     if (adapter == nullptr) return false;
 
-    assert(false); // LKDEBUG
+    //assert(false); // LKDEBUG
 
     mShaderLibrary = shaderLibrary;
     mAdapter = adapter;
