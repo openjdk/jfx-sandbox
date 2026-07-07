@@ -38,6 +38,12 @@ void RingContainer::CheckThreshold()
 {
     if (mUncommitted > mFlushThreshold)
     {
+        // NOTE: This is just an extra check that should be considered an error.
+        // If Ring Containers in any point in time loop-around _after_ the allocation this can have some
+        // unintended consequences - at best we simply waste space in the Container and don't properly
+        // triple-buffer it which can cause stutters or performance issues, at worst we will flush a Command List
+        // while we're recording it. We treat this flush as a last-resort to keep the app going, but at some point
+        // it should be properly fixed (usually it means DeclareRequired() mis-estimated something or was not called).
         D3D12NI_LOG_ERROR("%s: CheckThreshold wanted a midframe flush! Maybe it shouldn't do that", mDebugName.c_str());
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Signal);
         mFlushCallback(CheckpointType::MIDFRAME);
@@ -242,10 +248,22 @@ RingContainer::Region RingContainer::ReserveInternal(size_t size)
 
 void RingContainer::DeclareRequired(size_t size)
 {
+    // tail must be aligned like in ReserveInternal()
     size_t tailAligned = Utils::Align(mTail, mAlignment);
+
+    // real size needed is aligned like tail + the space between actual tail and potential alignment
     size_t realSizeNeeded = Utils::Align(size, mAlignment) + (tailAligned - mTail);
 
-    // if requested data will be more than the flush threshold we should flush the Command List
+    // count in loop-around if needed
+    // (using mTail for this check instead of tailAligned because realSizeNeeded already accounted for tailAligned)
+    if (mTail + realSizeNeeded > mSize)
+    {
+        // add the empty space from aligned tail to end of buffer
+        realSizeNeeded += (mSize - tailAligned);
+    }
+
+    // if requested data will be more than the flush threshold we should flush the Command List now
+    // that way we prevent potentially flushing it mid-preparing for draw
     if ((mUncommitted > 0) && (mUncommitted + realSizeNeeded > mFlushThreshold))
     {
         Internal::Profiler::Instance().MarkEvent(mProfilerSourceID, Profiler::Event::Signal);
