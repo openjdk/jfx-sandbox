@@ -46,19 +46,19 @@ void LinearAllocator::Expand()
     }
 
     // no available chunks, allocate a new one
-    D3D12NI_LOG_TRACE("--- LinearAllocator - expanding with new chunk size %d (%d chunks in use) ---", mSizePerChunk, mChunksInUse.size());
+    D3D12NI_LOG_TRACE("--- LinearAllocator - adding new chunk size %d (%d chunks in use) ---", mSizePerChunk, mChunksInUse.size());
     mChunksInUse.emplace_back(mSizePerChunk);
     mCurrentChunk = &mChunksInUse.back();
     return;
 }
 
-LinearAllocator::LinearAllocator()
+LinearAllocator::LinearAllocator(size_t sizePerChunk)
     : mCurrentChunk(nullptr)
     , mChunksInUse()
     , mAvailableChunks()
     , mEmptyChunks()
     , mChunkResetMutex()
-    , mSizePerChunk(CHUNK_SIZE)
+    , mSizePerChunk(sizePerChunk)
     , mInitThreadId(std::this_thread::get_id())
 {
     Expand();
@@ -84,8 +84,6 @@ void* LinearAllocator::Allocate(uint32_t size)
 
     if (!mCurrentChunk->Fits(alignedSize))
     {
-        // TODO: D3D12: This log could just be a TRACE log. After debugging issues change it back.
-        D3D12NI_LOG_TRACE("LinearAllocator: must expand! Cannot allocate %d bytes (aligned %d), increasing used to %d", size, alignedSize, mSizePerChunk);
         Expand();
     }
 
@@ -108,7 +106,6 @@ void LinearAllocator::Free(void* ptr)
     if (header->magic != DATA_MAGIC)
     {
         D3D12NI_LOG_ERROR("Cannot free, invalid magic at data header for pointer %p", ptr);
-        assert(false); // LKDEBUG
         return;
     }
 
@@ -133,41 +130,6 @@ void LinearAllocator::Free(void* ptr)
 
         D3D12NI_ASSERT(0, "Couldn't find parent chunk on the chunks-in-use list. This should not happen.");
     }
-
-    return;
-/*
-    if (header->parentChunk == mCurrentChunk)
-    {
-        mCurrentChunk->Free(ptr);
-        if (mCurrentChunk->FullyFreed())
-        {
-            D3D12NI_LOG_TRACE("--- LinearAllocator - Reclaiming current chunk size %d ---", mCurrentChunk->mSize);
-            mCurrentChunk->Reclaim();
-        }
-
-        return;
-    }
-
-    // we know the freed ptr is not part of the current chunk, browse the other dormant Chunks
-    // we store and free it from there. We do this the "long way" instead of just peeking
-    // into header->parentChunk to make sure ptr was allocated by us.
-    for (std::list<Chunk>::iterator it = mChunks.begin(); it != mChunks.end(); ++it)
-    {
-        Chunk& c = *it;
-        if (header->parentChunk == &c)
-        {
-            c.Free(ptr);
-            if (c.FullyFreed())
-            {
-                D3D12NI_LOG_TRACE("--- LinearAllocator - Freeing chunk size %d (currently %d chunks) ---", c.mSize, mChunks.size());
-                mChunks.erase(it);
-            }
-
-            return;
-        }
-    }
-*/
-    D3D12NI_ASSERT(0, "Trying to free a pointer not belonging to the allocator, or something went wrong somewhere. This should not happen.");
 }
 
 void LinearAllocator::ResetChunks()

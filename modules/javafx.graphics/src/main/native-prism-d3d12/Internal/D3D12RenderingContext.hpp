@@ -51,6 +51,7 @@ namespace Internal {
 class RenderingContext
 {
     NIPtr<NativeDevice> mNativeDevice;
+    LinearAllocator mExtraPayloadDataAllocator; // for 2D Vertex data and small texture updates
     LinearAllocator mPayloadAllocator;
     RenderThread mRenderThread;
     RenderPayloadPtr mRTPayload;

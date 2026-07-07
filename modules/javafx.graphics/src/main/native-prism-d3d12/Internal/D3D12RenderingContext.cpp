@@ -45,6 +45,8 @@ RenderPayloadPtr RenderingContext::ReplaceRTPayload()
     RenderPayloadPtr ret(std::move(mRTPayload));
     mPayloadAllocator.MoveToNewChunk();
     mRTPayload.reset(mPayloadAllocator.Construct<RenderPayload>());
+    mExtraPayloadDataAllocator.MoveToNewChunk();
+
     return ret;
 }
 
@@ -105,7 +107,8 @@ void RenderingContext::ClearAppliedFlags()
 
 RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
-    , mPayloadAllocator()
+    , mExtraPayloadDataAllocator(Config::MainRingBufferThreshold()) // this chunk size should match the main ring buffer threshold
+    , mPayloadAllocator(1024 * 1024) // for Payloads 1M should be sufficient
     , mRenderThread(nativeDevice)
     , mRTPayload(nullptr, LinearAllocatorDeleter<RenderPayload>(&mPayloadAllocator))
     , mMainThreadTid(std::this_thread::get_id())
@@ -245,7 +248,7 @@ void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, co
     }
 
     EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    if (mRTPayload->AddStep(CreateRTExec<DrawQuadsAction>(mPayloadAllocator, mPayloadAllocator, vertices, colors, vertexCount)))
+    if (mRTPayload->AddStep(CreateRTExec<DrawQuadsAction>(mPayloadAllocator, mExtraPayloadDataAllocator, vertices, colors, vertexCount)))
     {
         SubmitRTPayload();
     }
@@ -780,6 +783,7 @@ void RenderingContext::FinishFrame()
 
     // skipping Signal() and Execute() here, will be done by Present()
     mPayloadAllocator.ResetChunks();
+    mExtraPayloadDataAllocator.ResetChunks();
 
     for (const auto& rt: mUsedRTs)
     {

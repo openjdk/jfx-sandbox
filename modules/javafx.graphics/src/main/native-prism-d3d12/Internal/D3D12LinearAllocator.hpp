@@ -42,7 +42,6 @@ namespace Internal {
  */
 class LinearAllocator
 {
-    static const size_t CHUNK_SIZE = 1024 * 1024;
     static const uint32_t DATA_MAGIC = 0xD3D12A11;
 
     struct Chunk;
@@ -153,7 +152,7 @@ class LinearAllocator
     void Expand();
 
 public:
-    LinearAllocator();
+    LinearAllocator(size_t sizePerChunk);
     ~LinearAllocator();
 
     void MoveToNewChunk();
