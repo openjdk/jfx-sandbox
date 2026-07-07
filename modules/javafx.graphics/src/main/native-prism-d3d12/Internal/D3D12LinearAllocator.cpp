@@ -37,6 +37,13 @@ void LinearAllocator::Expand()
 
     std::unique_lock<std::mutex> lock(mChunkResetMutex);
 
+    if (mCurrentChunk && mCurrentChunk->FullyFreed())
+    {
+        // reuse current chunk since it's totally empty
+        mCurrentChunk->Reclaim();
+        return;
+    }
+
     if (!mAvailableChunks.empty())
     {
         mChunksInUse.emplace_back(std::move(mAvailableChunks.front()));

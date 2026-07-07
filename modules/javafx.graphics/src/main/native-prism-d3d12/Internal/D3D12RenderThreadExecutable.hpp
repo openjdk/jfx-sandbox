@@ -870,11 +870,13 @@ public:
         if (mVertexData)
         {
             mAllocator.Free(mVertexData);
+            mVertexData = nullptr;
         }
 
         if (mColorData)
         {
             mAllocator.Free(mColorData);
+            mColorData = nullptr;
         }
     }
 
