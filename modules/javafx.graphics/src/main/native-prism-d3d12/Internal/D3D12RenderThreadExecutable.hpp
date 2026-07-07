@@ -842,8 +842,13 @@ public:
 
 class DrawQuadsAction: public RenderThreadExecutable
 {
+    const uint32_t FLOATS_PER_VERTEX = 7;
+    const uint32_t CHARS_PER_VERTEX = 4;
+
     LinearAllocator& mAllocator;
     uint32_t mVertexCount;
+    uint32_t mVerticesBytes;
+    uint32_t mColorsBytes;
     float* mVertexData;
     signed char* mColorData;
 
@@ -851,11 +856,13 @@ public:
     DrawQuadsAction(LinearAllocator& allocator, const MemoryView<float>& vertices, const MemoryView<signed char>& colors, uint32_t vertexCount)
         : mAllocator(allocator)
         , mVertexCount(vertexCount)
-        , mVertexData(reinterpret_cast<float*>(allocator.Allocate(static_cast<uint32_t>(vertices.Size()))))
-        , mColorData(reinterpret_cast<signed char*>(allocator.Allocate(static_cast<uint32_t>(colors.Size()))))
+        , mVerticesBytes(vertexCount * FLOATS_PER_VERTEX * sizeof(float))
+        , mColorsBytes(vertexCount * CHARS_PER_VERTEX * sizeof(signed char))
+        , mVertexData(reinterpret_cast<float*>(allocator.Allocate(mVerticesBytes)))
+        , mColorData(reinterpret_cast<signed char*>(allocator.Allocate(mColorsBytes)))
     {
-        memcpy(mVertexData, vertices.Data(), vertices.Size());
-        memcpy(mColorData, colors.Data(), colors.Size());
+        memcpy(mVertexData, vertices.Data(), mVerticesBytes);
+        memcpy(mColorData, colors.Data(), mColorsBytes);
     }
 
     ~DrawQuadsAction()
