@@ -30,11 +30,11 @@ namespace D3D12 {
 namespace Internal {
 
 Waitable::Waitable()
-    : Waitable(0, WaitFinishedCallback())
+    : Waitable(0)
 {}
 
 Waitable::Waitable(uint64_t fenceValue)
-    : Waitable(fenceValue, WaitFinishedCallback())
+    : Waitable(fenceValue, [](uint64_t) { return true; })
 {}
 
 Waitable::Waitable(uint64_t fenceValue, const WaitFinishedCallback& waitCallback)

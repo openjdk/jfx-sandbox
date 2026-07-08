@@ -73,6 +73,7 @@ public:
     ~NativeSwapChain();
 
     bool Init(const DXGIFactoryPtr& factory, HWND hwnd);
+    void Release();
     void WaitForAvailableBuffer();
     bool Resize(UINT width, UINT height);
 

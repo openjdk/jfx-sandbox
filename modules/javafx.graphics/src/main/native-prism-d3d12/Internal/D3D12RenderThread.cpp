@@ -44,7 +44,15 @@ RenderPayloadPtr& RenderThread::FetchPayload()
     {
         // we're here because there used to be an element on queue that we just finished
         // we should pop right now
+        // Payload's Waitable should be signaled after we pop the Payload to mark we are completely done with it
+        // which also includes freeing any shared_ptrs and references to used objects.
+        // A hard copy is done here to ensure Waitable is valid after pop()
+        NIPtr<Waitable> w = mPayloadQueue.front()->GetWaitable();
         mPayloadQueue.pop();
+
+        // pop() destroyed the Payload (except for the Waitable) so now we can Signal it and move on
+        // TODO: D3D12: Error-reporting from RT side
+        w->Signal();
     }
 
     while (mPayloadQueue.size() == 0)
@@ -73,7 +81,31 @@ void RenderThread::WorkerMain()
         }
     }
 
-    mCheckpointQueue.PrintStats();
+    {
+        // finish the payload queue before leaving to ensure everything gets delivered and done on D3D12 side
+        // the only time we should be here (in normal conditions) is when main thread set mWorkerDone to true
+        // and immediately after waits for RenderThread to join it, so we can safely wrap up the rest of our work
+        std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
+
+        // if mWorkerDone was set to true mid-payload, that means we just executed a payload but
+        // FetchPayload() didn't have a chance to pop() it yet and clean it up, so we must do that now
+        // if the queue has more than 0 elements pop the front queue piece and then continue on executing
+        // the remainder of the queue
+        if (mPayloadQueue.size() > 0)
+        {
+            mPayloadQueue.pop();
+        }
+
+        while (mPayloadQueue.size() > 0)
+        {
+            mPayloadQueue.front()->ApplySteps(mContext);
+            mPayloadQueue.pop();
+        }
+
+        // all payloads are now submitted, wait for GPU to be done before completing
+        mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
+        mCheckpointQueue.PrintStats();
+    }
 }
 
 void RenderThread::ExecuteCurrentCommandList()
@@ -233,16 +265,20 @@ void RenderThread::UnregisterWaitableOperation(Internal::IWaitableOperation* wai
     }
 }
 
-NIPtr<Waitable> RenderThread::Execute(RenderPayloadPtr&& payload)
+const NIPtr<Waitable>& RenderThread::Execute(RenderPayloadPtr&& payload)
 {
     D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::Execute() can only be called from main thread");
 
     const NIPtr<Waitable>& waitable = payload->GetWaitable();
 
     std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
-    mPayloadQueue.emplace(std::move(payload));
 
-    mPayloadAvailableCV.notify_one();
+    if (!mWorkerDone)
+    {
+        mPayloadQueue.emplace(std::move(payload));
+        mPayloadAvailableCV.notify_one();
+    }
+
     return waitable;
 }
 
@@ -267,21 +303,11 @@ void RenderThread::ScheduleSignal(LinearAllocator& allocator, RenderPayloadPtr& 
     payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::Signal, this, type)));
 }
 
-bool RenderThread::WaitForCheckpoint(LinearAllocator& allocator, CheckpointType type)
+void RenderThread::ScheduleWaitForCheckpoint(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type)
 {
     D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::WaitForCheckpoint() can only be called from main thread");
 
-    // TODO: We allocate a whole Payload for just one step here. Could be worth optimizing to save space on the Allocator.
-    RenderPayloadPtr payload(allocator.Construct<RenderPayload>(), LinearAllocatorDeleter<RenderPayload>(&allocator));
     payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::WaitForCheckpointInternal, this, type)));
-    NIPtr<Waitable> w = Execute(std::move(payload));
-    if (!w->Wait())
-    {
-        D3D12NI_LOG_ERROR("Failed to wait for RenderThread's checkpoint");
-        return false;
-    }
-
-    return true;
 }
 
 void RenderThread::WaitUntilIdle()

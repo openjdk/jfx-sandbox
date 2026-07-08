@@ -228,9 +228,6 @@ void NativeDevice::Release()
 {
     D3D12NI_LOG_DEBUG("Releasing Device resources");
 
-    // ensures the pipeline is purged
-    mRenderingContext->WaitForNextCheckpoint(CheckpointType::ALL);
-
     if (mRenderingContext)
     {
         mRenderingContext->Release();

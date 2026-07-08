@@ -113,10 +113,7 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
 
 NativeSwapChain::~NativeSwapChain()
 {
-    mNativeDevice->GetRenderingContext()->WaitUntilIdle();
-    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
-    D3D12NI_ASSERT(mWaitFenceValues.size() == 0, "SwapChain destructor: called before waiting for all frames! Frame count = %u", mWaitFenceValues.size());
-
+    mNativeDevice->GetRenderingContext()->UnregisterWaitableOperation(this);
     Internal::Profiler::Instance().RemoveSource(mProfilerSourceID);
 
     for (size_t i = 0; i < mTextureBuffers.size(); ++i)
@@ -124,13 +121,6 @@ NativeSwapChain::~NativeSwapChain()
         mTextureBuffers[i].reset();
         mNativeDevice->GetRTVDescriptorAllocator()->Free(mRTVs[i]);
     }
-
-    mTextureBuffers.clear();
-
-    mSwapChain.Reset();
-
-    mNativeDevice->GetRenderingContext()->UnregisterWaitableOperation(this);
-    mNativeDevice.reset();
 
     D3D12NI_LOG_DEBUG("SwapChain destroyed");
 }
@@ -199,6 +189,11 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
     return true;
 }
 
+void NativeSwapChain::Release()
+{
+    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
+}
+
 // called by QuantumRenderer Thread
 void NativeSwapChain::WaitForAvailableBuffer()
 {
@@ -255,12 +250,13 @@ bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadContex
     return true;
 }
 
+// called by main thread (Quantum)
 bool NativeSwapChain::Resize(UINT width, UINT height)
 {
-    // before Resize we need to wait for all frames
-    mNativeDevice->GetRenderingContext()->WaitUntilIdle();
+    // complete current RenderThread jobs
+    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
 
-    // since all frames were completed, reset all Buffer references before resizing
+    // mark all buffers as disposed and wait for GPU to complete
     for (size_t i = 0; i < mTextureBuffers.size(); ++i)
     {
         mTextureBuffers[i].reset();
@@ -321,6 +317,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeSwapChain_nRelease
 {
     if (!ptr) return;
 
+    D3D12::GetNIObject<D3D12::NativeSwapChain>(ptr)->Release();
     D3D12::FreeNIObject<D3D12::NativeSwapChain>(ptr);
 }
 

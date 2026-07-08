@@ -73,7 +73,7 @@ public:
             mSteps[i]->Execute(context);
         }
 
-        return mWaitable->Signal();
+        return true;
     }
 
     bool HasWork() const

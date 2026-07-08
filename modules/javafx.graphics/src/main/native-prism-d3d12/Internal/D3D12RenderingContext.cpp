@@ -765,7 +765,15 @@ void RenderingContext::FlushCommandList(CheckpointType type)
 
 bool RenderingContext::WaitForNextCheckpoint(CheckpointType type)
 {
-    return mRenderThread.WaitForCheckpoint(mPayloadAllocator, type);
+    mRenderThread.ScheduleWaitForCheckpoint(mPayloadAllocator, mRTPayload, type);
+    NIPtr<Waitable> w = mRenderThread.Execute(ReplaceRTPayload());
+    if (!w->Wait())
+    {
+        D3D12NI_LOG_ERROR("Failed to wait for RenderThread's checkpoint");
+        return false;
+    }
+
+    return true;
 }
 
 void RenderingContext::Signal(CheckpointType type)

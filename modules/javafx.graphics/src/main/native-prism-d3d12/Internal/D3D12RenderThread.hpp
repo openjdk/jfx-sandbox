@@ -43,6 +43,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
+#include <atomic>
 
 
 namespace D3D12 {
@@ -87,12 +88,12 @@ public:
     bool Init();
     void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
-    NIPtr<Waitable> Execute(RenderPayloadPtr&& payload);
+    const NIPtr<Waitable>& Execute(RenderPayloadPtr&& payload);
     void ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload);
     void ScheduleCommandAllocatorAdvance(LinearAllocator& allocator, RenderPayloadPtr& payload);
     void SchedulePresent(LinearAllocator& allocator, RenderPayloadPtr& payload, const PresentArgs& presentArgs, CheckpointType checkpointType);
     void ScheduleSignal(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type);
-    bool WaitForCheckpoint(LinearAllocator& allocator, CheckpointType type);
+    void ScheduleWaitForCheckpoint(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type);
     void WaitUntilIdle();
     void Exit();
 
