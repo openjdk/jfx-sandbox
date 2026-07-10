@@ -41,6 +41,7 @@ public:
     virtual const D3D12ResourcePtr& GetD3D12Resource() const = 0;
     virtual D3D12_RESOURCE_STATES GetD3D12ResourceState(uint32_t subresource) const = 0;
     virtual void SetD3D12ResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource) = 0;
+    virtual bool NeedsStateTransitions() const = 0;
 };
 
 } // namespace Internal

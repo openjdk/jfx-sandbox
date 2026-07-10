@@ -684,7 +684,7 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
 
     mRenderingContext->CopyToTexture(
         texture, dstx, dsty,
-        /*useStagingBuffer ?*/ stagingBuffer.GetResource().Get() /*: mRingBuffer->GetResource().Get()*/, srcw, srch,
+        /*useStagingBuffer ?*/ stagingBuffer.GetD3D12Resource().Get() /*: mRingBuffer->GetResource().Get()*/, srcw, srch,
         useStagingBuffer ? 0 : ringRegion.offsetFromStart, uploader.GetTargetStride(), uploader.GetTargetFormat()
     );
 

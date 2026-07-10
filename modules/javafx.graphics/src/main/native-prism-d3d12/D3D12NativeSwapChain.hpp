@@ -98,23 +98,28 @@ public:
 
     // ITrackedResource overrides
 
-    inline const D3D12ResourcePtr& GetD3D12Resource() const override
+    inline const D3D12ResourcePtr& GetD3D12Resource() const override final
     {
         return GetBuffer(GetCurrentBufferIndex());
     }
 
-    inline D3D12_RESOURCE_STATES GetD3D12ResourceState(uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) const override
+    inline D3D12_RESOURCE_STATES GetD3D12ResourceState(uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) const override final
     {
         // SwapChain only has one subresource, ignore the parameter
         D3D12NI_ASSERT(subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, "SwapChain only has a single subresource.");
         return GetTexture()->GetD3D12ResourceState(subresource);
     }
 
-    inline void SetD3D12ResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) override
+    inline void SetD3D12ResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) override final
     {
         // SwapChain only has one subresource, ignore the parameter
         D3D12NI_ASSERT(subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, "SwapChain only has a single subresource.");
         GetTexture()->SetD3D12ResourceState(newState, subresource);
+    }
+
+    inline bool NeedsStateTransitions() const override final
+    {
+        return true; // SwapChain buffers are Default-heap textures
     }
 
 

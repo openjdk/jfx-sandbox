@@ -34,6 +34,7 @@
 #include "D3D12PSOManager.hpp"
 #include "D3D12CheckpointQueue.hpp"
 #include "D3D12CommandListPool.hpp"
+#include "D3D12IRenderTarget.hpp"
 #include "D3D12ResourceManager.hpp"
 #include "D3D12ResourceDisposer.hpp"
 
@@ -142,32 +143,16 @@ protected:
     }
 };
 
-struct RenderTargetCommandListData
-{
-    UINT count;
-    D3D12_CPU_DESCRIPTOR_HANDLE rtv;
-    D3D12_CPU_DESCRIPTOR_HANDLE dsv;
-
-    RenderTargetCommandListData()
-        : RenderTargetCommandListData(0, D3D12_CPU_DESCRIPTOR_HANDLE{0}, D3D12_CPU_DESCRIPTOR_HANDLE{0})
-    {}
-
-    RenderTargetCommandListData(UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE& rtv)
-        : RenderTargetCommandListData(count, rtv, D3D12_CPU_DESCRIPTOR_HANDLE{0})
-    {}
-
-    RenderTargetCommandListData(UINT count, const D3D12_CPU_DESCRIPTOR_HANDLE& rtv, const D3D12_CPU_DESCRIPTOR_HANDLE& dsv)
-        : count(count), rtv(rtv), dsv(dsv)
-    {}
-};
-
-class RenderTargetCommandListStep: public CommandListDataStep<RenderTargetCommandListData>
+class RenderTargetCommandListStep: public CommandListDataStep<NIPtr<IRenderTarget>>
 {
 protected:
     virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
     {
+        const Internal::DescriptorData& rtv = mParameter->GetRTVDescriptorData();
+        const Internal::DescriptorData& dsv = mParameter->GetDSVDescriptorData();
+
         commandList->OMSetRenderTargets(
-            mParameter.count, &mParameter.rtv, true, mParameter.dsv.ptr > 0 ? &mParameter.dsv : nullptr
+            rtv.count, &rtv.cpu, true, dsv ? &dsv.cpu : nullptr
         );
     }
 };
@@ -284,7 +269,7 @@ class RenderThreadContext
     QuadVertices AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst);
     BBox AssembleVertexData(void* buffer, const float* vertices, const signed char* colors, size_t elementCount);
     VertexSubregion GetNewRegionForVertices(uint32_t vertexCount);
-    void EnsureBoundTextureStates(const D3D12GraphicsCommandListPtr& commandList, D3D12_RESOURCE_STATES state);
+    void EnsureBoundTexturesState(D3D12_RESOURCE_STATES textureState);
     void SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView);
     void SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView);
 
@@ -324,8 +309,8 @@ public:
     bool Init();
     void ExecuteCurrentCommandList();
 
-    void QueueTextureTransition(const NIPtr<Internal::ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-    void QueueResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+    void QueueResourceTransition(const NIPtr<Internal::ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+    void QueueD3D12ResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
     void SubmitResourceTransitions();
 
     void ApplySteps();

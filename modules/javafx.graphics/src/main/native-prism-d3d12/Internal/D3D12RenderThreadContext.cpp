@@ -190,6 +190,21 @@ RenderThreadContext::VertexSubregion RenderThreadContext::GetNewRegionForVertice
     return m2DVertexBatch.Subregion(vertexCount);
 }
 
+void RenderThreadContext::EnsureBoundTexturesState(D3D12_RESOURCE_STATES texturesState)
+{
+    QueueResourceTransition(renderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    if (renderTarget.Get()->HasDepthTexture())
+        QueueResourceTransition(renderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+    for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
+    {
+        const NIPtr<TextureBase>& tex = resourceManager.GetTexture(i);
+        if (tex) QueueResourceTransition(tex, texturesState);
+    }
+
+    SubmitResourceTransitions();
+}
+
 void RenderThreadContext::SetIndexBuffer(const D3D12_INDEX_BUFFER_VIEW& ibView)
 {
     if (indexBuffer.Get().BufferLocation == ibView.BufferLocation &&
@@ -269,15 +284,16 @@ bool RenderThreadContext::Init()
     return true;
 }
 
-void RenderThreadContext::QueueTextureTransition(const NIPtr<Internal::ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+void RenderThreadContext::QueueResourceTransition(const NIPtr<Internal::ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource)
 {
+    if (!resource->NeedsStateTransitions()) return;
     if (resource->GetD3D12ResourceState(subresource) == newState) return;
 
-    QueueResourceTransition(resource->GetD3D12Resource(), resource->GetD3D12ResourceState(subresource), newState, subresource);
+    QueueD3D12ResourceTransition(resource->GetD3D12Resource(), resource->GetD3D12ResourceState(subresource), newState, subresource);
     resource->SetD3D12ResourceState(newState, subresource);
 }
 
-void RenderThreadContext::QueueResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+void RenderThreadContext::QueueD3D12ResourceTransition(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource)
 {
     D3D12NI_ZERO_STRUCT(barrierQueue[barrierQueueSize]);
     barrierQueue[barrierQueueSize].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -399,6 +415,8 @@ void RenderThreadContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox&
 
     // TODO error reporting
     ApplySteps();
+
+    EnsureBoundTexturesState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
     // Do the draw
     CommandList()->DrawIndexedInstanced(elements, 1, 0, vbOffset, 0);

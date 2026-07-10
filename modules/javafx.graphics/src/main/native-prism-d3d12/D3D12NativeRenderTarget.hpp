@@ -61,19 +61,24 @@ public:
 
     // ITrackedResource overrides
 
-    inline const D3D12ResourcePtr& GetD3D12Resource() const override
+    inline const D3D12ResourcePtr& GetD3D12Resource() const override final
     {
         return GetTexture()->GetD3D12Resource();
     }
 
-    inline D3D12_RESOURCE_STATES GetD3D12ResourceState(uint32_t subresource) const override
+    inline D3D12_RESOURCE_STATES GetD3D12ResourceState(uint32_t subresource) const override final
     {
         return GetTexture()->GetD3D12ResourceState(subresource);
     }
 
-    inline void SetD3D12ResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource) override
+    inline void SetD3D12ResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource) override final
     {
         GetTexture()->SetD3D12ResourceState(newState, subresource);
+    }
+
+    inline bool NeedsStateTransitions() const override final
+    {
+        return true; // RTTs base on Default-heap Textures
     }
 
 

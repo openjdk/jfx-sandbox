@@ -37,7 +37,7 @@ uint64_t Buffer::counter = 0;
 
 Buffer::Buffer(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
-    , mBufferResource(nullptr)
+    , mResource(nullptr)
     , mSize(0)
     , mHeapType(D3D12_HEAP_TYPE_DEFAULT)
     , mDebugName()
@@ -46,13 +46,13 @@ Buffer::Buffer(const NIPtr<NativeDevice>& nativeDevice)
 
 Buffer::~Buffer()
 {
-    mNativeDevice->MarkResourceDisposed(mBufferResource);
+    mNativeDevice->MarkResourceDisposed(mResource);
     mNativeDevice.reset();
 
-    if (mBufferResource)
+    if (mResource)
     {
         // Trace log only if we actually allocated the resource
-        // with mBufferResource being null we never called Init (or it failed)
+        // with mResource being null we never called Init (or it failed)
         D3D12NI_LOG_TRACE("--- Buffer %S destroyed (size %u) ---", mDebugName.c_str(), mSize);
     }
 }
@@ -97,7 +97,7 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
     }
 
     HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
-        &resourceDesc, initialState, nullptr, IID_PPV_ARGS(&mBufferResource));
+        &resourceDesc, initialState, nullptr, IID_PPV_ARGS(&mResource));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Buffer's Committed Resource");
 
     if (mHeapType == D3D12_HEAP_TYPE_UPLOAD)
@@ -107,11 +107,11 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
         if (initialData != nullptr)
         {
             void* bufPtr;
-            hr = mBufferResource->Map(0, nullptr, &bufPtr);
+            hr = mResource->Map(0, nullptr, &bufPtr);
             D3D12NI_RET_IF_FAILED(hr, false, "Failed to Map resource");
 
             memcpy(bufPtr, initialData, size);
-            mBufferResource->Unmap(0, nullptr);
+            mResource->Unmap(0, nullptr);
         }
 
         return true;
@@ -155,19 +155,19 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
     {
         postCopyOldState = D3D12_RESOURCE_STATE_COPY_DEST;
 
-        mNativeDevice->GetRenderingContext()->TransitionResource(mBufferResource, initialState, postCopyOldState);
-        mNativeDevice->GetRenderingContext()->CopyResource(mBufferResource, stagingResource);
+        mNativeDevice->GetRenderingContext()->TransitionResource(mResource, initialState, postCopyOldState);
+        mNativeDevice->GetRenderingContext()->CopyResource(mResource, stagingResource);
     }
 
     // transition our Default-heap resource to its desired state
-    mNativeDevice->GetRenderingContext()->TransitionResource(mBufferResource, postCopyOldState, finalState);
+    mNativeDevice->GetRenderingContext()->TransitionResource(mResource, postCopyOldState, finalState);
 
     // pass Staging Buffer along to release after the command list is flushed
     if (stagingResource) mNativeDevice->MarkResourceDisposed(stagingResource);
 
     mDebugName = L"Buffer_#";
     mDebugName += std::to_wstring(counter++);
-    mBufferResource->SetName(mDebugName.c_str());
+    mResource->SetName(mDebugName.c_str());
 
     stagingResource.Reset();
 
@@ -178,7 +178,7 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
 void* Buffer::Map()
 {
     void* bufPtr;
-    HRESULT hr = mBufferResource->Map(0, nullptr, &bufPtr);
+    HRESULT hr = mResource->Map(0, nullptr, &bufPtr);
     D3D12NI_RET_IF_FAILED(hr, nullptr, "Failed to Map buffer");
 
     return bufPtr;
@@ -186,7 +186,7 @@ void* Buffer::Map()
 
 void Buffer::Unmap()
 {
-    mBufferResource->Unmap(0, nullptr);
+    mResource->Unmap(0, nullptr);
 }
 
 } // namespace Internal

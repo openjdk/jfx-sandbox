@@ -77,11 +77,6 @@ void RenderingContext::RecordClear(float r, float g, float b, float a, bool clea
     }
 }
 
-void RenderingContext::EnsureBoundTextureStates(D3D12_RESOURCE_STATES state)
-{
-    mRTPayload->AddStep(CreateRTExec<EnsureStatesAction>(mPayloadAllocator, mRenderTarget.Get(), state));
-}
-
 void RenderingContext::ClearAppliedFlags()
 {
     mPipelineState.ClearApplied();
@@ -247,7 +242,6 @@ void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, co
         return;
     }
 
-    EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     if (mRTPayload->AddStep(CreateRTExec<DrawQuadsAction>(mPayloadAllocator, mExtraPayloadDataAllocator, vertices, colors, vertexCount)))
     {
         SubmitRTPayload();
@@ -262,7 +256,6 @@ void RenderingContext::DrawMeshView(const NIPtr<NativeMeshView>& meshView)
         return;
     }
 
-    EnsureBoundTextureStates(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     if (mRTPayload->AddStep(CreateRTExec<DrawMeshViewAction>(mPayloadAllocator, meshView)))
     {
         SubmitRTPayload();
@@ -392,7 +385,7 @@ void RenderingContext::CopyTextureToBuffer(const Buffer& dstBuffer, uint32_t dst
 
     D3D12_TEXTURE_COPY_LOCATION dstLoc;
     D3D12NI_ZERO_STRUCT(dstLoc);
-    dstLoc.pResource = dstBuffer.GetResource().Get();
+    dstLoc.pResource = dstBuffer.GetD3D12Resource().Get();
     dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
     dstLoc.PlacedFootprint.Footprint.Width = srcw;
     dstLoc.PlacedFootprint.Footprint.Height = srch;
@@ -500,14 +493,7 @@ bool RenderingContext::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
 
 void RenderingContext::TransitionTrackedResource(const NIPtr<ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource)
 {
-    D3D12_RESOURCE_BARRIER barrier;
-    D3D12NI_ZERO_STRUCT(barrier);
-    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Transition.pResource = nullptr;
-    barrier.Transition.StateAfter = newState;
-    barrier.Transition.Subresource = subresource;
-
-    mRTPayload->AddStep(CreateRTExec<ResourceBarrierAction>(mPayloadAllocator, resource, barrier));
+    mRTPayload->AddStep(CreateRTExec<ResourceTransitionAction>(mPayloadAllocator, resource, newState, subresource));
 }
 
 void RenderingContext::TransitionResource(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource)
@@ -522,7 +508,7 @@ void RenderingContext::TransitionResource(const D3D12ResourcePtr& resource, D3D1
     barrier.Transition.StateAfter = newState;
     barrier.Transition.Subresource = subresource;
 
-    mRTPayload->AddStep(CreateRTExec<ResourceBarrierAction>(mPayloadAllocator, nullptr, barrier));
+    mRTPayload->AddStep(CreateRTExec<ResourceBarrierAction>(mPayloadAllocator, barrier));
 }
 
 void RenderingContext::ClearTextureUnit(uint32_t unit)

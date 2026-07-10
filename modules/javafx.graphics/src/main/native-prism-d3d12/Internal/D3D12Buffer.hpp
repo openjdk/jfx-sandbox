@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,17 +26,19 @@
 #pragma once
 
 #include "D3D12Common.hpp"
+#include "D3D12ITrackedResource.hpp"
 
 
 namespace D3D12 {
 namespace Internal {
 
-class Buffer
+class Buffer: public ITrackedResource
 {
     static uint64_t counter;
 
     NIPtr<NativeDevice> mNativeDevice;
-    D3D12ResourcePtr mBufferResource;
+    D3D12ResourcePtr mResource;
+    D3D12_RESOURCE_STATES mResourceState;
     size_t mSize;
     D3D12_HEAP_TYPE mHeapType;
     std::wstring mDebugName;
@@ -76,12 +78,27 @@ public:
 
     inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUPtr() const
     {
-        return mBufferResource->GetGPUVirtualAddress();
+        return mResource->GetGPUVirtualAddress();
     }
 
-    inline const D3D12ResourcePtr& GetResource() const
+    inline const D3D12ResourcePtr& GetD3D12Resource() const override final
     {
-        return mBufferResource;
+        return mResource;
+    }
+
+    inline D3D12_RESOURCE_STATES GetD3D12ResourceState(uint32_t subresource) const override final
+    {
+        return mResourceState;
+    }
+
+    inline void SetD3D12ResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource) override final
+    {
+        mResourceState = newState;
+    }
+
+    inline bool NeedsStateTransitions() const override final
+    {
+        return (mHeapType == D3D12_HEAP_TYPE_DEFAULT);
     }
 
     inline size_t Size() const

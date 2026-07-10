@@ -66,18 +66,18 @@ public:
     virtual void WriteSRVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipLevels = 0, UINT mostDetailedMip = 0) {}
     virtual void WriteUAVToDescriptor(const D3D12_CPU_DESCRIPTOR_HANDLE& descriptorCpu, UINT mipSlice) {}
 
-    const D3D12ResourcePtr& GetD3D12Resource() const override
+    const D3D12ResourcePtr& GetD3D12Resource() const override final
     {
         return mResource;
     }
 
-    D3D12_RESOURCE_STATES GetD3D12ResourceState(uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) const override
+    D3D12_RESOURCE_STATES GetD3D12ResourceState(uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) const override final
     {
         if (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) return mStates[0];
         else return mStates[subresource];
     }
 
-    void SetD3D12ResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) override
+    void SetD3D12ResourceState(D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES) override final
     {
         if (subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
         {
@@ -90,6 +90,11 @@ public:
         {
             mStates[subresource] = newState;
         }
+    }
+
+    inline bool NeedsStateTransitions() const override final
+    {
+        return true; // Textures are always Default-heap so they always need to transition their states
     }
 
     inline const SamplerDesc& GetSamplerDesc() const

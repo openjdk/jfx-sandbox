@@ -150,17 +150,6 @@ struct DispatchArgs
     {}
 };
 
-struct EnsureStatesArgs
-{
-    NIPtr<IRenderTarget> rt;
-    D3D12_RESOURCE_STATES texState;
-
-    EnsureStatesArgs(const NIPtr<IRenderTarget>& rt, D3D12_RESOURCE_STATES texState)
-        : rt(rt)
-        , texState(texState)
-    {}
-};
-
 struct SwapChainBarrierArgs
 {
     NIPtr<NativeSwapChain> swapChain;
@@ -229,10 +218,11 @@ struct DescriptorHeaps
     D3D12DescriptorHeapPtr samplerHeap;
 };
 
-struct ResourceBarrierArgs
+struct ResourceTransitionArgs
 {
     NIPtr<ITrackedResource> resource;
-    D3D12_RESOURCE_BARRIER barrier;
+    D3D12_RESOURCE_STATES newState;
+    uint32_t subresource;
 };
 
 
@@ -332,21 +322,7 @@ public:
 
     void Execute(const RenderThreadContextPtr& context) override final
     {
-        if (!mData) return;
-
-        const Internal::DescriptorData& rtData = mData->GetRTVDescriptorData();
-        if (mData->IsDepthTestEnabled())
-        {
-            context->renderTarget.Set(RenderTargetCommandListData(
-                rtData.count, rtData.cpu, mData->GetDSVDescriptorData().cpu
-            ));
-        }
-        else
-        {
-            context->renderTarget.Set(RenderTargetCommandListData(
-                rtData.count, rtData.cpu
-            ));
-        }
+        mData ? context->renderTarget.Set(mData) : context->renderTarget.Unset();
     }
 };
 
@@ -418,7 +394,7 @@ public:
 
     void Execute(const RenderThreadContextPtr& context) override final
     {
-        context->QueueTextureTransition(mData.rt->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+        context->QueueResourceTransition(mData.rt->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
         context->SubmitResourceTransitions();
 
         if (mData.hasRect)
@@ -454,7 +430,7 @@ public:
 
     void Execute(const RenderThreadContextPtr& context) override final
     {
-        context->QueueTextureTransition(mData.dt, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+        context->QueueResourceTransition(mData.dt, D3D12_RESOURCE_STATE_DEPTH_WRITE);
         context->SubmitResourceTransitions();
 
         if (mData.hasRect)
@@ -489,13 +465,13 @@ public:
         if (mData.dstLoc.pResource == nullptr)
         {
             mData.dstLoc.pResource = mData.dstResource->GetD3D12Resource().Get();
-            context->QueueTextureTransition(mData.dstResource, D3D12_RESOURCE_STATE_COPY_DEST);
+            context->QueueResourceTransition(mData.dstResource, D3D12_RESOURCE_STATE_COPY_DEST);
         }
 
         if (mData.srcLoc.pResource == nullptr)
         {
             mData.srcLoc.pResource = mData.srcResource->GetD3D12Resource().Get();
-            context->QueueTextureTransition(mData.srcResource, D3D12_RESOURCE_STATE_COPY_SOURCE);
+            context->QueueResourceTransition(mData.srcResource, D3D12_RESOURCE_STATE_COPY_SOURCE);
         }
 
         context->SubmitResourceTransitions();
@@ -529,29 +505,6 @@ public:
     }
 };
 
-class EnsureStatesAction: public RenderThreadDataExecutable<EnsureStatesArgs>
-{
-public:
-    EnsureStatesAction(const NIPtr<IRenderTarget>& rt, D3D12_RESOURCE_STATES texState)
-        : RenderThreadDataExecutable(rt, texState)
-    {}
-
-    void Execute(const RenderThreadContextPtr& context) override final
-    {
-        context->QueueTextureTransition(mData.rt->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-        if (mData.rt->HasDepthTexture())
-            context->QueueTextureTransition(mData.rt->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-        for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
-        {
-            const NIPtr<TextureBase>& tex = context->resourceManager.GetTexture(i);
-            if (tex) context->QueueTextureTransition(tex, mData.texState);
-        }
-
-        context->SubmitResourceTransitions();
-    }
-};
-
 class DrawAction: public RenderThreadDataExecutable<DrawArgs>
 {
 public:
@@ -576,7 +529,7 @@ public:
     {
         mData.swapChain->Prepare(mData.dirtyRegion);
 
-        context->QueueTextureTransition(mData.swapChain->GetTexture(), D3D12_RESOURCE_STATE_PRESENT);
+        context->QueueResourceTransition(mData.swapChain->GetTexture(), D3D12_RESOURCE_STATE_PRESENT);
         context->SubmitResourceTransitions();
     }
 };
@@ -603,8 +556,8 @@ public:
 
     void Execute(const RenderThreadContextPtr& context) override final
     {
-        context->QueueTextureTransition(mData.src, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
-        context->QueueTextureTransition(mData.dst, D3D12_RESOURCE_STATE_RESOLVE_DEST);
+        context->QueueResourceTransition(mData.src, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+        context->QueueResourceTransition(mData.dst, D3D12_RESOURCE_STATE_RESOLVE_DEST);
         context->SubmitResourceTransitions();
 
         context->CommandList()->ResolveSubresource(mData.dst->GetD3D12Resource().Get(), 0, mData.src->GetD3D12Resource().Get(), 0, mData.format);
@@ -620,8 +573,8 @@ public:
 
     void Execute(const RenderThreadContextPtr& context) override final
     {
-        context->QueueTextureTransition(mData.src, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
-        context->QueueTextureTransition(mData.dst, D3D12_RESOURCE_STATE_RESOLVE_DEST);
+        context->QueueResourceTransition(mData.src, D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+        context->QueueResourceTransition(mData.dst, D3D12_RESOURCE_STATE_RESOLVE_DEST);
         context->SubmitResourceTransitions();
 
         context->CommandList()->ResolveSubresourceRegion(mData.dst->GetD3D12Resource().Get(), 0, mData.dstx, mData.dsty,
@@ -630,37 +583,39 @@ public:
     }
 };
 
-// this is an external barrier coming by RenderingContext's demand
-// some cases like Buffer resources don't internally track their state
-// TODO: maybe they should?
-class ResourceBarrierAction: public RenderThreadDataExecutable<ResourceBarrierArgs>
+// this is an external barrier coming by RenderingContext's demand, transitioning an ITrackedResource-derivative
+class ResourceTransitionAction: public RenderThreadDataExecutable<ResourceTransitionArgs>
 {
 public:
-    ResourceBarrierAction(const NIPtr<ITrackedResource>& resource, const D3D12_RESOURCE_BARRIER& barrier)
-        : RenderThreadDataExecutable(resource, barrier)
+    ResourceTransitionAction(const NIPtr<ITrackedResource>& resource, D3D12_RESOURCE_STATES newState)
+        : ResourceTransitionAction(resource, newState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+    {}
+
+    ResourceTransitionAction(const NIPtr<ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource)
+        : RenderThreadDataExecutable(resource, newState, subresource)
     {}
 
     void Execute(const RenderThreadContextPtr& context) override final
     {
-        bool resourceViaProvider = (mData.barrier.Transition.pResource == nullptr);
-
-        if (resourceViaProvider)
-        {
-            D3D12_RESOURCE_STATES oldState = mData.resource->GetD3D12ResourceState(mData.barrier.Transition.Subresource);
-            if (oldState == mData.barrier.Transition.StateAfter) return;
-
-            mData.barrier.Transition.pResource = mData.resource->GetD3D12Resource().Get();
-            mData.barrier.Transition.StateBefore = oldState;
-        }
-
-        context->CommandList()->ResourceBarrier(1, &mData.barrier);
-
-        if (resourceViaProvider)
-        {
-            mData.resource->SetD3D12ResourceState(mData.barrier.Transition.StateAfter, mData.barrier.Transition.Subresource);
-        }
+        context->QueueResourceTransition(mData.resource, mData.newState, mData.subresource);
     }
 };
+
+// this is a Barrier directly placed on the command list. This is separate as a helper when initializing
+// resources like Default-heap Buffers with data
+class ResourceBarrierAction: public RenderThreadDataExecutable<D3D12_RESOURCE_BARRIER>
+{
+public:
+    ResourceBarrierAction(const D3D12_RESOURCE_BARRIER& barrier)
+        : RenderThreadDataExecutable(barrier)
+    {}
+
+    void Execute(const RenderThreadContextPtr& context) override final
+    {
+        context->CommandList()->ResourceBarrier(1, &mData);
+    }
+};
+
 
 
 // Graphics resource-related actions

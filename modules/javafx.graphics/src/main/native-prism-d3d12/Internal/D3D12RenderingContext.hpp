@@ -113,7 +113,6 @@ class RenderingContext
     std::unordered_set<NIPtr<Internal::IRenderTarget>> mUsedRTs;
 
     void RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect);
-    void EnsureBoundTextureStates(D3D12_RESOURCE_STATES state);
     RenderPayloadPtr ReplaceRTPayload(); // creates new payload, returns old one
     void SubmitRTPayload();
 
