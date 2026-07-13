@@ -203,7 +203,7 @@ void RenderingContext::Release()
     mNativeDevice.reset();
 }
 
-void RenderingContext::DisposePageable(const D3D12PageablePtr& pageable)
+void RenderingContext::Dispose(const D3D12PageablePtr& pageable)
 {
     if (mRTPayload)
     {
@@ -212,6 +212,15 @@ void RenderingContext::DisposePageable(const D3D12PageablePtr& pageable)
         // If mRTPayload is not valid (aka empty) then the Render Thread is off because
         // we already stopped it and are closing. Then the main thread can free the resource whenever.
         mRTPayload->AddStep(CreateRTExec<DisposePageableAction>(mPayloadAllocator, pageable));
+    }
+}
+
+void RenderingContext::Dispose(const NIPtr<ITrackedResource>& resource)
+{
+    if (mRTPayload)
+    {
+        // Similar to D3D12 Pageables, we need to actually destroy our NI resources
+        mRTPayload->AddStep(CreateRTExec<DisposeResourceAction>(mPayloadAllocator, resource));
     }
 }
 
@@ -434,7 +443,7 @@ void RenderingContext::CopyTexture(const NIPtr<ITrackedResource>& dstTexture, ui
     mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstTexture, dstLoc, dstx, dsty, srcTexture, srcLoc, srcBox));
 }
 
-void RenderingContext::CopyTextureToBuffer(const Buffer& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
+void RenderingContext::CopyTextureToBuffer(const NIPtr<Buffer>& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
                                           uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch)
 {
     D3D12_TEXTURE_COPY_LOCATION srcLoc;
@@ -453,7 +462,7 @@ void RenderingContext::CopyTextureToBuffer(const Buffer& dstBuffer, uint32_t dst
 
     D3D12_TEXTURE_COPY_LOCATION dstLoc;
     D3D12NI_ZERO_STRUCT(dstLoc);
-    dstLoc.pResource = dstBuffer.GetD3D12Resource().Get();
+    dstLoc.pResource = dstBuffer->GetD3D12Resource().Get();
     dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
     dstLoc.PlacedFootprint.Footprint.Width = srcw;
     dstLoc.PlacedFootprint.Footprint.Height = srch;

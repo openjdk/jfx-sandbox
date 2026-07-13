@@ -124,7 +124,8 @@ public:
     bool Init();
     void Release();
 
-    void DisposePageable(const D3D12PageablePtr& pageable);
+    void Dispose(const D3D12PageablePtr& pageable);
+    void Dispose(const NIPtr<Internal::ITrackedResource>& resource);
 
     bool Apply();
     bool ApplyCompute();
@@ -147,7 +148,7 @@ public:
                      const NIPtr<ITrackedResource>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
     void CopyTexture(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
                      const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
-    void CopyTextureToBuffer(const Buffer& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
+    void CopyTextureToBuffer(const NIPtr<Buffer>& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
                              uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
     void CopyToTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
                        ID3D12Resource* srcResource, uint32_t srcw, uint32_t srch, uint64_t srcOffset,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,16 @@ bool NativeMesh::Init()
     return true;
 }
 
+void NativeMesh::Release()
+{
+    mNativeDevice->MarkDisposed(mVertexBuffer);
+    mNativeDevice->MarkDisposed(mIndexBuffer);
+
+    // clear current references so we don't double-dispose of VB/IB
+    mVertexBuffer.reset();
+    mIndexBuffer.reset();
+}
+
 bool NativeMesh::BuildGeometryBuffers(const void* vbData, size_t vbSize, const void* ibData, size_t ibSize, DXGI_FORMAT ibFormat)
 {
     mVertexBuffer = mNativeDevice->CreateBuffer(vbData, vbSize, false, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
@@ -77,6 +87,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeMesh_nReleaseNativ
 {
     if (!ptr) return;
 
+    D3D12::GetNIObject<D3D12::NativeMesh>(ptr)->Release();
     D3D12::FreeNIObject<D3D12::NativeMesh>(ptr);
 }
 

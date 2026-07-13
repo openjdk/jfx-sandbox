@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -125,7 +125,7 @@ void DescriptorAllocator::Free(const DescriptorData& data)
     {
         // we advanced past this heap as our "recent useable" one and it has been completely freed
         // which means we can dispose of it
-        mNativeDevice->MarkResourceDisposed(heap.GetHeap());
+        mNativeDevice->MarkDisposed(heap.GetHeap());
         mHeaps.erase(heapIt);
     }
 }

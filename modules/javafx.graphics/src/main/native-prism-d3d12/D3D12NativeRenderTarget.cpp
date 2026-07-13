@@ -152,6 +152,8 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeRenderTarget_nRele
 {
     if (!ptr) return;
 
+    const D3D12::NIPtr<D3D12::NativeRenderTarget>& rtt = D3D12::GetNIObject<D3D12::NativeRenderTarget>(ptr);
+    rtt->GetDevice()->MarkDisposed(rtt);
     D3D12::FreeNIObject<D3D12::NativeRenderTarget>(ptr);
 }
 

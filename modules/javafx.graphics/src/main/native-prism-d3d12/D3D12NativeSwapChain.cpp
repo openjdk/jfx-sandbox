@@ -191,7 +191,47 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
 
 void NativeSwapChain::Release()
 {
+    // while NativeSwapChain inherits IRenderTarget and as such also inherits ITrackableResource
+    // we cannot simply submit the disposal of this SwapChain to RenderThread and instead we
+    // must wait until RenderThread and GPU complete their jobs. The main reason is that HWND
+    // we use to create the SwapChain can only be owned by one DXGI SwapChain.
+    //
+    // If we marked this SwapChain as disposed via mNativeDevice->MarkDisposed() there is a chance
+    // it would still be alive by the time we recreate the SwapChain while ex. resizing. This would
+    // mean HWND is still held by the old SwapChain and DXGI would return an "Access Denied" error
+    // when calling CreateSwapChain*() again. Instead, we wait here to empty NativeSwapChain references
+    // on the RenderThread and then clean the shared_ptr right after, which frees the HWND for the next
+    // SwapChain instance.
     mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
+}
+
+// called by main thread (Quantum)
+bool NativeSwapChain::Resize(UINT width, UINT height)
+{
+    // complete current RenderThread jobs
+    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
+
+    // mark all buffers as disposed and wait for GPU to complete
+    for (size_t i = 0; i < mTextureBuffers.size(); ++i)
+    {
+        mTextureBuffers[i].reset();
+    }
+
+    HRESULT hr = mSwapChain->ResizeBuffers(mBufferCount, width, height, DXGI_FORMAT_UNKNOWN, mSwapChainFlags);
+    D3D12NI_RET_IF_FAILED(hr, false, "Failed to resize SwapChain buffers");
+
+    if (!GetSwapChainBuffers(mBufferCount))
+    {
+        return false;
+    }
+
+    mCurrentBufferIdx = mSwapChain->GetCurrentBackBufferIndex();
+
+    D3D12_RESOURCE_DESC desc = mTextureBuffers[0]->GetD3D12Resource()->GetDesc();
+    mWidth = static_cast<UINT>(desc.Width);
+    mHeight = static_cast<UINT>(desc.Height);
+
+    return true;
 }
 
 // called by QuantumRenderer Thread
@@ -246,35 +286,6 @@ bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadContex
     }
 
     mCurrentBufferIdx = mSwapChain->GetCurrentBackBufferIndex();
-
-    return true;
-}
-
-// called by main thread (Quantum)
-bool NativeSwapChain::Resize(UINT width, UINT height)
-{
-    // complete current RenderThread jobs
-    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
-
-    // mark all buffers as disposed and wait for GPU to complete
-    for (size_t i = 0; i < mTextureBuffers.size(); ++i)
-    {
-        mTextureBuffers[i].reset();
-    }
-
-    HRESULT hr = mSwapChain->ResizeBuffers(mBufferCount, width, height, DXGI_FORMAT_UNKNOWN, mSwapChainFlags);
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to resize SwapChain buffers");
-
-    if (!GetSwapChainBuffers(mBufferCount))
-    {
-        return false;
-    }
-
-    mCurrentBufferIdx = mSwapChain->GetCurrentBackBufferIndex();
-
-    D3D12_RESOURCE_DESC desc = mTextureBuffers[0]->GetD3D12Resource()->GetDesc();
-    mWidth = static_cast<UINT>(desc.Width);
-    mHeight = static_cast<UINT>(desc.Height);
 
     return true;
 }

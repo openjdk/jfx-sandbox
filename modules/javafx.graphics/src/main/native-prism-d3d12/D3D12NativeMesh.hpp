@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,7 @@ public:
     NativeMesh(const NIPtr<NativeDevice>& nativeDevice);
 
     bool Init();
+    void Release();
     bool BuildGeometryBuffers(const void* vbData, size_t vbSize, const void* ibData, size_t ibSize, DXGI_FORMAT ibFormat);
 
     const NIPtr<Internal::Buffer>& GetVertexBuffer() const

@@ -46,7 +46,6 @@ Buffer::Buffer(const NIPtr<NativeDevice>& nativeDevice)
 
 Buffer::~Buffer()
 {
-    mNativeDevice->MarkResourceDisposed(mResource);
     mNativeDevice.reset();
 
     if (mResource)
@@ -163,7 +162,7 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
     mNativeDevice->GetRenderingContext()->TransitionResource(mResource, postCopyOldState, finalState);
 
     // pass Staging Buffer along to release after the command list is flushed
-    if (stagingResource) mNativeDevice->MarkResourceDisposed(stagingResource);
+    if (stagingResource) mNativeDevice->MarkDisposed(stagingResource);
 
     mDebugName = L"Buffer_#";
     mDebugName += std::to_wstring(counter++);

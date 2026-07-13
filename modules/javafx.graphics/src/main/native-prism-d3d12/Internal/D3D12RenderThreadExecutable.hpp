@@ -795,6 +795,22 @@ public:
     }
 };
 
+class DisposeResourceAction: public RenderThreadDataExecutable<NIPtr<ITrackedResource>>
+{
+public:
+    DisposeResourceAction(const NIPtr<ITrackedResource>& resource)
+        : RenderThreadDataExecutable(resource)
+    {}
+
+    void Execute(const RenderThreadContextPtr& context) override final
+    {
+        if (context)
+        {
+            context->resourceDisposer.MarkDisposed(mData);
+        }
+    }
+};
+
 class DrawQuadsAction: public RenderThreadExecutable
 {
     const uint32_t FLOATS_PER_VERTEX = 7;

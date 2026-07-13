@@ -110,7 +110,8 @@ public:
                                         TextureUsage usage, TextureWrapMode wrapMode, int samples, bool useMipmap);
     int GetMaximumMSAASampleSize(DXGI_FORMAT format) const;
     int GetMaximumTextureSize() const;
-    void MarkResourceDisposed(const D3D12PageablePtr& pageable);
+    void MarkDisposed(const D3D12PageablePtr& pageable);
+    void MarkDisposed(const NIPtr<Internal::ITrackedResource>& resource);
 
     void Clear(float r, float g, float b, float a, bool clearDepth);
     void ClearTextureUnit(uint32_t unit);

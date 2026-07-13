@@ -74,8 +74,8 @@ public:
 
     bool Init(const DXGIFactoryPtr& factory, HWND hwnd);
     void Release();
-    void WaitForAvailableBuffer();
     bool Resize(UINT width, UINT height);
+    void WaitForAvailableBuffer();
 
     // runs on Render Thread
     bool Prepare(const D3D12_RECT& dirtyRegion);
@@ -125,6 +125,7 @@ public:
 
     // IWaitableOperation overrides
 
+    // runs on Render Thread
     void OnQueueSignal(CheckpointType type, uint64_t fenceValue) override;
     void OnFenceSignaled(CheckpointType type, uint64_t fenceValue) override;
 

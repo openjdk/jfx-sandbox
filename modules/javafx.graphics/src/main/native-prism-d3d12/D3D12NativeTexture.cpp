@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -130,11 +130,6 @@ NativeTexture::NativeTexture(const NIPtr<NativeDevice>& nativeDevice)
 
 NativeTexture::~NativeTexture()
 {
-    if (mResource)
-    {
-        mNativeDevice->MarkResourceDisposed(mResource);
-    }
-
     if (mSRVDescriptor)
     {
         mNativeDevice->GetSRVDescriptorAllocator()->Free(mSRVDescriptor);
@@ -207,7 +202,7 @@ bool NativeTexture::Resize(UINT width, UINT height)
     mResourceDesc.Width = width;
     mResourceDesc.Height = height;
 
-    mNativeDevice->MarkResourceDisposed(GetD3D12Resource());
+    mNativeDevice->MarkDisposed(GetD3D12Resource());
 
     return InitInternal(mResourceDesc);
 }
@@ -266,6 +261,8 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeTexture_nReleaseNa
 {
     if (!ptr) return;
 
+    const D3D12::NIPtr<D3D12::NativeTexture>& tex = D3D12::GetNIObject<D3D12::NativeTexture>(ptr);
+    tex->GetDevice()->MarkDisposed(tex);
     D3D12::FreeNIObject<D3D12::NativeTexture>(ptr);
 }
 

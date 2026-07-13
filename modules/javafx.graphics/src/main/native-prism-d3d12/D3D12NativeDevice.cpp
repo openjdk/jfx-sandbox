@@ -335,12 +335,17 @@ int NativeDevice::GetMaximumTextureSize() const
     return D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION;
 }
 
-void NativeDevice::MarkResourceDisposed(const D3D12PageablePtr& pageable)
+void NativeDevice::MarkDisposed(const D3D12PageablePtr& pageable)
 {
     // This MIGHT be called when cleaning up on close, when RenderingContext is already destroyed.
     // Prevent any potential issues - if RenderingContext is gone pageables can be
     // safely cleaned by the main thread.
-    if (mRenderingContext) mRenderingContext->DisposePageable(pageable);
+    if (mRenderingContext && pageable) mRenderingContext->Dispose(pageable);
+}
+
+void NativeDevice::MarkDisposed(const NIPtr<Internal::ITrackedResource>& resource)
+{
+    if (mRenderingContext && resource) mRenderingContext->Dispose(resource);
 }
 
 void NativeDevice::Clear(float r, float g, float b, float a, bool clearDepth)
@@ -575,8 +580,8 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
     // TODO: D3D12: consider using a separate Command Queue for transfer operations
     // TODO: D3D12: maybe this should be more than a simple Readback resource? investigate
     //              performance reasons, maybe we could avoid allocation here
-    Internal::Buffer readbackBuffer(shared_from_this());
-    if (!readbackBuffer.Init(nullptr, readbackBufferSize, D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST))
+    NIPtr<Internal::Buffer> readbackBuffer = std::make_shared<Internal::Buffer>(shared_from_this());
+    if (!readbackBuffer->Init(nullptr, readbackBufferSize, D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST))
     {
         D3D12NI_LOG_ERROR("Failed to initialize readback buffer for texture read");
         return false;
@@ -589,7 +594,7 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
     mRenderingContext->FlushCommandList(CheckpointType::TRANSFER);
     mRenderingContext->WaitForNextCheckpoint(CheckpointType::TRANSFER);
 
-    void* readbackPtr = readbackBuffer.Map();
+    void* readbackPtr = readbackBuffer->Map();
     if (readbackPtr == nullptr)
     {
         D3D12NI_LOG_ERROR("Failed to map readback buffer for texture read");
@@ -623,7 +628,8 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
         }
     }
 
-    readbackBuffer.Unmap();
+    readbackBuffer->Unmap();
+    mRenderingContext->Dispose(readbackBuffer);
 
     return true;
 }
@@ -644,18 +650,18 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
     bool useStagingBuffer = true;//targetSize > copyThreshold;
 
     Internal::RingBuffer::Region ringRegion;
-    Internal::Buffer stagingBuffer(shared_from_this());
+    NIPtr<Internal::Buffer> stagingBuffer = std::make_shared<Internal::Buffer>(shared_from_this());
     if (useStagingBuffer)
     {
         // for larger textures allocate a dedicated staging buffer
         // uploader will handle its initialization
-        if (!stagingBuffer.Init(nullptr, targetSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ))
+        if (!stagingBuffer->Init(nullptr, targetSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ))
         {
             D3D12NI_LOG_ERROR("Failed to allocate a staging buffer for large texture upload");
             return false;
         }
 
-        uploader.SetTarget(stagingBuffer.Map(), stagingBuffer.Size(), texture->GetFormat());
+        uploader.SetTarget(stagingBuffer->Map(), stagingBuffer->Size(), texture->GetFormat());
     }
     else
     {
@@ -679,16 +685,21 @@ bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void
 
     if (useStagingBuffer)
     {
-        stagingBuffer.Unmap();
+        stagingBuffer->Unmap();
     }
 
     mRenderingContext->CopyToTexture(
         texture, dstx, dsty,
-        /*useStagingBuffer ?*/ stagingBuffer.GetD3D12Resource().Get() /*: mRingBuffer->GetResource().Get()*/, srcw, srch,
+        /*useStagingBuffer ?*/ stagingBuffer->GetD3D12Resource().Get() /*: mRingBuffer->GetResource().Get()*/, srcw, srch,
         useStagingBuffer ? 0 : ringRegion.offsetFromStart, uploader.GetTargetStride(), uploader.GetTargetFormat()
     );
 
     mRenderingContext->GenerateMipmaps(texture);
+
+    if (useStagingBuffer)
+    {
+        mRenderingContext->Dispose(stagingBuffer);
+    }
 
     return true;
 }

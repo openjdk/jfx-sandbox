@@ -33,7 +33,7 @@ namespace Internal {
 
 ResourceDisposer::ResourceDisposer(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
-    , mPageablesToPurge()
+    , mPurgeCheckpoints()
 {
     mNativeDevice->GetRenderingContext()->RegisterWaitableOperation(this);
 }
@@ -49,40 +49,47 @@ void ResourceDisposer::MarkDisposed(const D3D12PageablePtr& pageable)
     // which did not have Init() called for it
     if (!pageable) return;
 
-    if (mPageablesToPurge.empty() || mPageablesToPurge.back().fenceValue > 0)
+    if (mPurgeCheckpoints.empty() || mPurgeCheckpoints.back().fenceValue > 0)
     {
-        mPageablesToPurge.emplace_back();
+        mPurgeCheckpoints.emplace_back();
     }
 
-    mPageablesToPurge.back().pageables.emplace_back(std::move(pageable));
+    mPurgeCheckpoints.back().pageables.emplace_back(std::move(pageable));
 }
 
+void ResourceDisposer::MarkDisposed(const NIPtr<ITrackedResource>& resource)
+{
+    if (!resource) return;
+
+    if (mPurgeCheckpoints.empty() || mPurgeCheckpoints.back().fenceValue > 0)
+    {
+        mPurgeCheckpoints.emplace_back();
+    }
+
+    mPurgeCheckpoints.back().resources.emplace_back(std::move(resource));
+}
 
 void ResourceDisposer::OnQueueSignal(CheckpointType, uint64_t fenceValue)
 {
-    if (!mPageablesToPurge.empty() && mPageablesToPurge.back().fenceValue == 0)
+    if (!mPurgeCheckpoints.empty() && mPurgeCheckpoints.back().fenceValue == 0)
     {
-        mPageablesToPurge.back().fenceValue = fenceValue;
+        mPurgeCheckpoints.back().fenceValue = fenceValue;
     }
 }
 
 void ResourceDisposer::OnFenceSignaled(CheckpointType, uint64_t fenceValue)
 {
-    while (!mPageablesToPurge.empty())
+    while (!mPurgeCheckpoints.empty())
     {
-        PageablePurgeCheckpoint& checkpoint = mPageablesToPurge.front();
+        PurgeCheckpoint& checkpoint = mPurgeCheckpoints.front();
 
         // Skip this checkpoint if OnQueueSignal was not yet called (checkpoint's fence value is 0) or
         // if our command list has not yet finished (checkpoint's fence value is higher than the provided one)
         // We assume checkpoints will be allocated in always incremental order, like in RingContainer
         if (checkpoint.fenceValue == 0 || checkpoint.fenceValue > fenceValue) break;
 
-        for (D3D12PageablePtr& p: checkpoint.pageables)
-        {
-            p.Reset();
-        }
-
-        mPageablesToPurge.pop_front();
+        // pop the checkpoint which will destroy all smart pointers (both pageables and NI resources)
+        mPurgeCheckpoints.pop_front();
     }
 }
 

@@ -59,6 +59,11 @@ public:
     bool Refresh();
     void SetDepthTestEnabled(bool enabled);
 
+    inline const NIPtr<NativeDevice>& GetDevice() const
+    {
+        return mNativeDevice;
+    }
+
     // ITrackedResource overrides
 
     inline const D3D12ResourcePtr& GetD3D12Resource() const override final
