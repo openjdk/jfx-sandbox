@@ -33,7 +33,6 @@
 #include "D3D12Buffer.hpp"
 #include "D3D12CheckpointQueue.hpp"
 #include "D3D12CommandListPool.hpp"
-//#include "D3D12GPURingBuffer.hpp"
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12LinearAllocator.hpp"
 #include "D3D12Matrix.hpp"
@@ -112,16 +111,11 @@ class RenderingContext
     // start tracking anew
     std::unordered_set<NIPtr<Internal::IRenderTarget>> mUsedRTs;
 
-    void RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect);
     RenderPayloadPtr ReplaceRTPayload(); // creates new payload, returns old one
     void SubmitRTPayload();
-
-    void SyncToRenderThread();
-    void ExecuteCurrentCommandList();
+    void RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect);
+    BBox EstimateDirtyBBox(const MemoryView<float>& vertices, uint32_t vertexCount);
     void ClearAppliedFlags();
-
-    bool DeclareRingResources();
-    bool DeclareComputeRingResources();
 
 public:
     RenderingContext(const NIPtr<NativeDevice>& nativeDevice);
@@ -146,8 +140,13 @@ public:
     void ResolveRegion(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
                        const NIPtr<ITrackedResource>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
                        DXGI_FORMAT resolveFormat);
+    void ResolveRegion(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
+                       const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
+                       DXGI_FORMAT resolveFormat);
     void CopyTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
                      const NIPtr<ITrackedResource>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
+    void CopyTexture(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
+                     const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
     void CopyTextureToBuffer(const Buffer& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
                              uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
     void CopyToTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,

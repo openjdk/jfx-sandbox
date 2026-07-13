@@ -44,6 +44,7 @@
 #include <memory>
 #include <string>
 #include <cstring>
+#include <sstream>
 #include <cmath>
 #include <cassert>
 #include <algorithm>
@@ -381,7 +382,15 @@ struct BBox
         // bbox is valid only when it's max coords are higher than min coords
         // we don't consider equal coords as valid either, it would mean 0 width
         // or 0 height which is not an actual area
-        return (min.x < max.x) && (min.y < max.y);
+        return (min.x <= max.x) && (min.y <= max.y);
+    }
+
+    inline std::string ToString() const
+    {
+        std::stringstream ss;
+        ss.precision(2);
+        ss << '{' << min.x << ", " << min.y << "; " << max.x << ", " << max.y << '}';
+        return ss.str();
     }
 };
 

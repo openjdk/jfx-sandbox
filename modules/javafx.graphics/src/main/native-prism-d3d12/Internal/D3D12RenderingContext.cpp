@@ -75,6 +75,31 @@ void RenderingContext::RecordClear(float r, float g, float b, float a, bool clea
             mRenderTarget.Get()->GetDepthTexture(), mRenderTarget.Get()->GetDSVDescriptorData().CPU(0),  1.0f, clearRect
         ));
     }
+
+    mRenderTarget.Get()->ResetDirtyBBox();
+}
+
+BBox RenderingContext::EstimateDirtyBBox(const MemoryView<float>& vertices, uint32_t vertexCount)
+{
+    // vertices array contains 7 floats - XYZ, UV1 and UV2
+    // we will iterate the array every 7 floats and only consider the first three here
+    const uint32_t FLOATS_PER_VERTEX = 7;
+    BBox bbox;
+
+    // only create a valid bbox when we render a quad
+    // quad is the only way we can be sure bbox is valid
+    // TODO: D3D12: maybe we should lift that limitation some day, would require reworking
+    // bbox merging though and might be too heavy CPU wise
+    if (vertexCount == 4)
+    {
+        for (uint32_t i = 0; i < vertexCount * FLOATS_PER_VERTEX; i += FLOATS_PER_VERTEX)
+        {
+            const Coords_XYZ_FLOAT* vertex = reinterpret_cast<const Coords_XYZ_FLOAT*>(&vertices.Data()[i]);
+            bbox.Merge(vertex->x, vertex->y, vertex->x, vertex->y);
+        }
+    }
+
+    return bbox;
 }
 
 void RenderingContext::ClearAppliedFlags()
@@ -236,6 +261,39 @@ void RenderingContext::ClearDepth(const NIPtr<NativeTexture>& depthTexture, cons
 
 void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors, uint32_t vertexCount)
 {
+    bool clearDiscarded = false;
+    CompositeMode currentCompositeMode = mPipelineState.Get().compositeMode;
+    BBox dirtyBBox = EstimateDirtyBBox(vertices, vertexCount);
+
+    if (mClearOptState.clearDelayed)
+    {
+        // Check if we can discard this clear.
+        // The clear can be discarded if we use composite mode SRC_OVER and
+        // this draw call will overwrite the entire to-be-cleared area of the RTT.
+        //
+        // NOTE: compared to other parts related to Clear optimization here we're being
+        // a bit more cautions with coordinates - min bbox gets ceil-ed while max bbox gets floor-ed.
+        // There can be situations where despite coordinates crossing the 0.5 rounding "barrier" the
+        // runtime won't actually render and overwrite pixels on the RTT (happens occasionally in CircleBlendAdd
+        // renderperf test). This will create single-frame artifacts, because old RTT contents won't be
+        // overwritten by the primitive we want to draw. To prevent those occasional artifacts we must push
+        // a Clear() through here - under-estimating BBox coordinates makes it possible and ensures visual
+        // correctness when using clear optimizations.
+        if (currentCompositeMode == CompositeMode::SRC_OVER && dirtyBBox.Valid() &&
+            std::ceil(dirtyBBox.min.x) <= mClearOptState.clearRect.left  && std::ceil(dirtyBBox.min.y) <= mClearOptState.clearRect.top &&
+            std::floor(dirtyBBox.max.x) >= mClearOptState.clearRect.right && std::floor(dirtyBBox.max.y) >= mClearOptState.clearRect.bottom)
+        {
+            clearDiscarded = true;
+            SetCompositeMode(CompositeMode::SRC);
+        }
+        else
+        {
+            RecordClear(0.0f, 0.0f, 0.0f, 0.0f, mClearOptState.clearDepth, mClearOptState.clearRect);
+        }
+
+        mClearOptState.clearDelayed = false;
+    }
+
     if (!Apply())
     {
         D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping Draw Quads call.");
@@ -245,6 +303,14 @@ void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, co
     if (mRTPayload->AddStep(CreateRTExec<DrawQuadsAction>(mPayloadAllocator, mExtraPayloadDataAllocator, vertices, colors, vertexCount)))
     {
         SubmitRTPayload();
+    }
+
+    mRenderTarget.Get()->UpdateDirtyBBox(dirtyBBox);
+
+    if (clearDiscarded)
+    {
+        // restore original composite mode
+        SetCompositeMode(currentCompositeMode);
     }
 }
 
@@ -283,21 +349,6 @@ bool RenderingContext::PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain,
     return true;
 }
 
-/* LKTODO restore when clear opts are restored
-void RenderingContext::ResolveRegion(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
-                                     const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
-                                     DXGI_FORMAT resolveFormat)
-{
-    ResolveRegion(dstRT->GetTexture(), dstx, dsty, srcTexture, srcx, srcy, srcw, srch, resolveFormat);
-    dstRT->UpdateDirtyBBox(BBox(
-        static_cast<float>(dstx),
-        static_cast<float>(dsty),
-        static_cast<float>(dstx + srcw),
-        static_cast<float>(dsty + srch)
-    ));
-
-}
-*/
 bool RenderingContext::Present(const NIPtr<NativeSwapChain>& swapChain)
 {
     swapChain->WaitForAvailableBuffer();
@@ -305,12 +356,29 @@ bool RenderingContext::Present(const NIPtr<NativeSwapChain>& swapChain)
     mRTPayload->AddStep(CreateRTExec<PresentAction>(mPayloadAllocator, swapChain));
     SubmitRTPayload();
 
+    mPayloadAllocator.ResetChunks();
+    mExtraPayloadDataAllocator.ResetChunks();
+
     return true;
 }
 
 void RenderingContext::Resolve(const NIPtr<ITrackedResource>& dstTexture, const NIPtr<ITrackedResource>& srcTexture, DXGI_FORMAT resolveFormat)
 {
     mRTPayload->AddStep(CreateRTExec<ResolveAction>(mPayloadAllocator, dstTexture, srcTexture, resolveFormat));
+}
+
+void RenderingContext::ResolveRegion(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
+                                     const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch,
+                                     DXGI_FORMAT resolveFormat)
+{
+    dstRT->UpdateDirtyBBox(BBox(
+        static_cast<float>(dstx),
+        static_cast<float>(dsty),
+        static_cast<float>(dstx + srcw),
+        static_cast<float>(dsty + srch)
+    ));
+
+    ResolveRegion(std::dynamic_pointer_cast<ITrackedResource>(dstRT), dstx, dsty, srcTexture, srcx, srcy, srcw, srch, resolveFormat);
 }
 
 void RenderingContext::ResolveRegion(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
@@ -326,19 +394,19 @@ void RenderingContext::ResolveRegion(const NIPtr<ITrackedResource>& dstTexture, 
     mRTPayload->AddStep(CreateRTExec<ResolveRegionAction>(mPayloadAllocator, dstTexture, dstx, dsty, srcTexture, srcRect, resolveFormat));
 }
 
-/* LKTODO restore when clear opts are restored
 void RenderingContext::CopyTexture(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
                                    const NIPtr<TextureBase>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch)
 {
-    CopyTexture(dstRT->GetTexture(), dstx, dsty, srcTexture, srcx, srcy, srcw, srch);
     dstRT->UpdateDirtyBBox(BBox(
         static_cast<float>(dstx),
         static_cast<float>(dsty),
         static_cast<float>(dstx + srcw),
         static_cast<float>(dsty + srch)
     ));
+
+    CopyTexture(std::dynamic_pointer_cast<ITrackedResource>(dstRT), dstx, dsty, srcTexture, srcx, srcy, srcw, srch);
 }
-*/
+
 void RenderingContext::CopyTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
                                    const NIPtr<ITrackedResource>& srcTexture, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch)
 {
@@ -702,7 +770,6 @@ bool RenderingContext::Apply()
     // other settings (RootSignatures, Descriptors etc) are all set separately
     mComputePipelineState.ClearApplied();
 
-    // Prepare Resource Manager
     mTextures.AddToPayload(mPayloadAllocator, mRTPayload);
     mVertexShader.AddToPayload(mPayloadAllocator, mRTPayload);
     mPixelShader.AddToPayload(mPayloadAllocator, mRTPayload);
@@ -776,8 +843,6 @@ void RenderingContext::FinishFrame()
     mRenderThread.ScheduleCommandAllocatorAdvance(mPayloadAllocator, mRTPayload);
 
     // skipping Signal() and Execute() here, will be done by Present()
-    mPayloadAllocator.ResetChunks();
-    mExtraPayloadDataAllocator.ResetChunks();
 
     for (const auto& rt: mUsedRTs)
     {

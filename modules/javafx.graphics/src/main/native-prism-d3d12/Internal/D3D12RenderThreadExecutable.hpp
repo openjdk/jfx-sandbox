@@ -837,9 +837,11 @@ public:
 
     void Execute(const RenderThreadContextPtr& context) override final
     {
-        uint32_t vbOffset = 0;
-        BBox box = context->PrepareQuadsDraw(mVertexData, mColorData, mVertexCount, vbOffset);
-        context->Draw((mVertexCount / 4) * 6, vbOffset, box);
+        uint32_t vbOffset = context->PrepareQuadsDraw(mVertexData, mColorData, mVertexCount);
+        if (vbOffset != std::numeric_limits<uint32_t>::max())
+        {
+            context->Draw((mVertexCount / 4) * 6, vbOffset);
+        }
     }
 };
 

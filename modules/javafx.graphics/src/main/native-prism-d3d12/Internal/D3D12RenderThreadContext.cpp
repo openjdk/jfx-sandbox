@@ -112,11 +112,10 @@ RenderThreadContext::QuadVertices RenderThreadContext::AssembleVertexQuadForBlit
 
 // NOTE technically we don't query buffer ptr's size, but this function assumes we reserved enough
 // space already.
-BBox RenderThreadContext::AssembleVertexData(void* buffer, const float* vertices,
-                                          const signed char* colors, size_t elementCount)
+void RenderThreadContext::AssembleVertexData(void* buffer, const float* vertices,
+                                             const signed char* colors, size_t elementCount)
 {
     Vertex_2D* bufVertices = reinterpret_cast<Vertex_2D*>(buffer);
-    BBox bbox;
 
     size_t vertIdx = 0;
     size_t colorIdx = 0;
@@ -134,20 +133,6 @@ BBox RenderThreadContext::AssembleVertexData(void* buffer, const float* vertices
         bufVertices[i].uv2.u = vertices[vertIdx++];
         bufVertices[i].uv2.v = vertices[vertIdx++];
     }
-
-    if (elementCount == 4)
-    {
-        // only create a valid bbox when we render a quad
-        // quad is the only way we can be sure bbox is valid
-        // TODO: D3D12: maybe we should lift that limitation some day, would require reworking
-        // bbox merging though and might be too heavy CPU wise
-        for (UINT i = 0; i < elementCount; ++i)
-        {
-            bbox.Merge(bufVertices[i].pos.x, bufVertices[i].pos.y, bufVertices[i].pos.x, bufVertices[i].pos.y);
-        }
-    }
-
-    return bbox;
 }
 
 RenderThreadContext::VertexSubregion RenderThreadContext::GetNewRegionForVertices(uint32_t vertexCount)
@@ -374,45 +359,6 @@ void RenderThreadContext::ClearAppliedSteps()
 
 void RenderThreadContext::Draw(uint32_t elements, uint32_t vbOffset)
 {
-    BBox invalidBox;
-    Draw(elements, vbOffset, invalidBox);
-}
-
-void RenderThreadContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox& dirtyBBox)
-{
-    /* LKTODO clear opts restore
-    bool clearDiscarded = false;
-    CompositeMode currentCompositeMode = pipelineState.Get().compositeMode;
-
-    if (mClearOptState.clearDelayed)
-    {
-        // Check if we can discard this clear.
-        // The clear can be discarded if we use composite mode SRC_OVER and
-        // this draw call will overwrite the entire to-be-cleared area of the RTT.
-        //
-        // NOTE: compared to other parts related to Clear optimization here we're being
-        // a bit more cautions with coordinates - min bbox gets ceil-ed while max bbox gets floor-ed.
-        // There can be situations where despite coordinates crossing the 0.5 rounding "barrier" the
-        // runtime won't actually render and overwrite pixels on the RTT (happens occasionally in CircleBlendAdd
-        // renderperf test). This will create single-frame artifacts, because old RTT contents won't be
-        // overwritten by the primitive we want to draw. To prevent those occasional artifacts we must push
-        // a Clear() through here - under-estimating BBox coordinates makes it possible and ensures visual
-        // correctness when using clear optimizations.
-        if (currentCompositeMode == CompositeMode::SRC_OVER && dirtyBBox.Valid() &&
-            std::ceil(dirtyBBox.min.x) <= mClearOptState.clearRect.left  && std::ceil(dirtyBBox.min.y) <= mClearOptState.clearRect.top &&
-            std::floor(dirtyBBox.max.x) >= mClearOptState.clearRect.right && std::floor(dirtyBBox.max.y) >= mClearOptState.clearRect.bottom)
-        {
-            clearDiscarded = true;
-            SetCompositeMode(CompositeMode::SRC);
-        }
-        else
-        {
-            RecordClear(0.0f, 0.0f, 0.0f, 0.0f, mClearOptState.clearDepth, mClearOptState.clearRect);
-        }
-
-        mClearOptState.clearDelayed = false;
-    }*/
-
     // TODO error reporting
     ApplySteps();
 
@@ -420,15 +366,6 @@ void RenderThreadContext::Draw(uint32_t elements, uint32_t vbOffset, const BBox&
 
     // Do the draw
     CommandList()->DrawIndexedInstanced(elements, 1, 0, vbOffset, 0);
-
-    /* LKTODO restore clear opts
-    mRenderTarget.Get()->UpdateDirtyBBox(dirtyBBox);
-
-    if (clearDiscarded)
-    {
-        // restore original composite mode
-        SetCompositeMode(currentCompositeMode);
-    }*/
 }
 
 void RenderThreadContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
@@ -438,7 +375,7 @@ void RenderThreadContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
     CommandList()->Dispatch(x, y, z);
 }
 
-BBox RenderThreadContext::PrepareQuadsDraw(float* vertices, signed char* colors, uint32_t vertexCount, uint32_t& vbOffset)
+uint32_t RenderThreadContext::PrepareQuadsDraw(float* vertices, signed char* colors, uint32_t vertexCount)
 {
     D3D12_INDEX_BUFFER_VIEW ibView;
     ibView.BufferLocation = m2DIndexBuffer.GetGPUPtr();
@@ -446,16 +383,13 @@ BBox RenderThreadContext::PrepareQuadsDraw(float* vertices, signed char* colors,
     ibView.Format = DXGI_FORMAT_R16_UINT;
     SetIndexBuffer(ibView);
 
-    BBox box;
-
     VertexSubregion vertexRegion = GetNewRegionForVertices(vertexCount);
-    if (!vertexRegion) return box;
+    if (!vertexRegion) return std::numeric_limits<uint32_t>::max();
 
-    box = AssembleVertexData(vertexRegion.subregion.cpu, vertices, colors, vertexCount);
+    AssembleVertexData(vertexRegion.subregion.cpu, vertices, colors, vertexCount);
     SetVertexBuffer(vertexRegion.view);
 
-    vbOffset = vertexRegion.startOffset;
-    return box;
+    return vertexRegion.startOffset;
 }
 
 void RenderThreadContext::PrepareMeshViewDraw(const NIPtr<NativeMeshView>& meshView)
