@@ -262,8 +262,9 @@ class RenderThreadContext
 
     CommandListPool mCommandListPool;
     VertexBatch m2DVertexBatch;
-    Internal::Buffer m2DIndexBuffer;
-    Internal::RingBuffer mVertexRingBuffer; // used for 2D Vertex data
+    Buffer m2DIndexBuffer;
+    RingBuffer mVertexRingBuffer; // used for 2D Vertex data
+    RingBuffer mDataRingBuffer; // used for small Texture upload and other stuff
 
     bool Build2DIndexBuffer();
     QuadVertices AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst);
@@ -321,6 +322,8 @@ public:
     void PrepareMeshViewDraw(const NIPtr<NativeMeshView>& meshView);
     void Draw(uint32_t elements, uint32_t vbOffset);
     void Dispatch(uint32_t x, uint32_t y, uint32_t z);
+    void UpdateSmallTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
+                            const void* srcData, size_t srcDataSize, const D3D12_TEXTURE_COPY_LOCATION& srcLoc);
 
     inline void Invalidate2DVertexBatch()
     {

@@ -82,6 +82,7 @@ void LinearAllocator::MoveToNewChunk()
     Expand();
 }
 
+// TODO: D3D12: Should allocators use size_t instead of uint32_t? this would affect the chunk header size
 void* LinearAllocator::Allocate(uint32_t size)
 {
     D3D12NI_ASSERT(std::this_thread::get_id() == mInitThreadId, "Allocate() can only be called by the initializing (main) thread");

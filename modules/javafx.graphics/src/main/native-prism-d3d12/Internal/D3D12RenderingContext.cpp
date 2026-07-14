@@ -32,6 +32,7 @@
 #include "D3D12MipmapGenComputeShader.hpp"
 #include "D3D12Profiler.hpp"
 #include "D3D12RenderPayload.hpp"
+#include "D3D12TextureUploader.hpp"
 #include "D3D12Utils.hpp"
 
 
@@ -219,7 +220,7 @@ void RenderingContext::Dispose(const NIPtr<ITrackedResource>& resource)
 {
     if (mRTPayload)
     {
-        // Similar to D3D12 Pageables, we need to actually destroy our NI resources
+        // Similar to D3D12 Pageables, we need to properly destroy our NI resources when they're no longer used
         mRTPayload->AddStep(CreateRTExec<DisposeResourceAction>(mPayloadAllocator, resource));
     }
 }
@@ -474,28 +475,90 @@ void RenderingContext::CopyTextureToBuffer(const NIPtr<Buffer>& dstBuffer, uint3
     mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, nullptr, dstLoc, 0, 0, srcTexture, srcLoc, srcBox));
 }
 
-void RenderingContext::CopyToTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
-                                     ID3D12Resource* srcResource, uint32_t srcw, uint32_t srch, uint64_t srcOffset,
-                                     uint32_t srcStride, DXGI_FORMAT format)
+bool RenderingContext::UpdateTexture(const NIPtr<NativeTexture>& dstTexture, uint32_t dstx, uint32_t dsty,
+                                     const void* srcData, size_t srcDataBytes, uint32_t srcx, uint32_t srcy,
+                                     uint32_t srcw, uint32_t srch, uint32_t srcStride, PixelFormat srcFormat)
 {
-    D3D12_TEXTURE_COPY_LOCATION srcLoc;
-    D3D12NI_ZERO_STRUCT(srcLoc);
-    srcLoc.pResource = srcResource;
-    srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-    srcLoc.PlacedFootprint.Footprint.Width = srcw;
-    srcLoc.PlacedFootprint.Footprint.Height = srch;
-    srcLoc.PlacedFootprint.Footprint.Depth = 1;
-    srcLoc.PlacedFootprint.Footprint.RowPitch = srcStride;
-    srcLoc.PlacedFootprint.Footprint.Format = format;
-    srcLoc.PlacedFootprint.Offset = srcOffset;
+    size_t targetSize = TextureUploader::EstimateTargetSize(srcw, srch, dstTexture->GetFormat());
 
-    D3D12_TEXTURE_COPY_LOCATION dstLoc;
-    D3D12NI_ZERO_STRUCT(dstLoc);
-    dstLoc.pResource = nullptr; // set later by RenderThread
-    dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-    dstLoc.SubresourceIndex = 0;
+    Internal::TextureUploader uploader;
+    uploader.SetSource(srcData, srcDataBytes, srcFormat, srcx, srcy, srcw, srch, srcStride);
 
-    mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstTexture, dstLoc, dstx, dsty, nullptr, srcLoc));
+    size_t copyThreshold = Internal::Config::MainRingBufferThreshold() / 2;
+    bool useStagingBuffer = targetSize > copyThreshold;
+
+    Internal::RingBuffer::Region ringRegion;
+    NIPtr<Internal::Buffer> stagingBuffer = std::make_shared<Internal::Buffer>(mNativeDevice);
+    if (useStagingBuffer)
+    {
+        // for larger textures allocate a dedicated staging buffer
+        // uploader will handle its initialization
+        if (!stagingBuffer->Init(nullptr, targetSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ))
+        {
+            D3D12NI_LOG_ERROR("Failed to allocate a staging buffer for large texture upload");
+            return false;
+        }
+
+        uploader.SetTarget(stagingBuffer->Map(), stagingBuffer->Size(), dstTexture->GetFormat());
+
+        if (!uploader.Upload())
+        {
+            D3D12NI_LOG_ERROR("Failed to upload texture data to Staging Buffer");
+            return false;
+        }
+
+        stagingBuffer->Unmap();
+
+        // perform a copy
+        D3D12_TEXTURE_COPY_LOCATION srcLoc;
+        D3D12NI_ZERO_STRUCT(srcLoc);
+        srcLoc.pResource = stagingBuffer->GetD3D12Resource().Get();
+        srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        srcLoc.PlacedFootprint.Footprint.Width = srcw;
+        srcLoc.PlacedFootprint.Footprint.Height = srch;
+        srcLoc.PlacedFootprint.Footprint.Depth = 1;
+        srcLoc.PlacedFootprint.Footprint.RowPitch = uploader.GetTargetStride();
+        srcLoc.PlacedFootprint.Footprint.Format = uploader.GetTargetFormat();
+        srcLoc.PlacedFootprint.Offset = 0;
+
+        D3D12_TEXTURE_COPY_LOCATION dstLoc;
+        D3D12NI_ZERO_STRUCT(dstLoc);
+        dstLoc.pResource = nullptr; // set later by RenderThread
+        dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        dstLoc.SubresourceIndex = 0;
+
+        mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstTexture, dstLoc, dstx, dsty, nullptr, srcLoc));
+
+        Dispose(stagingBuffer);
+    }
+    else
+    {
+        // copying smaller textures will go via Payload's extra data allocator to prevent unnecessary malloc
+        // later on RenderThread will push this data through a Ring Buffer
+        CopyToTextureSmallArgs args(mExtraPayloadDataAllocator, targetSize, dstTexture, dstx, dsty);
+
+        uploader.SetTarget(args.GetSourceDataBuffer(), targetSize, dstTexture->GetFormat());
+        if (!uploader.Upload())
+        {
+            D3D12NI_LOG_ERROR("Failed to prepare texture data for small upload");
+            return false;
+        }
+
+        D3D12_TEXTURE_COPY_LOCATION srcLoc;
+        D3D12NI_ZERO_STRUCT(srcLoc);
+        srcLoc.pResource = nullptr; // overwritten by RenderThread when executing the step
+        srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        srcLoc.PlacedFootprint.Footprint.Width = srcw;
+        srcLoc.PlacedFootprint.Footprint.Height = srch;
+        srcLoc.PlacedFootprint.Footprint.Depth = 1;
+        srcLoc.PlacedFootprint.Footprint.RowPitch = uploader.GetTargetStride();
+        srcLoc.PlacedFootprint.Footprint.Format = uploader.GetTargetFormat();
+
+        args.srcLoc = srcLoc;
+        mRTPayload->AddStep(CreateRTExec<CopyToTextureSmallAction>(mPayloadAllocator, std::move(args)));
+    }
+
+    return true;
 }
 
 void RenderingContext::CopyBufferRegion(const D3D12ResourcePtr& dst, uint64_t dstOffset, const D3D12ResourcePtr& src, uint64_t srcOffset, uint64_t size)

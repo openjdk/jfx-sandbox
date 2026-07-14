@@ -635,73 +635,14 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
 }
 
 bool NativeDevice::UpdateTexture(const NIPtr<NativeTexture>& texture, const void* data, size_t dataSizeBytes, PixelFormat srcFormat,
-                                 uint32_t dstx, uint32_t dsty, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch, uint32_t srcstride)
+                                 uint32_t dstx, uint32_t dsty, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch, uint32_t srcStride)
 {
-    size_t targetSize = Internal::TextureUploader::EstimateTargetSize(srcw, srch, texture->GetFormat());
-
-    // first, source data must land on the Ring Buffer
-    // TODO: D3D12: consider using a separate Command Queue for transfer operations
-
-    Internal::TextureUploader uploader;
-    uploader.SetSource(data, dataSizeBytes, srcFormat, srcx, srcy, srcw, srch, srcstride);
-
-    // LKTODO reactivate after CommandQueue is moved to RenderThread
-    size_t copyThreshold = 0;//mRingBuffer->FlushThreshold();
-    bool useStagingBuffer = true;//targetSize > copyThreshold;
-
-    Internal::RingBuffer::Region ringRegion;
-    NIPtr<Internal::Buffer> stagingBuffer = std::make_shared<Internal::Buffer>(shared_from_this());
-    if (useStagingBuffer)
+    if (!mRenderingContext->UpdateTexture(texture, dstx, dsty, data, dataSizeBytes, srcx, srcy, srcw, srch, srcStride, srcFormat))
     {
-        // for larger textures allocate a dedicated staging buffer
-        // uploader will handle its initialization
-        if (!stagingBuffer->Init(nullptr, targetSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ))
-        {
-            D3D12NI_LOG_ERROR("Failed to allocate a staging buffer for large texture upload");
-            return false;
-        }
-
-        uploader.SetTarget(stagingBuffer->Map(), stagingBuffer->Size(), texture->GetFormat());
-    }
-    else
-    {
-        // copying smaller textures will go via the Ring Buffer to prevent unnecessary allocation
-        // mRingBuffer->DeclareRequired(targetSize);
-        // ringRegion = mRingBuffer->Reserve(targetSize);
-        // if (ringRegion.cpu == nullptr)
-        // {
-        //     D3D12NI_LOG_ERROR("Failed to reserve space in the Ring Buffer (full?)");
-        //     return false;
-        // }
-
-        // uploader.SetTarget(ringRegion.cpu, ringRegion.size, texture->GetFormat());
-    }
-
-    if (!uploader.Upload())
-    {
-        D3D12NI_LOG_ERROR("Failed to upload texture data to Ring Buffer");
         return false;
     }
 
-    if (useStagingBuffer)
-    {
-        stagingBuffer->Unmap();
-    }
-
-    mRenderingContext->CopyToTexture(
-        texture, dstx, dsty,
-        /*useStagingBuffer ?*/ stagingBuffer->GetD3D12Resource().Get() /*: mRingBuffer->GetResource().Get()*/, srcw, srch,
-        useStagingBuffer ? 0 : ringRegion.offsetFromStart, uploader.GetTargetStride(), uploader.GetTargetFormat()
-    );
-
-    mRenderingContext->GenerateMipmaps(texture);
-
-    if (useStagingBuffer)
-    {
-        mRenderingContext->Dispose(stagingBuffer);
-    }
-
-    return true;
+    return mRenderingContext->GenerateMipmaps(texture);
 }
 
 bool NativeDevice::PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion)

@@ -215,6 +215,7 @@ RenderThreadContext::RenderThreadContext(const NIPtr<NativeDevice>& nativeDevice
     , m2DVertexBatch()
     , m2DIndexBuffer(nativeDevice)
     , mVertexRingBuffer(nativeDevice, flushCallback, waitCallback)
+    , mDataRingBuffer(nativeDevice, flushCallback, waitCallback)
     , PSOManager(nativeDevice)
     , resourceManager(nativeDevice, flushCallback, waitCallback)
     , resourceDisposer(nativeDevice)
@@ -249,6 +250,13 @@ bool RenderThreadContext::Init()
     if (!mVertexRingBuffer.Init(Config::MainRingBufferThreshold(), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT))
     {
         D3D12NI_LOG_ERROR("Failed to initialize the Vertex Ring Buffer");
+        return false;
+    }
+
+    mDataRingBuffer.SetDebugName("Extra Data Ring Buffer");
+    if (!mDataRingBuffer.Init(Config::MainRingBufferThreshold(), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT))
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize the Extra Data Ring Buffer");
         return false;
     }
 
@@ -373,6 +381,32 @@ void RenderThreadContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
     ApplyComputeSteps();
 
     CommandList()->Dispatch(x, y, z);
+}
+
+void RenderThreadContext::UpdateSmallTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,
+                                             const void* srcData, size_t srcDataSize, const D3D12_TEXTURE_COPY_LOCATION& srcLoc)
+{
+    mDataRingBuffer.DeclareRequired(srcDataSize);
+    RingBuffer::Region region = mDataRingBuffer.Reserve(srcDataSize);
+    if (!region)
+    {
+        D3D12NI_LOG_ERROR("Failed to reserve space for small texture update");
+        return;
+    }
+
+    memcpy(region.cpu, srcData, srcDataSize);
+
+    D3D12_TEXTURE_COPY_LOCATION properSrcLoc(srcLoc);
+    properSrcLoc.pResource = mDataRingBuffer.GetResource().Get();
+    properSrcLoc.PlacedFootprint.Offset = region.offsetFromStart;
+
+    D3D12_TEXTURE_COPY_LOCATION dstLoc;
+    D3D12NI_ZERO_STRUCT(dstLoc);
+    dstLoc.pResource = dstTexture->GetD3D12Resource().Get();
+    dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    dstLoc.SubresourceIndex = 0;
+
+    CommandList()->CopyTextureRegion(&dstLoc, dstx, dsty, 0, &properSrcLoc, nullptr);
 }
 
 uint32_t RenderThreadContext::PrepareQuadsDraw(float* vertices, signed char* colors, uint32_t vertexCount)

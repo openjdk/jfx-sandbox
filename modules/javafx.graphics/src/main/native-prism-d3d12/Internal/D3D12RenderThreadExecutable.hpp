@@ -106,6 +106,61 @@ struct CopyTextureArgs
     {}
 };
 
+struct CopyToTextureSmallArgs
+{
+private:
+    LinearAllocator& allocator;
+    size_t srcDataSize;
+    void* srcData;
+
+public:
+    NIPtr<ITrackedResource> dstResource;
+    uint32_t dstx;
+    uint32_t dsty;
+    D3D12_TEXTURE_COPY_LOCATION srcLoc;
+
+    CopyToTextureSmallArgs(LinearAllocator& allocator, size_t srcDataSize, const NIPtr<ITrackedResource>& dstResource, uint32_t dstx, uint32_t dsty)
+        : allocator(allocator)
+        , srcDataSize(srcDataSize)
+        , srcData(this->allocator.Allocate(static_cast<uint32_t>(srcDataSize)))
+        , dstResource(dstResource)
+        , dstx(dstx)
+        , dsty(dsty)
+        , srcLoc() // remains uninitialized, after upload we will provide it
+    {}
+
+    CopyToTextureSmallArgs(CopyToTextureSmallArgs&& other)
+        : allocator(other.allocator)
+        , srcDataSize(other.srcDataSize)
+        , srcData(other.srcData)
+        , dstResource(std::move(other.dstResource))
+        , dstx(other.dstx)
+        , dsty(other.dsty)
+        , srcLoc(other.srcLoc)
+    {
+        other.srcData = nullptr;
+    }
+
+    ~CopyToTextureSmallArgs()
+    {
+        if (srcData)
+        {
+            allocator.Free(srcData);
+            srcData = nullptr;
+        }
+    }
+
+    inline void* GetSourceDataBuffer() const
+    {
+        return srcData;
+    }
+
+    inline size_t GetSourceDataSize() const
+    {
+        return srcDataSize;
+    }
+};
+
 struct CopyBufferRegionArgs
 {
     D3D12ResourcePtr dst;
@@ -502,6 +557,22 @@ public:
     void Execute(const RenderThreadContextPtr& context) override final
     {
         context->CommandList()->CopyResource(mData.dst.Get(), mData.src.Get());
+    }
+};
+
+class CopyToTextureSmallAction: public RenderThreadDataExecutable<CopyToTextureSmallArgs>
+{
+public:
+    CopyToTextureSmallAction(CopyToTextureSmallArgs&& args)
+        : RenderThreadDataExecutable(std::move(args))
+    {}
+
+    void Execute(const RenderThreadContextPtr& context) override final
+    {
+        context->QueueResourceTransition(mData.dstResource, D3D12_RESOURCE_STATE_COPY_DEST);
+        context->SubmitResourceTransitions();
+
+        context->UpdateSmallTexture(mData.dstResource, mData.dstx, mData.dsty, mData.GetSourceDataBuffer(), mData.GetSourceDataSize(), mData.srcLoc);
     }
 };
 
