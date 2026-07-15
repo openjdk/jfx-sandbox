@@ -97,6 +97,68 @@ const NIPtr<Internal::Shader>& NativeDevice::GetPhongPixelShader(const PhongShad
     return GetInternalShader(name.data());
 }
 
+void NativeDevice::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst,
+                                             QuadVertices& vertices, QuadColors& colors)
+{
+    uint32_t srcWidth = src.x1 - src.x0;
+    uint32_t srcHeight = src.y1 - src.y0;
+    uint32_t dstWidth = dst.x1 - dst.x0;
+    uint32_t dstHeight = dst.y1 - dst.y0;
+
+    // default viewport coordinates are from -1 to 1
+    // so destination has to be doubled and shifted from 0-2 range to -1-1 range
+    Coords_UV_FLOAT srcTexelSize{ 1.0f / srcWidth, 1.0f / srcHeight };
+    Coords_UV_FLOAT dstTexelSize{ 2.0f / dstWidth, 2.0f / dstHeight };
+
+    // dstBox V coord is inverted because of d3d12's coordinate system
+    Coords_UV_FLOAT srcBoxTexelsMin{ src.x0 * srcTexelSize.u, src.y0 * srcTexelSize.v };
+    Coords_UV_FLOAT srcBoxTexelsMax{ src.x1 * srcTexelSize.u, src.y1 * srcTexelSize.v };
+    Coords_UV_FLOAT dstBoxTexelsMin{ (dst.x0 * dstTexelSize.u) - 1.0f, (dst.y1 * dstTexelSize.v) - 1.0f };
+    Coords_UV_FLOAT dstBoxTexelsMax{ (dst.x1 * dstTexelSize.u) - 1.0f, (dst.y0 * dstTexelSize.v) - 1.0f };
+
+    // Build a fullscreen quad used for slow blit path
+    uint32_t idx = 0;
+
+    // vertex 0
+    vertices[idx + 0] = dstBoxTexelsMin.u; // pos.x
+    vertices[idx + 1] = dstBoxTexelsMin.v; // pos.y
+    vertices[idx + 3] = srcBoxTexelsMin.u; // uv1.u
+    vertices[idx + 4] = srcBoxTexelsMin.v; // uv1.v
+    idx += 7;
+
+    // vertex 1
+    vertices[idx + 0] = dstBoxTexelsMin.u; // pos.x
+    vertices[idx + 1] = dstBoxTexelsMax.v; // pos.y
+    vertices[idx + 3] = srcBoxTexelsMin.u; // uv1.u
+    vertices[idx + 4] = srcBoxTexelsMax.v; // uv1.v
+    idx += 7;
+
+    // vertex 2
+    vertices[idx + 0] = dstBoxTexelsMax.u; // pos.x
+    vertices[idx + 1] = dstBoxTexelsMin.v; // pos.y
+    vertices[idx + 3] = srcBoxTexelsMax.u; // uv1.u
+    vertices[idx + 4] = srcBoxTexelsMin.v; // uv1.v
+    idx += 7;
+
+    // vertex 3
+    vertices[idx + 0] = dstBoxTexelsMax.u; // pos.x
+    vertices[idx + 1] = dstBoxTexelsMax.v; // pos.y
+    vertices[idx + 3] = srcBoxTexelsMax.u; // uv1.u
+    vertices[idx + 4] = srcBoxTexelsMax.v; // uv1.v
+
+    // fill remaining fields
+    for (size_t i = 0; i < vertices.size(); i += 7)
+    {
+        vertices[i + 2] = 0.0f; // pos.z
+        vertices[i + 5] = vertices[i + 3]; // uv2.u == uv1.u
+        vertices[i + 6] = vertices[i + 4]; // uv2.v == uv1.v
+    }
+
+    for (size_t i = 0; i < colors.size(); ++i)
+    {
+        colors[i] = 255;
+    }
+}
 
 
 NativeDevice::NativeDevice()
@@ -106,7 +168,7 @@ NativeDevice::NativeDevice()
     , mFrameCounter(0)
     , mProfilerTransferWaitSourceID(0)
     , mProfilerFrameTimeID(0)
-    , mMidframeFlushNeeded(false)
+    , mMidframeFlushNeeded(false) // LKTODO cleanup
     , mRootSignatureManager()
     , mRenderingContext()
     , mRTVAllocator()
@@ -116,7 +178,6 @@ NativeDevice::NativeDevice()
     , mPhongVS()
     , mCurrent2DShader()
     , m2DCompositeMode()
-    //, mRingBuffer() // LKTODO Move to RenderingContext
 {
 }
 
@@ -179,15 +240,6 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
         D3D12NI_LOG_ERROR("Failed to initialize Rendering Context");
         return false;
     }
-
-    /* LKTODO reactivate after CommandQueue is moved to RenderThread
-    mRingBuffer = std::make_shared<Internal::RingBuffer>(shared_from_this());
-    mRingBuffer->SetDebugName("Main Ring Buffer");
-    if (!mRingBuffer->Init(Internal::Config::MainRingBufferThreshold(), D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT))
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize main Ring Buffer");
-        return false;
-    }*/
 
     mRTVAllocator = std::make_shared<Internal::DescriptorAllocator>(shared_from_this());
     if (!mRTVAllocator->Init(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false))
@@ -358,7 +410,7 @@ void NativeDevice::ClearTextureUnit(uint32_t unit)
     mRenderingContext->ClearTextureUnit(unit);
 }
 
-void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors,
+void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<unsigned char>& colors,
                                uint32_t vertexCount)
 {
     // vertex count size check, also serves as an overflow check
@@ -553,12 +605,13 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
         mRenderingContext->SetCompositeMode(CompositeMode::SRC);
 
         // prepare quad vertices for blitting
-        // TODO - maybe it would make more sense to merge this into "DrawBlitQuad" in RenderingContext
-       /* LKTODO restore blit
-        uint32_t vbOffset = 0;
-        BBox box = mRenderingContext->SetVertexBufferForBlit(src, dst, vbOffset);
+        QuadVertices vertices;
+        QuadColors colors;
+        AssembleVertexQuadForBlit(src, dst, vertices, colors);
 
-        mRenderingContext->Draw(6, vbOffset, box);*/
+        Internal::MemoryView<float> verticesView(vertices.data(), vertices.size() * sizeof(float));
+        Internal::MemoryView<unsigned char> colorsView(colors.data(), colors.size() * sizeof(unsigned char));
+        mRenderingContext->DrawQuads(verticesView, colorsView, 4);
 
         // restore original context parameters
         mRenderingContext->RestoreStashedParameters();
@@ -813,7 +866,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nRenderQuad
 
     D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->RenderQuads(
         D3D12::Internal::MemoryView<float>(reinterpret_cast<const float*>(vertsArray.Data()), vertsArray.Size()),
-        D3D12::Internal::MemoryView<signed char>(reinterpret_cast<const signed char*>(colorsArray.Data()), colorsArray.Size()),
+        D3D12::Internal::MemoryView<unsigned char>(reinterpret_cast<const unsigned char*>(colorsArray.Data()), colorsArray.Size()),
         static_cast<uint32_t>(elementCount)
     );
 }

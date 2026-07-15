@@ -113,7 +113,7 @@ RenderThreadContext::QuadVertices RenderThreadContext::AssembleVertexQuadForBlit
 // NOTE technically we don't query buffer ptr's size, but this function assumes we reserved enough
 // space already.
 void RenderThreadContext::AssembleVertexData(void* buffer, const float* vertices,
-                                             const signed char* colors, size_t elementCount)
+                                             const unsigned char* colors, size_t elementCount)
 {
     Vertex_2D* bufVertices = reinterpret_cast<Vertex_2D*>(buffer);
 
@@ -409,7 +409,7 @@ void RenderThreadContext::UpdateSmallTexture(const NIPtr<ITrackedResource>& dstT
     CommandList()->CopyTextureRegion(&dstLoc, dstx, dsty, 0, &properSrcLoc, nullptr);
 }
 
-uint32_t RenderThreadContext::PrepareQuadsDraw(float* vertices, signed char* colors, uint32_t vertexCount)
+uint32_t RenderThreadContext::PrepareQuadsDraw(float* vertices, unsigned char* colors, uint32_t vertexCount)
 {
     D3D12_INDEX_BUFFER_VIEW ibView;
     ibView.BufferLocation = m2DIndexBuffer.GetGPUPtr();

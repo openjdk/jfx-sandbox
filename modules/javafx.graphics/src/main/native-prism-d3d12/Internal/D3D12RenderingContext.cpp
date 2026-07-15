@@ -269,7 +269,7 @@ void RenderingContext::ClearDepth(const NIPtr<NativeTexture>& depthTexture, cons
     mRTPayload->AddStep(CreateRTExec<ClearDepthStencilAction>(mPayloadAllocator, depthTexture, dsv, 1.0f));
 }
 
-void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors, uint32_t vertexCount)
+void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<unsigned char>& colors, uint32_t vertexCount)
 {
     bool clearDiscarded = false;
     CompositeMode currentCompositeMode = mPipelineState.Get().compositeMode;
@@ -326,6 +326,14 @@ void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, co
 
 void RenderingContext::DrawMeshView(const NIPtr<NativeMeshView>& meshView)
 {
+    if (mClearOptState.clearDelayed)
+    {
+        // we delayed a clear but for mesh view we don't do clear opts
+        // execute the clear right now
+        RecordClear(0.0f, 0.0f, 0.0f, 0.0f, mClearOptState.clearDepth, mClearOptState.clearRect);
+        mClearOptState.clearDelayed = false;
+    }
+
     if (!Apply())
     {
         D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping Draw Mesh View call.");

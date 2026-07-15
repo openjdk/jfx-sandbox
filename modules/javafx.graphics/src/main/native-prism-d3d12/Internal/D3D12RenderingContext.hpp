@@ -131,7 +131,7 @@ public:
     bool ApplyCompute();
     void Clear(float r, float g, float b, float a, bool clearDepth);
     void ClearDepth(const NIPtr<NativeTexture>& depthTexture, const D3D12_CPU_DESCRIPTOR_HANDLE& dsv);
-    void DrawQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors, uint32_t vertexCount);
+    void DrawQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<unsigned char>& colors, uint32_t vertexCount);
     void DrawMeshView(const NIPtr<NativeMeshView>& meshView);
     void Dispatch(uint32_t x, uint32_t y, uint32_t z);
     bool PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion);

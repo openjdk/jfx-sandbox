@@ -268,7 +268,7 @@ class RenderThreadContext
 
     bool Build2DIndexBuffer();
     QuadVertices AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst);
-    void AssembleVertexData(void* buffer, const float* vertices, const signed char* colors, size_t elementCount);
+    void AssembleVertexData(void* buffer, const float* vertices, const unsigned char* colors, size_t elementCount);
     VertexSubregion GetNewRegionForVertices(uint32_t vertexCount);
     void EnsureBoundTexturesState(D3D12_RESOURCE_STATES textureState);
     void SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView);
@@ -318,7 +318,7 @@ public:
     void ApplyComputeSteps();
     void ClearAppliedSteps();
 
-    uint32_t PrepareQuadsDraw(float* vertices, signed char* colors, uint32_t vertexCount);
+    uint32_t PrepareQuadsDraw(float* vertices, unsigned char* colors, uint32_t vertexCount);
     void PrepareMeshViewDraw(const NIPtr<NativeMeshView>& meshView);
     void Draw(uint32_t elements, uint32_t vbOffset);
     void Dispatch(uint32_t x, uint32_t y, uint32_t z);

@@ -60,6 +60,9 @@ namespace D3D12 {
 
 class NativeDevice: public std::enable_shared_from_this<NativeDevice>
 {
+    using QuadVertices = std::array<float, 7 * 4>; // 7 floats per quad - pos, uv1, uv2
+    using QuadColors = std::array<unsigned char, 4 * 4>; // 4 colors per quad - rgba
+
     IDXGIAdapter1* mAdapter;
     D3D12DevicePtr mDevice;
     uint32_t mFenceValue;
@@ -78,7 +81,6 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::Shader> mPhongVS;
     NIPtr<Internal::Shader> mCurrent2DShader;
     CompositeMode m2DCompositeMode;
-    NIPtr<Internal::RingBuffer> mRingBuffer; // used for smaller read-once-by-GPU data (ex. texture upload)
 
     struct Transforms
     {
@@ -88,6 +90,8 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     } mTransforms;
 
     const NIPtr<Internal::Shader>& GetPhongPixelShader(const PhongShaderSpec& spec) const;
+    void AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst,
+                                   QuadVertices& vertices, QuadColors& colors);
 
 public:
     NativeDevice();
@@ -115,7 +119,7 @@ public:
 
     void Clear(float r, float g, float b, float a, bool clearDepth);
     void ClearTextureUnit(uint32_t unit);
-    void RenderQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<signed char>& colors,
+    void RenderQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<unsigned char>& colors,
                      uint32_t vertexCount);
     void RenderMeshView(const NIPtr<NativeMeshView>& meshView);
     void SetCompositeMode(CompositeMode mode);

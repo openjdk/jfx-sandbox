@@ -892,16 +892,16 @@ class DrawQuadsAction: public RenderThreadExecutable
     uint32_t mVerticesBytes;
     uint32_t mColorsBytes;
     float* mVertexData;
-    signed char* mColorData;
+    unsigned char* mColorData;
 
 public:
-    DrawQuadsAction(LinearAllocator& allocator, const MemoryView<float>& vertices, const MemoryView<signed char>& colors, uint32_t vertexCount)
+    DrawQuadsAction(LinearAllocator& allocator, const MemoryView<float>& vertices, const MemoryView<unsigned char>& colors, uint32_t vertexCount)
         : mAllocator(allocator)
         , mVertexCount(vertexCount)
         , mVerticesBytes(vertexCount * FLOATS_PER_VERTEX * sizeof(float))
         , mColorsBytes(vertexCount * CHARS_PER_VERTEX * sizeof(signed char))
         , mVertexData(reinterpret_cast<float*>(allocator.Allocate(mVerticesBytes)))
-        , mColorData(reinterpret_cast<signed char*>(allocator.Allocate(mColorsBytes)))
+        , mColorData(reinterpret_cast<unsigned char*>(allocator.Allocate(mColorsBytes)))
     {
         memcpy(mVertexData, vertices.Data(), mVerticesBytes);
         memcpy(mColorData, colors.Data(), mColorsBytes);
