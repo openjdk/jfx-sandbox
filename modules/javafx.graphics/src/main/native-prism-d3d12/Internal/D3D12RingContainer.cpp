@@ -58,7 +58,7 @@ bool RingContainer::AwaitNextCheckpoint(size_t needed)
         {
             // NOTE: we landed here because Ring Container couldn't allocate any more
             // data but we never set any checkpoints. This means either threshold is very
-            // high, or we attempt to reserve large amount of data.
+            // low, or we attempt to reserve large amount of data.
             // This is a last resort which shouldn't be triggered or it can cause issues.
             // If it is triggered, better to adjust Ring Container parameters (or fix something
             // somewhere else) to prevent it from triggering.

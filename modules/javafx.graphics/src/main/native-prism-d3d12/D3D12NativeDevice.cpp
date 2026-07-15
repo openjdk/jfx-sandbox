@@ -124,21 +124,21 @@ void NativeDevice::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const
     vertices[idx + 1] = dstBoxTexelsMin.v; // pos.y
     vertices[idx + 3] = srcBoxTexelsMin.u; // uv1.u
     vertices[idx + 4] = srcBoxTexelsMin.v; // uv1.v
-    idx += 7;
+    idx += FLOATS_PER_2D_VERTEX;
 
     // vertex 1
     vertices[idx + 0] = dstBoxTexelsMin.u; // pos.x
     vertices[idx + 1] = dstBoxTexelsMax.v; // pos.y
     vertices[idx + 3] = srcBoxTexelsMin.u; // uv1.u
     vertices[idx + 4] = srcBoxTexelsMax.v; // uv1.v
-    idx += 7;
+    idx += FLOATS_PER_2D_VERTEX;
 
     // vertex 2
     vertices[idx + 0] = dstBoxTexelsMax.u; // pos.x
     vertices[idx + 1] = dstBoxTexelsMin.v; // pos.y
     vertices[idx + 3] = srcBoxTexelsMax.u; // uv1.u
     vertices[idx + 4] = srcBoxTexelsMin.v; // uv1.v
-    idx += 7;
+    idx += FLOATS_PER_2D_VERTEX;
 
     // vertex 3
     vertices[idx + 0] = dstBoxTexelsMax.u; // pos.x
@@ -147,7 +147,7 @@ void NativeDevice::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const
     vertices[idx + 4] = srcBoxTexelsMax.v; // uv1.v
 
     // fill remaining fields
-    for (size_t i = 0; i < vertices.size(); i += 7)
+    for (size_t i = 0; i < vertices.size(); i += FLOATS_PER_2D_VERTEX)
     {
         vertices[i + 2] = 0.0f; // pos.z
         vertices[i + 5] = vertices[i + 3]; // uv2.u == uv1.u
@@ -168,7 +168,6 @@ NativeDevice::NativeDevice()
     , mFrameCounter(0)
     , mProfilerTransferWaitSourceID(0)
     , mProfilerFrameTimeID(0)
-    , mMidframeFlushNeeded(false) // LKTODO cleanup
     , mRootSignatureManager()
     , mRenderingContext()
     , mRTVAllocator()
@@ -201,8 +200,6 @@ NativeDevice::~NativeDevice()
 bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibrary>& shaderLibrary)
 {
     if (adapter == nullptr) return false;
-
-    //assert(false); // LKDEBUG
 
     mShaderLibrary = shaderLibrary;
     mAdapter = adapter;

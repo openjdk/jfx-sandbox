@@ -65,6 +65,8 @@ void RenderingContext::SubmitRTPayload()
 
 void RenderingContext::RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect)
 {
+    if (clearRect.left >= clearRect.right || clearRect.top >= clearRect.bottom) return; // empty rect - skip unnecessary clear
+
     mRTPayload->AddStep(CreateRTExec<ClearRenderTargetAction>(mPayloadAllocator, mRenderTarget.Get(), r, g, b, a, clearRect));
     // NOTE: Here we check by NativeRenderTarget::HasDepthTexture() and not IsDepthTestEnabled()
     // Prism can sometimes set the RTT with depth test disabled, but then request its clear with
@@ -82,9 +84,6 @@ void RenderingContext::RecordClear(float r, float g, float b, float a, bool clea
 
 BBox RenderingContext::EstimateDirtyBBox(const MemoryView<float>& vertices, uint32_t vertexCount)
 {
-    // vertices array contains 7 floats - XYZ, UV1 and UV2
-    // we will iterate the array every 7 floats and only consider the first three here
-    const uint32_t FLOATS_PER_VERTEX = 7;
     BBox bbox;
 
     // only create a valid bbox when we render a quad
@@ -93,7 +92,7 @@ BBox RenderingContext::EstimateDirtyBBox(const MemoryView<float>& vertices, uint
     // bbox merging though and might be too heavy CPU wise
     if (vertexCount == 4)
     {
-        for (uint32_t i = 0; i < vertexCount * FLOATS_PER_VERTEX; i += FLOATS_PER_VERTEX)
+        for (uint32_t i = 0; i < vertexCount * FLOATS_PER_2D_VERTEX; i += FLOATS_PER_2D_VERTEX)
         {
             const Coords_XYZ_FLOAT* vertex = reinterpret_cast<const Coords_XYZ_FLOAT*>(&vertices.Data()[i]);
             bbox.Merge(vertex->x, vertex->y, vertex->x, vertex->y);

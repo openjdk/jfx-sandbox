@@ -450,6 +450,11 @@ struct Vertex_2D
     Coords_UV_FLOAT uv2;
 };
 
+// vertices array incoming to DrawQuads contains 7 floats - XYZ, UV1 and UV2
+const uint32_t FLOATS_PER_2D_VERTEX = 7;
+// colors array incoming to DrawQuads contains 4 unsigned chars - RGBA
+const uint32_t COLORS_PER_2D_VERTEX = 4;
+
 // Determines which rendering mode Shader belongs to.
 // Mostly used to ensure vertex-pixel shader combination is correct and to
 // initialize PSOs correctly

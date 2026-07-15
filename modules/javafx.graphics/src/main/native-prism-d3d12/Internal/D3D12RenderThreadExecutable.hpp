@@ -669,6 +669,7 @@ public:
     void Execute(const RenderThreadContextPtr& context) override final
     {
         context->QueueResourceTransition(mData.resource, mData.newState, mData.subresource);
+        context->SubmitResourceTransitions();
     }
 };
 

@@ -60,8 +60,9 @@ namespace D3D12 {
 
 class NativeDevice: public std::enable_shared_from_this<NativeDevice>
 {
-    using QuadVertices = std::array<float, 7 * 4>; // 7 floats per quad - pos, uv1, uv2
-    using QuadColors = std::array<unsigned char, 4 * 4>; // 4 colors per quad - rgba
+    // quads have 4 vertices in the array
+    using QuadVertices = std::array<float, FLOATS_PER_2D_VERTEX * 4>;
+    using QuadColors = std::array<unsigned char, COLORS_PER_2D_VERTEX * 4>;
 
     IDXGIAdapter1* mAdapter;
     D3D12DevicePtr mDevice;
@@ -69,7 +70,6 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     uint32_t mFrameCounter; // for debugging ex. triggering a breakpoint after X frames
     uint32_t mProfilerTransferWaitSourceID;
     uint32_t mProfilerFrameTimeID;
-    bool mMidframeFlushNeeded;
 
     NIPtr<Internal::RootSignatureManager> mRootSignatureManager;
     NIPtr<Internal::RenderingContext> mRenderingContext;
@@ -142,11 +142,6 @@ public:
     bool PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion);
     bool Present(const NIPtr<NativeSwapChain>& swapChain);
     void FinishFrame();
-
-    // NOTE: Signal is only exposed due to SwapChain requiring it to signal after Present
-    // In any other cases, FlushCommandList() will implicitly call it.
-    // TODO: D3D12: Maybe it would be worth to figure out how to private this?
-    //uint64_t Signal(CheckpointType type);
 
     const D3D12DevicePtr& GetDevice()
     {
