@@ -42,7 +42,10 @@ namespace D3D12 {
 
 class NativeSwapChain: public Internal::IRenderTarget, Internal::IWaitableOperation
 {
+    static uint64_t swapChainCounter;
+
     NIPtr<NativeDevice> mNativeDevice;
+    std::string mDebugName;
     DXGISwapChainPtr mSwapChain;
     std::vector<NIPtr<Internal::TextureBase>> mTextureBuffers;
     std::vector<D3D12_RESOURCE_STATES> mTextureStates;
@@ -126,8 +129,8 @@ public:
     // IWaitableOperation overrides
 
     // runs on Render Thread
-    void OnQueueSignal(CheckpointType type, uint64_t fenceValue) override;
-    void OnFenceSignaled(CheckpointType type, uint64_t fenceValue) override;
+    void OnQueueSignal(uint64_t fenceValue) override;
+    void OnFenceSignaled(uint64_t fenceValue) override;
 
 
     // IRenderTarget overrides

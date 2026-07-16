@@ -173,7 +173,7 @@ bool CommandListPool::Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount
     return true;
 }
 
-void CommandListPool::OnQueueSignal(CheckpointType, uint64_t fenceValue)
+void CommandListPool::OnQueueSignal(uint64_t fenceValue)
 {
     size_t counter = mCurrentCommandList == 0 ? mCommandLists.size() : mCurrentCommandList;
     --counter;
@@ -203,7 +203,7 @@ void CommandListPool::OnQueueSignal(CheckpointType, uint64_t fenceValue)
     }
 }
 
-void CommandListPool::OnFenceSignaled(CheckpointType, uint64_t fenceValue)
+void CommandListPool::OnFenceSignaled(uint64_t fenceValue)
 {
     for (size_t i = 0; i < mCommandLists.size(); ++i)
     {

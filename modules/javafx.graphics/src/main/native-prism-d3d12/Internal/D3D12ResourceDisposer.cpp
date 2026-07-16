@@ -69,7 +69,7 @@ void ResourceDisposer::MarkDisposed(const NIPtr<ITrackedResource>& resource)
     mPurgeCheckpoints.back().resources.emplace_back(std::move(resource));
 }
 
-void ResourceDisposer::OnQueueSignal(CheckpointType, uint64_t fenceValue)
+void ResourceDisposer::OnQueueSignal(uint64_t fenceValue)
 {
     if (!mPurgeCheckpoints.empty() && mPurgeCheckpoints.back().fenceValue == 0)
     {
@@ -77,7 +77,7 @@ void ResourceDisposer::OnQueueSignal(CheckpointType, uint64_t fenceValue)
     }
 }
 
-void ResourceDisposer::OnFenceSignaled(CheckpointType, uint64_t fenceValue)
+void ResourceDisposer::OnFenceSignaled(uint64_t fenceValue)
 {
     while (!mPurgeCheckpoints.empty())
     {

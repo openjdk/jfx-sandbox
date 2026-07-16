@@ -271,7 +271,7 @@ void RingContainer::DeclareRequired(size_t size)
     }
 }
 
-void RingContainer::OnQueueSignal(CheckpointType, uint64_t fenceValue)
+void RingContainer::OnQueueSignal(uint64_t fenceValue)
 {
     if (mUncommitted > 0)
     {
@@ -280,7 +280,7 @@ void RingContainer::OnQueueSignal(CheckpointType, uint64_t fenceValue)
     }
 }
 
-void RingContainer::OnFenceSignaled(CheckpointType, uint64_t fenceValue)
+void RingContainer::OnFenceSignaled(uint64_t fenceValue)
 {
     while (!mCheckpoints.empty())
     {

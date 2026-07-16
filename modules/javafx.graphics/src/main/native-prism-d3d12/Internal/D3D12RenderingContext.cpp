@@ -41,7 +41,7 @@ namespace Internal {
 
 RenderPayloadPtr RenderingContext::ReplaceRTPayload()
 {
-    D3D12NI_ASSERT(mMainThreadTid == std::this_thread::get_id(), "CreateRTPayload() has to be called by the main thread");
+    D3D12NI_ASSERT(std::this_thread::get_id() != mRenderThread.GetThreadID(), "CreateRTPayload() cannot be called by the Render Thread");
 
     RenderPayloadPtr ret(std::move(mRTPayload));
     mPayloadAllocator.MoveToNewChunk();
@@ -53,7 +53,7 @@ RenderPayloadPtr RenderingContext::ReplaceRTPayload()
 
 void RenderingContext::SubmitRTPayload()
 {
-    D3D12NI_ASSERT(mMainThreadTid == std::this_thread::get_id(), "SubmitRTPayload() has to be called by the main thread");
+    D3D12NI_ASSERT(std::this_thread::get_id() != mRenderThread.GetThreadID(), "SubmitRTPayload() cannot be called by the Render Thread");
 
     if (mRTPayload && mRTPayload->HasWork())
     {
@@ -131,7 +131,6 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
     , mPayloadAllocator(1024 * 1024) // for Payloads 1M should be sufficient
     , mRenderThread(nativeDevice)
     , mRTPayload(nullptr, LinearAllocatorDeleter<RenderPayload>(&mPayloadAllocator))
-    , mMainThreadTid(std::this_thread::get_id())
     , mClearOptState()
     , mPipelineState()
     , mPrimitiveTopology()
@@ -184,6 +183,11 @@ bool RenderingContext::Init()
         D3D12NI_LOG_ERROR("Failed to initialize Render Thread");
         return false;
     }
+
+#if DEBUG
+    mPayloadAllocator.SetRenderThreadID(mRenderThread.GetThreadID());
+    mExtraPayloadDataAllocator.SetRenderThreadID(mRenderThread.GetThreadID());
+#endif
 
     return true;
 }
@@ -884,7 +888,7 @@ bool RenderingContext::ApplyCompute()
 
 void RenderingContext::FlushCommandList(CheckpointType type)
 {
-    D3D12NI_ASSERT(mMainThreadTid == std::this_thread::get_id(), "FlushCommandLists() has to be called by the main thread");
+    D3D12NI_ASSERT(std::this_thread::get_id() != mRenderThread.GetThreadID(), "FlushCommandLists() cannot be called by the Render Thread");
 
     // submit existing RenderThread payload if there's any leftover commands there
     // and finish executing RenderThread payload

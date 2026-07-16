@@ -477,8 +477,17 @@ enum class CheckpointType: uint32_t
     ANY = 0xFFFFFFFF, // For situations where checkpoint type doesn't matter, ex. RingContainer
 };
 
-// for RingContainer and CommandListPool
+// for objects needing GPU pipeline synchronization (ex. Ring Container)
+// RenderThread will pass those callbacks to them upon initialization
 using CheckpointCallback = std::function<void(CheckpointType)>;
+
+// like above but Signal will return a fence value. Seems like only SwapChain needs it.
+// See NativeSwapChain::Present() for more details
+using SignalCallback = std::function<uint64_t(CheckpointType)>;
+
+// to return errors from RenderThread::Signal()
+#define D3D12NI_INVALID_FENCE_VALUE 0
+
 
 // mirrors CompositeMode.java
 enum class CompositeMode: unsigned char

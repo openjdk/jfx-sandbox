@@ -284,7 +284,7 @@ public:
     // RT callbacks to control command lists
     CheckpointCallback flushCommandList;
     CheckpointCallback waitForCheckpoint;
-    CheckpointCallback signal;
+    SignalCallback signal;
 
     // RenderThread-side Command List parameters. This mostly clones what RenderingContext has.
     // RenderingContext updates these via RTExecutables and those are reflected on CommandLists.
@@ -306,7 +306,7 @@ public:
     // Compute
     ComputeRootSignatureCommandListStep computeRootSignature;
 
-    RenderThreadContext(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback, const CheckpointCallback& signalCallback);
+    RenderThreadContext(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback, const SignalCallback& signalCallback);
     bool Init();
     void ExecuteCurrentCommandList();
 

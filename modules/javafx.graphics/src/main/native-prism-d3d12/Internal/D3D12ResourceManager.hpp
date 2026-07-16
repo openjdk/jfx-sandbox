@@ -188,8 +188,8 @@ public:
     void StashParameters();
     void RestoreStashedParameters();
 
-    virtual void OnQueueSignal(CheckpointType, uint64_t) override;
-    virtual void OnFenceSignaled(CheckpointType, uint64_t) override;
+    virtual void OnQueueSignal(uint64_t) override;
+    virtual void OnFenceSignaled(uint64_t) override;
 
     inline const NIPtr<TextureBase>& GetTexture(uint32_t slot) const
     {

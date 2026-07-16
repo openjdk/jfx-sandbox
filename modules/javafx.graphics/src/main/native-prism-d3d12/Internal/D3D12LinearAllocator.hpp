@@ -147,7 +147,10 @@ class LinearAllocator
     std::list<Chunk> mEmptyChunks; // RenderThread deposits used and freed chunks here
     std::mutex mChunkResetMutex;
     size_t mSizePerChunk;
-    std::thread::id mInitThreadId;
+
+#if DEBUG
+    std::thread::id mRenderThreadId;
+#endif
 
     void Expand();
 
@@ -159,6 +162,13 @@ public:
     void* Allocate(uint32_t size);
     void Free(void* ptr);
     void ResetChunks();
+
+#if DEBUG
+    inline void SetRenderThreadID(std::thread::id id)
+    {
+        mRenderThreadId = id;
+    }
+#endif
 
     template <typename T, typename ...Args>
     T* Construct(Args&&... args)

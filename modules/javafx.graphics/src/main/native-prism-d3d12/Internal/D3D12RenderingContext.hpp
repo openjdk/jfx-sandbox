@@ -54,7 +54,6 @@ class RenderingContext
     LinearAllocator mPayloadAllocator;
     RenderThread mRenderThread;
     RenderPayloadPtr mRTPayload;
-    std::thread::id mMainThreadTid;
 
     struct ClearOptState
     {

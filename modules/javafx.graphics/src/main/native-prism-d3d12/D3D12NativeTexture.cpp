@@ -93,21 +93,15 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
     // Fill in remaining members and leave
     if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
     {
-        mDebugName = "RTTexture_#";
-        mDebugName += std::to_string(rttextureCounter++);
-        resource->SetName(Internal::Utils::ToWString(mDebugName).c_str());
+        SetName("RTTexture_#" + std::to_string(rttextureCounter++));
     }
     else if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
     {
-        mDebugName = "DepthTexture_#";
-        mDebugName += std::to_string(depthTextureCounter++);
-        resource->SetName(Internal::Utils::ToWString(mDebugName).c_str());
+        SetName("DepthTexture_#" + std::to_string(depthTextureCounter++));
     }
     else
     {
-        mDebugName = "Texture_#";
-        mDebugName += std::to_string(textureCounter++);
-        resource->SetName(Internal::Utils::ToWString(mDebugName).c_str());
+        SetName("Texture_#" + std::to_string(textureCounter++));
     }
 
     TextureBase::Init(resource, mResourceDesc.MipLevels, D3D12_RESOURCE_STATE_COMMON);

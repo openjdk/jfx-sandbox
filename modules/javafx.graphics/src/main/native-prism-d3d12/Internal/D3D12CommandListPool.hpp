@@ -82,8 +82,8 @@ public:
     ~CommandListPool();
 
     bool Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount, size_t commandAllocators);
-    void OnQueueSignal(CheckpointType, uint64_t fenceValue) override;
-    void OnFenceSignaled(CheckpointType, uint64_t fenceValue) override;
+    void OnQueueSignal(uint64_t fenceValue) override;
+    void OnFenceSignaled(uint64_t fenceValue) override;
     const D3D12GraphicsCommandListPtr& AdvanceCommandList();
     void AdvanceAllocator();
 

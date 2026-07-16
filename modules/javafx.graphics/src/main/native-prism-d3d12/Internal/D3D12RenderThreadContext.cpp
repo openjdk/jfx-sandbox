@@ -210,7 +210,7 @@ void RenderThreadContext::SetVertexBuffer(const D3D12_VERTEX_BUFFER_VIEW& vbView
     vertexBuffer.Set(vbView);
 }
 
-RenderThreadContext::RenderThreadContext(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback, const CheckpointCallback& signalCallback)
+RenderThreadContext::RenderThreadContext(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& flushCallback, const CheckpointCallback& waitCallback, const SignalCallback& signalCallback)
     : mCommandListPool(nativeDevice, waitCallback)
     , m2DVertexBatch()
     , m2DIndexBuffer(nativeDevice)

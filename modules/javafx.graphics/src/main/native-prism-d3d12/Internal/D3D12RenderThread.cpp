@@ -132,10 +132,10 @@ void RenderThread::AdvanceCommandAllocator()
     mContext->AdvanceCommandAllocator();
 }
 
-void RenderThread::Signal(CheckpointType type)
+uint64_t RenderThread::Signal(CheckpointType type)
 {
     mFenceValue++;
-    if (mFenceValue == 0) mFenceValue++;
+    if (mFenceValue == D3D12NI_INVALID_FENCE_VALUE) mFenceValue++;
 
     // mark this point in time in places that need it
     {
@@ -143,29 +143,30 @@ void RenderThread::Signal(CheckpointType type)
 
         for (Internal::IWaitableOperation* op: mWaitableOps)
         {
-            op->OnQueueSignal(type, mFenceValue);
+            op->OnQueueSignal(mFenceValue);
         }
     }
 
-    Waitable waitable(mFenceValue, [this, type](uint64_t fenceValue) -> bool
+    Waitable waitable(mFenceValue, [this](uint64_t fenceValue) -> bool
     {
         std::unique_lock<std::mutex> lock(mWaitableOpsMutex);
 
         for (Internal::IWaitableOperation* op: mWaitableOps)
         {
-            op->OnFenceSignaled(type, fenceValue);
+            op->OnFenceSignaled(fenceValue);
         }
 
         return true;
     });
 
     HRESULT hr = mCommandQueue->Signal(mCommandQueueFence.Get(), mFenceValue);
-    D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to signal event on completion");
+    D3D12NI_RET_IF_FAILED(hr, D3D12NI_INVALID_FENCE_VALUE, "Failed to signal event on completion");
 
     hr = mCommandQueueFence->SetEventOnCompletion(mFenceValue, waitable.GetHandle());
-    D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to set Fence event on completion");
+    D3D12NI_RET_IF_FAILED(hr, D3D12NI_INVALID_FENCE_VALUE, "Failed to set Fence event on completion");
 
     mCheckpointQueue.AddCheckpoint(type, std::move(waitable));
+    return mFenceValue;
 }
 
 void RenderThread::FlushCommandListInternal(CheckpointType type)

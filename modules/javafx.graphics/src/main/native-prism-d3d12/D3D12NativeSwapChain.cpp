@@ -36,6 +36,8 @@
 
 namespace D3D12 {
 
+uint64_t NativeSwapChain::swapChainCounter = 0;
+
 bool NativeSwapChain::GetSwapChainBuffers(UINT count)
 {
     for (Internal::DescriptorData& rtv: mRTVs)
@@ -80,6 +82,7 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
 
         mTextureBuffers[i] = std::make_shared<Internal::TextureBase>();
         mTextureBuffers[i]->Init(buffer, 1, D3D12_RESOURCE_STATE_COMMON);
+        mTextureBuffers[i]->SetName(mDebugName + "_Texture_#" + std::to_string(i));
     }
 
     return true;
@@ -170,6 +173,7 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to make necessary DXGI window associations");
 
     mFormat = desc.Format;
+    mDebugName = "SwapChain_#" + std::to_string(swapChainCounter++);
 
     if (!GetSwapChainBuffers(desc.BufferCount))
     {
@@ -238,6 +242,7 @@ bool NativeSwapChain::Resize(UINT width, UINT height)
 void NativeSwapChain::WaitForAvailableBuffer()
 {
     std::unique_lock<std::mutex> lock(mAvailableBufferMutex);
+    D3D12NI_LOG_DEBUG("LKDEBUG %s: WaitForAvailableBuffer recorded presents %d", mDebugName.c_str(), mRecordedPresentCount);
 
     mRecordedPresentCount++;
     while (mRecordedPresentCount > mBufferCount)
@@ -269,7 +274,15 @@ bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadContex
     HRESULT hr = mSwapChain->Present1(mSwapInterval, mPresentFlags, &params);
     D3D12NI_RET_IF_FAILED(hr, false, "RenderThread: Failed to present swapchain image");
 
-    context->signal(CheckpointType::ENDFRAME);
+    // NOTE: Normally we would let signal call OnQueueSignal() and capture the fence value there, but
+    // there's one case where this falls apart, which is multi-Stage apps. We have to be sure that this
+    // specific SwapChain instance triggered the Signal call and with multiple Stages (aka. multiple
+    // SwapChains) we don't have that information when OnQueueSignal() is called. As such, we capture
+    // the fence value here to be sure this instance of SwapChain triggered the Signal() call and push
+    // it on our queue. OnFenceSignaled() can then take it from there based on this fence value.
+    // If we didn't do that, the math related to mRecordedPresentCount would fall apart when there's
+    // more than one SwapChain active.
+    mWaitFenceValues.push(context->signal(CheckpointType::ENDFRAME));
 
     // await older frames
     while (mWaitFenceValues.size() >= mBufferCount)
@@ -291,24 +304,23 @@ bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadContex
 }
 
 // called by Render Thread
-void NativeSwapChain::OnQueueSignal(CheckpointType type, uint64_t fenceValue)
+void NativeSwapChain::OnQueueSignal(uint64_t fenceValue)
 {
-    if (type == CheckpointType::ENDFRAME)
-    {
-        mWaitFenceValues.push(fenceValue);
-    }
+    // noop - fence value will be manually fetched from signal call in Present()
+    // See there for more details
 }
 
 // called by Render Thread
-void NativeSwapChain::OnFenceSignaled(CheckpointType type, uint64_t fenceValue)
+void NativeSwapChain::OnFenceSignaled(uint64_t fenceValue)
 {
-    if (type == CheckpointType::ENDFRAME && mWaitFenceValues.size() > 0 && mWaitFenceValues.front() == fenceValue)
+    if (mWaitFenceValues.size() > 0 && mWaitFenceValues.front() == fenceValue)
     {
         mWaitFenceValues.pop();
 
         {
             std::unique_lock<std::mutex> lock(mAvailableBufferMutex);
 
+            D3D12NI_LOG_DEBUG("LKDEBUG %s: OnFenceSignaled recorded presents %d SwapChain", mDebugName.c_str(), mRecordedPresentCount);
             mRecordedPresentCount--;
             mAvailableBufferCV.notify_all();
         }

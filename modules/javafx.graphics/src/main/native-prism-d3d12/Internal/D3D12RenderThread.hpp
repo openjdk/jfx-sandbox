@@ -79,7 +79,7 @@ class RenderThread
     void AdvanceCommandAllocator();
     void FlushCommandListInternal(CheckpointType type);
     void WaitForCheckpointInternal(CheckpointType type);
-    void Signal(CheckpointType type);
+    uint64_t Signal(CheckpointType type);
 
 public:
     RenderThread(const NIPtr<NativeDevice>& nativeDevice);
@@ -101,6 +101,11 @@ public:
     {
         // LKTODO check if we can avoid that
         return mCommandQueue;
+    }
+
+    inline std::thread::id GetThreadID() const
+    {
+        return mWorkerThread.get_id();
     }
 };
 

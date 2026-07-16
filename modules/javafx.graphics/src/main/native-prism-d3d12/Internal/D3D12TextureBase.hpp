@@ -30,6 +30,7 @@
 
 #include "D3D12ITrackedResource.hpp"
 #include "D3D12SamplerDesc.hpp"
+#include "D3D12Utils.hpp"
 
 #include <array>
 
@@ -100,6 +101,12 @@ public:
     inline const SamplerDesc& GetSamplerDesc() const
     {
         return mSamplerDesc;
+    }
+
+    inline void SetName(const std::string& debugName)
+    {
+        mDebugName = debugName;
+        if (mResource) mResource->SetName(Utils::ToWString(debugName).c_str());
     }
 
     inline const std::string& GetName() const

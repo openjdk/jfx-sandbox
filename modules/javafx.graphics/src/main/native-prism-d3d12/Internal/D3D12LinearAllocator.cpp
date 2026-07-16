@@ -33,7 +33,7 @@ namespace Internal {
 
 void LinearAllocator::Expand()
 {
-    D3D12NI_ASSERT(std::this_thread::get_id() == mInitThreadId, "Expand() can only be called by the initializing (main) thread");
+    D3D12NI_ASSERT(std::this_thread::get_id() != mRenderThreadId, "Expand() can only be called by the initializing (main) thread");
 
     std::unique_lock<std::mutex> lock(mChunkResetMutex);
 
@@ -66,7 +66,7 @@ LinearAllocator::LinearAllocator(size_t sizePerChunk)
     , mEmptyChunks()
     , mChunkResetMutex()
     , mSizePerChunk(sizePerChunk)
-    , mInitThreadId(std::this_thread::get_id())
+    , mRenderThreadId()
 {
     Expand();
 }
@@ -85,7 +85,7 @@ void LinearAllocator::MoveToNewChunk()
 // TODO: D3D12: Should allocators use size_t instead of uint32_t? this would affect the chunk header size
 void* LinearAllocator::Allocate(uint32_t size)
 {
-    D3D12NI_ASSERT(std::this_thread::get_id() == mInitThreadId, "Allocate() can only be called by the initializing (main) thread");
+    D3D12NI_ASSERT(std::this_thread::get_id() != mRenderThreadId, "Allocate() can only be called by the initializing (main) thread");
 
     // align to 8 bytes (64-bits)
     uint32_t alignedSize = Utils::Align<uint32_t>(size, 8);
@@ -106,7 +106,7 @@ void LinearAllocator::Free(void* ptr)
     // Those will be done after RenderThread completed and we rejoined it though.
     // For cleaner exit messaging in DebugNative the assertion is commented out. Restore
     // it if there are threading issues to be debugged in this area.
-    //D3D12NI_ASSERT(std::this_thread::get_id() != mInitThreadId, "Free() can only be called by the worker/render thread");
+    //D3D12NI_ASSERT(std::this_thread::get_id() == mRenderThreadId, "Free() can only be called by the worker/render thread");
 
     uint8_t* dataPtr = reinterpret_cast<uint8_t*>(ptr);
     DataHeader* header = reinterpret_cast<DataHeader*>(dataPtr - sizeof(DataHeader));
@@ -142,7 +142,7 @@ void LinearAllocator::Free(void* ptr)
 
 void LinearAllocator::ResetChunks()
 {
-    D3D12NI_ASSERT(std::this_thread::get_id() == mInitThreadId, "Allocate() can only be called by the initializing (main) thread");
+    D3D12NI_ASSERT(std::this_thread::get_id() != mRenderThreadId, "Allocate() can only be called by the initializing (main) thread");
 
     std::unique_lock<std::mutex> lock(mChunkResetMutex);
 
