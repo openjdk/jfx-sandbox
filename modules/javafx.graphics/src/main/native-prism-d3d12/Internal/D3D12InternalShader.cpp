@@ -26,6 +26,7 @@
 #include "D3D12InternalShader.hpp"
 
 #include "D3D12Utils.hpp"
+#include "D3D12Config.hpp"
 
 #include "Internal_D3D12ShaderResourceDataHeader.hpp"
 
@@ -152,12 +153,15 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
         }
     }
 
-    // debug info
-    D3D12NI_LOG_DEBUG("Internal Shader %s resource assignments (needs %d texture/sampler descriptors + %d cbv descriptors):", mName.c_str(), mResourceData.textureCount, mResourceData.cbufferDTableCount);
-    for (const auto& r: mShaderResourceAssignments)
+    if (Config::IsPrintShaderLoadEnabled())
     {
-        const ResourceAssignment& ra = r.second;
-        D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first.data(), ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
+        // debug info
+        D3D12NI_LOG_DEBUG("Internal Shader %s resource assignments (needs %d texture/sampler descriptors + %d cbv descriptors):", mName.c_str(), mResourceData.textureCount, mResourceData.cbufferDTableCount);
+        for (const auto& r: mShaderResourceAssignments)
+        {
+            const ResourceAssignment& ra = r.second;
+            D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first.data(), ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
+        }
     }
 
     return true;

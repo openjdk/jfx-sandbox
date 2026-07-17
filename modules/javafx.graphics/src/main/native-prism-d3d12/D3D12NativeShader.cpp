@@ -26,6 +26,7 @@
 #include "D3D12NativeShader.hpp"
 
 #include "Internal/D3D12Debug.hpp"
+#include "Internal/D3D12Config.hpp"
 #include "Internal/D3D12Utils.hpp"
 #include "Internal/JNIBuffer.hpp"
 #include "Internal/JNIString.hpp"
@@ -117,18 +118,21 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
     }
 
     mShaderResources = resources->second;
-    if (!mShaderResources.empty())
+    if (Internal::Config::IsPrintShaderLoadEnabled())
     {
-        D3D12NI_LOG_DEBUG("%s resources:", mName.c_str());
-
-        for (auto& r: mShaderResources)
+        if (!mShaderResources.empty())
         {
-            D3D12NI_LOG_DEBUG("  \\_ %s (%s, %d, %d)", r.name, ResourceTypeToString(r.type), r.slot, r.count);
+            D3D12NI_LOG_DEBUG("%s resources:", mName.c_str());
+
+            for (auto& r: mShaderResources)
+            {
+                D3D12NI_LOG_DEBUG("  \\_ %s (%s, %d, %d)", r.name, ResourceTypeToString(r.type), r.slot, r.count);
+            }
         }
-    }
-    else
-    {
-        D3D12NI_LOG_DEBUG("Shader %s has no resources attached", mName.c_str());
+        else
+        {
+            D3D12NI_LOG_DEBUG("Shader %s has no resources attached", mName.c_str());
+        }
     }
 
     // size of constant buffer storage used by the shader
@@ -186,11 +190,14 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
         }
     }
 
-    D3D12NI_LOG_DEBUG("Shader %s resource assignments:", mName.c_str());
-    for (const auto& r: mShaderResourceAssignments)
+    if (Internal::Config::IsPrintShaderLoadEnabled())
     {
-        const ResourceAssignment& ra = r.second;
-        D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first.data(), ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
+        D3D12NI_LOG_DEBUG("Shader %s resource assignments:", mName.c_str());
+        for (const auto& r: mShaderResourceAssignments)
+        {
+            const ResourceAssignment& ra = r.second;
+            D3D12NI_LOG_DEBUG("  - %s: rsIndex %d:%d type %s @ offset %d size %d", r.first.data(), ra.rootIndex, ra.index, ResourceAssignmentTypeToString(ra.type), ra.offsetInCBStorage, ra.sizeInCBStorage);
+        }
     }
 
     // NativeShader (Phong/Decora) assume we need only one big constant buffer for all data

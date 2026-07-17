@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,7 @@ class Config
         bool verbose;
         bool debug;
         bool trace;
+        bool printShaderLoad;
         bool debugLayers;
         bool gpuDebug;
         bool breakOnError;
@@ -97,6 +98,11 @@ public:
     inline static bool IsTrace()
     {
         return Instance().mSettings.trace;
+    }
+
+    inline static bool IsPrintShaderLoadEnabled()
+    {
+        return Instance().mSettings.printShaderLoad;
     }
 
     inline static bool IsDebugLayerEnabled()
