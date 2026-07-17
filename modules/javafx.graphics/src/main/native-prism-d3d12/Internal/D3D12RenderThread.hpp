@@ -75,8 +75,7 @@ class RenderThread
 
     RenderPayloadPtr& FetchPayload();
     void WorkerMain();
-    void ExecuteCurrentCommandList();
-    void AdvanceCommandAllocator();
+    void ExecuteCurrentCommandList(bool advanceAllocator);
     void FlushCommandListInternal(CheckpointType type);
     void WaitForCheckpointInternal(CheckpointType type);
     uint64_t Signal(CheckpointType type);
@@ -89,8 +88,7 @@ public:
     void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     const NIPtr<Waitable>& Execute(RenderPayloadPtr&& payload);
-    void ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload);
-    void ScheduleCommandAllocatorAdvance(LinearAllocator& allocator, RenderPayloadPtr& payload);
+    void ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload, bool advanceAllocator);
     void SchedulePresent(LinearAllocator& allocator, RenderPayloadPtr& payload, const PresentArgs& presentArgs, CheckpointType checkpointType);
     void ScheduleSignal(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type);
     void ScheduleWaitForCheckpoint(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type);

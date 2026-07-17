@@ -176,7 +176,6 @@ public:
 
     void FlushCommandList(CheckpointType type);
     bool WaitForNextCheckpoint(CheckpointType type);
-    void Signal(CheckpointType type);
     void FinishFrame();
 
     // exposed for SwapChain

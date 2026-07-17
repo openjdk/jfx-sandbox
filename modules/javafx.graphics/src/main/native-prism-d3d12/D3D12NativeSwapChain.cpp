@@ -242,8 +242,12 @@ bool NativeSwapChain::Resize(UINT width, UINT height)
 void NativeSwapChain::WaitForAvailableBuffer()
 {
     std::unique_lock<std::mutex> lock(mAvailableBufferMutex);
-    D3D12NI_LOG_DEBUG("LKDEBUG %s: WaitForAvailableBuffer recorded presents %d", mDebugName.c_str(), mRecordedPresentCount);
 
+    // NOTE: This is a separate counter from mWaitFenceValues.size() because we have to
+    // track it partially from main thread side. Otherwise there is a chance Quantum would
+    // submit more Present() calls than the buffer count, which would make the app advance
+    // too far ahead from what is visually visible on screen. It could also maybe lie about
+    // performance numbers a bit too much.
     mRecordedPresentCount++;
     while (mRecordedPresentCount > mBufferCount)
     {
@@ -260,7 +264,7 @@ bool NativeSwapChain::Prepare(const D3D12_RECT& dirtyRegion)
 }
 
 // called by Render Thread
-bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadContext>& context)
+bool NativeSwapChain::Present(const Internal::RenderThreadContextPtr& context)
 {
     DXGI_PRESENT_PARAMETERS params;
     D3D12NI_ZERO_STRUCT(params);
@@ -282,7 +286,8 @@ bool NativeSwapChain::Present(const std::unique_ptr<Internal::RenderThreadContex
     // it on our queue. OnFenceSignaled() can then take it from there based on this fence value.
     // If we didn't do that, the math related to mRecordedPresentCount would fall apart when there's
     // more than one SwapChain active.
-    mWaitFenceValues.push(context->signal(CheckpointType::ENDFRAME));
+    uint64_t fence = context->signal(CheckpointType::ENDFRAME);
+    mWaitFenceValues.push(fence);
 
     // await older frames
     while (mWaitFenceValues.size() >= mBufferCount)
@@ -320,7 +325,6 @@ void NativeSwapChain::OnFenceSignaled(uint64_t fenceValue)
         {
             std::unique_lock<std::mutex> lock(mAvailableBufferMutex);
 
-            D3D12NI_LOG_DEBUG("LKDEBUG %s: OnFenceSignaled recorded presents %d SwapChain", mDebugName.c_str(), mRecordedPresentCount);
             mRecordedPresentCount--;
             mAvailableBufferCV.notify_all();
         }

@@ -45,6 +45,27 @@ void CommandListPool::ResetCurrentCommandList()
     CurrentCommandListData().state = CommandListState::Active;
 }
 
+void CommandListPool::AdvanceAllocator()
+{
+    mCommandAllocators[mCurrentCommandAllocator].state = CommandListState::Closed;
+
+    mCurrentCommandAllocator++;
+    if (mCurrentCommandAllocator == mCommandAllocators.size()) mCurrentCommandAllocator = 0;
+
+    // Command Allocators should be advanced per-frame by a NativeSwapChain instance.
+    // If we run out of CAs we have to wait for one of previous frames to be completed.
+    if (mCommandAllocators[mCurrentCommandAllocator].state != CommandListState::Available)
+    {
+        WaitForAvailableCommandAllocator();
+    }
+
+    D3D12NI_ASSERT(mCommandAllocators[mCurrentCommandAllocator].state == CommandListState::Available,
+        "About to reset a Command Allocator that's still in use, which should never happen. Something is terribly wrong.");
+    mCommandAllocators[mCurrentCommandAllocator].allocator->Reset();
+    mUsedCLsWithCurrentAllocator = 0;
+}
+
+
 void CommandListPool::WaitForAvailableCommandList()
 {
     Profiler::Instance().MarkEvent(mCommandListProfilerID, Profiler::Event::Wait);
@@ -66,7 +87,7 @@ void CommandListPool::WaitForAvailableCommandAllocator()
 
     while (mCommandAllocators[mCurrentCommandAllocator].state == CommandListState::Closed)
     {
-        mWaitCallback(CheckpointType::ENDFRAME);
+        mWaitCallback(CheckpointType::ANY);
     }
 
     // if this assertion ever triggers there is something terribly wrong
@@ -78,16 +99,16 @@ void CommandListPool::WaitForAvailableCommandAllocator()
 CommandListPool::CommandListPool(const NIPtr<NativeDevice>& nativeDevice, const CheckpointCallback& waitCallback)
     : mNativeDevice(nativeDevice)
     , mWaitCallback(waitCallback)
+    , mCommandListProfilerID(Profiler::Instance().RegisterSource("Command List Pool"))
+    , mCommandAllocatorProfilerID(Profiler::Instance().RegisterSource("Command Allocator Pool"))
     , mCommandLists()
     , mCurrentCommandList(0)
     , mCommandAllocators()
     , mCurrentCommandAllocator(0)
+    , mUsedCLsWithCurrentAllocator(0)
     , mNullCommandList()
 {
     mNativeDevice->GetRenderingContext()->RegisterWaitableOperation(this);
-
-    mCommandListProfilerID = Profiler::Instance().RegisterSource("Command List Pool");
-    mCommandAllocatorProfilerID = Profiler::Instance().RegisterSource("Command Allocator Pool");
 }
 
 CommandListPool::~CommandListPool()
@@ -188,7 +209,6 @@ void CommandListPool::OnQueueSignal(uint64_t fenceValue)
         --counter;
     }
 
-
     size_t caCounter = mCurrentCommandAllocator == 0 ? mCommandAllocators.size() : mCurrentCommandAllocator;
     --caCounter;
 
@@ -217,16 +237,16 @@ void CommandListPool::OnFenceSignaled(uint64_t fenceValue)
 
     for (size_t i = 0; i < mCommandAllocators.size(); ++i)
     {
-        if (mCommandAllocators[i].closedFenceValue != 0 && mCommandAllocators[i].closedFenceValue <= fenceValue)
+        if (mCommandAllocators[i].closedFenceValue != D3D12NI_INVALID_FENCE_VALUE && mCommandAllocators[i].closedFenceValue <= fenceValue)
         {
             D3D12NI_ASSERT(mCommandAllocators[i].state == CommandListState::Closed, "Invalid command allocator state while refreshing post-fence");
             mCommandAllocators[i].state = CommandListState::Available;
-            mCommandAllocators[i].closedFenceValue = 0;
+            mCommandAllocators[i].closedFenceValue = D3D12NI_INVALID_FENCE_VALUE;
         }
     }
 }
 
-const D3D12GraphicsCommandListPtr& CommandListPool::AdvanceCommandList()
+const D3D12GraphicsCommandListPtr& CommandListPool::AdvanceCommandList(bool advanceAllocator)
 {
     D3D12NI_ASSERT(CurrentCommandListData().state == CommandListState::Active, "Invalid Command List #%d state %d", mCurrentCommandList, CurrentCommandListData().state);
 
@@ -240,31 +260,20 @@ const D3D12GraphicsCommandListPtr& CommandListPool::AdvanceCommandList()
     ++mCurrentCommandList;
     if (mCurrentCommandList == mCommandLists.size()) mCurrentCommandList = 0;
 
+    ++mUsedCLsWithCurrentAllocator;
+    if (mUsedCLsWithCurrentAllocator == mCommandLists.size() || advanceAllocator)
+    {
+        // Advance to the next Allocator when requested, or when we looped around the entire
+        // Command List collection without advancing once
+        AdvanceAllocator();
+    }
+
     if (CurrentCommandListData().state == CommandListState::Available)
     {
         ResetCurrentCommandList();
     }
 
     return list;
-}
-
-void CommandListPool::AdvanceAllocator()
-{
-    mCommandAllocators[mCurrentCommandAllocator].state = CommandListState::Closed;
-
-    mCurrentCommandAllocator++;
-    if (mCurrentCommandAllocator == mCommandAllocators.size()) mCurrentCommandAllocator = 0;
-
-    // Command Allocators should be advanced per-frame by a NativeSwapChain instance.
-    // If we run out of CAs we have to wait for one of previous frames to be completed.
-    if (mCommandAllocators[mCurrentCommandAllocator].state != CommandListState::Available)
-    {
-        WaitForAvailableCommandAllocator();
-    }
-
-    D3D12NI_ASSERT(mCommandAllocators[mCurrentCommandAllocator].state == CommandListState::Available,
-        "About to reset a Command Allocator that's still in use, which should never happen. Something is terribly wrong.");
-    mCommandAllocators[mCurrentCommandAllocator].allocator->Reset();
 }
 
 } // namespace Internal

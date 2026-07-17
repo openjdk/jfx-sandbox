@@ -108,11 +108,11 @@ void RenderThread::WorkerMain()
     }
 }
 
-void RenderThread::ExecuteCurrentCommandList()
+void RenderThread::ExecuteCurrentCommandList(bool advanceAllocator)
 {
     D3D12NI_ASSERT(std::this_thread::get_id() == mWorkerThread.get_id(), "This routine must be called from Render Thread");
 
-    D3D12GraphicsCommandListPtr cmdList = mContext->AdvanceCommandList();
+    D3D12GraphicsCommandListPtr cmdList = mContext->AdvanceCommandList(advanceAllocator);
     if (!cmdList)
     {
         D3D12NI_LOG_ERROR("RenderThread: Received empty Command List, aborting execution.");
@@ -124,12 +124,6 @@ void RenderThread::ExecuteCurrentCommandList()
 
     mContext->ClearAppliedSteps();
     mContext->Invalidate2DVertexBatch();
-}
-
-void RenderThread::AdvanceCommandAllocator()
-{
-    // TODO this should be a separate "FinishFrame" command from D3D12RenderThreadExecutable.hpp
-    mContext->AdvanceCommandAllocator();
 }
 
 uint64_t RenderThread::Signal(CheckpointType type)
@@ -173,7 +167,7 @@ void RenderThread::FlushCommandListInternal(CheckpointType type)
 {
     D3D12NI_ASSERT(std::this_thread::get_id() == mWorkerThread.get_id(), "This routine must be called from Render Thread");
 
-    ExecuteCurrentCommandList();
+    ExecuteCurrentCommandList(false);
     Signal(type);
 }
 
@@ -283,18 +277,11 @@ const NIPtr<Waitable>& RenderThread::Execute(RenderPayloadPtr&& payload)
     return waitable;
 }
 
-void RenderThread::ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload)
+void RenderThread::ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload, bool advanceAllocator = false)
 {
     D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::ScheduleCommandListSubmit() can only be called from main thread");
 
-    payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::ExecuteCurrentCommandList, this)));
-}
-
-void RenderThread::ScheduleCommandAllocatorAdvance(LinearAllocator& allocator, RenderPayloadPtr& payload)
-{
-    D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::ScheduleCommandAllocatorAdvance() can only be called from main thread");
-
-    payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::AdvanceCommandAllocator, this)));
+    payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::ExecuteCurrentCommandList, this, advanceAllocator)));
 }
 
 void RenderThread::ScheduleSignal(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type)

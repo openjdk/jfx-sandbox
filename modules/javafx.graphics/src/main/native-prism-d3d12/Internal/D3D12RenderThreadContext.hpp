@@ -335,14 +335,9 @@ public:
         return mCommandListPool.CurrentCommandList();
     }
 
-    inline void AdvanceCommandAllocator()
+    inline const D3D12GraphicsCommandListPtr& AdvanceCommandList(bool advanceAllocator)
     {
-        mCommandListPool.AdvanceAllocator();
-    }
-
-    inline const D3D12GraphicsCommandListPtr& AdvanceCommandList()
-    {
-        return mCommandListPool.AdvanceCommandList();
+        return mCommandListPool.AdvanceCommandList(advanceAllocator);
     }
 };
 

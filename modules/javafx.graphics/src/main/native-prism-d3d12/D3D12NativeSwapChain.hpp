@@ -82,7 +82,7 @@ public:
 
     // runs on Render Thread
     bool Prepare(const D3D12_RECT& dirtyRegion);
-    bool Present(const std::unique_ptr<Internal::RenderThreadContext>& context);
+    bool Present(const Internal::RenderThreadContextPtr& context);
 
     inline const D3D12ResourcePtr& GetBuffer(int index) const
     {

@@ -44,9 +44,10 @@ RenderPayloadPtr RenderingContext::ReplaceRTPayload()
     D3D12NI_ASSERT(std::this_thread::get_id() != mRenderThread.GetThreadID(), "CreateRTPayload() cannot be called by the Render Thread");
 
     RenderPayloadPtr ret(std::move(mRTPayload));
+
     mPayloadAllocator.MoveToNewChunk();
-    mRTPayload.reset(mPayloadAllocator.Construct<RenderPayload>());
     mExtraPayloadDataAllocator.MoveToNewChunk();
+    mRTPayload.reset(mPayloadAllocator.Construct<RenderPayload>());
 
     return ret;
 }
@@ -61,6 +62,9 @@ void RenderingContext::SubmitRTPayload()
         // move current payload to the Render Thread for execution and create a fresh one for later
         mRenderThread.Execute(ReplaceRTPayload());
     }
+
+    mPayloadAllocator.ResetChunks();
+    mExtraPayloadDataAllocator.ResetChunks();
 }
 
 void RenderingContext::RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect)
@@ -377,9 +381,6 @@ bool RenderingContext::Present(const NIPtr<NativeSwapChain>& swapChain)
     mRTPayload->AddStep(CreateRTExec<PresentAction>(mPayloadAllocator, swapChain));
     SubmitRTPayload();
 
-    mPayloadAllocator.ResetChunks();
-    mExtraPayloadDataAllocator.ResetChunks();
-
     return true;
 }
 
@@ -669,27 +670,6 @@ void RenderingContext::ClearTextureUnit(uint32_t unit)
     mTextures.SetTexture(unit, nullptr);
 }
 
-/* LKTODO remove
-BBox RenderingContext::SetVertexBufferForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst, uint32_t& retOffset)
-{
-    BBox box;
-
-    QuadVertices fsQuad = AssembleVertexQuadForBlit(src, dst);
-
-    VertexSubregion vertexRegion = GetNewRegionForVertices(static_cast<uint32_t>(fsQuad.size()));
-    if (!vertexRegion) return box;
-
-    memcpy(vertexRegion.subregion.cpu, fsQuad.data(), fsQuad.size() * sizeof(Vertex_2D));
-    SetVertexBuffer(vertexRegion.view);
-
-    for (uint32_t i = 0; i < fsQuad.size(); ++i)
-    {
-        box.Merge(fsQuad[i].pos.x, fsQuad[i].pos.y, fsQuad[i].pos.x, fsQuad[i].pos.y);
-    }
-
-    return box;
-}*/
-
 void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
 {
     if (renderTarget == mRenderTarget.Get())
@@ -892,10 +872,9 @@ void RenderingContext::FlushCommandList(CheckpointType type)
 
     // submit existing RenderThread payload if there's any leftover commands there
     // and finish executing RenderThread payload
-    mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload);
+    mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload, false);
     mRenderThread.ScheduleSignal(mPayloadAllocator, mRTPayload, type);
-    mRenderThread.Execute(ReplaceRTPayload());
-
+    SubmitRTPayload();
     ClearAppliedFlags();
 }
 
@@ -912,18 +891,11 @@ bool RenderingContext::WaitForNextCheckpoint(CheckpointType type)
     return true;
 }
 
-void RenderingContext::Signal(CheckpointType type)
-{
-    mRenderThread.ScheduleSignal(mPayloadAllocator, mRTPayload, type);
-    mRenderThread.Execute(ReplaceRTPayload());
-}
-
 // called after SwapChain::Prepare() and right before SwapChain::Present(). See D3D12SwapChain.java
 // for reference.
 void RenderingContext::FinishFrame()
 {
-    mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload);
-    mRenderThread.ScheduleCommandAllocatorAdvance(mPayloadAllocator, mRTPayload);
+    mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload, true);
 
     // skipping Signal() and Execute() here, will be done by Present()
 
