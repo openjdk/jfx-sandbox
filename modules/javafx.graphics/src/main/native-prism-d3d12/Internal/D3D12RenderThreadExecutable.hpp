@@ -205,17 +205,6 @@ struct DispatchArgs
     {}
 };
 
-struct SwapChainBarrierArgs
-{
-    NIPtr<NativeSwapChain> swapChain;
-    D3D12_RESOURCE_STATES newState;
-
-    SwapChainBarrierArgs(const NIPtr<NativeSwapChain>& swapChain, D3D12_RESOURCE_STATES newState)
-        : swapChain(swapChain)
-        , newState(newState)
-    {}
-};
-
 struct PrepareSwapChainArgs
 {
     NIPtr<NativeSwapChain> swapChain;
@@ -224,15 +213,6 @@ struct PrepareSwapChainArgs
     PrepareSwapChainArgs(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion)
         : swapChain(swapChain)
         , dirtyRegion(dirtyRegion)
-    {}
-};
-
-struct PresentArgs
-{
-    NIPtr<NativeSwapChain> swapChain;
-
-    PresentArgs(const NIPtr<NativeSwapChain>& swapChain)
-        : swapChain(swapChain)
     {}
 };
 
@@ -605,7 +585,7 @@ public:
     }
 };
 
-class PresentAction: public RenderThreadDataExecutable<PresentArgs>
+class PresentAction: public RenderThreadDataExecutable<NIPtr<NativeSwapChain>>
 {
 public:
     PresentAction(const NIPtr<NativeSwapChain>& swapchain)
@@ -614,7 +594,7 @@ public:
 
     void Execute(const RenderThreadContextPtr& context) override final
     {
-        mData.swapChain->Present(context);
+        mData->Present(context);
     }
 };
 

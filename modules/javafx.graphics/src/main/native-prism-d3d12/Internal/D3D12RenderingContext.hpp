@@ -75,6 +75,17 @@ class RenderingContext
         TexturesRenderingParameter textures;
         VertexShaderRenderingParameter vertexShader;
         PixelShaderRenderingParameter pixelShader;
+
+        void Clear()
+        {
+            pipelineState.Unset();
+            primitiveTopology.Unset();
+            renderTarget.Unset();
+            rootSignature.Unset();
+            textures.Unset();
+            vertexShader.Unset();
+            pixelShader.Unset();
+        }
     } mRuntimeParametersStash;
 
     // Graphics Pipeline
@@ -160,6 +171,7 @@ public:
     void TransitionResource(const D3D12ResourcePtr& resource,  D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
 
     void ClearTextureUnit(uint32_t unit);
+    void UnsetRenderTargetIfSet(IRenderTarget* rt);
     void SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget);
     void SetScissor(bool enabled, const D3D12_RECT& scissor);
     void SetTexture(uint32_t unit, const NIPtr<TextureBase>& texture);

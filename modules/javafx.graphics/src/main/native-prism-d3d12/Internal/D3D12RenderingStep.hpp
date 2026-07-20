@@ -111,6 +111,7 @@ public:
     void Unset()
     {
         mIsSet = false;
+        mParameter = T();
     }
 
     T& Get()

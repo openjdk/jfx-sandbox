@@ -89,7 +89,6 @@ public:
     void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     const NIPtr<Waitable>& Execute(RenderPayloadPtr&& payload);
     void ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload, bool advanceAllocator);
-    void SchedulePresent(LinearAllocator& allocator, RenderPayloadPtr& payload, const PresentArgs& presentArgs, CheckpointType checkpointType);
     void ScheduleSignal(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type);
     void ScheduleWaitForCheckpoint(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type);
     void WaitUntilIdle();

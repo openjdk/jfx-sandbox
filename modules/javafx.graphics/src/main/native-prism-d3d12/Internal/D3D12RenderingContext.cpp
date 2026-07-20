@@ -49,6 +49,8 @@ RenderPayloadPtr RenderingContext::ReplaceRTPayload()
     mExtraPayloadDataAllocator.MoveToNewChunk();
     mRTPayload.reset(mPayloadAllocator.Construct<RenderPayload>());
 
+    mPayloadAllocator.ResetChunks();
+    mExtraPayloadDataAllocator.ResetChunks();
     return ret;
 }
 
@@ -62,9 +64,6 @@ void RenderingContext::SubmitRTPayload()
         // move current payload to the Render Thread for execution and create a fresh one for later
         mRenderThread.Execute(ReplaceRTPayload());
     }
-
-    mPayloadAllocator.ResetChunks();
-    mExtraPayloadDataAllocator.ResetChunks();
 }
 
 void RenderingContext::RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect)
@@ -376,10 +375,10 @@ bool RenderingContext::PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain,
 
 bool RenderingContext::Present(const NIPtr<NativeSwapChain>& swapChain)
 {
-    swapChain->WaitForAvailableBuffer();
-
     mRTPayload->AddStep(CreateRTExec<PresentAction>(mPayloadAllocator, swapChain));
     SubmitRTPayload();
+
+    swapChain->WaitForAvailableBuffer();
 
     return true;
 }
@@ -670,6 +669,18 @@ void RenderingContext::ClearTextureUnit(uint32_t unit)
     mTextures.SetTexture(unit, nullptr);
 }
 
+void RenderingContext::UnsetRenderTargetIfSet(IRenderTarget* rt)
+{
+    if (mRenderTarget.Get().get() == rt)
+    {
+        mRenderTarget.Unset();
+
+        // reflect the unset action on RTContext
+        // clears any stale references on RT side
+        mRenderTarget.AddToPayload(mPayloadAllocator, mRTPayload);
+    }
+}
+
 void RenderingContext::SetRenderTarget(const NIPtr<IRenderTarget>& renderTarget)
 {
     if (renderTarget == mRenderTarget.Get())
@@ -824,6 +835,19 @@ void RenderingContext::RestoreStashedParameters()
     mTextures.Set(mRuntimeParametersStash.textures.Get());
     SetVertexShader(mRuntimeParametersStash.vertexShader.Get());
     SetPixelShader(mRuntimeParametersStash.pixelShader.Get());
+
+    mRuntimeParametersStash.Clear();
+
+    // Apply Render Target and Textures now. This will clear potential stale references on RT side.
+    // We do this because SwapChain requires a bit more special treatment when remaking it and we
+    // must be sure there is no NativeSwapChain shared_ptr instance when calling nReleaseNativeObject.
+    // This Restore() is also most probably called after we call Blit on a SwapChain instance, thus
+    // potentially leaving a stale shared_ptr instance on Render Thread side.
+    //
+    // SwapChain during cleanup will call WaitForNextCheckpoint(ALL) which will submit the payload
+    // and clear the reference, so we only must add the Apply steps here.
+    mRenderTarget.AddToPayload(mPayloadAllocator, mRTPayload);
+    mTextures.AddToPayload(mPayloadAllocator, mRTPayload);
 }
 
 bool RenderingContext::Apply()

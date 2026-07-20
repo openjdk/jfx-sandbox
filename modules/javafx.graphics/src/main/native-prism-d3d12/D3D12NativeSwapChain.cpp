@@ -205,7 +205,12 @@ void NativeSwapChain::Release()
     // mean HWND is still held by the old SwapChain and DXGI would return an "Access Denied" error
     // when calling CreateSwapChain*() again. Instead, we wait here to empty NativeSwapChain references
     // on the RenderThread and then clean the shared_ptr right after, which frees the HWND for the next
-    // SwapChain instance.
+    // SwapChain instance. Additionally we also free the RenderTarget reference from RenderingContext
+    // and RenderThreadContext side.
+    //
+    // NOTE: this will need extra unset calls if we ever use a SwapChain directly as a texture... but
+    // with current Prism design it seems highly unlikely.
+    mNativeDevice->GetRenderingContext()->UnsetRenderTargetIfSet(this);
     mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
 }
 
@@ -238,7 +243,7 @@ bool NativeSwapChain::Resize(UINT width, UINT height)
     return true;
 }
 
-// called by QuantumRenderer Thread
+// called by main (QuantumRenderer) Thread
 void NativeSwapChain::WaitForAvailableBuffer()
 {
     std::unique_lock<std::mutex> lock(mAvailableBufferMutex);
@@ -249,7 +254,7 @@ void NativeSwapChain::WaitForAvailableBuffer()
     // too far ahead from what is visually visible on screen. It could also maybe lie about
     // performance numbers a bit too much.
     mRecordedPresentCount++;
-    while (mRecordedPresentCount > mBufferCount)
+    while (mRecordedPresentCount >= mBufferCount)
     {
         mAvailableBufferCV.wait(lock);
     }
