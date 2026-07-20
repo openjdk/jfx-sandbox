@@ -147,10 +147,7 @@ class LinearAllocator
     std::list<Chunk> mEmptyChunks; // RenderThread deposits used and freed chunks here
     std::mutex mChunkResetMutex;
     size_t mSizePerChunk;
-
-#if DEBUG
     std::thread::id mRenderThreadId;
-#endif
 
     void Expand();
 
