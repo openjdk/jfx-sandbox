@@ -39,7 +39,6 @@ public:
     using WaitFinishedCallback = std::function<bool(uint64_t)>;
 
 private:
-    // TODO: D3D12: potential optimization - fetch the Event handle from a pool
     HANDLE mEventHandle;
     uint64_t mFenceValue;
     WaitFinishedCallback mWaitFinishedCallback;
@@ -47,7 +46,6 @@ private:
 
 public:
     Waitable();
-    Waitable(uint64_t fenceValue);
     Waitable(uint64_t fenceValue, const WaitFinishedCallback& waitCallback);
     Waitable(Waitable&& other);
     ~Waitable();

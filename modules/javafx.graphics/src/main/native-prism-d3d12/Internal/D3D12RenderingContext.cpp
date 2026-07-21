@@ -906,7 +906,7 @@ bool RenderingContext::WaitForNextCheckpoint(CheckpointType type)
 {
     mRenderThread.ScheduleWaitForCheckpoint(mPayloadAllocator, mRTPayload, type);
     NIPtr<Waitable> w = mRenderThread.Execute(ReplaceRTPayload());
-    if (!w->Wait())
+    if (w && !w->Wait())
     {
         D3D12NI_LOG_ERROR("Failed to wait for RenderThread's checkpoint");
         return false;

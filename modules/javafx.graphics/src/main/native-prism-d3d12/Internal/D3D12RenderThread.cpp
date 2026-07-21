@@ -47,7 +47,7 @@ RenderPayloadPtr& RenderThread::FetchPayload()
         // Payload's Waitable should be signaled after we pop the Payload to mark we are completely done with it
         // which also includes freeing any shared_ptrs and references to used objects.
         // A hard copy is done here to ensure Waitable is valid after pop()
-        NIPtr<Waitable> w = mPayloadQueue.front()->GetWaitable();
+        NIPtr<Waitable> w(mPayloadQueue.front()->GetWaitable());
         mPayloadQueue.pop();
 
         // pop() destroyed the Payload (except for the Waitable) so now we can Signal it and move on
@@ -260,11 +260,13 @@ void RenderThread::UnregisterWaitableOperation(Internal::IWaitableOperation* wai
     }
 }
 
-const NIPtr<Waitable>& RenderThread::Execute(RenderPayloadPtr&& payload)
+NIPtr<Waitable> RenderThread::Execute(RenderPayloadPtr&& payload)
 {
     D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::Execute() can only be called from main thread");
 
-    const NIPtr<Waitable>& waitable = payload->GetWaitable();
+    if (mWorkerDone) return NIPtr<Waitable>();
+
+    NIPtr<Waitable> waitable(payload->GetWaitable());
 
     std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
 

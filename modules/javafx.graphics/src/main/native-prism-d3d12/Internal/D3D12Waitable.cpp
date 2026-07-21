@@ -30,21 +30,15 @@ namespace D3D12 {
 namespace Internal {
 
 Waitable::Waitable()
-    : Waitable(0)
-{}
-
-Waitable::Waitable(uint64_t fenceValue)
-    : Waitable(fenceValue, [](uint64_t) { return true; })
+    : Waitable(0, WaitFinishedCallback())
 {}
 
 Waitable::Waitable(uint64_t fenceValue, const WaitFinishedCallback& waitCallback)
-    : mEventHandle(NULL)
+    : mEventHandle(CreateEventEx(NULL, NULL, 0, SYNCHRONIZE | EVENT_MODIFY_STATE))
     , mFenceValue(fenceValue)
     , mWaitFinishedCallback(waitCallback)
     , mWaitCompleted(false)
-{
-    mEventHandle = CreateEventEx(NULL, NULL, 0, SYNCHRONIZE | EVENT_MODIFY_STATE);
-}
+{}
 
 Waitable::Waitable(Waitable&& other)
     : mEventHandle(std::move(other.mEventHandle))
@@ -65,6 +59,12 @@ Waitable::~Waitable()
 
 bool Waitable::Wait()
 {
+    if (!mEventHandle)
+    {
+        D3D12NI_LOG_ERROR("Failed to Wait() on the Waitable - event handle is invalid");
+        return false;
+    }
+
     if (mWaitCompleted)
     {
         // we already waited, skip whatever happens next
@@ -93,7 +93,7 @@ bool Waitable::Signal()
 {
     if (!mEventHandle)
     {
-        D3D12NI_LOG_ERROR("Failed to signal() the waitable - event handle is invalid");
+        D3D12NI_LOG_ERROR("Failed to Signal() the Waitable - event handle is invalid");
         return false;
     }
 
