@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "D3D12DescriptorHeap.hpp"
 
 #include <unordered_map>
+#include <mutex>
 
 
 namespace D3D12 {
@@ -37,13 +38,15 @@ namespace Internal {
 class DescriptorAllocator
 {
     NIPtr<NativeDevice> mNativeDevice;
-    std::unordered_map<uint32_t, DescriptorHeap> mHeaps;
-    uint32_t mLastHeapID;
+    std::list<DescriptorHeap> mHeaps;
+    std::list<DescriptorHeap> mEmptiedHeaps;
+    DescriptorHeap* mCurrentHeap;
+    uint32_t mHeapCounter; // for debug naming
     D3D12_DESCRIPTOR_HEAP_TYPE mType;
     bool mShaderVisible;
+    std::mutex mHeapAccessMutex;
     std::string mName;
 
-    std::string HeapSpecificName(uint32_t id) const;
     bool AddHeap();
 
 public:

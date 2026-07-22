@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,6 +56,28 @@ DescriptorHeap::DescriptorHeap(const D3D12DescriptorHeapPtr& heap, uint32_t incr
     if (mShaderVisible) mGPUStartHandle = mHeap->GetGPUDescriptorHandleForHeapStart();
 
     for (uint32_t i = 0; i < MAX_DESCRIPTOR_SLOT_COUNT; ++i) mSlotAvailability[i] = true;
+}
+
+DescriptorHeap::DescriptorHeap(DescriptorHeap&& other)
+    : mHeap(std::move(other.mHeap))
+    , mShaderVisible(other.mShaderVisible)
+    , mCPUStartHandle(other.mCPUStartHandle)
+    , mGPUStartHandle(other.mGPUStartHandle)
+    , mIncrementSize(other.mIncrementSize)
+    , mSlotAvailability(std::move(other.mSlotAvailability))
+    , mFirstFreeSlot(other.mFirstFreeSlot)
+    , mSize(other.mSize)
+    , mAllocatedCountTotal(other.mAllocatedCountTotal)
+    , mID(other.mID)
+    , mName(std::move(other.mName))
+{
+    other.mCPUStartHandle.ptr = 0;
+    other.mGPUStartHandle.ptr = 0;
+    other.mIncrementSize = 0;
+    other.mFirstFreeSlot = 0;
+    other.mSize = 0;
+    other.mAllocatedCountTotal = 0;
+    other.mID = std::numeric_limits<uint32_t>::max();
 }
 
 DescriptorData DescriptorHeap::Allocate(UINT count)
@@ -118,7 +140,7 @@ DescriptorData DescriptorHeap::Allocate(UINT count)
     }
     while (i != mFirstFreeSlot);
 
-    D3D12NI_ASSERT(false, "Failed to find enough room to allocate %u descriptors", count);
+    D3D12NI_LOG_WARN("Failed to find enough room to allocate %u descriptors", count);
     return DescriptorData();
 }
 
@@ -142,7 +164,7 @@ void DescriptorHeap::Free(const DescriptorData& data)
 
 void DescriptorHeap::SetName(const std::string& name)
 {
-    mName = name;
+    mName = name + "_" + std::to_string(mID);
     mHeap->SetName(Utils::ToWString(name).c_str());
 }
 

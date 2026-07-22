@@ -62,8 +62,7 @@ NativeRenderTarget::~NativeRenderTarget()
 
 bool NativeRenderTarget::Init(const NIPtr<NativeTexture>& texture, bool enableDirtyBBox)
 {
-    mTexture = texture;
-    mTextureBase = mTexture;
+    mTextureBase = mTexture = texture;
     mDescriptors = mNativeDevice->GetRTVDescriptorAllocator()->Allocate(1);
     mBBoxState = (enableDirtyBBox ? BBoxTrackingState::Enabled : BBoxTrackingState::Disabled);
 
@@ -76,15 +75,13 @@ bool NativeRenderTarget::EnsureHasDepthBuffer()
     // note that if it's already created we don't have to do anything
     if (mDepthTexture) return true;
 
-    mDepthTexture = std::make_shared<NativeTexture>(mNativeDevice);
+    mDepthTextureBase = mDepthTexture = std::make_shared<NativeTexture>(mNativeDevice);
     if (!mDepthTexture->Init(static_cast<int>(mWidth), static_cast<int>(mHeight), DXGI_FORMAT_D32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
             TextureUsage::STATIC, TextureWrapMode::CLAMP_NOT_NEEDED, mTexture->GetMSAASamples(), false))
     {
         D3D12NI_LOG_ERROR("Failed to create Depth Texture");
         return false;
     }
-
-    mDepthTextureBase = mDepthTexture;
 
     mDSVDescriptor = mNativeDevice->GetDSVDescriptorAllocator()->Allocate(1);
     if (!mDSVDescriptor)

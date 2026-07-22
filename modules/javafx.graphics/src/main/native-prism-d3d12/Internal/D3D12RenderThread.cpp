@@ -191,7 +191,7 @@ RenderThread::RenderThread(const NIPtr<NativeDevice>& nativeDevice)
     , mPayloadQueueMutex()
     , mPayloadQueue()
     , mWorkerDone(false)
-    , mWorkerThread(&RenderThread::WorkerMain, this)
+    , mWorkerThread()
 {
     SetThreadDescription(mWorkerThread.native_handle(), L"JavaFX D3D12 RenderThread");
 }
@@ -231,6 +231,14 @@ bool RenderThread::Init()
 
     hr = mNativeDevice->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mCommandQueueFence));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create in-device Fence");
+
+    {
+        std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
+
+        // start up the thread and wait until it's ready to accept payloads
+        mWorkerThread = std::thread(&RenderThread::WorkerMain, this);
+        mQueueEmptyCV.wait(lock);
+    }
 
     return true;
 }
@@ -315,6 +323,7 @@ void RenderThread::Exit()
 
     if (mWorkerDone) return;
 
+    WaitUntilIdle();
     mWorkerDone = true;
     mPayloadAvailableCV.notify_one();
 

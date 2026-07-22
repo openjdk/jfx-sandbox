@@ -44,7 +44,10 @@ class RenderPayload
 {
 private:
     static const uint32_t PAYLOAD_SIZE = 10240;
-    static const uint32_t PAYLOAD_LIMIT = PAYLOAD_SIZE - 48;
+
+    // this limit should be big enough to fit the entire RenderingContext::Apply() or ApplyCompute()
+    // this way we can in one batch apply all Pipeline changes at once and immediately after order a draw/dispatch call
+    static const uint32_t PAYLOAD_LIMIT = PAYLOAD_SIZE - 24;
     using StepList = std::array<RenderThreadExecutablePtr, PAYLOAD_SIZE>;
 
     NIPtr<Waitable> mWaitable;
@@ -61,6 +64,12 @@ public:
 
     bool AddStep(RenderThreadExecutablePtr&& executable)
     {
+        if (mCurrentStep >= mSteps.size())
+        {
+            D3D12NI_LOG_ERROR("Render Thread Payload size exceeded. Please fix this.");
+            return false;
+        }
+
         mSteps[mCurrentStep] = std::move(executable);
         mCurrentStep++;
         return (mCurrentStep > PAYLOAD_LIMIT);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -56,12 +56,21 @@ private:
 
 public:
     DescriptorHeap(const D3D12DescriptorHeapPtr& heap, UINT incrementSize, uint32_t id, const std::string& name);
+    DescriptorHeap(DescriptorHeap&& other);
     ~DescriptorHeap() = default;
+
+    DescriptorHeap(const DescriptorHeap& other) = delete;
+    DescriptorHeap& operator=(const DescriptorHeap& other) = delete;
 
     DescriptorData Allocate(UINT count);
     void Free(const DescriptorData& data);
 
     void SetName(const std::string& name);
+
+    inline bool Owns(const DescriptorData& data) const
+    {
+        return data.allocatorId == mID;
+    }
 
     inline const D3D12DescriptorHeapPtr& GetHeap() const
     {

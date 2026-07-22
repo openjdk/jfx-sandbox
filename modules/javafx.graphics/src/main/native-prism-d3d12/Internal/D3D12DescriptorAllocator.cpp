@@ -33,17 +33,18 @@
 namespace D3D12 {
 namespace Internal {
 
-std::string DescriptorAllocator::HeapSpecificName(uint32_t id) const
-{
-    return mName + '_' + std::to_string(id);
-}
-
 bool DescriptorAllocator::AddHeap()
 {
-    mLastHeapID++;
-    if (mLastHeapID == 0) mLastHeapID++;
+    if (!mEmptiedHeaps.empty())
+    {
+        // reuse existing heaps if they were fully freed
+        mHeaps.emplace_back(std::move(mEmptiedHeaps.front()));
+        mEmptiedHeaps.pop_front();
+        mCurrentHeap = &mHeaps.back();
+        return true;
+    }
 
-    // first try and allocate the new heap
+    // allocate the new heap since we don't have any to reuse
     D3D12_DESCRIPTOR_HEAP_DESC desc;
     D3D12NI_ZERO_STRUCT(desc);
     desc.NumDescriptors = DescriptorHeap::MAX_DESCRIPTOR_SLOT_COUNT;
@@ -57,16 +58,22 @@ bool DescriptorAllocator::AddHeap()
 
     uint32_t increment = mNativeDevice->GetDevice()->GetDescriptorHandleIncrementSize(mType);
 
-    mHeaps.emplace(std::make_pair(mLastHeapID, DescriptorHeap(heap, increment, mLastHeapID, HeapSpecificName(mLastHeapID))));
+    mHeaps.emplace_back(DescriptorHeap(heap, increment, mHeapCounter, mName));
+    mCurrentHeap = &mHeaps.back();
+    ++mHeapCounter;
+
     return true;
 }
 
 DescriptorAllocator::DescriptorAllocator(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mHeaps()
-    , mLastHeapID(0)
+    , mEmptiedHeaps()
+    , mCurrentHeap(nullptr)
+    , mHeapCounter(0)
     , mType(D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES)
     , mShaderVisible(false)
+    , mHeapAccessMutex()
     , mName("Descriptor Heap")
 {
 }
@@ -87,10 +94,9 @@ DescriptorData DescriptorAllocator::Allocate(uint32_t count)
         return DescriptorData();
     }
 
-    auto heapIt = mHeaps.find(mLastHeapID);
-    D3D12NI_ASSERT(heapIt != mHeaps.end(), "Cannot find available descriptor allocator!");
+    std::unique_lock<std::mutex> lock(mHeapAccessMutex);
 
-    DescriptorData data = heapIt->second.Allocate(count);
+    DescriptorData data = mCurrentHeap->Allocate(count);
     if (!data)
     {
         D3D12NI_LOG_TRACE("Current heap must be full or too fragmented, advancing to a new one");
@@ -101,8 +107,7 @@ DescriptorData DescriptorAllocator::Allocate(uint32_t count)
         }
 
         // retry the allocation
-        heapIt = mHeaps.find(mLastHeapID);
-        data = heapIt->second.Allocate(count);
+        data = mCurrentHeap->Allocate(count);
         if (!data)
         {
             D3D12NI_LOG_ERROR("Failed to allocate %d descriptors", count);
@@ -115,19 +120,30 @@ DescriptorData DescriptorAllocator::Allocate(uint32_t count)
 
 void DescriptorAllocator::Free(const DescriptorData& data)
 {
-    const auto& heapIt = mHeaps.find(data.allocatorId);
-    D3D12NI_ASSERT(heapIt != mHeaps.end(), "Tried to free a block with invalid allocator ID");
+    std::unique_lock<std::mutex> lock(mHeapAccessMutex);
 
-    DescriptorHeap& heap = heapIt->second;
-
-    heap.Free(data);
-    if (heap.Empty() && heapIt->first != mLastHeapID)
+    if (mCurrentHeap->Owns(data))
     {
-        // we advanced past this heap as our "recent useable" one and it has been completely freed
-        // which means we can dispose of it
-        mNativeDevice->MarkDisposed(heap.GetHeap());
-        mHeaps.erase(heapIt);
+        mCurrentHeap->Free(data);
+        return;
     }
+
+    for (std::list<DescriptorHeap>::iterator it = mHeaps.begin(); it != mHeaps.end(); ++it)
+    {
+        if (it->Owns(data))
+        {
+            it->Free(data);
+            if (it->Empty())
+            {
+                mEmptiedHeaps.emplace_back(std::move(*it));
+                mHeaps.erase(it);
+            }
+
+            return;
+        }
+    }
+
+    D3D12NI_ASSERT(false, "Tried to free descriptor data that does not belong to this allocator");
 }
 
 void DescriptorAllocator::SetName(const std::string& name)
@@ -135,7 +151,7 @@ void DescriptorAllocator::SetName(const std::string& name)
     mName = name;
     for (auto& heap: mHeaps)
     {
-        heap.second.SetName(HeapSpecificName(heap.first));
+        heap.SetName(name);
     }
 }
 
