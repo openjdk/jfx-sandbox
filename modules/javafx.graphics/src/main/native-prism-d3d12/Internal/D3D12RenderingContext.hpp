@@ -188,6 +188,7 @@ public:
 
     void FlushCommandList(CheckpointType type);
     bool WaitForNextCheckpoint(CheckpointType type);
+    bool WaitForGPU();
     void FinishFrame();
 
     // exposed for SwapChain

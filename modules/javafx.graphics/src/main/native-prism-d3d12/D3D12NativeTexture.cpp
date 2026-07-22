@@ -79,6 +79,11 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
         srvDesc.Texture2D.PlaneSlice = 0;
         srvDesc.Texture2D.ResourceMinLODClamp = 0.0f;
 
+        if (mSRVDescriptor)
+        {
+            mNativeDevice->GetSRVDescriptorAllocator()->Free(mSRVDescriptor);
+        }
+
         mSRVDescriptor = mNativeDevice->GetSRVDescriptorAllocator()->Allocate(1);
         if (!mSRVDescriptor)
         {

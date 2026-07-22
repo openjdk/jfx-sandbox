@@ -36,6 +36,8 @@
 namespace D3D12 {
 namespace Internal {
 
+
+
 RenderPayloadPtr& RenderThread::FetchPayload()
 {
     std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
@@ -77,7 +79,17 @@ void RenderThread::WorkerMain()
         if (!curPayload->ApplySteps(mContext))
         {
             D3D12NI_LOG_ERROR("RenderThread: Failed to apply current payload's steps. This should not happen. Pausing execution.");
+
+            std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
+
+            // fast cleanup path from the worker thread in case of an error - wait for GPU, clear all payloads, exit
             mWorkerDone = true;
+            mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
+            while (!mPayloadQueue.empty()) mPayloadQueue.pop();
+
+            mQueueEmptyCV.notify_all(); // in case main thread waits on mQueueEmptyCV
+
+            return;
         }
     }
 
@@ -86,6 +98,8 @@ void RenderThread::WorkerMain()
         // the only time we should be here (in normal conditions) is when main thread set mWorkerDone to true
         // and immediately after waits for RenderThread to join it, so we can safely wrap up the rest of our work
         std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
+
+        mWorkerDone = true;
 
         // if mWorkerDone was set to true mid-payload, that means we just executed a payload but
         // FetchPayload() didn't have a chance to pop() it yet and clean it up, so we must do that now
@@ -102,7 +116,8 @@ void RenderThread::WorkerMain()
             mPayloadQueue.pop();
         }
 
-        // all payloads are now submitted, wait for GPU to be done before completing
+        // all payloads are now processed, wait for GPU to be done before completing
+        Signal(CheckpointType::MIDFRAME);
         mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
         mCheckpointQueue.PrintStats();
     }
@@ -311,6 +326,7 @@ void RenderThread::ScheduleWaitForCheckpoint(LinearAllocator& allocator, RenderP
 void RenderThread::WaitUntilIdle()
 {
     std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
+
     while (mPayloadQueue.size() != 0)
     {
         mQueueEmptyCV.wait(lock);
@@ -321,13 +337,22 @@ void RenderThread::Exit()
 {
     D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::Exit() can only be called from main thread");
 
-    if (mWorkerDone) return;
+    {
+        std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
 
-    WaitUntilIdle();
-    mWorkerDone = true;
-    mPayloadAvailableCV.notify_one();
+        if (!mWorkerDone)
+        {
+            while (mPayloadQueue.size() != 0)
+            {
+                mQueueEmptyCV.wait(lock);
+            }
 
-    mWorkerThread.join();
+            mWorkerDone = true;
+            mPayloadAvailableCV.notify_one();
+        }
+    }
+
+    if (mWorkerThread.joinable()) mWorkerThread.join();
 
     // free up RT resources
     mContext.reset();

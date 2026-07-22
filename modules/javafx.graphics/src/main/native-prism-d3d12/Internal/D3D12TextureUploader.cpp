@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,7 +71,7 @@ void TextureUploader::TransferRGBToB8G8R8A8()
 
     for (size_t y = 0; y < mSource.h; ++y)
     {
-        const Pixel_RGB8_UNORM* srcPtr = reinterpret_cast<const Pixel_RGB8_UNORM*>(mSource.ptr) + ((y + mSource.y) * srcStrideElems) + (mSource.x * srcBpp);
+        const Pixel_RGB8_UNORM* srcPtr = reinterpret_cast<const Pixel_RGB8_UNORM*>(mSource.ptr) + ((y + mSource.y) * srcStrideElems) + (mSource.x);
         Pixel_BGRA8_UNORM* dstPtr = reinterpret_cast<Pixel_BGRA8_UNORM*>(mTarget.ptr) + (y * dstStrideElems);
         for (size_t x = 0; x < mSource.w; ++x)
         {
@@ -98,8 +98,14 @@ size_t TextureUploader::EstimateTargetSize(size_t srcw, size_t srch, DXGI_FORMAT
     // D3D12 requires RowPitch aka. stride in PlacedFootprint structure to be a multiple of 256 bytes
     // If Stride is not a multiple of 256 we need to expand it
     // We assume srcStride has been calculated properly in upper layers (greater or equal to width * bpp)
+    uint32_t bpp = GetDXGIFormatBPP(dstFormat);
+    if (srcw == 0 || srch == 0 || bpp == 0) return 0;
+    if (srcw > std::numeric_limits<uint32_t>::max() / bpp) return 0;
+
     size_t dstStride = srcw * GetDXGIFormatBPP(dstFormat);
     dstStride = Utils::Align<size_t>(dstStride, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+    if (srch > std::numeric_limits<uint32_t>::max() / dstStride) return 0;
+
     return srch * dstStride;
 }
 
@@ -127,6 +133,54 @@ void TextureUploader::SetTarget(void* ptr, size_t size, DXGI_FORMAT format)
 
 bool TextureUploader::Upload()
 {
+    size_t srcBpp = GetPixelFormatBPP(mSource.format);
+    if (srcBpp == 0)
+    {
+        D3D12NI_LOG_ERROR("TextureUploader: Unrecognized source pixel format");
+        return false;
+    }
+
+    // validate source and target dimensions
+    if (mSource.w == 0 || mSource.h == 0 || mSource.stride == 0 ||
+        mSource.w > (std::numeric_limits<uint32_t>::max() / srcBpp) ||
+        mSource.h > (std::numeric_limits<uint32_t>::max() / mSource.stride))
+    {
+        D3D12NI_LOG_ERROR("TextureUploader: Invalid source dimensions");
+        return false;
+    }
+
+    if (mSource.x > (std::numeric_limits<uint32_t>::max() / srcBpp) ||
+        mSource.x > (std::numeric_limits<uint32_t>::max() - mSource.w))
+    {
+        D3D12NI_LOG_ERROR("TextureUploader: Invalid source dimensions/stride");
+        return false;
+    }
+
+    if ((mSource.y > 0 && mSource.stride > (std::numeric_limits<uint32_t>::max() / mSource.y)) ||
+        (mSource.y > std::numeric_limits<uint32_t>::max() - mSource.h))
+    {
+        D3D12NI_LOG_ERROR("TextureUploader: Invalid source dimensions/stride");
+        return false;
+    }
+
+    if ((mSource.w > (std::numeric_limits<uint32_t>::max() / srcBpp)) ||
+        (mSource.h > (std::numeric_limits<uint32_t>::max() / mSource.stride)) ||
+        (((mSource.h - 1) * mSource.stride) > std::numeric_limits<uint32_t>::max() - (mSource.x * srcBpp)) ||
+        ((mSource.w * srcBpp) > std::numeric_limits<uint32_t>::max() - (mSource.x * srcBpp) - ((mSource.h - 1) * mSource.stride)) ||
+        ((mSource.y * mSource.stride) > std::numeric_limits<uint32_t>::max() - (mSource.x * srcBpp) - ((mSource.h - 1) * mSource.stride) - (mSource.w * srcBpp)) ||
+        ((mSource.y * mSource.stride) + (mSource.x * srcBpp) + ((mSource.h - 1) * mSource.stride) + (mSource.w * srcBpp)) > mSource.size)
+    {
+        D3D12NI_LOG_ERROR("TextureUploader: Source would read out of buffer bounds");
+        return false;
+    }
+
+    size_t targetBytes = EstimateTargetSize(mSource.w, mSource.h, mTarget.format);
+    if (targetBytes == 0 || targetBytes > mTarget.size)
+    {
+        D3D12NI_LOG_ERROR("TextureUploader: Target is invalid");
+        return false;
+    }
+
     mTarget.stride = Utils::Align<UINT>(mSource.w * GetDXGIFormatBPP(mTarget.format), D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
 
     // mostly mimics D3D's TextureUploader.cc

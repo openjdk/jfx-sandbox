@@ -58,7 +58,7 @@ bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mo
 
     mConstantBufferStorage.resize(sizeof(CBuffer));
 
-    AddShaderResource("gData", ResourceAssignment(ResourceAssignmentType::DESCRIPTOR, 0, 0, sizeof(CBuffer), 0));
+    AddShaderResource("gData", ResourceAssignment(ResourceAssignmentType::DESCRIPTOR, 0, 0, 1, sizeof(CBuffer), 0));
 
     mResourceData.textureCount = 1;
     mResourceData.uavCount = 4;

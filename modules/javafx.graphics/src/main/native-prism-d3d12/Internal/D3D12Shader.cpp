@@ -74,6 +74,12 @@ bool Shader::SetConstants(const std::string_view& name, const void* data, size_t
     }
 
     const ResourceAssignment& resource = resourceIt->second;
+    if (size > resource.sizeInCBStorage)
+    {
+        D3D12NI_LOG_ERROR("SetConstants failed, data size %d bytes won't fit in expected Shader Constant storage space %d bytes", size, resource.sizeInCBStorage);
+        return false;
+    }
+
     uint8_t* dstDataPtr = mConstantBufferStorage.data() + resource.offsetInCBStorage;
     const uint8_t* srcDataPtr = reinterpret_cast<const uint8_t*>(data);
     memcpy(dstDataPtr, srcDataPtr, size);
@@ -95,6 +101,18 @@ bool Shader::SetConstantsInArray(const std::string_view& name, uint32_t idx, con
     }
 
     const ResourceAssignment& resource = resourceIt->second;
+    if (idx >= resource.elementCount)
+    {
+        D3D12NI_LOG_ERROR("SetConstantsInArray failed, index %d crosses array boundary %d", idx, resource.elementCount);
+        return false;
+    }
+
+    if (size > resource.sizeInCBStorage)
+    {
+        D3D12NI_LOG_ERROR("SetConstantsInArray failed, data size %d bytes won't fit in expected Shader Constant element storage %d byte", size, resource.sizeInCBStorage);
+        return false;
+    }
+
     uint8_t* dstDataPtr = mConstantBufferStorage.data() + resource.offsetInCBStorage + (idx * resource.sizeInCBStorage);
     const uint8_t* srcDataPtr = reinterpret_cast<const uint8_t*>(data);
     memcpy(dstDataPtr, srcDataPtr, size);

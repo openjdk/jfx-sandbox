@@ -41,23 +41,20 @@ class InternalShader: public Shader
     {
         ResourceAssignment assignment;
         RingBuffer::Region region;
-        bool assigned;
 
         CBufferRegion()
-            : assignment(ResourceAssignmentType::DESCRIPTOR, 0, 0, 0, 0)
+            : assignment(ResourceAssignmentType::DESCRIPTOR, 0, 0, 0, 0, 0)
             , region()
-            , assigned(false)
         {}
 
         CBufferRegion(ResourceAssignment a)
             : assignment(a)
             , region()
-            , assigned(true)
         {}
 
         operator bool() const
         {
-            return assigned;
+            return (assignment.elementCount > 0);
         }
     };
 

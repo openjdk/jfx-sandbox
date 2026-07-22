@@ -79,13 +79,15 @@ protected:
         ResourceAssignmentType type; // where our resource was assigned to
         uint32_t rootIndex; // at which root signature index is our resource
         uint32_t index; // at which index in dtable is our resource - only valid for DESCRIPTOR_TABLE types
+        uint32_t elementCount; // how many elements our assignment has; non-arrays have this set to one, arrays to element count
         uint32_t sizeInCBStorage; // size in storage in bytes per element
         uint32_t offsetInCBStorage; // at which spot in mConstantBufferStorage our data should be kept
 
-        ResourceAssignment(ResourceAssignmentType type, uint32_t rootIndex, uint32_t index, uint32_t sizeInCBStorage, uint32_t offsetInCBStorage)
+        ResourceAssignment(ResourceAssignmentType type, uint32_t rootIndex, uint32_t index, uint32_t elementCount, uint32_t sizeInCBStorage, uint32_t offsetInCBStorage)
             : type(type)
             , rootIndex(rootIndex)
             , index(index)
+            , elementCount(elementCount)
             , sizeInCBStorage(sizeInCBStorage)
             , offsetInCBStorage(offsetInCBStorage)
         {}

@@ -108,7 +108,7 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
 
             // adding entire CBuffer table as one big blob - we will split it on SetConstants()
             uint32_t totalSize = constantBuffer.size * constantBuffer.count;
-            ResourceAssignment assignment(constantBuffer.type, constantBuffer.rootIndex, 0, constantBuffer.size, constantBufferTotalSize);
+            ResourceAssignment assignment(constantBuffer.type, constantBuffer.rootIndex, 0, constantBuffer.count, constantBuffer.size, constantBufferTotalSize);
 
             AddShaderResource(constantBuffer.name, assignment);
             mCBufferDTableRegions.emplace_back(assignment);
@@ -119,7 +119,7 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
             D3D12NI_ASSERT(!mCBufferDirectRegion && mResourceData.cbufferDirectSize == 0, "%s: Direct CBV already declared. We can only fit one direct CBV per shader.", mName.c_str());
             mResourceData.cbufferDirectSize = constantBuffer.size;
 
-            ResourceAssignment assignment(constantBuffer.type, constantBuffer.rootIndex, 0, constantBuffer.size, constantBufferTotalSize);
+            ResourceAssignment assignment(constantBuffer.type, constantBuffer.rootIndex, 0, 1, constantBuffer.size, constantBufferTotalSize);
             AddShaderResource(constantBuffer.name, assignment);
 
             mCBufferDirectRegion = CBufferRegion(assignment);
@@ -145,7 +145,7 @@ bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D1
             AddShaderResource(
                 texture.name,
                 ResourceAssignment(
-                    texture.type, texture.rootIndex, static_cast<uint32_t>(i), 0, 0
+                    texture.type, texture.rootIndex, static_cast<uint32_t>(i), 1, 0, 0
                 )
             );
 

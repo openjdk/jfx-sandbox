@@ -150,7 +150,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
             AddShaderResource(
                 binding.name,
                 ResourceAssignment(
-                    ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, binding.slot, 0, 0
+                    ResourceAssignmentType::DESCRIPTOR_TABLE_TEXTURES, ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, binding.slot, 1, 0, 0
                 )
             );
             mResourceData.textureCount++;
@@ -161,7 +161,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
             AddShaderResource(
                 binding.name,
                 ResourceAssignment(
-                    ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, binding.slot, 0, 0
+                    ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, binding.slot, 1, 0, 0
                 )
             );
             break;
@@ -178,7 +178,7 @@ bool NativeShader::Init(const std::string& name, void* code, size_t size)
             AddShaderResource(
                 binding.name,
                 ResourceAssignment (
-                    ResourceAssignmentType::DESCRIPTOR, ShaderSlots::GRAPHICS_RS_PS_DATA, 0, bindingSizeBytes, constantDataTotalSize
+                    ResourceAssignmentType::DESCRIPTOR, ShaderSlots::GRAPHICS_RS_PS_DATA, 0, 1, paddedBindingSize, constantDataTotalSize
                 )
             );
 

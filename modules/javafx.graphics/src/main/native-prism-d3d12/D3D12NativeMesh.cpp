@@ -102,8 +102,9 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeMesh_nBuildGeo
 
     D3D12::Internal::JNIBuffer<jfloatArray> vertsBuffer(env, nullptr, verts);
     D3D12::Internal::JNIBuffer<jintArray> indicesBuffer(env, nullptr, indices);
+    if (!vertsBuffer || !indicesBuffer) return false;
 
-    if (vertsLength > vertsBuffer.Size() || indicesLength > indicesBuffer.Size()) return false;
+    if (vertsLength > vertsBuffer.Count() || indicesLength > indicesBuffer.Count()) return false;
 
     size_t vertsLengthBytes = vertsLength * sizeof(float);
     size_t indicesLengthBytes = indicesLength * sizeof(int);
@@ -124,8 +125,9 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeMesh_nBuildGeo
 
     D3D12::Internal::JNIBuffer<jfloatArray> vertsBuffer(env, nullptr, verts);
     D3D12::Internal::JNIBuffer<jshortArray> indicesBuffer(env, nullptr, indices);
+    if (!vertsBuffer || !indicesBuffer) return false;
 
-    if (vertsLength > vertsBuffer.Size() || indicesLength > indicesBuffer.Size()) return false;
+    if (vertsLength > vertsBuffer.Count() || indicesLength > indicesBuffer.Count()) return false;
 
     size_t vertsLengthBytes = vertsLength * sizeof(float);
     size_t indicesLengthBytes = indicesLength * sizeof(short);

@@ -40,9 +40,13 @@ uint64_t NativeSwapChain::swapChainCounter = 0;
 
 bool NativeSwapChain::GetSwapChainBuffers(UINT count)
 {
-    for (Internal::DescriptorData& rtv: mRTVs)
+    for (uint32_t i = 0; i < mRTVs.size(); ++i)
     {
-        mNativeDevice->GetRTVDescriptorAllocator()->Free(rtv);
+        if (mRTVs[i])
+        {
+            mNativeDevice->GetRTVDescriptorAllocator()->Free(mRTVs[i]);
+            mRTVs[i] = Internal::DescriptorData();
+        }
     }
 
     mBufferCount = count;
@@ -122,7 +126,10 @@ NativeSwapChain::~NativeSwapChain()
     for (size_t i = 0; i < mTextureBuffers.size(); ++i)
     {
         mTextureBuffers[i].reset();
-        mNativeDevice->GetRTVDescriptorAllocator()->Free(mRTVs[i]);
+        if (mRTVs[i])
+        {
+            mNativeDevice->GetRTVDescriptorAllocator()->Free(mRTVs[i]);
+        }
     }
 
     D3D12NI_LOG_DEBUG("SwapChain destroyed");
@@ -211,14 +218,21 @@ void NativeSwapChain::Release()
     // NOTE: this will need extra unset calls if we ever use a SwapChain directly as a texture... but
     // with current Prism design it seems highly unlikely.
     mNativeDevice->GetRenderingContext()->UnsetRenderTargetIfSet(this);
-    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
+    if (!mNativeDevice->GetRenderingContext()->WaitForGPU())
+    {
+        D3D12NI_LOG_ERROR("Failed to wait for GPU on SwapChain release.");
+    }
 }
 
 // called by main thread (Quantum)
 bool NativeSwapChain::Resize(UINT width, UINT height)
 {
     // complete current RenderThread jobs
-    mNativeDevice->GetRenderingContext()->WaitForNextCheckpoint(CheckpointType::ALL);
+    if (!mNativeDevice->GetRenderingContext()->WaitForGPU())
+    {
+        D3D12NI_LOG_ERROR("Wait for GPU failed, cannot resize SwapChain.");
+        return false;
+    }
 
     // mark all buffers as disposed and wait for GPU to complete
     for (size_t i = 0; i < mTextureBuffers.size(); ++i)

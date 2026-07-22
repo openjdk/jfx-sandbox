@@ -515,6 +515,11 @@ bool RenderingContext::UpdateTexture(const NIPtr<NativeTexture>& dstTexture, uin
                                      uint32_t srcw, uint32_t srch, uint32_t srcStride, PixelFormat srcFormat)
 {
     size_t targetSize = TextureUploader::EstimateTargetSize(srcw, srch, dstTexture->GetFormat());
+    if (targetSize == 0)
+    {
+        D3D12NI_LOG_ERROR("Failed to estimate target Texture size for upload");
+        return false;
+    }
 
     Internal::TextureUploader uploader;
     uploader.SetSource(srcData, srcDataBytes, srcFormat, srcx, srcy, srcw, srch, srcStride);
@@ -951,6 +956,14 @@ bool RenderingContext::WaitForNextCheckpoint(CheckpointType type)
     }
 
     return true;
+}
+
+bool RenderingContext::WaitForGPU()
+{
+    ClearAppliedFlags();
+    mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload, false);
+    mRenderThread.ScheduleSignal(mPayloadAllocator, mRTPayload, CheckpointType::MIDFRAME);
+    return WaitForNextCheckpoint(CheckpointType::ALL);
 }
 
 // called after SwapChain::Prepare() and right before SwapChain::Present(). See D3D12SwapChain.java

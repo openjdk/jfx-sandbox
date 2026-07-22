@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,6 +73,8 @@ class JNIBuffer
     void InitFromNIOBuffer(jobject buffer)
     {
         mData = mJNIEnv->GetDirectBufferAddress(buffer);
+        if (mData == nullptr) return;
+
         mElementCount = static_cast<size_t>(mJNIEnv->GetDirectBufferCapacity(buffer));
         mArray = nullptr;
     }
@@ -80,6 +82,8 @@ class JNIBuffer
     void InitFromJArray(JArrayType array)
     {
         mData = mJNIEnv->GetPrimitiveArrayCritical(array, NULL);
+        if (mData == nullptr) return;
+
         mElementCount = static_cast<size_t>(mJNIEnv->GetArrayLength(array));
         mArray = array;
     }
@@ -99,7 +103,7 @@ public:
     {
         if (mArray != nullptr)
         {
-            mJNIEnv->ReleasePrimitiveArrayCritical(mArray, mData, JNI_ABORT);
+            mJNIEnv->ReleasePrimitiveArrayCritical(mArray, mData, 0);
         }
     }
 
@@ -121,6 +125,11 @@ public:
     inline size_t BytesPerElement() const
     {
         return BytesPerElement<JArrayType>();
+    }
+
+    inline operator bool() const
+    {
+        return (mData != nullptr);
     }
 };
 

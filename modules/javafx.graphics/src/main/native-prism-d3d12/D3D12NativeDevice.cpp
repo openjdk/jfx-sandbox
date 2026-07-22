@@ -219,6 +219,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     if (!Internal::Debug::Instance().InitDeviceDebug(shared_from_this()))
     {
         D3D12NI_LOG_ERROR("Failed to initialize debug facilities for Device");
+        Release();
         return false;
     }
 
@@ -228,6 +229,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     if (!mRootSignatureManager->Init())
     {
         D3D12NI_LOG_ERROR("Failed to initialize Root Signatures");
+        Release();
         return false;
     }
 
@@ -235,6 +237,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     if (!mRenderingContext->Init())
     {
         D3D12NI_LOG_ERROR("Failed to initialize Rendering Context");
+        Release();
         return false;
     }
 
@@ -242,6 +245,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     if (!mRTVAllocator->Init(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false))
     {
         D3D12NI_LOG_ERROR("Failed to create RTV Descriptor Allocator");
+        Release();
         return false;
     }
 
@@ -249,6 +253,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     if (!mDSVAllocator->Init(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false))
     {
         D3D12NI_LOG_ERROR("Failed to create DSV Descriptor Allocator");
+        Release();
         return false;
     }
 
@@ -256,6 +261,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     if (!mSRVAllocator->Init(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, false))
     {
         D3D12NI_LOG_ERROR("Failed to create SRV Descriptor Allocator");
+        Release();
         return false;
     }
 
@@ -622,6 +628,18 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
 {
     DXGI_FORMAT format = texture->GetFormat();
     size_t bpp = GetDXGIFormatBPP(format);
+    size_t targetbpp = (format == DXGI_FORMAT_B8G8R8X8_UNORM) ? 3 : bpp;
+    if (srcw > (std::numeric_limits<uint32_t>::max() / srch / targetbpp))
+    {
+        D3D12NI_LOG_ERROR("Failed to readback Texture, target dimensions are too big");
+        return false;
+    }
+
+    if (srcw * srch * targetbpp > bufferSize)
+    {
+        D3D12NI_LOG_ERROR("Failed to readback Texture, target buffer is too small");
+        return false;
+    }
 
     size_t readbackStride = Internal::Utils::Align<size_t>(srcw * bpp, D3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
     size_t readbackBufferSize = srch * readbackStride;
@@ -860,6 +878,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nRenderQuad
 
     D3D12::Internal::JNIBuffer<jfloatArray> vertsArray(env, nullptr, vertices);
     D3D12::Internal::JNIBuffer<jbyteArray> colorsArray(env, nullptr, colors);
+    if (!vertsArray || !colorsArray) return;
 
     D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->RenderQuads(
         D3D12::Internal::MemoryView<float>(reinterpret_cast<const float*>(vertsArray.Data()), vertsArray.Size()),
@@ -946,11 +965,10 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetSha
     const D3D12::NIPtr<D3D12::NativeShader>& shader = D3D12::GetNIObject<D3D12::NativeShader>(shaderPtr);
     if (!shader) return false;
 
-    D3D12::Internal::JNIBuffer<jfloatArray> buffer(env, floatBuf, nullptr);
     D3D12::Internal::JNIString nameJStr(env, name);
-
-    if (buffer.Data() == nullptr) return false;
-    if (offset + count > buffer.Size()) return false;
+    D3D12::Internal::JNIBuffer<jfloatArray> buffer(env, floatBuf, nullptr);
+    if (!buffer) return false;
+    if (offset + count > buffer.Count()) return false;
 
     size_t sizeBytes = static_cast<size_t>(count) * sizeof(jfloat);
     size_t offsetBytes = static_cast<size_t>(offset) * sizeof(jfloat);
@@ -973,11 +991,10 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetSha
     const D3D12::NIPtr<D3D12::NativeShader>& shader = D3D12::GetNIObject<D3D12::NativeShader>(shaderPtr);
     if (!shader) return false;
 
-    D3D12::Internal::JNIBuffer<jintArray> buffer(env, intBuf, nullptr);
     D3D12::Internal::JNIString nameJStr(env, name);
-
-    if (buffer.Data() == nullptr) return false;
-    if (offset + count > buffer.Size()) return false;
+    D3D12::Internal::JNIBuffer<jintArray> buffer(env, intBuf, nullptr);
+    if (!buffer) return false;
+    if (offset + count > buffer.Count()) return false;
 
     size_t sizeBytes = static_cast<size_t>(count) * sizeof(jint);
     size_t offsetBytes = static_cast<size_t>(offset) * sizeof(jint);
@@ -1113,6 +1130,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nReadTe
     if (!tex) return false;
 
     D3D12::Internal::JNIBuffer<jbyteArray> data(env, buf, array);
+    if (!data) return false;
 
     return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->ReadTexture(tex, data.Data(), data.Size(),
         static_cast<UINT>(x), static_cast<UINT>(y), static_cast<UINT>(w), static_cast<UINT>(h)
@@ -1130,6 +1148,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nReadTe
     if (!tex) return false;
 
     D3D12::Internal::JNIBuffer<jintArray> data(env, buf, array);
+    if (!data) return false;
 
     return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->ReadTexture(tex, data.Data(), data.Size(),
         static_cast<UINT>(x), static_cast<UINT>(y), static_cast<UINT>(w), static_cast<UINT>(h)
@@ -1147,6 +1166,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nUpdate
     if (!tex) return false;
 
     D3D12::Internal::JNIBuffer<jfloatArray> data(env, dataBuf, dataArray);
+    if (!data) return false;
 
     return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->UpdateTexture(tex, data.Data(), data.Size(),
         static_cast<D3D12::PixelFormat>(pixelFormat), dstx, dsty, srcx, srcy, srcw, srch, srcscan
@@ -1164,6 +1184,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nUpdate
     if (!tex) return false;
 
     D3D12::Internal::JNIBuffer<jintArray> data(env, dataBuf, dataArray);
+    if (!data) return false;
 
     return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->UpdateTexture(tex, data.Data(), data.Size(),
         static_cast<D3D12::PixelFormat>(pixelFormat), dstx, dsty, srcx, srcy, srcw, srch, srcscan
@@ -1181,6 +1202,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nUpdate
     if (!tex) return false;
 
     D3D12::Internal::JNIBuffer<jbyteArray> data(env, dataBuf, dataArray);
+    if (!data) return false;
 
     return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->UpdateTexture(tex, data.Data(), data.Size(),
         static_cast<D3D12::PixelFormat>(pixelFormat), dstx, dsty, srcx, srcy, srcw, srch, srcscan

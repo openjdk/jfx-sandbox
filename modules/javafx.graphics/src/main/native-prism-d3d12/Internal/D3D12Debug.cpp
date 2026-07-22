@@ -191,11 +191,16 @@ void Debug::DREDProcessPageFaultNode(const D3D12_DRED_ALLOCATION_NODE* node)
 }
 
 Debug::Debug()
-    : mDXGIDebug()
+    : mD3D12Device()
+    , mDXGIDebug()
     , mDXGIInfoQueue()
     , mD3D12Debug()
     , mD3D12InfoQueue()
+    , mD3D12DebugDevice()
+    , mD3D12MessageCallbackCookie()
     , mIsEnabled(false)
+    , mIsDREDEnabled(false)
+    , mUsesMessageCallback(false)
 {
 }
 
@@ -264,8 +269,8 @@ bool Debug::Init()
 
 bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
 {
+    // storing D3D12 Device for ExamineDeviceRemoved() which should always be available
     mD3D12Device = device->GetDevice();
-
     if (!mD3D12Device)
     {
         D3D12NI_LOG_ERROR("Failed to initialize Debug class - D3D12 device is NULL");
@@ -352,12 +357,12 @@ void Debug::ReleaseAndReportLiveObjects()
     // This function should be the last resource release section when NativeDevice gets removed.
     // If below reports differ from what logs suggest we have a leak that needs fixing.
 
+    mD3D12Device.Reset();
     if (!mIsEnabled) return;
 
     D3D12NI_LOG_DEBUG(" ======= Starting Live Object report =======");
     D3D12NI_LOG_DEBUG("Note that this only reports app-used live objects, ignoring internal ones.");
-
-    mD3D12Device.Reset();
+;
     mD3D12InfoQueue.Reset();
     mD3D12Debug.Reset();
 
@@ -374,6 +379,7 @@ void Debug::ReleaseAndReportLiveObjects()
     {
         D3D12NI_LOG_DEBUG("Live DXGI objects at Debug Release (this list should be empty):");
         mDXGIDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+        mDXGIDebug.Reset();
     }
 
     D3D12NI_LOG_DEBUG(" ======= Live Object report complete =======");
