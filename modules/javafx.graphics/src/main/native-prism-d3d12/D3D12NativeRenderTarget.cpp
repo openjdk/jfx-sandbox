@@ -63,8 +63,13 @@ NativeRenderTarget::~NativeRenderTarget()
 bool NativeRenderTarget::Init(const NIPtr<NativeTexture>& texture, bool enableDirtyBBox)
 {
     mTextureBase = mTexture = texture;
-    mDescriptors = mNativeDevice->GetRTVDescriptorAllocator()->Allocate(1);
     mBBoxState = (enableDirtyBBox ? BBoxTrackingState::Enabled : BBoxTrackingState::Disabled);
+    mDescriptors = mNativeDevice->GetRTVDescriptorAllocator()->Allocate(1);
+    if (!mDescriptors)
+    {
+        D3D12NI_LOG_ERROR("Failed to allocate RTV descriptors for Render Target");
+        return false;
+    }
 
     return Refresh();
 }

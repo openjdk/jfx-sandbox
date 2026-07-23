@@ -487,6 +487,8 @@ using SignalCallback = std::function<uint64_t(CheckpointType)>;
 
 // to return errors from RenderThread::Signal()
 #define D3D12NI_INVALID_FENCE_VALUE 0
+#define D3D12NI_FLOATS_PER_2D_VERTEX 7
+#define D3D12NI_CHARS_PER_2D_VERTEX 4
 
 
 // mirrors CompositeMode.java

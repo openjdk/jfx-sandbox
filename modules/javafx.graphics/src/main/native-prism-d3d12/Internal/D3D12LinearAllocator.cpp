@@ -89,6 +89,11 @@ void* LinearAllocator::Allocate(uint32_t size)
 
     // align to 8 bytes (64-bits)
     uint32_t alignedSize = Utils::Align<uint32_t>(size, 8);
+    if (alignedSize > mSizePerChunk)
+    {
+        D3D12NI_LOG_ERROR("Allocated data size %d won't fit the maximum chunk size %d.", size, mSizePerChunk);
+        return nullptr;
+    }
 
     if (!mCurrentChunk->Fits(alignedSize))
     {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,8 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
             mState.getRenderWidth(), mState.getRenderHeight(), WrapMode.CLAMP_NOT_NEEDED, mMSAA, false
         );
         if (!mOffscreenRTT.isValid()) {
+            mSwapChain.dispose();
+            mSwapChain = null;
             throw new NullPointerException("D3D12 swapchain is NULL");
         }
 

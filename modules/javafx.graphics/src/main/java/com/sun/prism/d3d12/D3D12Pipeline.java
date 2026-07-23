@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -205,17 +205,22 @@ public final class D3D12Pipeline extends GraphicsPipeline {
                     + Thread.currentThread().getName() + "]");
         }
 
-        for (int i = 0; i < mFactories.length; ++i) {
-            if (mFactories[i] != null) {
-                mFactories[i].dispose();
+        if (mFactories != null) {
+            for (int i = 0; i < mFactories.length; ++i) {
+                if (mFactories[i] != null) {
+                    mFactories[i].dispose();
+                }
+                mFactories[i] = null;
             }
-            mFactories[i] = null;
+
+            mFactories = null;
         }
 
-        mFactories = null;
-
-        mInstance.dispose();
-        theInstance = null;
+        if (mInstance != null) {
+            mInstance.dispose();
+            mInstance = null;
+            theInstance = null;
+        }
 
         super.dispose();
     }

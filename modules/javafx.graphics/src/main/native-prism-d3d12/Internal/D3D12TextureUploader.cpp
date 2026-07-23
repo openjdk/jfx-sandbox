@@ -133,6 +133,12 @@ void TextureUploader::SetTarget(void* ptr, size_t size, DXGI_FORMAT format)
 
 bool TextureUploader::Upload()
 {
+    if (!mSource.ptr || !mTarget.ptr)
+    {
+        D3D12NI_LOG_ERROR("TextureUploader: Invalid source or target pointer");
+        return false;
+    }
+
     size_t srcBpp = GetPixelFormatBPP(mSource.format);
     if (srcBpp == 0)
     {

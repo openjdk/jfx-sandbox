@@ -270,6 +270,7 @@ bool Debug::Init()
 bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
 {
     // storing D3D12 Device for ExamineDeviceRemoved() which should always be available
+    // TODO: D3D12: Handle multiple Device instances
     mD3D12Device = device->GetDevice();
     if (!mD3D12Device)
     {
@@ -362,7 +363,7 @@ void Debug::ReleaseAndReportLiveObjects()
 
     D3D12NI_LOG_DEBUG(" ======= Starting Live Object report =======");
     D3D12NI_LOG_DEBUG("Note that this only reports app-used live objects, ignoring internal ones.");
-;
+
     mD3D12InfoQueue.Reset();
     mD3D12Debug.Reset();
 

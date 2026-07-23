@@ -80,8 +80,18 @@ bool NativeInstance::Init()
 
     IDXGIAdapter1* adapter;
     uint32_t i = 0;
+
+    // enumerate adapters until EnumAdapters1 returns DXGI_ERROR_NOT_FOUND
+    // which is not an error, just an information we went through all of the adapters available
     D3D12NI_LOG_DEBUG("DXGI enumerated adapters:");
-    while (mDXGIFactory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND) {
+    while ((hr = mDXGIFactory->EnumAdapters1(i, &adapter)) != DXGI_ERROR_NOT_FOUND) {
+        if (FAILED(hr) && hr != DXGI_ERROR_NOT_FOUND)
+        {
+            _com_error err(hr);
+            D3D12NI_LOG_ERROR("Failed to enumerate DXGI Adapters: %x (%ws)", hr, err.ErrorMessage());
+            return false;
+        }
+
         mDXGIAdapters.push_back(adapter);
 
         DXGI_ADAPTER_DESC1 adapterDesc;
@@ -105,12 +115,14 @@ int NativeInstance::GetAdapterCount()
 int NativeInstance::GetAdapterOrdinal(HMONITOR monitor)
 {
     int ret = -1;
+    HRESULT hr = S_OK;
 
     D3D12NI_LOG_DEBUG("%s: Asks for monitor %p", __func__, monitor);
 
     for (int adapterIdx = 0; adapterIdx < mDXGIAdapters.size(); adapterIdx++) {
         DXGI_ADAPTER_DESC1 adapterDesc;
-        mDXGIAdapters[adapterIdx]->GetDesc1(&adapterDesc);
+        hr = mDXGIAdapters[adapterIdx]->GetDesc1(&adapterDesc);
+        D3D12NI_RET_IF_FAILED(hr, -1, "Failed to get adapter desc");
 
         D3D12NI_LOG_DEBUG("%s: Outputs for adapter %ws:", __func__, adapterDesc.Description);
 
@@ -182,6 +194,11 @@ bool NativeInstance::GetAdapterInformation(uint32_t adapterIdx, Internal::Adapte
 
 bool NativeInstance::GetDeviceInformation(uint32_t adapterIdx, Internal::DeviceInformation& info) const
 {
+    if (adapterIdx >= mDXGIAdapterDescs.size())
+    {
+        return false;
+    }
+
     info.description = Internal::Utils::ToString(mDXGIAdapterDescs[adapterIdx].Description);
 
     D3D12DevicePtr device;

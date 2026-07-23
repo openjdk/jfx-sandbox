@@ -533,7 +533,8 @@ bool RenderingContext::UpdateTexture(const NIPtr<NativeTexture>& dstTexture, uin
     {
         // for larger textures allocate a dedicated staging buffer
         // uploader will handle its initialization
-        if (!stagingBuffer->Init(nullptr, targetSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ))
+        if (!stagingBuffer ||
+            !stagingBuffer->Init(nullptr, targetSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ))
         {
             D3D12NI_LOG_ERROR("Failed to allocate a staging buffer for large texture upload");
             return false;

@@ -629,7 +629,8 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
     DXGI_FORMAT format = texture->GetFormat();
     size_t bpp = GetDXGIFormatBPP(format);
     size_t targetbpp = (format == DXGI_FORMAT_B8G8R8X8_UNORM) ? 3 : bpp;
-    if (srcw > (std::numeric_limits<uint32_t>::max() / srch / targetbpp))
+    if (srcw == 0 || srch == 0 ||
+        srcw > (std::numeric_limits<uint32_t>::max() / srch / targetbpp))
     {
         D3D12NI_LOG_ERROR("Failed to readback Texture, target dimensions are too big");
         return false;
@@ -879,6 +880,9 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nRenderQuad
     D3D12::Internal::JNIBuffer<jfloatArray> vertsArray(env, nullptr, vertices);
     D3D12::Internal::JNIBuffer<jbyteArray> colorsArray(env, nullptr, colors);
     if (!vertsArray || !colorsArray) return;
+    if (elementCount > (std::numeric_limits<uint32_t>::max() / D3D12NI_FLOATS_PER_2D_VERTEX) ||
+        elementCount * D3D12NI_FLOATS_PER_2D_VERTEX > vertsArray.Count() ||
+        elementCount * D3D12NI_CHARS_PER_2D_VERTEX > colorsArray.Count()) return;
 
     D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->RenderQuads(
         D3D12::Internal::MemoryView<float>(reinterpret_cast<const float*>(vertsArray.Data()), vertsArray.Size()),
@@ -924,6 +928,7 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetPixelSh
         // NOTE: I didn't observe this path being taken by Prism ever. It might not work
         //       or cause some unexpected issues if it ever gets hit.
         D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->UnsetPixelShader();
+        return;
     }
 
     const D3D12::NIPtr<D3D12::NativeShader>& ps = D3D12::GetNIObject<D3D12::NativeShader>(pixelShaderPtr);
@@ -968,10 +973,11 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetSha
     D3D12::Internal::JNIString nameJStr(env, name);
     D3D12::Internal::JNIBuffer<jfloatArray> buffer(env, floatBuf, nullptr);
     if (!buffer) return false;
-    if (offset + count > buffer.Count()) return false;
 
     size_t sizeBytes = static_cast<size_t>(count) * sizeof(jfloat);
     size_t offsetBytes = static_cast<size_t>(offset) * sizeof(jfloat);
+    if (offsetBytes > std::numeric_limits<size_t>::max() - sizeBytes ||
+        offsetBytes + sizeBytes > buffer.Size()) return false;
 
     const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(buffer.Data()) + offsetBytes;
 

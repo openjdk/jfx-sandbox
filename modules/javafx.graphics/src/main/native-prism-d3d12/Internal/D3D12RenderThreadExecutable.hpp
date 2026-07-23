@@ -865,9 +865,6 @@ public:
 
 class DrawQuadsAction: public RenderThreadExecutable
 {
-    const uint32_t FLOATS_PER_VERTEX = 7;
-    const uint32_t CHARS_PER_VERTEX = 4;
-
     LinearAllocator& mAllocator;
     uint32_t mVertexCount;
     uint32_t mVerticesBytes;
@@ -879,8 +876,8 @@ public:
     DrawQuadsAction(LinearAllocator& allocator, const MemoryView<float>& vertices, const MemoryView<unsigned char>& colors, uint32_t vertexCount)
         : mAllocator(allocator)
         , mVertexCount(vertexCount)
-        , mVerticesBytes(vertexCount * FLOATS_PER_VERTEX * sizeof(float))
-        , mColorsBytes(vertexCount * CHARS_PER_VERTEX * sizeof(signed char))
+        , mVerticesBytes(vertexCount * D3D12NI_FLOATS_PER_2D_VERTEX * sizeof(float))
+        , mColorsBytes(vertexCount * D3D12NI_CHARS_PER_2D_VERTEX * sizeof(signed char))
         , mVertexData(reinterpret_cast<float*>(allocator.Allocate(mVerticesBytes)))
         , mColorData(reinterpret_cast<unsigned char*>(allocator.Allocate(mColorsBytes)))
     {
