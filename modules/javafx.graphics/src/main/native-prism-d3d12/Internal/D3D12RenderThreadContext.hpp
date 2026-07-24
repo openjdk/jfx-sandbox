@@ -319,7 +319,7 @@ public:
     void ClearAppliedSteps();
 
     uint32_t PrepareQuadsDraw(float* vertices, unsigned char* colors, uint32_t vertexCount);
-    void PrepareMeshViewDraw(const NIPtr<NativeMeshView>& meshView);
+    void PrepareMeshDraw(const NIPtr<Buffer>& vertexBuffer, const NIPtr<Buffer>& indexBuffer, DXGI_FORMAT ibFormat);
     void Draw(uint32_t elements, uint32_t vbOffset);
     void Dispatch(uint32_t x, uint32_t y, uint32_t z);
     void UpdateSmallTexture(const NIPtr<ITrackedResource>& dstTexture, uint32_t dstx, uint32_t dsty,

@@ -48,6 +48,7 @@
 #include "Internal/D3D12SamplerStorage.hpp"
 #include "Internal/D3D12Waitable.hpp"
 
+#include "Internal/D3D12Debug.hpp"
 #include "Internal/D3D12Matrix.hpp"
 #include "Internal/JNIBuffer.hpp"
 #include "Internal/MemoryView.hpp"
@@ -66,6 +67,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
 
     IDXGIAdapter1* mAdapter;
     D3D12DevicePtr mDevice;
+    Internal::DebugContextPtr mDebugContext;
     uint32_t mFenceValue;
     uint32_t mFrameCounter; // for debugging ex. triggering a breakpoint after X frames
     uint32_t mProfilerTransferWaitSourceID;
@@ -136,12 +138,16 @@ public:
               const NIPtr<Internal::IRenderTarget>& dstRT, const Coords_Box_UINT32& dst);
     bool ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer, size_t pixelCount,
                      uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch);
-    bool UpdateTexture(const NIPtr<NativeTexture>& texture, const void* data, size_t pixelCount, PixelFormat srcFormat,
+    bool UpdateTexture(const NIPtr<NativeTexture>& texture, const void* data, size_t
+         pixelCount, PixelFormat srcFormat,
                        uint32_t dstx, uint32_t dsty, uint32_t srcx, uint32_t srcy, uint32_t srcw, uint32_t srch, uint32_t srcstride);
 
     bool PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion);
     bool Present(const NIPtr<NativeSwapChain>& swapChain);
     void FinishFrame();
+
+    void ExamineDeviceRemoved();
+    void ReportErrorMessages();
 
     const D3D12DevicePtr& GetDevice()
     {

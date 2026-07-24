@@ -27,7 +27,6 @@
 
 #include "D3D12Constants.hpp"
 
-#include "Internal/D3D12Debug.hpp"
 #include "Internal/D3D12Logger.hpp"
 #include "Internal/D3D12MipmapGenComputeShader.hpp"
 #include "Internal/D3D12Profiler.hpp"
@@ -184,15 +183,18 @@ NativeDevice::~NativeDevice()
 {
     D3D12NI_LOG_DEBUG("Destroying device");
 
-    if (mDevice) mDevice.Reset();
+    if (mDevice)
+    {
+        Internal::Debug::Instance().ReleaseDeviceAndReportLiveObjects(mDebugContext);
+        mDebugContext.reset();
+        mDevice.Reset();
+    }
 
     if (mAdapter)
     {
         mAdapter->Release();
         mAdapter = nullptr;
     }
-
-    Internal::Debug::Instance().ReleaseAndReportLiveObjects();
 
     D3D12NI_LOG_DEBUG("Device destroyed");
 }
@@ -209,14 +211,23 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     // we probably won't need anything higher than that
     // TODO: See ResourceManager::Init() for more details why we might raise FL to 12_0
     HRESULT hr = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&mDevice));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create D3D12 Device");
-    mDevice->SetName(L"Main D3D12 Device");
+    if (FAILED(hr))
+    {
+        _com_error err(hr);
+        D3D12NI_LOG_ERROR("Failed to create D3D12 Device: %x (%ws)", hr, err.ErrorMessage());
+        return false;
+    }
+
+    std::wstringstream wss;
+    wss << L"Main D3D12 Device (adapter 0x" << mAdapter << ')';
+    mDevice->SetName(wss.str().c_str());
 
     DXGI_ADAPTER_DESC adapterDesc;
     mAdapter->GetDesc(&adapterDesc);
     D3D12NI_LOG_INFO("Device created using adapter %S", adapterDesc.Description);
 
-    if (!Internal::Debug::Instance().InitDeviceDebug(shared_from_this()))
+    mDebugContext = Internal::Debug::Instance().InitDeviceDebug(mDevice);
+    if (!mDebugContext)
     {
         D3D12NI_LOG_ERROR("Failed to initialize debug facilities for Device");
         Release();
@@ -324,7 +335,12 @@ bool NativeDevice::CheckFormatSupport(DXGI_FORMAT format)
     fmtSupport.Format = format;
 
     HRESULT hr = mDevice->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &fmtSupport, sizeof(fmtSupport));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to check format support");
+    if (FAILED(hr))
+    {
+        _com_error err(hr);
+        D3D12NI_LOG_ERROR("Failed to check format support: %x (%ws)", hr, err.ErrorMessage());
+        return false;
+    }
 
     return (fmtSupport.Support1 & D3D12_FORMAT_SUPPORT1_TEXTURE2D);
 }
@@ -734,6 +750,17 @@ void NativeDevice::FinishFrame()
     Internal::Profiler::Instance().TimingStart(mProfilerFrameTimeID);
 }
 
+void NativeDevice::ExamineDeviceRemoved()
+{
+    if (mDebugContext) mDebugContext->ExamineDeviceRemoved();
+}
+
+void NativeDevice::ReportErrorMessages()
+{
+    if (mDebugContext) mDebugContext->ReportErrorMessages();
+}
+
+
 } // namespace D3D12
 
 
@@ -880,14 +907,16 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nRenderQuad
     D3D12::Internal::JNIBuffer<jfloatArray> vertsArray(env, nullptr, vertices);
     D3D12::Internal::JNIBuffer<jbyteArray> colorsArray(env, nullptr, colors);
     if (!vertsArray || !colorsArray) return;
-    if (elementCount > (std::numeric_limits<uint32_t>::max() / D3D12NI_FLOATS_PER_2D_VERTEX) ||
-        elementCount * D3D12NI_FLOATS_PER_2D_VERTEX > vertsArray.Count() ||
-        elementCount * D3D12NI_CHARS_PER_2D_VERTEX > colorsArray.Count()) return;
+
+    uint32_t elems = static_cast<uint32_t>(elementCount);
+    if (elems > (std::numeric_limits<uint32_t>::max() / D3D12NI_FLOATS_PER_2D_VERTEX) ||
+        elems * D3D12NI_FLOATS_PER_2D_VERTEX > vertsArray.Count() ||
+        elems * D3D12NI_CHARS_PER_2D_VERTEX > colorsArray.Count()) return;
 
     D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->RenderQuads(
         D3D12::Internal::MemoryView<float>(reinterpret_cast<const float*>(vertsArray.Data()), vertsArray.Size()),
         D3D12::Internal::MemoryView<unsigned char>(reinterpret_cast<const unsigned char*>(colorsArray.Data()), colorsArray.Size()),
-        static_cast<uint32_t>(elementCount)
+        elems
     );
 }
 
@@ -1000,10 +1029,11 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nSetSha
     D3D12::Internal::JNIString nameJStr(env, name);
     D3D12::Internal::JNIBuffer<jintArray> buffer(env, intBuf, nullptr);
     if (!buffer) return false;
-    if (offset + count > buffer.Count()) return false;
 
     size_t sizeBytes = static_cast<size_t>(count) * sizeof(jint);
     size_t offsetBytes = static_cast<size_t>(offset) * sizeof(jint);
+    if (offsetBytes > std::numeric_limits<size_t>::max() - sizeBytes ||
+        offsetBytes + sizeBytes > buffer.Size()) return false;
 
     const uint8_t* srcPtr = reinterpret_cast<const uint8_t*>(buffer.Data()) + offsetBytes;
 

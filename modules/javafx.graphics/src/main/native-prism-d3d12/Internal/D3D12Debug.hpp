@@ -27,22 +27,48 @@
 
 #include "../D3D12Common.hpp"
 
+#include <mutex>
+
 
 namespace D3D12 {
 namespace Internal {
 
-class Debug
+class DeviceSpecificDebugContext
 {
     D3D12DevicePtr mD3D12Device;
-    DXGIDebugPtr mDXGIDebug;
-    DXGIInfoQueuePtr mDXGIInfoQueue;
-    D3D12DebugPtr mD3D12Debug;
-    D3D12InfoQueuePtr mD3D12InfoQueue;
     D3D12DebugDevicePtr mD3D12DebugDevice;
+    D3D12InfoQueuePtr mD3D12InfoQueue;
     DWORD mD3D12MessageCallbackCookie;
+    std::mutex mErrorMessageReportMutex;
+    bool mUsesMessageCallback;
     bool mIsEnabled;
     bool mIsDREDEnabled;
-    bool mUsesMessageCallback;
+
+public:
+    DeviceSpecificDebugContext(bool isEnabled, bool dredEnabled);
+
+    bool InitDeviceDebug(const D3D12DevicePtr& device);
+    void ReleaseAndReportLiveObjects();
+    void ExamineDeviceRemoved();
+    void ReportErrorMessages();
+
+    inline const D3D12DevicePtr& GetDevice() const
+    {
+        return mD3D12Device;
+    }
+};
+
+using DebugContextPtr = std::shared_ptr<DeviceSpecificDebugContext>;
+
+class Debug
+{
+    DXGIDebugPtr mDXGIDebug;
+    D3D12DebugPtr mD3D12Debug;
+    DXGIInfoQueuePtr mDXGIInfoQueue;
+    std::list<DebugContextPtr> mDebugContexts;
+    std::mutex mDebugContextsMutex;
+    bool mIsEnabled;
+    bool mIsDREDEnabled;
 
     Debug();
     ~Debug();
@@ -52,18 +78,14 @@ class Debug
     Debug& operator=(const Debug&) = delete;
     Debug& operator=(Debug&&) = delete;
 
-    void DREDProcessBreadcrumbNode(const D3D12_AUTO_BREADCRUMB_NODE* node);
-    void DREDProcessPageFaultNode(const D3D12_DRED_ALLOCATION_NODE* node);
-
 public:
     static Debug& Instance();
 
     bool Init();
-    bool InitDeviceDebug(const NIPtr<NativeDevice>& debug);
-    void ReleaseAndReportLiveObjects();
+    DebugContextPtr InitDeviceDebug(const D3D12DevicePtr& device);
+    void ReleaseDeviceAndReportLiveObjects(const DebugContextPtr& device);
+    void ReleaseInstanceAndReportLiveObjects();
     bool IsEnabled();
-    void ExamineDeviceRemoved();
-    void ReportErrorMessages();
 };
 
 } // namespace Internal

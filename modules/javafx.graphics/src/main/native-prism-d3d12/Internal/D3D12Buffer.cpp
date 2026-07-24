@@ -97,7 +97,7 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
 
     HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
         &resourceDesc, initialState, nullptr, IID_PPV_ARGS(&mResource));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Buffer's Committed Resource");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Buffer's Committed Resource");
 
     if (mHeapType == D3D12_HEAP_TYPE_UPLOAD)
     {
@@ -107,7 +107,7 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
         {
             void* bufPtr;
             hr = mResource->Map(0, nullptr, &bufPtr);
-            D3D12NI_RET_IF_FAILED(hr, false, "Failed to Map resource");
+            D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to Map resource");
 
             memcpy(bufPtr, initialData, size);
             mResource->Unmap(0, nullptr);
@@ -138,11 +138,11 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
 
         HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&stagingHeapProps, D3D12_HEAP_FLAG_NONE,
             &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&stagingResource));
-        D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Staging Buffer's Committed Resource");
+        D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Staging Buffer's Committed Resource");
 
         void* bufPtr;
         hr = stagingResource->Map(0, nullptr, &bufPtr);
-        D3D12NI_RET_IF_FAILED(hr, false, "Failed to Map staging resource");
+        D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to Map staging resource");
 
         memcpy(bufPtr, initialData, size);
         stagingResource->Unmap(0, nullptr);
@@ -178,7 +178,7 @@ void* Buffer::Map()
 {
     void* bufPtr;
     HRESULT hr = mResource->Map(0, nullptr, &bufPtr);
-    D3D12NI_RET_IF_FAILED(hr, nullptr, "Failed to Map buffer");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, nullptr, "Failed to Map buffer");
 
     return bufPtr;
 }

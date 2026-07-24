@@ -100,8 +100,7 @@ void* LinearAllocator::Allocate(uint32_t size)
         Expand();
     }
 
-    void* ret = mCurrentChunk->Reserve(alignedSize);
-    return ret;
+    return mCurrentChunk->Reserve(alignedSize);
 }
 
 void LinearAllocator::Free(void* ptr)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,7 +72,7 @@ bool RingDescriptorHeap::Init(D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisibl
     desc.NodeMask = 0;
 
     HRESULT hr = mNativeDevice->GetDevice()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mHeap));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Descriptor Heap");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Descriptor Heap");
 
     if (Debug::Instance().IsEnabled())
     {

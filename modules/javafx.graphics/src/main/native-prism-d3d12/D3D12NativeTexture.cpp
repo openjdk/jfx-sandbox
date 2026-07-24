@@ -63,7 +63,7 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
         (mResourceDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) ? &clearValue : nullptr,
         IID_PPV_ARGS(&resource)
     );
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Texture's Committed Resource");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Texture's Committed Resource");
 
     if (!IsDepthFormat(mResourceDesc.Format))
     {
@@ -129,7 +129,7 @@ NativeTexture::NativeTexture(const NIPtr<NativeDevice>& nativeDevice)
 
 NativeTexture::~NativeTexture()
 {
-    if (mSRVDescriptor)
+    if (mSRVDescriptor && mNativeDevice->GetSRVDescriptorAllocator())
     {
         mNativeDevice->GetSRVDescriptorAllocator()->Free(mSRVDescriptor);
     }

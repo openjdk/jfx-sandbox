@@ -104,7 +104,7 @@ public:
             : size(srcSize)
             , buffer(allocator.Allocate(static_cast<uint32_t>(size)), LinearAllocatorDeleter<void>(&allocator))
         {
-            memcpy(buffer.get(), srcData, srcSize);
+            if (buffer) memcpy(buffer.get(), srcData, srcSize);
         }
 
         ShaderConstants(const ShaderConstants& other) = delete;

@@ -43,12 +43,12 @@ NativeRenderTarget::NativeRenderTarget(const NIPtr<NativeDevice>& nativeDevice)
 
 NativeRenderTarget::~NativeRenderTarget()
 {
-    if (mDescriptors)
+    if (mDescriptors && mNativeDevice->GetRTVDescriptorAllocator())
     {
         mNativeDevice->GetRTVDescriptorAllocator()->Free(mDescriptors);
     }
 
-    if (mDSVDescriptor)
+    if (mDSVDescriptor && mNativeDevice->GetDSVDescriptorAllocator())
     {
         mNativeDevice->GetDSVDescriptorAllocator()->Free(mDSVDescriptor);
     }

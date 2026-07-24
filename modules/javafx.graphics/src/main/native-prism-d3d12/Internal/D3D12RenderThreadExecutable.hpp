@@ -881,8 +881,8 @@ public:
         , mVertexData(reinterpret_cast<float*>(allocator.Allocate(mVerticesBytes)))
         , mColorData(reinterpret_cast<unsigned char*>(allocator.Allocate(mColorsBytes)))
     {
-        memcpy(mVertexData, vertices.Data(), mVerticesBytes);
-        memcpy(mColorData, colors.Data(), mColorsBytes);
+        if (mVertexData) memcpy(mVertexData, vertices.Data(), mVerticesBytes);
+        if (mColorData) memcpy(mColorData, colors.Data(), mColorsBytes);
     }
 
     ~DrawQuadsAction()
@@ -902,6 +902,9 @@ public:
 
     void Execute(const RenderThreadContextPtr& context) override final
     {
+        // TODO: D3D12: RenderThread error reporting
+        if (!mVertexData || !mColorData) return;
+
         uint32_t vbOffset = context->PrepareQuadsDraw(mVertexData, mColorData, mVertexCount);
         if (vbOffset != std::numeric_limits<uint32_t>::max())
         {
@@ -910,17 +913,36 @@ public:
     }
 };
 
-class DrawMeshViewAction: public RenderThreadDataExecutable<NIPtr<NativeMeshView>>
+class DrawMeshViewAction: public RenderThreadExecutable
 {
+    NIPtr<Buffer> mVertexBuffer;
+    NIPtr<Buffer> mIndexBuffer;
+    DXGI_FORMAT mIBFormat;
+    uint32_t mIndexCount;
+
 public:
     DrawMeshViewAction(const NIPtr<NativeMeshView>& meshView)
-        : RenderThreadDataExecutable(meshView)
-    {}
+        : RenderThreadExecutable()
+        , mVertexBuffer()
+        , mIndexBuffer()
+        , mIBFormat(DXGI_FORMAT_UNKNOWN)
+        , mIndexCount(0)
+    {
+        if (meshView && meshView->GetMesh())
+        {
+            mVertexBuffer = meshView->GetMesh()->GetVertexBuffer();
+            mIndexBuffer = meshView->GetMesh()->GetIndexBuffer();
+            mIBFormat = meshView->GetMesh()->GetIndexBufferFormat();
+            mIndexCount = meshView->GetMesh()->GetIndexCount();
+        }
+    }
 
     void Execute(const RenderThreadContextPtr& context) override final
     {
-        context->PrepareMeshViewDraw(mData);
-        context->Draw(mData->GetMesh()->GetIndexCount(), 0);
+        if (!mVertexBuffer || !mIndexBuffer || (mIndexCount == 0)) return;
+
+        context->PrepareMeshDraw(mVertexBuffer, mIndexBuffer, mIBFormat);
+        context->Draw(mIndexCount, 0);
     }
 };
 

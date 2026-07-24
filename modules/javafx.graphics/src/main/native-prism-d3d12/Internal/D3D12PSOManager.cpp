@@ -148,7 +148,7 @@ bool PSOManager::ConstructNewPSO(const GraphicsPSOParameters& params)
 
     D3D12PipelineStatePtr pipelineState;
     HRESULT hr = mNativeDevice->GetDevice()->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(&pipelineState));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Graphics Pipeline State");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Graphics Pipeline State");
 
 #if DEBUG
     std::wstring name = L"GPSO-";
@@ -194,7 +194,7 @@ bool PSOManager::ConstructNewPSO(const ComputePSOParameters& params)
 
     D3D12PipelineStatePtr pipelineState;
     HRESULT hr = mNativeDevice->GetDevice()->CreateComputePipelineState(&desc, IID_PPV_ARGS(&pipelineState));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Compute Pipeline State");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Compute Pipeline State");
 
 #if DEBUG
     std::wstring name = L"CPSO-";

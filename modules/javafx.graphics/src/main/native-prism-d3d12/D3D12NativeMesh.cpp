@@ -38,6 +38,8 @@ NativeMesh::NativeMesh(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
     , mVertexBuffer()
     , mIndexBuffer()
+    , mIndexBufferFormat(DXGI_FORMAT_UNKNOWN)
+    , mIndexCount(0)
 {
 }
 
@@ -49,8 +51,11 @@ bool NativeMesh::Init()
 
 void NativeMesh::Release()
 {
-    mNativeDevice->MarkDisposed(mVertexBuffer);
-    mNativeDevice->MarkDisposed(mIndexBuffer);
+    if (mNativeDevice)
+    {
+        mNativeDevice->MarkDisposed(mVertexBuffer);
+        mNativeDevice->MarkDisposed(mIndexBuffer);
+    }
 
     // clear current references so we don't double-dispose of VB/IB
     mVertexBuffer.reset();
@@ -59,6 +64,18 @@ void NativeMesh::Release()
 
 bool NativeMesh::BuildGeometryBuffers(const void* vbData, size_t vbSize, const void* ibData, size_t ibSize, DXGI_FORMAT ibFormat)
 {
+    if (mVertexBuffer)
+    {
+        mNativeDevice->MarkDisposed(mVertexBuffer);
+        mVertexBuffer.reset();
+    }
+
+    if (mIndexBuffer)
+    {
+        mNativeDevice->MarkDisposed(mIndexBuffer);
+        mIndexBuffer.reset();
+    }
+
     mVertexBuffer = mNativeDevice->CreateBuffer(vbData, vbSize, false, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
     if (!mVertexBuffer)
     {

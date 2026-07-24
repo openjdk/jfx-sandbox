@@ -620,10 +620,6 @@ inline size_t GetPixelFormatBPP(PixelFormat f)
     if (FAILED(hr)) { \
         _com_error __e(hr); \
         D3D12NI_LOG_ERROR("%s: %x (%ws)", errMsg, hr, __e.ErrorMessage()); \
-        ::D3D12::Internal::Debug::Instance().ReportErrorMessages(); \
-        if (hr == DXGI_ERROR_DEVICE_REMOVED) { \
-            ::D3D12::Internal::Debug::Instance().ExamineDeviceRemoved(); \
-        } \
         return (ret); \
     } \
 } while (0)
@@ -633,9 +629,31 @@ inline size_t GetPixelFormatBPP(PixelFormat f)
     if (FAILED(hr)) { \
         _com_error __e(hr); \
         D3D12NI_LOG_ERROR("%s: %x (%ws)", errMsg, hr, __e.ErrorMessage()); \
-        ::D3D12::Internal::Debug::Instance().ReportErrorMessages(); \
+        return; \
+    } \
+} while (0)
+
+// same as above but also runs device-specific error message reporting and checks if device was removed
+#define D3D12NI_DEV_RET_IF_FAILED(device, hr, ret, errMsg) do { \
+    if (FAILED(hr)) { \
+        _com_error __e(hr); \
+        D3D12NI_LOG_ERROR("%s: %x (%ws)", errMsg, hr, __e.ErrorMessage()); \
+        device->ReportErrorMessages(); \
         if (hr == DXGI_ERROR_DEVICE_REMOVED) { \
-            ::D3D12::Internal::Debug::Instance().ExamineDeviceRemoved(); \
+            device->ExamineDeviceRemoved(); \
+        } \
+        return (ret); \
+    } \
+} while (0)
+
+// same as above but also runs device-specific error message reporting and checks if device was removed
+#define D3D12NI_DEV_VOID_RET_IF_FAILED(device, hr, errMsg) do { \
+    if (FAILED(hr)) { \
+        _com_error __e(hr); \
+        D3D12NI_LOG_ERROR("%s: %x (%ws)", errMsg, hr, __e.ErrorMessage()); \
+        device->ReportErrorMessages(); \
+        if (hr == DXGI_ERROR_DEVICE_REMOVED) { \
+            device->ExamineDeviceRemoved(); \
         } \
         return; \
     } \

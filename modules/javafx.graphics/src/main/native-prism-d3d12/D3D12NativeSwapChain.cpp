@@ -69,11 +69,11 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
     {
         D3D12ResourcePtr buffer;
         HRESULT hr = mSwapChain->GetBuffer(i, IID_PPV_ARGS(&buffer));
-        D3D12NI_RET_IF_FAILED(hr, false, "Failed to get SwapChain buffer");
+        D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to get SwapChain buffer");
 
         std::wstring name = namePrefix + std::to_wstring(i);
         hr = buffer->SetName(name.c_str());
-        D3D12NI_RET_IF_FAILED(hr, false, "Failed to name SwapChain buffer");
+        D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to name SwapChain buffer");
 
         mRTVs[i] = mNativeDevice->GetRTVDescriptorAllocator()->Allocate(1);
         if (!mRTVs[i])
@@ -120,13 +120,17 @@ NativeSwapChain::NativeSwapChain(const NIPtr<NativeDevice>& nativeDevice)
 
 NativeSwapChain::~NativeSwapChain()
 {
-    mNativeDevice->GetRenderingContext()->UnregisterWaitableOperation(this);
+    if (mNativeDevice->GetRenderingContext())
+    {
+        mNativeDevice->GetRenderingContext()->UnregisterWaitableOperation(this);
+    }
+
     Internal::Profiler::Instance().RemoveSource(mProfilerSourceID);
 
     for (size_t i = 0; i < mTextureBuffers.size(); ++i)
     {
         mTextureBuffers[i].reset();
-        if (mRTVs[i])
+        if (mRTVs[i] && mNativeDevice->GetRTVDescriptorAllocator())
         {
             mNativeDevice->GetRTVDescriptorAllocator()->Free(mRTVs[i]);
         }
@@ -168,16 +172,16 @@ bool NativeSwapChain::Init(const DXGIFactoryPtr& factory, HWND hwnd)
 
     Ptr<IDXGISwapChain1> tmpSwapchain;
     HRESULT hr = factory->CreateSwapChainForHwnd(mNativeDevice->GetRenderingContext()->GetCommandQueue().Get(), hwnd, &desc, nullptr, nullptr, &tmpSwapchain);
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create SwapChain");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create SwapChain");
 
     hr = tmpSwapchain.As(&mSwapChain);
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to up-version SwapChain");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to up-version SwapChain");
 
     // DXGI injects its own Alt+Enter shortcut which switches to exclusive fullscreen mode
     // JFX already handles fullscreen on its own, this shortcut is not officially supported
     // by us and apps can already use it, so we want to disable it.
     hr = factory->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER | DXGI_MWA_NO_WINDOW_CHANGES);
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to make necessary DXGI window associations");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to make necessary DXGI window associations");
 
     mFormat = desc.Format;
     mDebugName = "SwapChain_#" + std::to_string(swapChainCounter++);
@@ -217,10 +221,13 @@ void NativeSwapChain::Release()
     //
     // NOTE: this will need extra unset calls if we ever use a SwapChain directly as a texture... but
     // with current Prism design it seems highly unlikely.
-    mNativeDevice->GetRenderingContext()->UnsetRenderTargetIfSet(this);
-    if (!mNativeDevice->GetRenderingContext()->WaitForGPU())
+    if (mNativeDevice->GetRenderingContext())
     {
-        D3D12NI_LOG_ERROR("Failed to wait for GPU on SwapChain release.");
+        mNativeDevice->GetRenderingContext()->UnsetRenderTargetIfSet(this);
+        if (!mNativeDevice->GetRenderingContext()->WaitForGPU())
+        {
+            D3D12NI_LOG_ERROR("Failed to wait for GPU on SwapChain release.");
+        }
     }
 }
 
@@ -241,7 +248,7 @@ bool NativeSwapChain::Resize(UINT width, UINT height)
     }
 
     HRESULT hr = mSwapChain->ResizeBuffers(mBufferCount, width, height, DXGI_FORMAT_UNKNOWN, mSwapChainFlags);
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to resize SwapChain buffers");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to resize SwapChain buffers");
 
     if (!GetSwapChainBuffers(mBufferCount))
     {
@@ -295,7 +302,7 @@ bool NativeSwapChain::Present(const Internal::RenderThreadContextPtr& context)
     }
 
     HRESULT hr = mSwapChain->Present1(mSwapInterval, mPresentFlags, &params);
-    D3D12NI_RET_IF_FAILED(hr, false, "RenderThread: Failed to present swapchain image");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "RenderThread: Failed to present swapchain image");
 
     // NOTE: Normally we would let signal call OnQueueSignal() and capture the fence value there, but
     // there's one case where this falls apart, which is multi-Stage apps. We have to be sure that this

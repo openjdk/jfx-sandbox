@@ -110,7 +110,11 @@ class LinearAllocator
         // assumes there is enough room
         void* Reserve(uint32_t size)
         {
-            D3D12NI_ASSERT(Fits(size), "Not enough room to reserve on Allocator's Chunk");
+            if (!Fits(size))
+            {
+                D3D12NI_LOG_ERROR("Not enough room to reserve on Allocator's Chunk");
+                return nullptr;
+            }
 
             void* head = mPtr + mTaken;
             void* ret = mPtr + mTaken + sizeof(DataHeader);

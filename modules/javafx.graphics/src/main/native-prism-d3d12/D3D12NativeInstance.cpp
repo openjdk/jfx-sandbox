@@ -64,6 +64,9 @@ NativeInstance::~NativeInstance()
         mDXGIFactory.Reset();
     }
 
+
+    Internal::Debug::Instance().ReleaseInstanceAndReportLiveObjects();
+
     D3D12NI_LOG_DEBUG("Instance destroyed");
 }
 
@@ -95,7 +98,9 @@ bool NativeInstance::Init()
         mDXGIAdapters.push_back(adapter);
 
         DXGI_ADAPTER_DESC1 adapterDesc;
-        mDXGIAdapters.back()->GetDesc1(&adapterDesc);
+        hr = mDXGIAdapters.back()->GetDesc1(&adapterDesc);
+        D3D12NI_RET_IF_FAILED(hr, false, "Failed to get DXGI Adapter's desc");
+
         mDXGIAdapterDescs.push_back(adapterDesc);
         D3D12NI_LOG_DEBUG(" \\_ #%d: %ws (%x)", i, adapterDesc.Description, adapterDesc.Flags);
 
@@ -128,10 +133,19 @@ int NativeInstance::GetAdapterOrdinal(HMONITOR monitor)
 
         int outputIdx = 0;
         IDXGIOutput* output = nullptr;
-        while (mDXGIAdapters[adapterIdx]->EnumOutputs(outputIdx, &output) != DXGI_ERROR_NOT_FOUND) {
+        while ((hr = mDXGIAdapters[adapterIdx]->EnumOutputs(outputIdx, &output)) != DXGI_ERROR_NOT_FOUND) {
+            if (FAILED(hr) && hr != DXGI_ERROR_NOT_FOUND)
+            {
+                _com_error err(hr);
+                D3D12NI_LOG_ERROR("Failed to enumerate DXGI Outputs: %x (%ws)", hr, err.ErrorMessage());
+                return -1;
+            }
+
             DXGI_OUTPUT_DESC outputDesc;
-            output->GetDesc(&outputDesc);
+            hr = output->GetDesc(&outputDesc);
             output->Release();
+            D3D12NI_RET_IF_FAILED(hr, -1, "Failed to get DXGI output's desc");
+
             D3D12NI_LOG_DEBUG(" \\_ output #%d: %ws (monitor %p)", outputIdx, outputDesc.DeviceName, outputDesc.Monitor);
             if (outputDesc.Monitor == monitor) {
                 ret = adapterIdx;

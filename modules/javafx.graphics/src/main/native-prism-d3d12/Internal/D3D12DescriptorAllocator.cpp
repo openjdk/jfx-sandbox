@@ -54,7 +54,7 @@ bool DescriptorAllocator::AddHeap()
 
     D3D12DescriptorHeapPtr heap;
     HRESULT hr = mNativeDevice->GetDevice()->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&heap));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to allocate new Descriptor Heap");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to allocate new Descriptor Heap");
 
     uint32_t increment = mNativeDevice->GetDevice()->GetDescriptorHandleIncrementSize(mType);
 

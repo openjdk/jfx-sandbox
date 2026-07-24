@@ -40,7 +40,7 @@ void CommandListPool::ResetCurrentCommandList()
     D3D12NI_ASSERT(CurrentCommandListData().state == CommandListState::Available, "Attempted to reset available command list #%d", mCurrentCommandList);
 
     HRESULT hr = CurrentCommandListData().commandList->Reset(mCommandAllocators[mCurrentCommandAllocator].allocator.Get(), nullptr);
-    D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to reset current command list");
+    D3D12NI_DEV_VOID_RET_IF_FAILED(mNativeDevice, hr, "Failed to reset current command list");
 
     CurrentCommandListData().state = CommandListState::Active;
 }
@@ -126,6 +126,7 @@ CommandListPool::~CommandListPool()
         mCommandAllocators[i].allocator.Reset();
     }
 
+    // freed as part of RenderThread before RenderingContext is fully cleaned up, so it will still be accessible
     mNativeDevice->GetRenderingContext()->UnregisterWaitableOperation(this);
     mNativeDevice.reset();
 }
@@ -162,7 +163,7 @@ bool CommandListPool::Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount
     mCommandAllocators.resize(commandAllocators);
     for (size_t i = 0; i < mCommandAllocators.size(); ++i) {
         hr = mNativeDevice->GetDevice()->CreateCommandAllocator(type, IID_PPV_ARGS(&mCommandAllocators[i].allocator));
-        D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Command Allocator");
+        D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Command Allocator");
 
         mCommandAllocators[i].state = CommandListState::Available;
         mCommandAllocators[i].closedFenceValue = 0;
@@ -177,7 +178,7 @@ bool CommandListPool::Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount
     for (size_t i = 0; i < mCommandLists.size(); ++i)
     {
         hr = mNativeDevice->GetDevice()->CreateCommandList1(0, type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&mCommandLists[i].commandList));
-        D3D12NI_RET_IF_FAILED(hr, false, "Failed to create a Command List for the pool");
+        D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create a Command List for the pool");
 
         mCommandLists[i].state = CommandListState::Available;
         mCommandLists[i].closedFenceValue = 0;
@@ -251,7 +252,7 @@ const D3D12GraphicsCommandListPtr& CommandListPool::AdvanceCommandList(bool adva
     D3D12NI_ASSERT(CurrentCommandListData().state == CommandListState::Active, "Invalid Command List #%d state %d", mCurrentCommandList, CurrentCommandListData().state);
 
     HRESULT hr = CurrentCommandListData().commandList->Close();
-    D3D12NI_RET_IF_FAILED(hr, mNullCommandList, "Failed to close Command List");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, mNullCommandList, "Failed to close Command List");
 
     CurrentCommandListData().state = CommandListState::Closed;
 

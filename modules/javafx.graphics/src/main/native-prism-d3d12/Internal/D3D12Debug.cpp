@@ -169,12 +169,7 @@ const char* TranslateDREDBreadcrumbOp(D3D12_AUTO_BREADCRUMB_OP op)
     }
 }
 
-} // namespace
-
-namespace D3D12 {
-namespace Internal {
-
-void Debug::DREDProcessBreadcrumbNode(const D3D12_AUTO_BREADCRUMB_NODE* node)
+void DREDProcessBreadcrumbNode(const D3D12_AUTO_BREADCRUMB_NODE* node)
 {
     D3D12NI_LOG_INFO("  Breadcrumbs on Command List %s (Queue %s):", node->pCommandListDebugNameA, node->pCommandQueueDebugNameA);
     int commands = node->BreadcrumbCount;
@@ -185,96 +180,30 @@ void Debug::DREDProcessBreadcrumbNode(const D3D12_AUTO_BREADCRUMB_NODE* node)
     }
 }
 
-void Debug::DREDProcessPageFaultNode(const D3D12_DRED_ALLOCATION_NODE* node)
+void DREDProcessPageFaultNode(const D3D12_DRED_ALLOCATION_NODE* node)
 {
     D3D12NI_LOG_INFO("    - %s (%s)", TranslateDREDAllocationType(node->AllocationType), (node->ObjectNameA != nullptr ? node->ObjectNameA : "UNNAMED"));
 }
 
-Debug::Debug()
-    : mD3D12Device()
-    , mDXGIDebug()
-    , mDXGIInfoQueue()
-    , mD3D12Debug()
-    , mD3D12InfoQueue()
-    , mD3D12DebugDevice()
-    , mD3D12MessageCallbackCookie()
-    , mIsEnabled(false)
-    , mIsDREDEnabled(false)
-    , mUsesMessageCallback(false)
-{
-}
+} // namespace
 
-Debug::~Debug()
-{
-}
+namespace D3D12 {
+namespace Internal {
 
-Debug& Debug::Instance()
-{
-    static Debug instance;
-    return instance;
-}
+// Device-specific part
 
-bool Debug::Init()
-{
-    // first, conditionally enable DRED - this will be useful even with debug layers disabled
-    // we must change those settings _before_ D3D12 device is created
-    if (Config::IsDREDEnabled())
-    {
-        D3D12DeviceRemovedExtendedDataSettings dredSettings;
-        HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings));
-        D3D12NI_RET_IF_FAILED(hr, false, "DRED was requested but failed to acquire its interface. DRED might not be available on this system.");
+DeviceSpecificDebugContext::DeviceSpecificDebugContext(bool isEnabled, bool dredEnabled)
+    : mIsEnabled(isEnabled)
+    , mIsDREDEnabled(dredEnabled)
+{}
 
-        dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-        dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-        mIsDREDEnabled = true;
-        D3D12NI_LOG_INFO("Enabled DRED analysis");
-    }
-
-    mIsEnabled = Config::IsDebugLayerEnabled();
-    if (!mIsEnabled)
-    {
-        D3D12NI_LOG_INFO("Debug facilities disabled");
-        return true;
-    }
-
-    HRESULT hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&mDXGIDebug));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to get DXGI Debug interface");
-
-    hr = D3D12GetInterface(CLSID_D3D12Debug, IID_PPV_ARGS(&mD3D12Debug));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to get Debug Layers interface");
-
-    mD3D12Debug->EnableDebugLayer();
-    mD3D12Debug->SetEnableGPUBasedValidation(Config::IsGpuDebugEnabled());
-    // NOTE: here we can potentially disable state-tracking for GPU-based valiadtion.
-    // This saves a lot of performance but shuts down resource state validation.
-    // Use: mDebugLayer->SetGPUBasedValidationFlags(...);
-    // Might be worthwhile for some scenarios.
-
-    // NOTE: DXGIGetDebugInterface1 CAN return E_NOINTERFACE when Windows SDK is not
-    // installed in the system.
-    hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&mDXGIInfoQueue));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to get DXGI Info Queue interface");
-
-    if (Config::IsBreakOnErrorEnabled())
-    {
-        hr = mDXGIInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
-        D3D12NI_RET_IF_FAILED(hr, false, "Failed to set break on DXGI errors");
-        hr = mDXGIInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
-        D3D12NI_RET_IF_FAILED(hr, false, "Failed to set break on DXGI corruptions");
-    }
-
-    D3D12NI_LOG_INFO("Debug facilities enabled");
-    return true;
-}
-
-bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
+bool DeviceSpecificDebugContext::InitDeviceDebug(const D3D12DevicePtr& device)
 {
     // storing D3D12 Device for ExamineDeviceRemoved() which should always be available
-    // TODO: D3D12: Handle multiple Device instances
-    mD3D12Device = device->GetDevice();
+    mD3D12Device = device;
     if (!mD3D12Device)
     {
-        D3D12NI_LOG_ERROR("Failed to initialize Debug class - D3D12 device is NULL");
+        D3D12NI_LOG_ERROR("Failed to initialize device specific Debug Context - D3D12 device is NULL");
         return false;
     }
 
@@ -349,51 +278,37 @@ bool Debug::InitDeviceDebug(const NIPtr<NativeDevice>& device)
         D3D12NI_LOG_WARN("D3D12 Debug: Failed to set up Debug Message Callback. Debug Layer logs might appear delayed.");
     }
 
-    D3D12NI_LOG_INFO("D3D12 Device debugging set up");
+    D3D12NI_LOG_INFO("D3D12 Device debugging set up for device %p", mD3D12Device.Get());
     return true;
 }
 
-void Debug::ReleaseAndReportLiveObjects()
+void DeviceSpecificDebugContext::ReleaseAndReportLiveObjects()
 {
     // This function should be the last resource release section when NativeDevice gets removed.
     // If below reports differ from what logs suggest we have a leak that needs fixing.
 
+    void* devPtr = mD3D12Device.Get();
     mD3D12Device.Reset();
     if (!mIsEnabled) return;
 
-    D3D12NI_LOG_DEBUG(" ======= Starting Live Object report =======");
+    D3D12NI_LOG_DEBUG(" ======= Starting Device Live Object report (dev %p) =======", devPtr);
     D3D12NI_LOG_DEBUG("Note that this only reports app-used live objects, ignoring internal ones.");
 
     mD3D12InfoQueue.Reset();
-    mD3D12Debug.Reset();
 
     if (mD3D12DebugDevice)
     {
-        D3D12NI_LOG_DEBUG("Live D3D12 objects at Debug Release (there should be only one ID3D12Device with Refcount: 1):");
+        D3D12NI_LOG_DEBUG("Live D3D12 objects at Debug Release:");
         mD3D12DebugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL);
         mD3D12DebugDevice.Reset();
     }
 
-    mDXGIInfoQueue.Reset();
-
-    if (mDXGIDebug)
-    {
-        D3D12NI_LOG_DEBUG("Live DXGI objects at Debug Release (this list should be empty):");
-        mDXGIDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
-        mDXGIDebug.Reset();
-    }
-
-    D3D12NI_LOG_DEBUG(" ======= Live Object report complete =======");
+    D3D12NI_LOG_DEBUG(" ======= Device Live Object report complete (dev %p) =======", devPtr);
 
     mIsEnabled = false;
 }
 
-bool Debug::IsEnabled()
-{
-    return mIsEnabled;
-}
-
-void Debug::ExamineDeviceRemoved()
+void DeviceSpecificDebugContext::ExamineDeviceRemoved()
 {
     // Device removed reason can always be fetched
     HRESULT reason = mD3D12Device->GetDeviceRemovedReason();
@@ -404,7 +319,7 @@ void Debug::ExamineDeviceRemoved()
     }
 
     _com_error comReason(reason);
-    D3D12NI_LOG_ERROR("Device removed reason: %x (%ws)", reason, comReason.ErrorMessage());
+    D3D12NI_LOG_ERROR("Device %p removed reason: %x (%ws)", mD3D12Device.Get(), reason, comReason.ErrorMessage());
 
     // fetch as much data as possible in hopes of getting some debugging information
     if (!mIsDREDEnabled)
@@ -456,25 +371,185 @@ void Debug::ExamineDeviceRemoved()
     }
 }
 
-void Debug::ReportErrorMessages()
+void DeviceSpecificDebugContext::ReportErrorMessages()
 {
     if (!mD3D12InfoQueue) return;
     if (mUsesMessageCallback) return; // ignore when messages are printed by the Callback
 
-    D3D12NI_LOG_ERROR("Colleted error messages since last report:");
+    std::unique_lock<std::mutex> lock(mErrorMessageReportMutex);
+    HRESULT hr = S_OK;
+
+    D3D12NI_LOG_ERROR("Colleted error messages since last report for device %p:", mD3D12Device.Get());
     UINT64 storedMessagesNum = mD3D12InfoQueue->GetNumStoredMessages();
     for (UINT64 i = 0; i < storedMessagesNum; ++i)
     {
         SIZE_T messageSizeBytes = 0;
-        mD3D12InfoQueue->GetMessage(i, nullptr, &messageSizeBytes);
+        hr = mD3D12InfoQueue->GetMessage(i, nullptr, &messageSizeBytes);
+        D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to get D3D12 error message size");
 
         UniqueCPtr<D3D12_MESSAGE> msg = MakeUniqueCPtr<D3D12_MESSAGE>(messageSizeBytes);
-        mD3D12InfoQueue->GetMessage(i, msg.get(), &messageSizeBytes);
+        if (msg == nullptr)
+        {
+            D3D12NI_LOG_ERROR("Failed to allocate space for D3D12 message");
+            return;
+        }
+
+        hr = mD3D12InfoQueue->GetMessage(i, msg.get(), &messageSizeBytes);
+        D3D12NI_VOID_RET_IF_FAILED(hr, "Failed to get D3D12 error message");
 
         D3D12DebugMessageCallback(msg->Category, msg->Severity, msg->ID, msg->pDescription, nullptr);
     }
 
     mD3D12InfoQueue->ClearStoredMessages();
+}
+
+
+// Process-wide part
+
+Debug::Debug()
+    : mDXGIDebug()
+    , mD3D12Debug()
+    , mDXGIInfoQueue()
+    , mDebugContexts()
+    , mDebugContextsMutex()
+    , mIsEnabled(false)
+    , mIsDREDEnabled(false)
+{
+}
+
+Debug::~Debug()
+{
+}
+
+Debug& Debug::Instance()
+{
+    static Debug instance;
+    return instance;
+}
+
+bool Debug::Init()
+{
+    // first, conditionally enable DRED - this will be useful even with debug layers disabled
+    // we must change those settings _before_ D3D12 device is created
+    if (Config::IsDREDEnabled())
+    {
+        D3D12DeviceRemovedExtendedDataSettings dredSettings;
+        HRESULT hr = D3D12GetDebugInterface(IID_PPV_ARGS(&dredSettings));
+        D3D12NI_RET_IF_FAILED(hr, false, "DRED was requested but failed to acquire its interface. DRED might not be available on this system.");
+
+        dredSettings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        dredSettings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+        mIsDREDEnabled = true;
+        D3D12NI_LOG_INFO("Enabled DRED analysis");
+    }
+
+    mIsEnabled = Config::IsDebugLayerEnabled();
+    if (!mIsEnabled)
+    {
+        D3D12NI_LOG_INFO("Debug facilities disabled");
+        return true;
+    }
+
+    HRESULT hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&mDXGIDebug));
+    D3D12NI_RET_IF_FAILED(hr, false, "Failed to get DXGI Debug interface");
+
+    hr = D3D12GetInterface(CLSID_D3D12Debug, IID_PPV_ARGS(&mD3D12Debug));
+    D3D12NI_RET_IF_FAILED(hr, false, "Failed to get Debug Layers interface");
+
+    mD3D12Debug->EnableDebugLayer();
+    mD3D12Debug->SetEnableGPUBasedValidation(Config::IsGpuDebugEnabled());
+    // NOTE: here we can potentially disable state-tracking for GPU-based valiadtion.
+    // This saves a lot of performance but shuts down resource state validation.
+    // Use: mDebugLayer->SetGPUBasedValidationFlags(...);
+    // Might be worthwhile for some scenarios.
+
+    // NOTE: DXGIGetDebugInterface1 CAN return E_NOINTERFACE when Windows SDK is not
+    // installed in the system.
+    hr = DXGIGetDebugInterface1(0, IID_PPV_ARGS(&mDXGIInfoQueue));
+    D3D12NI_RET_IF_FAILED(hr, false, "Failed to get DXGI Info Queue interface");
+
+    if (Config::IsBreakOnErrorEnabled())
+    {
+        hr = mDXGIInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_ERROR, true);
+        D3D12NI_RET_IF_FAILED(hr, false, "Failed to set break on DXGI errors");
+        hr = mDXGIInfoQueue->SetBreakOnSeverity(DXGI_DEBUG_ALL, DXGI_INFO_QUEUE_MESSAGE_SEVERITY_CORRUPTION, true);
+        D3D12NI_RET_IF_FAILED(hr, false, "Failed to set break on DXGI corruptions");
+    }
+
+    D3D12NI_LOG_INFO("Debug facilities enabled");
+    return true;
+}
+
+DebugContextPtr Debug::InitDeviceDebug(const D3D12DevicePtr& device)
+{
+    std::unique_lock<std::mutex> lock(mDebugContextsMutex);
+
+    for (const DebugContextPtr& context: mDebugContexts)
+    {
+        if (context->GetDevice() == device)
+        {
+            D3D12NI_LOG_ERROR("Failed to initialize device debug - device already initialized for debugging");
+            return nullptr;
+        }
+    }
+
+    DebugContextPtr context = std::make_shared<DeviceSpecificDebugContext>(mIsEnabled, mIsDREDEnabled);
+    if (!context->InitDeviceDebug(device))
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize device debug context");
+        return nullptr;
+    }
+
+    mDebugContexts.emplace_back(context);
+    return context;
+}
+
+void Debug::ReleaseDeviceAndReportLiveObjects(const DebugContextPtr& debugContext)
+{
+    std::unique_lock<std::mutex> lock(mDebugContextsMutex);
+
+    // This function should be the last resource release section when NativeDevice gets removed.
+    // If below reports differ from what logs suggest we have a leak that needs fixing.
+    for (std::list<DebugContextPtr>::iterator it = mDebugContexts.begin(); it != mDebugContexts.end(); ++it)
+    {
+        if (*it == debugContext)
+        {
+            debugContext->ReleaseAndReportLiveObjects();
+            mDebugContexts.erase(it);
+            break;
+        }
+    }
+}
+
+void Debug::ReleaseInstanceAndReportLiveObjects()
+{
+    // I think this lock is not really needed, but we do check mDebugContext which could be accessed by multiple threads
+    std::unique_lock<std::mutex> lock(mDebugContextsMutex);
+
+    if (!mDebugContexts.empty())
+    {
+        D3D12NI_LOG_WARN("NOTE: Releasing Debug Instance while not all Device-specific objects are freed. This should not happen.");
+    }
+
+    D3D12NI_LOG_DEBUG(" ======= Starting Instance Live Object report =======");
+
+    mD3D12Debug.Reset();
+    mDXGIInfoQueue.Reset();
+
+    if (mDXGIDebug)
+    {
+        D3D12NI_LOG_DEBUG("Live DXGI objects at Debug Release (this list should be empty):");
+        mDXGIDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
+        mDXGIDebug.Reset();
+    }
+
+    D3D12NI_LOG_DEBUG(" ======= Live Object report complete =======");
+    mIsEnabled = false;
+}
+
+bool Debug::IsEnabled()
+{
+    return mIsEnabled;
 }
 
 } // namespace Internal

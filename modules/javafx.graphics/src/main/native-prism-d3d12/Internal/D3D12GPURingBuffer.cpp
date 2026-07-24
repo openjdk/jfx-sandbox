@@ -74,7 +74,7 @@ bool GPURingBuffer::Init(size_t flushThreshold, size_t alignment, size_t size)
 
     HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
         &resourceDesc, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&mGPUBufferResource));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create GPU Ring Buffer's Default Committed Resource");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create GPU Ring Buffer's Default Committed Resource");
 
     mGPUBufferResource->SetName(L"Ring Buffer Resource (GPU)");
 

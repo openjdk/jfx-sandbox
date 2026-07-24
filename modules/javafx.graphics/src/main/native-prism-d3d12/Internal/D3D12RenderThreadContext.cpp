@@ -426,20 +426,18 @@ uint32_t RenderThreadContext::PrepareQuadsDraw(float* vertices, unsigned char* c
     return vertexRegion.startOffset;
 }
 
-void RenderThreadContext::PrepareMeshViewDraw(const NIPtr<NativeMeshView>& meshView)
+void RenderThreadContext::PrepareMeshDraw(const NIPtr<Buffer>& vertexBuffer, const NIPtr<Buffer>& indexBuffer, DXGI_FORMAT ibFormat)
 {
-    const NIPtr<NativeMesh>& mesh = meshView->GetMesh();
-
     D3D12_VERTEX_BUFFER_VIEW vbView;
-    vbView.BufferLocation = mesh->GetVertexBuffer()->GetGPUPtr();
-    vbView.SizeInBytes = static_cast<UINT>(mesh->GetVertexBuffer()->Size());
+    vbView.BufferLocation = vertexBuffer->GetGPUPtr();
+    vbView.SizeInBytes = static_cast<UINT>(vertexBuffer->Size());
     vbView.StrideInBytes = 9 * sizeof(float); // 3 * modelVertexPos; 2 * texD; 4 * modelVertexNormal
     SetVertexBuffer(vbView);
 
     D3D12_INDEX_BUFFER_VIEW ibView;
-    ibView.BufferLocation = mesh->GetIndexBuffer()->GetGPUPtr();
-    ibView.SizeInBytes = static_cast<UINT>(mesh->GetIndexBuffer()->Size());
-    ibView.Format = mesh->GetIndexBufferFormat();
+    ibView.BufferLocation = indexBuffer->GetGPUPtr();
+    ibView.SizeInBytes = static_cast<UINT>(indexBuffer->Size());
+    ibView.Format = ibFormat;
     SetIndexBuffer(ibView);
 }
 

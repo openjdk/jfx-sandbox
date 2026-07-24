@@ -63,7 +63,7 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
         mSwapChain = resourceFactory.getNativeInstance().createSwapChain(
             mContext.getDevice(), mState.getNativeView()
         );
-        if (!mSwapChain.isValid()) {
+        if (mSwapChain == null || !mSwapChain.isValid()) {
             throw new NullPointerException("D3D12 swapchain is NULL");
         }
 
@@ -73,7 +73,7 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
         mOffscreenRTT = (D3D12RTTexture)resourceFactory.createRTTexture(
             mState.getRenderWidth(), mState.getRenderHeight(), WrapMode.CLAMP_NOT_NEEDED, mMSAA, false
         );
-        if (!mOffscreenRTT.isValid()) {
+        if (mOffscreenRTT == null || !mOffscreenRTT.isValid()) {
             mSwapChain.dispose();
             mSwapChain = null;
             throw new NullPointerException("D3D12 swapchain is NULL");

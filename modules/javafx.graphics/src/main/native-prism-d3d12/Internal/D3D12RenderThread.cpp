@@ -169,10 +169,10 @@ uint64_t RenderThread::Signal(CheckpointType type)
     });
 
     HRESULT hr = mCommandQueue->Signal(mCommandQueueFence.Get(), mFenceValue);
-    D3D12NI_RET_IF_FAILED(hr, D3D12NI_INVALID_FENCE_VALUE, "Failed to signal event on completion");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, D3D12NI_INVALID_FENCE_VALUE, "Failed to signal event on completion");
 
     hr = mCommandQueueFence->SetEventOnCompletion(mFenceValue, waitable.GetHandle());
-    D3D12NI_RET_IF_FAILED(hr, D3D12NI_INVALID_FENCE_VALUE, "Failed to set Fence event on completion");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, D3D12NI_INVALID_FENCE_VALUE, "Failed to set Fence event on completion");
 
     mCheckpointQueue.AddCheckpoint(type, std::move(waitable));
     return mFenceValue;
@@ -239,13 +239,13 @@ bool RenderThread::Init()
     // TODO Command Queue should probably reside in Command List Pool
     //      Same with all Execute/Signal logic & checkpoints
     HRESULT hr = mNativeDevice->GetDevice()->CreateCommandQueue(&cqDesc, IID_PPV_ARGS(&mCommandQueue));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Direct Command Queue");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Direct Command Queue");
 
     hr = mCommandQueue->SetName(L"Main Command Queue");
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to name Direct Command Queue");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to name Direct Command Queue");
 
     hr = mNativeDevice->GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mCommandQueueFence));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create in-device Fence");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create in-device Fence");
 
     {
         std::unique_lock<std::mutex> lock(mPayloadQueueMutex);

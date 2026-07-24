@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -131,7 +131,7 @@ bool RootSignatureManager::Init()
     }
 
     hr = mNativeDevice->GetDevice()->CreateRootSignature(0, rsBlob->GetBufferPointer(), rsBlob->GetBufferSize(), IID_PPV_ARGS(&mGraphicsRootSignature));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Internal Shader Root Signature");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Internal Shader Root Signature");
 
 
     // Prepare Root Signature for Compute Shaders
@@ -209,7 +209,7 @@ bool RootSignatureManager::Init()
     }
 
     hr = mNativeDevice->GetDevice()->CreateRootSignature(0, computeRsBlob->GetBufferPointer(), computeRsBlob->GetBufferSize(), IID_PPV_ARGS(&mComputeRootSignature));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Compute Shader Root Signature");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Compute Shader Root Signature");
 
     return true;
 }

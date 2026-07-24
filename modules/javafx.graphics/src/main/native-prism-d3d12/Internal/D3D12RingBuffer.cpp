@@ -82,12 +82,12 @@ bool RingBuffer::Init(size_t flushThreshold, size_t alignment, size_t size)
 
     HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE,
         &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&mBufferResource));
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to create Buffer's Committed Resource");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Buffer's Committed Resource");
 
     void* cpu;
     D3D12_RANGE range = { 0, 0 }; // this range means the CPU won't read any data
     hr = mBufferResource->Map(0, &range, &cpu);
-    D3D12NI_RET_IF_FAILED(hr, false, "Failed to Map ring buffer to acquire CPU pointer");
+    D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to Map ring buffer to acquire CPU pointer");
 
     mBufferResource->SetName(L"Ring Buffer Resource");
 
