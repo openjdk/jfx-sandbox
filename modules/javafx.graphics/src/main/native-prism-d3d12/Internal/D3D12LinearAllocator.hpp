@@ -110,7 +110,7 @@ class LinearAllocator
         // assumes there is enough room
         void* Reserve(uint32_t size)
         {
-            if (!Fits(size))
+            if (!mPtr || !Fits(size))
             {
                 D3D12NI_LOG_ERROR("Not enough room to reserve on Allocator's Chunk");
                 return nullptr;
@@ -175,7 +175,11 @@ public:
     T* Construct(Args&&... args)
     {
         T* ret = reinterpret_cast<T*>(Allocate(sizeof(T)));
-        new(ret) T(std::forward<Args>(args)...);
+        if (ret)
+        {
+            new(ret) T(std::forward<Args>(args)...);
+        }
+
         return ret;
     }
 };

@@ -42,6 +42,14 @@ namespace Internal {
 // collects steps that need to be processed by the Rendering Thread
 class RenderPayload
 {
+public:
+    enum class StepAddResult: uint8_t
+    {
+        SUCCESS = 0,
+        FAILED,
+        PAYLOAD_AT_LIMIT
+    };
+
 private:
     static const uint32_t PAYLOAD_SIZE = 10240;
 
@@ -62,17 +70,23 @@ public:
     {
     }
 
-    bool AddStep(RenderThreadExecutablePtr&& executable)
+    StepAddResult AddStep(RenderThreadExecutablePtr&& executable)
     {
+        if (!executable)
+        {
+            D3D12NI_LOG_ERROR("Provided a null executable. This should not happen and must be fixed.");
+            return StepAddResult::FAILED;
+        }
+
         if (mCurrentStep >= mSteps.size())
         {
             D3D12NI_LOG_ERROR("Render Thread Payload size exceeded. Please fix this.");
-            return false;
+            return StepAddResult::FAILED;
         }
 
         mSteps[mCurrentStep] = std::move(executable);
         mCurrentStep++;
-        return (mCurrentStep > PAYLOAD_LIMIT);
+        return (mCurrentStep > PAYLOAD_LIMIT) ? StepAddResult::PAYLOAD_AT_LIMIT : StepAddResult::SUCCESS;
     }
 
     bool ApplySteps(const RenderThreadContextPtr& context)

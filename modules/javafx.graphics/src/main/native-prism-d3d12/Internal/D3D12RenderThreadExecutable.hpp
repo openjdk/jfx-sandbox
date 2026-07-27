@@ -348,16 +348,16 @@ public:
     }
 };
 
-class ApplyRenderTarget: public RenderThreadDataExecutable<NIPtr<IRenderTarget>>
+class ApplyRenderTarget: public RenderThreadDataExecutable<RenderTargetDescriptors>
 {
 public:
     ApplyRenderTarget(const NIPtr<IRenderTarget>& data)
-        : RenderThreadDataExecutable(data)
+        : RenderThreadDataExecutable(data ? RenderTargetDescriptors(data->GetRTVDescriptorData(), data->GetDSVDescriptorData()) : RenderTargetDescriptors())
     {}
 
     void Execute(const RenderThreadContextPtr& context) override final
     {
-        mData ? context->renderTarget.Set(mData) : context->renderTarget.Unset();
+        mData.rtv ? context->renderTarget.Set(mData) : context->renderTarget.Unset();
     }
 };
 

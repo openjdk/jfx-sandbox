@@ -80,11 +80,12 @@ bool NativeRenderTarget::EnsureHasDepthBuffer()
     // note that if it's already created we don't have to do anything
     if (mDepthTexture) return true;
 
-    mDepthTextureBase = mDepthTexture = std::make_shared<NativeTexture>(mNativeDevice);
+    mDepthTexture = std::make_shared<NativeTexture>(mNativeDevice);
     if (!mDepthTexture->Init(static_cast<int>(mWidth), static_cast<int>(mHeight), DXGI_FORMAT_D32_FLOAT, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
             TextureUsage::STATIC, TextureWrapMode::CLAMP_NOT_NEEDED, mTexture->GetMSAASamples(), false))
     {
         D3D12NI_LOG_ERROR("Failed to create Depth Texture");
+        mDepthTexture.reset();
         return false;
     }
 
@@ -92,11 +93,18 @@ bool NativeRenderTarget::EnsureHasDepthBuffer()
     if (!mDSVDescriptor)
     {
         D3D12NI_LOG_ERROR("Failed to allocate DSV descriptor for Depth Buffer");
+        mDepthTexture.reset();
         return false;
     }
 
-    Refresh();
+    if (!Refresh())
+    {
+        D3D12NI_LOG_ERROR("Failed to create DSV Descriptor for Depth Buffer");
+        mDepthTexture.reset();
+        return false;
+    }
 
+    mDepthTextureBase = mDepthTexture;
     mNativeDevice->GetRenderingContext()->ClearDepth(mDepthTexture, mDSVDescriptor.cpu);
 
     D3D12NI_LOG_TRACE("--- RenderTarget %s uses depth texture %s ---", mTexture->GetName().c_str(), mDepthTexture->GetName().c_str());
@@ -120,7 +128,10 @@ bool NativeRenderTarget::Refresh()
     if (mDepthTexture)
     {
         // resize Depth Bufer
-        mDepthTexture->Resize(static_cast<UINT>(mWidth), static_cast<UINT>(mHeight));
+        if (!mDepthTexture->Resize(static_cast<UINT>(mWidth), static_cast<UINT>(mHeight)))
+        {
+            return false;
+        }
 
         D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
         D3D12NI_ZERO_STRUCT(dsvDesc);

@@ -143,16 +143,24 @@ protected:
     }
 };
 
-class RenderTargetCommandListStep: public CommandListDataStep<NIPtr<IRenderTarget>>
+struct RenderTargetDescriptors
+{
+    DescriptorData rtv;
+    DescriptorData dsv;
+
+    RenderTargetDescriptors() = default;
+    RenderTargetDescriptors(const DescriptorData& rtv, const DescriptorData& dsv)
+        : rtv(rtv), dsv(dsv)
+    {}
+};
+
+class RenderTargetCommandListStep: public CommandListDataStep<RenderTargetDescriptors>
 {
 protected:
     virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
     {
-        const Internal::DescriptorData& rtv = mParameter->GetRTVDescriptorData();
-        const Internal::DescriptorData& dsv = mParameter->GetDSVDescriptorData();
-
         commandList->OMSetRenderTargets(
-            rtv.count, &rtv.cpu, true, dsv ? &dsv.cpu : nullptr
+            mParameter.rtv.count, &mParameter.rtv.cpu, true, mParameter.dsv ? &mParameter.dsv.cpu : nullptr
         );
     }
 };

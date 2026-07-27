@@ -48,6 +48,11 @@ RenderPayloadPtr RenderingContext::ReplaceRTPayload()
     mPayloadAllocator.MoveToNewChunk();
     mExtraPayloadDataAllocator.MoveToNewChunk();
     mRTPayload.reset(mPayloadAllocator.Construct<RenderPayload>());
+    if (!mRTPayload)
+    {
+        D3D12NI_LOG_ERROR("Failed to allocate a new RenderThread Payload");
+        return nullptr;
+    }
 
     mPayloadAllocator.ResetChunks();
     mExtraPayloadDataAllocator.ResetChunks();
@@ -62,7 +67,14 @@ void RenderingContext::SubmitRTPayload()
     {
         // current payload has some work that was not reflected on a Command List yet
         // move current payload to the Render Thread for execution and create a fresh one for later
-        mRenderThread.Execute(ReplaceRTPayload());
+        RenderPayloadPtr payload = ReplaceRTPayload();
+        if (!payload)
+        {
+            D3D12NI_LOG_ERROR("Failed to replace RT Payload, this should not happen");
+            return;
+        }
+
+        mRenderThread.Execute(std::move(payload));
     }
 }
 
@@ -178,12 +190,17 @@ RenderingContext::RenderingContext(const NIPtr<NativeDevice>& nativeDevice)
         return computePso.IsSet();
     };
     mComputeRootSignature.SetDependency(computePsoDep);
-
-    mRTPayload.reset(mPayloadAllocator.Construct<RenderPayload>());
 }
 
 bool RenderingContext::Init()
 {
+    mRTPayload.reset(mPayloadAllocator.Construct<RenderPayload>());
+    if (!mRTPayload)
+    {
+        D3D12NI_LOG_ERROR("Failed to initialize RenderThread Payload");
+        return false;
+    }
+
     if (!mRenderThread.Init())
     {
         D3D12NI_LOG_ERROR("Failed to initialize Render Thread");
@@ -328,6 +345,11 @@ void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, co
         return;
     }
 
+    // Transition RT and Depth if needed
+    TransitionTrackedResource(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    if (mRenderTarget.Get()->HasDepthTexture())
+        TransitionTrackedResource(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
     if (mRTPayload->AddStep(CreateRTExec<DrawQuadsAction>(mPayloadAllocator, mExtraPayloadDataAllocator, vertices, colors, vertexCount)))
     {
         SubmitRTPayload();
@@ -357,6 +379,11 @@ void RenderingContext::DrawMeshView(const NIPtr<NativeMeshView>& meshView)
         D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping Draw Mesh View call.");
         return;
     }
+
+    // Transition RT and Depth if needed
+    TransitionTrackedResource(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
+    if (mRenderTarget.Get()->HasDepthTexture())
+        TransitionTrackedResource(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
     if (mRTPayload->AddStep(CreateRTExec<DrawMeshViewAction>(mPayloadAllocator, meshView)))
     {
