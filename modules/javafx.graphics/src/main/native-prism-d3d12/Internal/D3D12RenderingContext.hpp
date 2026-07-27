@@ -122,7 +122,8 @@ class RenderingContext
     std::unordered_set<NIPtr<Internal::IRenderTarget>> mUsedRTs;
 
     RenderPayloadPtr ReplaceRTPayload(); // creates new payload, returns old one
-    void SubmitRTPayload();
+    bool SubmitRTPayload();
+    bool AddToRTPayload(RenderThreadExecutablePtr&& executable);
     void RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect);
     BBox EstimateDirtyBBox(const MemoryView<float>& vertices, uint32_t vertexCount);
     void ClearAppliedFlags();
@@ -186,7 +187,7 @@ public:
     void StashParamters();
     void RestoreStashedParameters();
 
-    void FlushCommandList(CheckpointType type);
+    bool FlushAndWait(CheckpointType type);
     bool WaitForNextCheckpoint(CheckpointType type);
     bool WaitForGPU();
     void FinishFrame();

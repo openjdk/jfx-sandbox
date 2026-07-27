@@ -88,9 +88,9 @@ public:
     void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp);
     NIPtr<Waitable> Execute(RenderPayloadPtr&& payload);
-    void ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload, bool advanceAllocator);
-    void ScheduleSignal(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type);
-    void ScheduleWaitForCheckpoint(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type);
+    bool ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload, bool advanceAllocator);
+    bool ScheduleSignal(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type);
+    bool ScheduleWaitForCheckpoint(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type);
     void WaitUntilIdle();
     void Exit();
 

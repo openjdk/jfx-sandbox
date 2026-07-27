@@ -75,6 +75,7 @@ void RenderThread::WorkerMain()
         RenderPayloadPtr& curPayload = FetchPayload();
         if (!curPayload) continue;
 
+        D3D12NI_LOG_TRACE("Executing payload %d steps", curPayload->StepsCount());
         // record what is needed on the Command List
         if (!curPayload->ApplySteps(mContext))
         {
@@ -88,7 +89,7 @@ void RenderThread::WorkerMain()
             while (!mPayloadQueue.empty()) mPayloadQueue.pop();
 
             mQueueEmptyCV.notify_all(); // in case main thread waits on mQueueEmptyCV
-
+            D3D12NI_LOG_DEBUG("RenderThread done because of an error.");
             return;
         }
     }
@@ -121,6 +122,8 @@ void RenderThread::WorkerMain()
         mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
         mCheckpointQueue.PrintStats();
     }
+
+    D3D12NI_LOG_DEBUG("RenderThread done");
 }
 
 void RenderThread::ExecuteCurrentCommandList(bool advanceAllocator)
@@ -208,7 +211,6 @@ RenderThread::RenderThread(const NIPtr<NativeDevice>& nativeDevice)
     , mWorkerDone(false)
     , mWorkerThread()
 {
-    SetThreadDescription(mWorkerThread.native_handle(), L"JavaFX D3D12 RenderThread");
 }
 
 bool RenderThread::Init()
@@ -251,7 +253,9 @@ bool RenderThread::Init()
         std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
 
         // start up the thread and wait until it's ready to accept payloads
+        D3D12NI_LOG_DEBUG("Starting Render Thread");
         mWorkerThread = std::thread(&RenderThread::WorkerMain, this);
+        SetThreadDescription(mWorkerThread.native_handle(), L"JavaFX D3D12 RenderThread");
         mQueueEmptyCV.wait(lock);
     }
 
@@ -302,25 +306,27 @@ NIPtr<Waitable> RenderThread::Execute(RenderPayloadPtr&& payload)
     return waitable;
 }
 
-void RenderThread::ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload, bool advanceAllocator = false)
+bool RenderThread::ScheduleCommandListSubmit(LinearAllocator& allocator, RenderPayloadPtr& payload, bool advanceAllocator = false)
 {
     D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::ScheduleCommandListSubmit() can only be called from main thread");
 
-    payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::ExecuteCurrentCommandList, this, advanceAllocator)));
+    // this schedule and others are assumed to always fit due to the Payload limit being lower than actual size (and we want them in one Payload).
+    // As such we only check here for errors in adding the step and not if the Payload is full
+    return (payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::ExecuteCurrentCommandList, this, advanceAllocator))) != RenderPayload::StepAddResult::FAILED);
 }
 
-void RenderThread::ScheduleSignal(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type)
+bool RenderThread::ScheduleSignal(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type)
 {
     D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::ScheduleSignal() can only be called from main thread");
 
-    payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::Signal, this, type)));
+    return (payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::Signal, this, type))) != RenderPayload::StepAddResult::FAILED);
 }
 
-void RenderThread::ScheduleWaitForCheckpoint(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type)
+bool RenderThread::ScheduleWaitForCheckpoint(LinearAllocator& allocator, RenderPayloadPtr& payload, CheckpointType type)
 {
     D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::WaitForCheckpoint() can only be called from main thread");
 
-    payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::WaitForCheckpointInternal, this, type)));
+    return (payload->AddStep(CreateRTExec<InternalRenderThreadRoutine>(allocator, std::bind(&RenderThread::WaitForCheckpointInternal, this, type))) != RenderPayload::StepAddResult::FAILED);
 }
 
 void RenderThread::WaitUntilIdle()
@@ -340,6 +346,7 @@ void RenderThread::Exit()
     {
         std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
 
+        D3D12NI_LOG_DEBUG("Exiting Render Thread");
         if (!mWorkerDone)
         {
             while (mPayloadQueue.size() != 0)

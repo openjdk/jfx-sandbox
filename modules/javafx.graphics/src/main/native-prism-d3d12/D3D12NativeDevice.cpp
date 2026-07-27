@@ -676,8 +676,11 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
 
     // Flush the Command Queue to ensure data was read and wait for it
     Internal::Profiler::Instance().MarkEvent(mProfilerTransferWaitSourceID, Internal::Profiler::Event::Wait);
-    mRenderingContext->FlushCommandList(CheckpointType::TRANSFER);
-    mRenderingContext->WaitForNextCheckpoint(CheckpointType::TRANSFER);
+    if (!mRenderingContext->FlushAndWait(CheckpointType::TRANSFER))
+    {
+        D3D12NI_LOG_ERROR("Failed to submit texture read operation to Render Thread");
+        return false;
+    }
 
     void* readbackPtr = readbackBuffer->Map();
     if (readbackPtr == nullptr)

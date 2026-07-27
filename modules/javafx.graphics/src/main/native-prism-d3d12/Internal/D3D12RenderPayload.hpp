@@ -104,6 +104,11 @@ public:
         return (mCurrentStep > 0);
     }
 
+    uint32_t StepsCount() const
+    {
+        return mCurrentStep;
+    }
+
     inline const NIPtr<Waitable>& GetWaitable() const
     {
         return mWaitable;

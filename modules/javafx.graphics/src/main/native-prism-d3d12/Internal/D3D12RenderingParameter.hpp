@@ -53,12 +53,15 @@ class RenderingParameter: public RenderingDataStep<T>
     }
 
 public:
-    void AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload)
+    bool AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload)
     {
-        if (this->CanBeSkipped()) return;
+        if (this->CanBeSkipped()) return true;
 
-        payload->AddStep(CreateExecutable(allocator));
+        RenderPayload::StepAddResult result = payload->AddStep(CreateExecutable(allocator));
+        if (result == RenderPayload::StepAddResult::FAILED) return false;
+
         this->mIsApplied = true;
+        return true;
     }
 };
 
@@ -69,17 +72,22 @@ class ShaderConstantsResource: public RenderingDataStep<NIPtr<Shader>>
     RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const
     {
         ResourceManager::ShaderConstants constants(allocator, mParameter->GetConstantStorage().data(), mParameter->GetConstantStorage().size());
+        if (!constants.buffer) return nullptr;
+
         return CreateRTExec<Executable>(allocator, std::move(constants));
     }
 
 public:
-    void AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload)
+    bool AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload)
     {
-        if (RenderingDataStep<NIPtr<Shader>>::CanBeSkipped() && !mParameter->AreConstantsDirty()) return;
+        if (RenderingDataStep<NIPtr<Shader>>::CanBeSkipped() && !mParameter->AreConstantsDirty()) return true;
 
-        payload->AddStep(CreateExecutable(allocator));
+        RenderPayload::StepAddResult result = payload->AddStep(CreateExecutable(allocator));
+        if (result == RenderPayload::StepAddResult::FAILED) return false;
+
         mParameter->SetConstantsDirty(false);
         this->mIsApplied = true;
+        return true;
     }
 };
 

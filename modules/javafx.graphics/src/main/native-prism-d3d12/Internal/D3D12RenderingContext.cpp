@@ -59,7 +59,7 @@ RenderPayloadPtr RenderingContext::ReplaceRTPayload()
     return ret;
 }
 
-void RenderingContext::SubmitRTPayload()
+bool RenderingContext::SubmitRTPayload()
 {
     D3D12NI_ASSERT(std::this_thread::get_id() != mRenderThread.GetThreadID(), "SubmitRTPayload() cannot be called by the Render Thread");
 
@@ -71,29 +71,52 @@ void RenderingContext::SubmitRTPayload()
         if (!payload)
         {
             D3D12NI_LOG_ERROR("Failed to replace RT Payload, this should not happen");
-            return;
+            return false;
         }
 
         mRenderThread.Execute(std::move(payload));
     }
+
+    return true;
+}
+
+bool RenderingContext::AddToRTPayload(RenderThreadExecutablePtr&& executable)
+{
+    RenderPayload::StepAddResult result = mRTPayload->AddStep(std::move(executable));
+    if (result == RenderPayload::StepAddResult::FAILED)
+    {
+        D3D12NI_LOG_ERROR("Failed to add a step to RT Payload");
+        return false;
+    }
+
+    if (result == RenderPayload::StepAddResult::PAYLOAD_AT_LIMIT)
+    {
+        return SubmitRTPayload();
+    }
+
+    return true;
 }
 
 void RenderingContext::RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect)
 {
     if (clearRect.left >= clearRect.right || clearRect.top >= clearRect.bottom) return; // empty rect - skip unnecessary clear
 
-    mRTPayload->AddStep(CreateRTExec<ClearRenderTargetAction>(mPayloadAllocator, mRenderTarget.Get(), r, g, b, a, clearRect));
+    if (!AddToRTPayload(CreateRTExec<ClearRenderTargetAction>(mPayloadAllocator, mRenderTarget.Get(), r, g, b, a, clearRect)))
+    {
+        return;
+    }
+
     // NOTE: Here we check by NativeRenderTarget::HasDepthTexture() and not IsDepthTestEnabled()
     // Prism can sometimes set the RTT with depth test disabled, but then request its clear with
     // the depth texture (ex. hello.HelloViewOrder) and only afterwards re-set the RTT again enabling
     // depth testing. So we have to disregard the depth test flag, otherwise we would miss this DSV clear.
     if (clearDepth && mRenderTarget.Get()->HasDepthTexture())
     {
-        if (mRTPayload->AddStep(CreateRTExec<ClearDepthStencilAction>(mPayloadAllocator,
+        if (!AddToRTPayload(CreateRTExec<ClearDepthStencilAction>(mPayloadAllocator,
             mRenderTarget.Get()->GetDepthTexture(), mRenderTarget.Get()->GetDSVDescriptorData().CPU(0),  1.0f, clearRect
         )))
         {
-            SubmitRTPayload();
+            return;
         }
     }
 
@@ -238,10 +261,7 @@ void RenderingContext::Dispose(const D3D12PageablePtr& pageable)
         // are done using it.
         // If mRTPayload is not valid (aka empty) then the Render Thread is off because
         // we already stopped it and are closing. Then the main thread can free the resource whenever.
-        if (mRTPayload->AddStep(CreateRTExec<DisposePageableAction>(mPayloadAllocator, pageable)))
-        {
-            SubmitRTPayload();
-        }
+        AddToRTPayload(CreateRTExec<DisposePageableAction>(mPayloadAllocator, pageable));
     }
 }
 
@@ -250,10 +270,7 @@ void RenderingContext::Dispose(const NIPtr<ITrackedResource>& resource)
     if (mRTPayload)
     {
         // Similar to D3D12 Pageables, we need to properly destroy our NI resources when they're no longer used
-        if (mRTPayload->AddStep(CreateRTExec<DisposeResourceAction>(mPayloadAllocator, resource)))
-        {
-            SubmitRTPayload();
-        }
+        AddToRTPayload(CreateRTExec<DisposeResourceAction>(mPayloadAllocator, resource));
     }
 }
 
@@ -298,10 +315,7 @@ void RenderingContext::Clear(float r, float g, float b, float a, bool clearDepth
 // we do this separately than the regular Clear() command when initializing depth textures
 void RenderingContext::ClearDepth(const NIPtr<NativeTexture>& depthTexture, const D3D12_CPU_DESCRIPTOR_HANDLE& dsv)
 {
-    if (mRTPayload->AddStep(CreateRTExec<ClearDepthStencilAction>(mPayloadAllocator, depthTexture, dsv, 1.0f)))
-    {
-        SubmitRTPayload();
-    }
+    AddToRTPayload(CreateRTExec<ClearDepthStencilAction>(mPayloadAllocator, depthTexture, dsv, 1.0f));
 }
 
 void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, const Internal::MemoryView<unsigned char>& colors, uint32_t vertexCount)
@@ -350,11 +364,7 @@ void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, co
     if (mRenderTarget.Get()->HasDepthTexture())
         TransitionTrackedResource(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-    if (mRTPayload->AddStep(CreateRTExec<DrawQuadsAction>(mPayloadAllocator, mExtraPayloadDataAllocator, vertices, colors, vertexCount)))
-    {
-        SubmitRTPayload();
-    }
-
+    AddToRTPayload(CreateRTExec<DrawQuadsAction>(mPayloadAllocator, mExtraPayloadDataAllocator, vertices, colors, vertexCount));
     mRenderTarget.Get()->UpdateDirtyBBox(dirtyBBox);
 
     if (clearDiscarded)
@@ -385,10 +395,7 @@ void RenderingContext::DrawMeshView(const NIPtr<NativeMeshView>& meshView)
     if (mRenderTarget.Get()->HasDepthTexture())
         TransitionTrackedResource(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
-    if (mRTPayload->AddStep(CreateRTExec<DrawMeshViewAction>(mPayloadAllocator, meshView)))
-    {
-        SubmitRTPayload();
-    }
+    AddToRTPayload(CreateRTExec<DrawMeshViewAction>(mPayloadAllocator, meshView));
 }
 
 void RenderingContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
@@ -399,35 +406,29 @@ void RenderingContext::Dispatch(uint32_t x, uint32_t y, uint32_t z)
         return;
     }
 
-    if (mRTPayload->AddStep(CreateRTExec<DispatchAction>(mPayloadAllocator, x, y, z)))
-    {
-        SubmitRTPayload();
-    }
+    AddToRTPayload(CreateRTExec<DispatchAction>(mPayloadAllocator, x, y, z));
 }
 
 bool RenderingContext::PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion)
 {
-    mRTPayload->AddStep(CreateRTExec<PrepareSwapChainAction>(mPayloadAllocator, swapChain, dirtyRegion));
+    if (!AddToRTPayload(CreateRTExec<PrepareSwapChainAction>(mPayloadAllocator, swapChain, dirtyRegion))) return false;
 
     return true;
 }
 
 bool RenderingContext::Present(const NIPtr<NativeSwapChain>& swapChain)
 {
-    mRTPayload->AddStep(CreateRTExec<PresentAction>(mPayloadAllocator, swapChain));
-    SubmitRTPayload();
+    // to prevent unnecessary double-submit we refrain from using AddToRTPayload() here
+    if (mRTPayload->AddStep(CreateRTExec<PresentAction>(mPayloadAllocator, swapChain)) == RenderPayload::StepAddResult::FAILED) return false;
+    if (!SubmitRTPayload()) return false;
 
     swapChain->WaitForAvailableBuffer();
-
     return true;
 }
 
 void RenderingContext::Resolve(const NIPtr<ITrackedResource>& dstTexture, const NIPtr<ITrackedResource>& srcTexture, DXGI_FORMAT resolveFormat)
 {
-    if (mRTPayload->AddStep(CreateRTExec<ResolveAction>(mPayloadAllocator, dstTexture, srcTexture, resolveFormat)))
-    {
-        SubmitRTPayload();
-    }
+    AddToRTPayload(CreateRTExec<ResolveAction>(mPayloadAllocator, dstTexture, srcTexture, resolveFormat));
 }
 
 void RenderingContext::ResolveRegion(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
@@ -454,10 +455,7 @@ void RenderingContext::ResolveRegion(const NIPtr<ITrackedResource>& dstTexture, 
     srcRect.right = srcx + srcw;
     srcRect.bottom = srcy + srch;
 
-    if (mRTPayload->AddStep(CreateRTExec<ResolveRegionAction>(mPayloadAllocator, dstTexture, dstx, dsty, srcTexture, srcRect, resolveFormat)))
-    {
-        SubmitRTPayload();
-    }
+    AddToRTPayload(CreateRTExec<ResolveRegionAction>(mPayloadAllocator, dstTexture, dstx, dsty, srcTexture, srcRect, resolveFormat));
 }
 
 void RenderingContext::CopyTexture(const NIPtr<IRenderTarget>& dstRT, uint32_t dstx, uint32_t dsty,
@@ -497,10 +495,7 @@ void RenderingContext::CopyTexture(const NIPtr<ITrackedResource>& dstTexture, ui
     dstLoc.pResource = nullptr;
     dstLoc.SubresourceIndex = 0;
 
-    if (mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstTexture, dstLoc, dstx, dsty, srcTexture, srcLoc, srcBox)))
-    {
-        SubmitRTPayload();
-    }
+    AddToRTPayload(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstTexture, dstLoc, dstx, dsty, srcTexture, srcLoc, srcBox));
 }
 
 void RenderingContext::CopyTextureToBuffer(const NIPtr<Buffer>& dstBuffer, uint32_t dstStride, const NIPtr<NativeTexture>& srcTexture,
@@ -531,10 +526,7 @@ void RenderingContext::CopyTextureToBuffer(const NIPtr<Buffer>& dstBuffer, uint3
     dstLoc.PlacedFootprint.Footprint.Format = srcTexture->GetFormat();
     dstLoc.PlacedFootprint.Offset = 0;
 
-    if (mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, nullptr, dstLoc, 0, 0, srcTexture, srcLoc, srcBox)))
-    {
-        SubmitRTPayload();
-    }
+    AddToRTPayload(CreateRTExec<CopyTextureAction>(mPayloadAllocator, nullptr, dstLoc, 0, 0, srcTexture, srcLoc, srcBox));
 }
 
 bool RenderingContext::UpdateTexture(const NIPtr<NativeTexture>& dstTexture, uint32_t dstx, uint32_t dsty,
@@ -595,7 +587,11 @@ bool RenderingContext::UpdateTexture(const NIPtr<NativeTexture>& dstTexture, uin
         dstLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
         dstLoc.SubresourceIndex = 0;
 
-        mRTPayload->AddStep(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstTexture, dstLoc, dstx, dsty, nullptr, srcLoc));
+        if (!AddToRTPayload(CreateRTExec<CopyTextureAction>(mPayloadAllocator, dstTexture, dstLoc, dstx, dsty, nullptr, srcLoc)))
+        {
+            return false;
+        }
+
         Dispose(stagingBuffer);
     }
     else
@@ -622,10 +618,7 @@ bool RenderingContext::UpdateTexture(const NIPtr<NativeTexture>& dstTexture, uin
         srcLoc.PlacedFootprint.Footprint.Format = uploader.GetTargetFormat();
 
         args.srcLoc = srcLoc;
-        if (mRTPayload->AddStep(CreateRTExec<CopyToTextureSmallAction>(mPayloadAllocator, std::move(args))))
-        {
-            SubmitRTPayload();
-        }
+        AddToRTPayload(CreateRTExec<CopyToTextureSmallAction>(mPayloadAllocator, std::move(args)));
     }
 
     return true;
@@ -633,18 +626,12 @@ bool RenderingContext::UpdateTexture(const NIPtr<NativeTexture>& dstTexture, uin
 
 void RenderingContext::CopyBufferRegion(const D3D12ResourcePtr& dst, uint64_t dstOffset, const D3D12ResourcePtr& src, uint64_t srcOffset, uint64_t size)
 {
-    if (mRTPayload->AddStep(CreateRTExec<CopyBufferRegionAction>(mPayloadAllocator, dst, dstOffset, src, srcOffset, size)))
-    {
-        SubmitRTPayload();
-    }
+    AddToRTPayload(CreateRTExec<CopyBufferRegionAction>(mPayloadAllocator, dst, dstOffset, src, srcOffset, size));
 }
 
 void RenderingContext::CopyResource(const D3D12ResourcePtr& dst, const D3D12ResourcePtr& src)
 {
-    if (mRTPayload->AddStep(CreateRTExec<CopyResourceAction>(mPayloadAllocator, dst, src)))
-    {
-        SubmitRTPayload();
-    }
+    AddToRTPayload(CreateRTExec<CopyResourceAction>(mPayloadAllocator, dst, src));
 }
 
 bool RenderingContext::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
@@ -709,10 +696,7 @@ bool RenderingContext::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
 
 void RenderingContext::TransitionTrackedResource(const NIPtr<ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource)
 {
-    if (mRTPayload->AddStep(CreateRTExec<ResourceTransitionAction>(mPayloadAllocator, resource, newState, subresource)))
-    {
-        SubmitRTPayload();
-    }
+    AddToRTPayload(CreateRTExec<ResourceTransitionAction>(mPayloadAllocator, resource, newState, subresource));
 }
 
 void RenderingContext::TransitionResource(const D3D12ResourcePtr& resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState, uint32_t subresource)
@@ -727,10 +711,7 @@ void RenderingContext::TransitionResource(const D3D12ResourcePtr& resource, D3D1
     barrier.Transition.StateAfter = newState;
     barrier.Transition.Subresource = subresource;
 
-    if (mRTPayload->AddStep(CreateRTExec<ResourceBarrierAction>(mPayloadAllocator, barrier)))
-    {
-        SubmitRTPayload();
-    }
+    AddToRTPayload(CreateRTExec<ResourceBarrierAction>(mPayloadAllocator, barrier));
 }
 
 void RenderingContext::ClearTextureUnit(uint32_t unit)
@@ -928,19 +909,19 @@ bool RenderingContext::Apply()
     // other settings (RootSignatures, Descriptors etc) are all set separately
     mComputePipelineState.ClearApplied();
 
-    mTextures.AddToPayload(mPayloadAllocator, mRTPayload);
-    mVertexShader.AddToPayload(mPayloadAllocator, mRTPayload);
-    mPixelShader.AddToPayload(mPayloadAllocator, mRTPayload);
-    mVertexShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload);
-    mPixelShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload);
+    if (!mTextures.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mVertexShader.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mPixelShader.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mVertexShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mPixelShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
 
-    mRenderTarget.AddToPayload(mPayloadAllocator, mRTPayload);
-    mPipelineState.AddToPayload(mPayloadAllocator, mRTPayload);
-    mRootSignature.AddToPayload(mPayloadAllocator, mRTPayload);
-    mViewport.AddToPayload(mPayloadAllocator, mRTPayload);
-    mScissor.AddToPayload(mPayloadAllocator, mRTPayload);
-    mDefaultScissor.AddToPayload(mPayloadAllocator, mRTPayload);
-    mPrimitiveTopology.AddToPayload(mPayloadAllocator, mRTPayload);
+    if (!mRenderTarget.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mPipelineState.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mRootSignature.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mViewport.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mScissor.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mDefaultScissor.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mPrimitiveTopology.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
 
     return true;
 }
@@ -952,31 +933,40 @@ bool RenderingContext::ApplyCompute()
     mPipelineState.ClearApplied();
 
     // prepare compute resources
-    mTextures.AddToPayload(mPayloadAllocator, mRTPayload);
-    mComputeShader.AddToPayload(mPayloadAllocator, mRTPayload);
-    mComputeShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload);
-    mComputePipelineState.AddToPayload(mPayloadAllocator, mRTPayload);
-    mComputeRootSignature.AddToPayload(mPayloadAllocator, mRTPayload);
+    if (!mTextures.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mComputeShader.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mComputeShaderConstants.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mComputePipelineState.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
+    if (!mComputeRootSignature.AddToPayload(mPayloadAllocator, mRTPayload)) return false;
 
     return true;
 }
 
-void RenderingContext::FlushCommandList(CheckpointType type)
+bool RenderingContext::FlushAndWait(CheckpointType type)
 {
     D3D12NI_ASSERT(std::this_thread::get_id() != mRenderThread.GetThreadID(), "FlushCommandLists() cannot be called by the Render Thread");
 
     // submit existing RenderThread payload if there's any leftover commands there
     // and finish executing RenderThread payload
-    mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload, false);
-    mRenderThread.ScheduleSignal(mPayloadAllocator, mRTPayload, type);
-    SubmitRTPayload();
+    if (!mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload, false)) return false;
+    if (!mRenderThread.ScheduleSignal(mPayloadAllocator, mRTPayload, type)) return false;
+    if (!WaitForNextCheckpoint(type)) return false;
     ClearAppliedFlags();
+
+    return true;
 }
 
 bool RenderingContext::WaitForNextCheckpoint(CheckpointType type)
 {
-    mRenderThread.ScheduleWaitForCheckpoint(mPayloadAllocator, mRTPayload, type);
-    NIPtr<Waitable> w = mRenderThread.Execute(ReplaceRTPayload());
+    if (!mRenderThread.ScheduleWaitForCheckpoint(mPayloadAllocator, mRTPayload, type)) return false;
+    RenderPayloadPtr payload = ReplaceRTPayload();
+    if (!payload)
+    {
+        D3D12NI_LOG_ERROR("Failure when replacing RenderThread payload");
+        return false;
+    }
+
+    NIPtr<Waitable> w = mRenderThread.Execute(std::move(payload));
     if (w && !w->Wait())
     {
         D3D12NI_LOG_ERROR("Failed to wait for RenderThread's checkpoint");
@@ -989,8 +979,8 @@ bool RenderingContext::WaitForNextCheckpoint(CheckpointType type)
 bool RenderingContext::WaitForGPU()
 {
     ClearAppliedFlags();
-    mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload, false);
-    mRenderThread.ScheduleSignal(mPayloadAllocator, mRTPayload, CheckpointType::MIDFRAME);
+    if (!mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload, false)) return false;
+    if (!mRenderThread.ScheduleSignal(mPayloadAllocator, mRTPayload, CheckpointType::MIDFRAME)) return false;
     return WaitForNextCheckpoint(CheckpointType::ALL);
 }
 
@@ -998,7 +988,7 @@ bool RenderingContext::WaitForGPU()
 // for reference.
 void RenderingContext::FinishFrame()
 {
-    mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload, true);
+    if (!mRenderThread.ScheduleCommandListSubmit(mPayloadAllocator, mRTPayload, true)) return;
 
     // skipping Signal() and Execute() here, will be done by Present()
 

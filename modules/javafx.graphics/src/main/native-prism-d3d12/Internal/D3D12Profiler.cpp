@@ -80,6 +80,8 @@ Profiler& Profiler::Instance()
 
 uint32_t Profiler::RegisterSource(const std::string& name)
 {
+    if (!Config::IsProfilerSummaryEnabled()) return 0;
+
     uint32_t id = mSourceCount++;
     mEventSources.emplace_back(id, name);
     return id;
@@ -87,6 +89,8 @@ uint32_t Profiler::RegisterSource(const std::string& name)
 
 void Profiler::RemoveSource(uint32_t sourceID)
 {
+    if (!Config::IsProfilerSummaryEnabled()) return;
+
     D3D12NI_ASSERT(sourceID < mSourceCount, "Invalid source ID provided");
     mEventSources[sourceID].freed = true;
 
@@ -118,12 +122,16 @@ void Profiler::RemoveSource(uint32_t sourceID)
 
 void Profiler::RenameSource(uint32_t sourceID, const std::string& name)
 {
+    if (!Config::IsProfilerSummaryEnabled()) return;
+
     D3D12NI_ASSERT(sourceID < mSourceCount, "Invalid source ID provided");
     mEventSources[sourceID].name = name;
 }
 
 void Profiler::MarkEvent(uint32_t sourceID, Event event)
 {
+    if (!Config::IsProfilerSummaryEnabled()) return;
+
     D3D12NI_ASSERT(sourceID < mSourceCount, "Invalid source ID provided");
     mEventSources[sourceID].totalHits++;
     mEventSources[sourceID].hits[static_cast<uint32_t>(event)]++;
@@ -131,11 +139,14 @@ void Profiler::MarkEvent(uint32_t sourceID, Event event)
 
 void Profiler::MarkFrameEnd()
 {
+    if (!Config::IsProfilerSummaryEnabled()) return;
     mFrameCount++;
 }
 
 void Profiler::TimingStart(uint32_t sourceID)
 {
+    if (!Config::IsProfilerSummaryEnabled()) return;
+
     D3D12NI_ASSERT(sourceID < mSourceCount, "Invalid source ID provided");
 
     LARGE_INTEGER timer;
@@ -145,6 +156,8 @@ void Profiler::TimingStart(uint32_t sourceID)
 
 void Profiler::TimingEnd(uint32_t sourceID)
 {
+    if (!Config::IsProfilerSummaryEnabled()) return;
+
     D3D12NI_ASSERT(sourceID < mSourceCount, "Invalid source ID provided");
     if (mEventSources[sourceID].timerStart == 0) return;
 

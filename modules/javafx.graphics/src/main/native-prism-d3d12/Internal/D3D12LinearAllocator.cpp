@@ -127,6 +127,12 @@ void LinearAllocator::Free(void* ptr)
     {
         std::unique_lock<std::mutex> lock(mChunkResetMutex);
 
+        if (parentChunk == mCurrentChunk)
+        {
+            parentChunk->Reclaim();
+            return;
+        }
+
         // Clean-up Chunk and move it to empty chunks list
         // We will reclaim it via ResetChunks() after the frame ends
         for (std::list<Chunk>::iterator it = mChunksInUse.begin(); it != mChunksInUse.end(); ++it)
