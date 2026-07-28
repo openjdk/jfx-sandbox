@@ -86,6 +86,8 @@ using DXGIFactoryPtr = Ptr<IDXGIFactory2>;
 using DXGIDebugPtr = Ptr<IDXGIDebug>;
 using DXGIInfoQueuePtr = Ptr<IDXGIInfoQueue>;
 using DXGISwapChainPtr = Ptr<IDXGISwapChain3>;
+using DXGIAdapterPtr = Ptr<IDXGIAdapter1>;
+using DXGIOutputPtr = Ptr<IDXGIOutput>;
 
 // Non-D3D-specific Blob object pointer
 using D3DBlobPtr = Ptr<ID3DBlob>;

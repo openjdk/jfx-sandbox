@@ -41,7 +41,7 @@ class Buffer: public ITrackedResource
     D3D12_RESOURCE_STATES mResourceState;
     size_t mSize;
     D3D12_HEAP_TYPE mHeapType;
-    std::wstring mDebugName;
+    std::string mDebugName;
 
 public:
     Buffer(const NIPtr<NativeDevice>& nativeDevice);
@@ -75,6 +75,8 @@ public:
      * Unmap D3D12 resource from CPU-visible memory.
      */
     void Unmap();
+
+    void SetName(const std::string& name);
 
     inline D3D12_GPU_VIRTUAL_ADDRESS GetGPUPtr() const
     {

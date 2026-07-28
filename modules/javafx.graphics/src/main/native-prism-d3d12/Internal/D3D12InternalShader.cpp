@@ -55,7 +55,7 @@ InternalShader::InternalShader()
 {
 }
 
-bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize)
+bool InternalShader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, const void* code, size_t codeSize)
 {
     int32_t textureCountFromVariant = -1;
 

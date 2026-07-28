@@ -32,7 +32,6 @@
 
 #include "D3D12Buffer.hpp"
 #include "D3D12CheckpointQueue.hpp"
-#include "D3D12CommandListPool.hpp"
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12LinearAllocator.hpp"
 #include "D3D12Matrix.hpp"

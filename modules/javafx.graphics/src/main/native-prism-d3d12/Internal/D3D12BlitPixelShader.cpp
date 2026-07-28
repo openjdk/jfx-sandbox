@@ -37,7 +37,7 @@ BlitPixelShader::BlitPixelShader()
 {
 }
 
-bool BlitPixelShader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize)
+bool BlitPixelShader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, const void* code, size_t codeSize)
 {
     if (mode != ShaderPipelineMode::UI_2D && visibility != D3D12_SHADER_VISIBILITY_PIXEL)
     {

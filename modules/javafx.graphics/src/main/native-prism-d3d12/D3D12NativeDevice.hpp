@@ -65,7 +65,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     using QuadVertices = std::array<float, FLOATS_PER_2D_VERTEX * 4>;
     using QuadColors = std::array<unsigned char, COLORS_PER_2D_VERTEX * 4>;
 
-    IDXGIAdapter1* mAdapter;
+    DXGIAdapterPtr mAdapter;
     D3D12DevicePtr mDevice;
     Internal::DebugContextPtr mDebugContext;
     uint32_t mFenceValue;
@@ -99,7 +99,7 @@ public:
     NativeDevice();
     ~NativeDevice();
 
-    bool Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibrary>& shaderLibrary);
+    bool Init(const DXGIAdapterPtr& adapter, const NIPtr<Internal::ShaderLibrary>& shaderLibrary);
     void Release();
 
     // separate, internal buffer creator

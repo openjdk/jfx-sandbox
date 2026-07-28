@@ -52,7 +52,7 @@ Buffer::~Buffer()
     {
         // Trace log only if we actually allocated the resource
         // with mResource being null we never called Init (or it failed)
-        D3D12NI_LOG_TRACE("--- Buffer %S destroyed (size %u) ---", mDebugName.c_str(), mSize);
+        D3D12NI_LOG_TRACE("--- Buffer %s destroyed (size %u) ---", mDebugName.c_str(), mSize);
     }
 }
 
@@ -140,6 +140,8 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
             &resourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&stagingResource));
         D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Staging Buffer's Committed Resource");
 
+        stagingResource->SetName(L"Buffer Init Staging Resource");
+
         void* bufPtr;
         hr = stagingResource->Map(0, nullptr, &bufPtr);
         D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to Map staging resource");
@@ -164,13 +166,13 @@ bool Buffer::Init(const void* initialData, size_t size, D3D12_HEAP_TYPE heapType
     // pass Staging Buffer along to release after the command list is flushed
     if (stagingResource) mNativeDevice->MarkDisposed(stagingResource);
 
-    mDebugName = L"Buffer_#";
-    mDebugName += std::to_wstring(counter++);
-    mResource->SetName(mDebugName.c_str());
+    mDebugName = "Buffer_#";
+    mDebugName += std::to_string(counter++);
+    mResource->SetName(Utils::ToWString(mDebugName).c_str());
 
     stagingResource.Reset();
 
-    D3D12NI_LOG_TRACE("--- Buffer %S created (size %u) ---", mDebugName.c_str(), mSize);
+    D3D12NI_LOG_TRACE("--- Buffer %s created (size %u) ---", mDebugName.c_str(), mSize);
     return true;
 }
 
@@ -186,6 +188,15 @@ void* Buffer::Map()
 void Buffer::Unmap()
 {
     mResource->Unmap(0, nullptr);
+}
+
+void Buffer::SetName(const std::string& name)
+{
+    if (mResource)
+    {
+        mDebugName = name;
+        mResource->SetName(Utils::ToWString(name).c_str());
+    }
 }
 
 } // namespace Internal

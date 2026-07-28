@@ -190,27 +190,25 @@ NativeDevice::~NativeDevice()
         mDevice.Reset();
     }
 
-    if (mAdapter)
-    {
-        mAdapter->Release();
-        mAdapter = nullptr;
-    }
-
     D3D12NI_LOG_DEBUG("Device destroyed");
 }
 
-bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibrary>& shaderLibrary)
+bool NativeDevice::Init(const DXGIAdapterPtr& adapter, const NIPtr<Internal::ShaderLibrary>& shaderLibrary)
 {
     if (adapter == nullptr) return false;
 
-    mShaderLibrary = shaderLibrary;
     mAdapter = adapter;
-    mAdapter->AddRef();
+
+    // we fully duplicate the Shader Library from Instance because Shader objects can have data which
+    // in multi-adapter scenarios could be accessed by multiple threads (specifically other Device's
+    // RenderThread). Thread safety is guaranteed within one Device and its Render Thread, so this
+    // duplication gives full separation and guarantees no threading woes.
+    mShaderLibrary = shaderLibrary->Duplicate();
 
     // we're asking for FL 11_0 for highest compatibility
     // we probably won't need anything higher than that
     // TODO: See ResourceManager::Init() for more details why we might raise FL to 12_0
-    HRESULT hr = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&mDevice));
+    HRESULT hr = D3D12CreateDevice(mAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&mDevice));
     if (FAILED(hr))
     {
         _com_error err(hr);
@@ -219,7 +217,7 @@ bool NativeDevice::Init(IDXGIAdapter1* adapter, const NIPtr<Internal::ShaderLibr
     }
 
     std::wstringstream wss;
-    wss << L"Main D3D12 Device (adapter 0x" << mAdapter << ')';
+    wss << L"Main D3D12 Device (adapter 0x" << mAdapter.Get() << ')';
     mDevice->SetName(wss.str().c_str());
 
     DXGI_ADAPTER_DESC adapterDesc;

@@ -55,7 +55,7 @@ private:
     NativeShader();
     ~NativeShader();
 
-    bool Init(const std::string& name, void* code, size_t size);
+    bool Init(const std::string& name, const void* code, size_t size);
 
     virtual bool PrepareDescriptors(const Internal::TextureBank& textures, void* data, size_t size) override;
     virtual void ApplyDescriptors(const D3D12GraphicsCommandListPtr& commandList) const override;

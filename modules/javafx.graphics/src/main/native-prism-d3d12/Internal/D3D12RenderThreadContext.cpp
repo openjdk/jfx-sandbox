@@ -53,6 +53,8 @@ bool RenderThreadContext::Build2DIndexBuffer()
         return false;
     }
 
+    m2DIndexBuffer.SetName("2D Index Buffer");
+
     return true;
 }
 
@@ -271,6 +273,11 @@ bool RenderThreadContext::Init()
     }
 
     return true;
+}
+
+void RenderThreadContext::Release()
+{
+    mCommandListPool.Release();
 }
 
 void RenderThreadContext::QueueResourceTransition(const NIPtr<Internal::ITrackedResource>& resource, D3D12_RESOURCE_STATES newState, uint32_t subresource)

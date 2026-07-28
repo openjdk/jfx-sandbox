@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,7 @@
 namespace D3D12 {
 namespace Internal {
 
-bool ShaderLibrary::Load(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize)
+bool ShaderLibrary::Load(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, const void* code, size_t codeSize)
 {
     try
     {
@@ -79,6 +79,23 @@ bool ShaderLibrary::Load(const std::string& name, ShaderPipelineMode mode, D3D12
     }
 
     return true;
+}
+
+NIPtr<ShaderLibrary> ShaderLibrary::Duplicate() const
+{
+    NIPtr<ShaderLibrary> library = std::make_shared<ShaderLibrary>();
+
+    for (ShaderMap::const_iterator it = mShaders.begin(); it != mShaders.end(); ++it)
+    {
+        const NIPtr<Shader>& shader = it->second;
+        if (!library->Load(shader->GetName(), shader->GetMode(), shader->GetVisibility(), shader->GetBytecode().pShaderBytecode, shader->GetBytecode().BytecodeLength))
+        {
+            D3D12NI_LOG_ERROR("Failed to duplicate Shader object %s from Shader Library", shader->GetName().c_str());
+            return nullptr;
+        }
+    }
+
+    return library;
 }
 
 } // namespace Internal

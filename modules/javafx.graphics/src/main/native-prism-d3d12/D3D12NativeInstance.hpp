@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@ namespace D3D12 {
 class NativeInstance
 {
     DXGIFactoryPtr mDXGIFactory;
-    std::vector<IDXGIAdapter1*> mDXGIAdapters;
+    std::vector<DXGIAdapterPtr> mDXGIAdapters;
     std::vector<DXGI_ADAPTER_DESC1> mDXGIAdapterDescs;
     NIPtr<Internal::ShaderLibrary> mShaderLibrary;
 
@@ -54,7 +54,7 @@ public:
     bool CanCreateDevice(uint32_t adapterIdx, Internal::DeviceInformation& info) const;
     bool GetAdapterInformation(uint32_t adapterIdx, Internal::AdapterInformation& info) const;
     bool GetDeviceInformation(uint32_t adapterIdx, Internal::DeviceInformation& info) const;
-    bool LoadInternalShader(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize);
+    bool LoadInternalShader(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, const void* code, size_t codeSize);
     NIPtr<NativeDevice>* CreateDevice(int adapterOrdinal);
     NIPtr<NativeSwapChain>* CreateSwapChain(const NIPtr<NativeDevice>& device, HWND hwnd);
 };

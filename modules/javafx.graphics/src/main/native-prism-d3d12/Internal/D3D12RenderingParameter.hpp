@@ -31,7 +31,6 @@
 #include "../D3D12NativeShader.hpp"
 
 #include "D3D12RenderingStep.hpp"
-#include "D3D12CommandListPool.hpp"
 #include "D3D12Config.hpp"
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12LinearAllocator.hpp"

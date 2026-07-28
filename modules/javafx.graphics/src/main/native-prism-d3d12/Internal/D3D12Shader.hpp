@@ -112,7 +112,7 @@ protected:
 public:
     Shader();
 
-    virtual bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize);
+    virtual bool Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, const void* code, size_t codeSize);
     bool SetConstants(const std::string_view& name, const void* data, size_t size);
     bool SetConstantsInArray(const std::string_view& name, uint32_t idx, const void* data, size_t size);
 
@@ -128,6 +128,11 @@ public:
     inline ShaderPipelineMode GetMode() const
     {
         return mMode;
+    }
+
+    inline D3D12_SHADER_VISIBILITY GetVisibility() const
+    {
+        return mVisibility;
     }
 
     inline const D3D12_SHADER_BYTECODE& GetBytecode() const

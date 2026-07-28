@@ -55,15 +55,9 @@ NativeInstance::~NativeInstance()
 
     if (mDXGIFactory)
     {
-        for(IDXGIAdapter1* adapter: mDXGIAdapters)
-        {
-            adapter->Release();
-        }
-
         mDXGIAdapters.clear();
         mDXGIFactory.Reset();
     }
-
 
     Internal::Debug::Instance().ReleaseInstanceAndReportLiveObjects();
 
@@ -81,7 +75,7 @@ bool NativeInstance::Init()
     HRESULT hr = CreateDXGIFactory2(dxgiFlags, IID_PPV_ARGS(&mDXGIFactory));
     D3D12NI_RET_IF_FAILED(hr, false, "Failed to create DXGI Factory");
 
-    IDXGIAdapter1* adapter;
+    DXGIAdapterPtr adapter;
     uint32_t i = 0;
 
     // enumerate adapters until EnumAdapters1 returns DXGI_ERROR_NOT_FOUND
@@ -132,7 +126,7 @@ int NativeInstance::GetAdapterOrdinal(HMONITOR monitor)
         D3D12NI_LOG_DEBUG("%s: Outputs for adapter %ws:", __func__, adapterDesc.Description);
 
         int outputIdx = 0;
-        IDXGIOutput* output = nullptr;
+        DXGIOutputPtr output;
         while ((hr = mDXGIAdapters[adapterIdx]->EnumOutputs(outputIdx, &output)) != DXGI_ERROR_NOT_FOUND) {
             if (FAILED(hr) && hr != DXGI_ERROR_NOT_FOUND)
             {
@@ -143,7 +137,6 @@ int NativeInstance::GetAdapterOrdinal(HMONITOR monitor)
 
             DXGI_OUTPUT_DESC outputDesc;
             hr = output->GetDesc(&outputDesc);
-            output->Release();
             D3D12NI_RET_IF_FAILED(hr, -1, "Failed to get DXGI output's desc");
 
             D3D12NI_LOG_DEBUG(" \\_ output #%d: %ws (monitor %p)", outputIdx, outputDesc.DeviceName, outputDesc.Monitor);
@@ -181,7 +174,7 @@ bool NativeInstance::CanCreateDevice(uint32_t adapterIdx, Internal::DeviceInform
 
     info.description = Internal::Utils::ToString(mDXGIAdapterDescs[adapterIdx].Description);
 
-    HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx], D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr);
+    HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx].Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr);
     D3D12NI_FILL_DEVICE_ERROR(hr, info);
     return SUCCEEDED(hr);
 }
@@ -216,7 +209,7 @@ bool NativeInstance::GetDeviceInformation(uint32_t adapterIdx, Internal::DeviceI
     info.description = Internal::Utils::ToString(mDXGIAdapterDescs[adapterIdx].Description);
 
     D3D12DevicePtr device;
-    HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx], D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
+    HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx].Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
     if (FAILED(hr))
     {
         D3D12NI_LOG_ERROR("GetDeviceInformation: Failed to fetch device information for adapter %ws - D3D12CreateDevice failed", mDXGIAdapterDescs[adapterIdx].Description);
@@ -288,7 +281,7 @@ bool NativeInstance::GetDeviceInformation(uint32_t adapterIdx, Internal::DeviceI
     return true;
 }
 
-bool NativeInstance::LoadInternalShader(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize)
+bool NativeInstance::LoadInternalShader(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, const void* code, size_t codeSize)
 {
     return mShaderLibrary->Load(name, mode, visibility, code, codeSize);
 }

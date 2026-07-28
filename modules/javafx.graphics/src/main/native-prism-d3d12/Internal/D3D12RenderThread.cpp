@@ -118,7 +118,8 @@ void RenderThread::WorkerMain()
         }
 
         // all payloads are now processed, wait for GPU to be done before completing
-        Signal(CheckpointType::MIDFRAME);
+        ExecuteCurrentCommandList(true);
+        Signal(CheckpointType::ENDFRAME);
         mCheckpointQueue.WaitForNextCheckpoint(CheckpointType::ALL);
         mCheckpointQueue.PrintStats();
     }
@@ -362,6 +363,7 @@ void RenderThread::Exit()
     if (mWorkerThread.joinable()) mWorkerThread.join();
 
     // free up RT resources
+    mContext->Release();
     mContext.reset();
 }
 

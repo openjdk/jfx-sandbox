@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,21 +102,22 @@ void Log(LogLevel level, const char* file, int line, const char* fmt, ...)
     }
 
     std::string actualFileStr = (fileTrimIdx != std::string::npos) ? fileStr.substr(fileTrimIdx) : fileStr;
-    if (Config::IsFileLogEnabled() && !logFile.is_open())
-    {
-        std::time_t now = std::time(0);
-        std::tm timeStruct;
-        localtime_s(&timeStruct, &now);
-
-        char filename[80];
-        strftime(filename, sizeof(filename), "d3d12_log-%y%m%d-%H%M%S.log", &timeStruct);
-        logFile.open(filename);
-    }
 
     char logLine[2048];
 
     {
         std::lock_guard<std::mutex> printLock(writeMutex);
+
+        if (Config::IsFileLogEnabled() && !logFile.is_open())
+        {
+            std::time_t now = std::time(0);
+            std::tm timeStruct;
+            localtime_s(&timeStruct, &now);
+
+            char filename[80];
+            strftime(filename, sizeof(filename), "d3d12_log-%y%m%d-%H%M%S.log", &timeStruct);
+            logFile.open(filename);
+        }
 
         if (Config::IsColorLogsEnabled())
         {

@@ -36,7 +36,7 @@ MipmapGenComputeShader::MipmapGenComputeShader()
 {
 }
 
-bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize)
+bool MipmapGenComputeShader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, const void* code, size_t codeSize)
 {
     if (mode != ShaderPipelineMode::COMPUTE && visibility != D3D12_SHADER_VISIBILITY_ALL)
     {

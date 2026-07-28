@@ -96,7 +96,7 @@ NativeShader::~NativeShader()
     D3D12NI_LOG_TRACE("--- NativeShader %s destroyed ---", mName.c_str());
 }
 
-bool NativeShader::Init(const std::string& name, void* code, size_t size)
+bool NativeShader::Init(const std::string& name, const void* code, size_t size)
 {
     // NativeShader-s are always 2D Pixel Shaders
     // All use common internal PassThroughVS vertex shader and are only used for UI rendering

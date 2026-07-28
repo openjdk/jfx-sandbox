@@ -113,22 +113,8 @@ CommandListPool::CommandListPool(const NIPtr<NativeDevice>& nativeDevice, const 
 
 CommandListPool::~CommandListPool()
 {
-    for (int i = 0; i < mCommandLists.size(); ++i)
-    {
-        if (mCommandLists[i].state == CommandListState::Active)
-            mCommandLists[i].commandList->Close();
-
-        mCommandLists[i].commandList.Reset();
-    }
-
-    for (int i = 0; i < mCommandAllocators.size(); ++i)
-    {
-        mCommandAllocators[i].allocator.Reset();
-    }
-
     // freed as part of RenderThread before RenderingContext is fully cleaned up, so it will still be accessible
     mNativeDevice->GetRenderingContext()->UnregisterWaitableOperation(this);
-    mNativeDevice.reset();
 }
 
 bool CommandListPool::Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount, size_t commandAllocators)
@@ -193,6 +179,15 @@ bool CommandListPool::Init(D3D12_COMMAND_LIST_TYPE type, size_t commandListCount
     mCurrentCommandAllocator = 0;
 
     return true;
+}
+
+void CommandListPool::Release()
+{
+    for (int i = 0; i < mCommandLists.size(); ++i)
+    {
+        if (mCommandLists[i].state == CommandListState::Active)
+            mCommandLists[i].commandList->Close();
+    }
 }
 
 void CommandListPool::OnQueueSignal(uint64_t fenceValue)

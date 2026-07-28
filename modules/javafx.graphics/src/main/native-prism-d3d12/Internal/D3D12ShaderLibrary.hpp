@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,7 +50,8 @@ namespace Internal {
 class ShaderLibrary
 {
 private:
-    std::map<std::string, NIPtr<Shader>, std::less<>> mShaders;
+    using ShaderMap = std::map<std::string, NIPtr<Shader>, std::less<>>;
+    ShaderMap mShaders;
 
 public:
     ShaderLibrary() = default;
@@ -61,7 +62,8 @@ public:
     ShaderLibrary& operator=(const ShaderLibrary&) = delete;
     ShaderLibrary& operator=(ShaderLibrary&&) = delete;
 
-    bool Load(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize);
+    bool Load(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, const void* code, size_t codeSize);
+    NIPtr<ShaderLibrary> Duplicate() const;
 
     inline const NIPtr<Shader>& GetShaderData(const std::string_view& name) const
     {

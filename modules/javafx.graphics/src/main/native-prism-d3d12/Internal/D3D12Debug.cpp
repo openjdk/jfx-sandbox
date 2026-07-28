@@ -298,7 +298,7 @@ void DeviceSpecificDebugContext::ReleaseAndReportLiveObjects()
 
     if (mD3D12DebugDevice)
     {
-        D3D12NI_LOG_DEBUG("Live D3D12 objects at Debug Release:");
+        D3D12NI_LOG_DEBUG("Live D3D12 objects at Debug Release (should only contain ID3D12Device with refcount 2):");
         mD3D12DebugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL);
         mD3D12DebugDevice.Reset();
     }
@@ -310,6 +310,8 @@ void DeviceSpecificDebugContext::ReleaseAndReportLiveObjects()
 
 void DeviceSpecificDebugContext::ExamineDeviceRemoved()
 {
+    if (!mD3D12Device) return;
+
     // Device removed reason can always be fetched
     HRESULT reason = mD3D12Device->GetDeviceRemovedReason();
     if (SUCCEEDED(reason))
@@ -538,7 +540,7 @@ void Debug::ReleaseInstanceAndReportLiveObjects()
 
     if (mDXGIDebug)
     {
-        D3D12NI_LOG_DEBUG("Live DXGI objects at Debug Release (this list should be empty):");
+        D3D12NI_LOG_DEBUG("Live DXGI objects at Debug Instance Release (this list should be empty):");
         mDXGIDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_ALL);
         mDXGIDebug.Reset();
     }

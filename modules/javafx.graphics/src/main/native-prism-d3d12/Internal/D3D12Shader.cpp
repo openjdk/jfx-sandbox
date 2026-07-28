@@ -48,7 +48,7 @@ Shader::Shader()
 {
 }
 
-bool Shader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, void* code, size_t codeSize)
+bool Shader::Init(const std::string& name, ShaderPipelineMode mode, D3D12_SHADER_VISIBILITY visibility, const void* code, size_t codeSize)
 {
     mName = name;
     mMode = mode;
