@@ -33,11 +33,12 @@
 #include "Internal/D3D12ShaderLibrary.hpp"
 
 #include <vector>
+#include <memory>
 
 
 namespace D3D12 {
 
-class NativeInstance
+class NativeInstance: public std::enable_shared_from_this<NativeInstance>
 {
     DXGIFactoryPtr mDXGIFactory;
     std::vector<DXGIAdapterPtr> mDXGIAdapters;

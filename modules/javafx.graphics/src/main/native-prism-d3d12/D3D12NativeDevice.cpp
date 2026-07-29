@@ -27,6 +27,8 @@
 
 #include "D3D12Constants.hpp"
 
+#include "D3D12NativeInstance.hpp"
+
 #include "Internal/D3D12Logger.hpp"
 #include "Internal/D3D12MipmapGenComputeShader.hpp"
 #include "Internal/D3D12Profiler.hpp"
@@ -160,8 +162,9 @@ void NativeDevice::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const
 }
 
 
-NativeDevice::NativeDevice()
-    : mAdapter(nullptr)
+NativeDevice::NativeDevice(const NIPtr<NativeInstance>& instance)
+    : mNativeInstance(instance)
+    , mAdapter(nullptr)
     , mDevice()
     , mFenceValue(0)
     , mFrameCounter(0)
@@ -298,15 +301,15 @@ void NativeDevice::Release()
         mRenderingContext.reset();
     }
 
+    mPassthroughVS.reset();
+    mPhongVS.reset();
+    mCurrent2DShader.reset();
+
     if (mShaderLibrary) mShaderLibrary.reset();
     if (mRTVAllocator) mRTVAllocator.reset();
     if (mDSVAllocator) mDSVAllocator.reset();
     if (mSRVAllocator) mSRVAllocator.reset();
     if (mRootSignatureManager) mRootSignatureManager.reset();
-
-    mPassthroughVS.reset();
-    mPhongVS.reset();
-    mCurrent2DShader.reset();
 }
 
 NIPtr<Internal::Buffer> NativeDevice::CreateBuffer(const void* initialData, size_t size, bool cpuWriteable, D3D12_RESOURCE_STATES finalState)

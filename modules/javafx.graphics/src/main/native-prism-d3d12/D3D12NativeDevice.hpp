@@ -65,6 +65,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     using QuadVertices = std::array<float, FLOATS_PER_2D_VERTEX * 4>;
     using QuadColors = std::array<unsigned char, COLORS_PER_2D_VERTEX * 4>;
 
+    NIPtr<NativeInstance> mNativeInstance;
     DXGIAdapterPtr mAdapter;
     D3D12DevicePtr mDevice;
     Internal::DebugContextPtr mDebugContext;
@@ -96,7 +97,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
                                    QuadVertices& vertices, QuadColors& colors);
 
 public:
-    NativeDevice();
+    NativeDevice(const NIPtr<NativeInstance>& instance);
     ~NativeDevice();
 
     bool Init(const DXGIAdapterPtr& adapter, const NIPtr<Internal::ShaderLibrary>& shaderLibrary);

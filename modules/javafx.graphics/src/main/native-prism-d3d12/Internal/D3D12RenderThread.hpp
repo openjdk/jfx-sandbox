@@ -52,6 +52,12 @@ namespace Internal {
 // processes RenderPayload objects on separate thread
 class RenderThread
 {
+    enum class WorkerState: uint8_t
+    {
+        STOPPED = 0,
+        RUNNING
+    };
+
     NIPtr<NativeDevice> mNativeDevice;
     D3D12CommandQueuePtr mCommandQueue;
     D3D12FencePtr mCommandQueueFence;
@@ -71,6 +77,7 @@ class RenderThread
     std::mutex mPayloadQueueMutex;
     std::queue<RenderPayloadPtr> mPayloadQueue;
     std::atomic<bool> mWorkerDone;
+    WorkerState mWorkerState;
     std::thread mWorkerThread;
 
     RenderPayloadPtr& FetchPayload();

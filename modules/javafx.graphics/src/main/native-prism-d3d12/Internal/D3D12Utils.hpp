@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,8 +40,6 @@ namespace Internal {
 
 class Utils
 {
-    static std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> mConverter;
-
 public:
     template <typename T>
     static inline T Align(T x, T alignment)
@@ -96,12 +94,12 @@ public:
 
     static inline std::wstring ToWString(const std::string& s)
     {
-        return mConverter.from_bytes(s);
+        return std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().from_bytes(s);
     }
 
     static inline std::string ToString(const std::wstring& s)
     {
-        return mConverter.to_bytes(s);
+        return std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>().to_bytes(s);
     }
 };
 

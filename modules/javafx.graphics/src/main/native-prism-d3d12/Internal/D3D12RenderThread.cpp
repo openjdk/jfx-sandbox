@@ -210,6 +210,7 @@ RenderThread::RenderThread(const NIPtr<NativeDevice>& nativeDevice)
     , mPayloadQueueMutex()
     , mPayloadQueue()
     , mWorkerDone(false)
+    , mWorkerState(WorkerState::STOPPED)
     , mWorkerThread()
 {
 }
@@ -253,10 +254,20 @@ bool RenderThread::Init()
     {
         std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
 
-        // start up the thread and wait until it's ready to accept payloads
-        D3D12NI_LOG_DEBUG("Starting Render Thread");
-        mWorkerThread = std::thread(&RenderThread::WorkerMain, this);
+        // start up the thread and wait until it's ready to accept payload
+        try
+        {
+            D3D12NI_LOG_DEBUG("Starting Render Thread");
+            mWorkerThread = std::thread(&RenderThread::WorkerMain, this);
+        }
+        catch (const std::exception& e)
+        {
+            D3D12NI_LOG_ERROR("RenderThread constructor threw an exception: %s", e.what());
+            return false;
+        }
+
         SetThreadDescription(mWorkerThread.native_handle(), L"JavaFX D3D12 RenderThread");
+        mWorkerState = WorkerState::RUNNING;
         mQueueEmptyCV.wait(lock);
     }
 
@@ -292,17 +303,13 @@ NIPtr<Waitable> RenderThread::Execute(RenderPayloadPtr&& payload)
 {
     D3D12NI_ASSERT(mWorkerThread.get_id() != std::this_thread::get_id(), "RenderThread::Execute() can only be called from main thread");
 
-    if (mWorkerDone) return NIPtr<Waitable>();
-
-    NIPtr<Waitable> waitable(payload->GetWaitable());
-
     std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
 
-    if (!mWorkerDone)
-    {
-        mPayloadQueue.emplace(std::move(payload));
-        mPayloadAvailableCV.notify_one();
-    }
+    if (mWorkerDone || mWorkerState == WorkerState::STOPPED) return nullptr;
+
+    NIPtr<Waitable> waitable(payload->GetWaitable());
+    mPayloadQueue.emplace(std::move(payload));
+    mPayloadAvailableCV.notify_one();
 
     return waitable;
 }
@@ -348,7 +355,7 @@ void RenderThread::Exit()
         std::unique_lock<std::mutex> lock(mPayloadQueueMutex);
 
         D3D12NI_LOG_DEBUG("Exiting Render Thread");
-        if (!mWorkerDone)
+        if (mWorkerState == WorkerState::RUNNING)
         {
             while (mPayloadQueue.size() != 0)
             {
@@ -363,8 +370,13 @@ void RenderThread::Exit()
     if (mWorkerThread.joinable()) mWorkerThread.join();
 
     // free up RT resources
-    mContext->Release();
-    mContext.reset();
+    mWorkerState = WorkerState::STOPPED;
+
+    if (mContext)
+    {
+        mContext->Release();
+        mContext.reset();
+    }
 }
 
 } // namespace Internal

@@ -74,7 +74,11 @@ bool RenderingContext::SubmitRTPayload()
             return false;
         }
 
-        mRenderThread.Execute(std::move(payload));
+        if (!mRenderThread.Execute(std::move(payload)))
+        {
+            D3D12NI_LOG_ERROR("Failed to submit RenderThread payload for execution");
+            return false;
+        }
     }
 
     return true;
@@ -245,7 +249,11 @@ void RenderingContext::Release()
     if (mRTPayload)
     {
         mPayloadAllocator.MoveToNewChunk();
-        if (mRTPayload->HasWork()) mRenderThread.Execute(std::move(mRTPayload));
+        if (mRTPayload->HasWork() && !mRenderThread.Execute(std::move(mRTPayload)))
+        {
+            D3D12NI_LOG_ERROR("Failed to submit the final RenderThread work batch on Release");
+        }
+
         mRTPayload.reset();
     }
 
@@ -967,7 +975,7 @@ bool RenderingContext::WaitForNextCheckpoint(CheckpointType type)
     }
 
     NIPtr<Waitable> w = mRenderThread.Execute(std::move(payload));
-    if (w && !w->Wait())
+    if (!w || !w->Wait())
     {
         D3D12NI_LOG_ERROR("Failed to wait for RenderThread's checkpoint");
         return false;

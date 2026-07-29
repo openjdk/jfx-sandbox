@@ -114,7 +114,8 @@ using D3D12DebugDevicePtr = Ptr<ID3D12DebugDevice2>;
 template <typename T>
 using NIPtr = std::shared_ptr<T>;
 
-// forward declaration of potentially the most important object
+// forward declaration of potentially the most important objects
+class NativeInstance;
 class NativeDevice;
 
 // fast & easy allocation routines
@@ -123,6 +124,14 @@ NIPtr<T>* AllocateNIObject()
 {
     NIPtr<T>* newPtr = new NIPtr<T>();
     *newPtr = std::make_shared<T>();
+    return newPtr;
+}
+
+template <typename T>
+NIPtr<T>* AllocateNIInstanceObject(const NIPtr<NativeInstance>& instance)
+{
+    NIPtr<T>* newPtr = new NIPtr<T>();
+    *newPtr = std::make_shared<T>(instance);
     return newPtr;
 }
 
@@ -138,6 +147,20 @@ template <typename T, typename ...Args>
 NIPtr<T>* CreateNIObject(Args&&... args)
 {
     NIPtr<T>* niPtr = AllocateNIObject<T>();
+    NIPtr<T>& obj = *niPtr;
+    if (!obj->Init(std::forward<Args>(args)...))
+    {
+        delete niPtr;
+        return nullptr;
+    }
+
+    return niPtr;
+}
+
+template <typename T, typename ...Args>
+NIPtr<T>* CreateNIInstanceObject(const NIPtr<NativeInstance>& instance, Args&&... args)
+{
+    NIPtr<T>* niPtr = AllocateNIInstanceObject<T>(instance);
     NIPtr<T>& obj = *niPtr;
     if (!obj->Init(std::forward<Args>(args)...))
     {

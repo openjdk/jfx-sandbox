@@ -290,7 +290,7 @@ NIPtr<NativeDevice>* NativeInstance::CreateDevice(int adapterOrdinal)
 {
     if (adapterOrdinal >= mDXGIAdapters.size()) return nullptr;
 
-    return CreateNIObject<NativeDevice>(mDXGIAdapters[adapterOrdinal], mShaderLibrary);
+    return CreateNIInstanceObject<NativeDevice>(shared_from_this(), mDXGIAdapters[adapterOrdinal], mShaderLibrary);
 }
 
 NIPtr<NativeSwapChain>* NativeInstance::CreateSwapChain(const NIPtr<NativeDevice>& device, HWND hwnd)

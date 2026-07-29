@@ -294,16 +294,32 @@ void DeviceSpecificDebugContext::ReleaseAndReportLiveObjects()
     D3D12NI_LOG_DEBUG(" ======= Starting Device Live Object report (dev %p) =======", devPtr);
     D3D12NI_LOG_DEBUG("Note that this only reports app-used live objects, ignoring internal ones.");
 
-    mD3D12InfoQueue.Reset();
-
     if (mD3D12DebugDevice)
     {
-        D3D12NI_LOG_DEBUG("Live D3D12 objects at Debug Release (should only contain ID3D12Device with refcount 2):");
+        // refcount 3 is:
+        //  - one D3D12 device reference in mD3D12DebugDevice
+        //  - one D3D12 device reference in mD3D12InfoQueue
+        //  - one D3D12 device reference still held by us in NativeDevice that will be cleared right after this call
+        D3D12NI_LOG_DEBUG("Live D3D12 objects at Debug Release (should only contain ID3D12Device with refcount 3):");
         mD3D12DebugDevice->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL);
         mD3D12DebugDevice.Reset();
     }
 
     D3D12NI_LOG_DEBUG(" ======= Device Live Object report complete (dev %p) =======", devPtr);
+
+    if (mUsesMessageCallback && mD3D12MessageCallbackCookie != 0)
+    {
+        Ptr<ID3D12InfoQueue1> d3d12InfoQueue1;
+        HRESULT hr = mD3D12InfoQueue.As(&d3d12InfoQueue1);
+        if (SUCCEEDED(hr))
+        {
+            D3D12NI_LOG_DEBUG("Unregistering message callback %x", mD3D12MessageCallbackCookie);
+            d3d12InfoQueue1->UnregisterMessageCallback(mD3D12MessageCallbackCookie);
+            mD3D12MessageCallbackCookie = 0;
+        }
+    }
+
+    mD3D12InfoQueue.Reset();
 
     mIsEnabled = false;
 }
