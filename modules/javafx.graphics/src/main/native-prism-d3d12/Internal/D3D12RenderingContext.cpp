@@ -367,11 +367,6 @@ void RenderingContext::DrawQuads(const Internal::MemoryView<float>& vertices, co
         return;
     }
 
-    // Transition RT and Depth if needed
-    TransitionTrackedResource(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-    if (mRenderTarget.Get()->HasDepthTexture())
-        TransitionTrackedResource(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
     AddToRTPayload(CreateRTExec<DrawQuadsAction>(mPayloadAllocator, mExtraPayloadDataAllocator, vertices, colors, vertexCount));
     mRenderTarget.Get()->UpdateDirtyBBox(dirtyBBox);
 
@@ -397,11 +392,6 @@ void RenderingContext::DrawMeshView(const NIPtr<NativeMeshView>& meshView)
         D3D12NI_LOG_ERROR("Failed to apply Rendering Context settings. Skipping Draw Mesh View call.");
         return;
     }
-
-    // Transition RT and Depth if needed
-    TransitionTrackedResource(mRenderTarget.Get()->GetTexture(), D3D12_RESOURCE_STATE_RENDER_TARGET);
-    if (mRenderTarget.Get()->HasDepthTexture())
-        TransitionTrackedResource(mRenderTarget.Get()->GetDepthTexture(), D3D12_RESOURCE_STATE_DEPTH_WRITE);
 
     AddToRTPayload(CreateRTExec<DrawMeshViewAction>(mPayloadAllocator, meshView));
 }
@@ -555,9 +545,10 @@ bool RenderingContext::UpdateTexture(const NIPtr<NativeTexture>& dstTexture, uin
     bool useStagingBuffer = targetSize > copyThreshold;
 
     Internal::RingBuffer::Region ringRegion;
-    NIPtr<Internal::Buffer> stagingBuffer = std::make_shared<Internal::Buffer>(mNativeDevice);
+    NIPtr<Internal::Buffer> stagingBuffer;
     if (useStagingBuffer)
     {
+        stagingBuffer = std::make_shared<Internal::Buffer>(mNativeDevice);
         // for larger textures allocate a dedicated staging buffer
         // uploader will handle its initialization
         if (!stagingBuffer ||

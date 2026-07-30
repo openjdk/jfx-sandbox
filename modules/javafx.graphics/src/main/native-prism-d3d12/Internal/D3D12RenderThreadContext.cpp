@@ -179,6 +179,10 @@ RenderThreadContext::VertexSubregion RenderThreadContext::GetNewRegionForVertice
 
 void RenderThreadContext::EnsureBoundTexturesState(D3D12_RESOURCE_STATES texturesState)
 {
+    QueueResourceTransition(renderTarget.Get().rtTexture, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    if (renderTarget.Get().depthTexture)
+        QueueResourceTransition(renderTarget.Get().depthTexture, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
     for (uint32_t i = 0; i < Constants::MAX_TEXTURE_UNITS; ++i)
     {
         const NIPtr<TextureBase>& tex = resourceManager.GetTexture(i);

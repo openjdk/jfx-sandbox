@@ -348,11 +348,11 @@ public:
     }
 };
 
-class ApplyRenderTarget: public RenderThreadDataExecutable<RenderTargetDescriptors>
+class ApplyRenderTarget: public RenderThreadDataExecutable<RenderTargetData>
 {
 public:
     ApplyRenderTarget(const NIPtr<IRenderTarget>& data)
-        : RenderThreadDataExecutable(data ? RenderTargetDescriptors(data->GetRTVDescriptorData(), data->GetDSVDescriptorData()) : RenderTargetDescriptors())
+        : RenderThreadDataExecutable(data ? RenderTargetData(data->GetRTVDescriptorData(), data->GetDSVDescriptorData(), data->GetTexture(), data->HasDepthTexture() ? data->GetDepthTexture() : nullptr) : RenderTargetData())
     {}
 
     void Execute(const RenderThreadContextPtr& context) override final

@@ -143,22 +143,25 @@ protected:
     }
 };
 
-struct RenderTargetDescriptors
+struct RenderTargetData
 {
     DescriptorData rtv;
     DescriptorData dsv;
+    NIPtr<ITrackedResource> rtTexture;
+    NIPtr<ITrackedResource> depthTexture;
 
-    RenderTargetDescriptors() = default;
-    RenderTargetDescriptors(const DescriptorData& rtv, const DescriptorData& dsv)
-        : rtv(rtv), dsv(dsv)
+    RenderTargetData() = default;
+    RenderTargetData(const DescriptorData& rtv, const DescriptorData& dsv, const NIPtr<ITrackedResource>& rtTexture, const NIPtr<ITrackedResource>& depthTexture)
+        : rtv(rtv), dsv(dsv), rtTexture(rtTexture), depthTexture(depthTexture)
     {}
 };
 
-class RenderTargetCommandListStep: public CommandListDataStep<RenderTargetDescriptors>
+class RenderTargetCommandListStep: public CommandListDataStep<RenderTargetData>
 {
 protected:
     virtual void ApplyImpl(const D3D12GraphicsCommandListPtr& commandList) const override
     {
+        // rtTexture/depthTexture will be used by EnsureBoundTextureStates
         commandList->OMSetRenderTargets(
             mParameter.rtv.count, &mParameter.rtv.cpu, true, mParameter.dsv ? &mParameter.dsv.cpu : nullptr
         );
