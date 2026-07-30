@@ -275,7 +275,7 @@ void NativeSwapChain::WaitForAvailableBuffer()
     // too far ahead from what is visually visible on screen. It could also maybe lie about
     // performance numbers a bit too much.
     mRecordedPresentCount++;
-    while (mRecordedPresentCount >= mBufferCount)
+    while (mRecordedPresentCount > mBufferCount)
     {
         mAvailableBufferCV.wait(lock);
     }

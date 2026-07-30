@@ -416,11 +416,12 @@ bool RenderingContext::PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain,
 
 bool RenderingContext::Present(const NIPtr<NativeSwapChain>& swapChain)
 {
+    swapChain->WaitForAvailableBuffer();
+
     // to prevent unnecessary double-submit we refrain from using AddToRTPayload() here
     if (mRTPayload->AddStep(CreateRTExec<PresentAction>(mPayloadAllocator, swapChain)) == RenderPayload::StepAddResult::FAILED) return false;
     if (!SubmitRTPayload()) return false;
 
-    swapChain->WaitForAvailableBuffer();
     return true;
 }
 
