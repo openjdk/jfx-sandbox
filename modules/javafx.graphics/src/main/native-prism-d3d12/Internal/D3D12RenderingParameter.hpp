@@ -34,9 +34,10 @@
 #include "D3D12Config.hpp"
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12LinearAllocator.hpp"
-#include "D3D12RingDescriptorHeap.hpp"
-#include "D3D12RenderThreadExecutable.hpp"
-#include "D3D12RenderPayload.hpp"
+
+#include "RenderThread/D3D12RingDescriptorHeap.hpp"
+#include "RenderThread/D3D12RenderThreadExecutable.hpp"
+#include "RenderThread/D3D12RenderPayload.hpp"
 
 
 namespace D3D12 {
@@ -46,18 +47,18 @@ namespace Internal {
 template <typename T, typename Executable>
 class RenderingParameter: public RenderingDataStep<T>
 {
-    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const
+    RenderThread::RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const
     {
-        return CreateRTExec<Executable>(allocator, this->mParameter);
+        return RenderThread::CreateRTExec<Executable>(allocator, this->mParameter);
     }
 
 public:
-    bool AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload)
+    bool AddToPayload(LinearAllocator& allocator, const RenderThread::RenderPayloadPtr& payload)
     {
         if (this->CanBeSkipped()) return true;
 
-        RenderPayload::StepAddResult result = payload->AddStep(CreateExecutable(allocator));
-        if (result == RenderPayload::StepAddResult::FAILED) return false;
+        RenderThread::RenderPayload::StepAddResult result = payload->AddStep(CreateExecutable(allocator));
+        if (result == RenderThread::RenderPayload::StepAddResult::FAILED) return false;
 
         this->mIsApplied = true;
         return true;
@@ -66,23 +67,23 @@ public:
 
 // special case of data step for shader constants
 template <typename Executable>
-class ShaderConstantsResource: public RenderingDataStep<NIPtr<Shader>>
+class ShaderConstantsResource: public RenderingDataStep<NIPtr<Shaders::Shader>>
 {
-    RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const
+    RenderThread::RenderThreadExecutablePtr CreateExecutable(LinearAllocator& allocator) const
     {
-        ResourceManager::ShaderConstants constants(allocator, mParameter->GetConstantStorage().data(), mParameter->GetConstantStorage().size());
+        RenderThread::ResourceManager::ShaderConstants constants(allocator, mParameter->GetConstantStorage().data(), mParameter->GetConstantStorage().size());
         if (!constants.buffer) return nullptr;
 
-        return CreateRTExec<Executable>(allocator, std::move(constants));
+        return RenderThread::CreateRTExec<Executable>(allocator, std::move(constants));
     }
 
 public:
-    bool AddToPayload(LinearAllocator& allocator, const RenderPayloadPtr& payload)
+    bool AddToPayload(LinearAllocator& allocator, const RenderThread::RenderPayloadPtr& payload)
     {
-        if (RenderingDataStep<NIPtr<Shader>>::CanBeSkipped() && !mParameter->AreConstantsDirty()) return true;
+        if (RenderingDataStep<NIPtr<Shaders::Shader>>::CanBeSkipped() && !mParameter->AreConstantsDirty()) return true;
 
-        RenderPayload::StepAddResult result = payload->AddStep(CreateExecutable(allocator));
-        if (result == RenderPayload::StepAddResult::FAILED) return false;
+        RenderThread::RenderPayload::StepAddResult result = payload->AddStep(CreateExecutable(allocator));
+        if (result == RenderThread::RenderPayload::StepAddResult::FAILED) return false;
 
         mParameter->SetConstantsDirty(false);
         this->mIsApplied = true;
@@ -93,16 +94,16 @@ public:
 
 // Graphics parameters //
 
-class PipelineStateRenderingParameter: public RenderingParameter<GraphicsPSOParameters, ApplyPipelineState>
+class PipelineStateRenderingParameter: public RenderingParameter<RenderThread::GraphicsPSOParameters, RenderThread::ApplyPipelineState>
 {
 public:
-    void SetVertexShader(const NIPtr<Shader>& vertexShader)
+    void SetVertexShader(const NIPtr<Shaders::Shader>& vertexShader)
     {
         mParameter.vertexShader = vertexShader;
         FlagSet();
     }
 
-    void SetPixelShader(const NIPtr<Shader>& pixelShader)
+    void SetPixelShader(const NIPtr<Shaders::Shader>& pixelShader)
     {
         mParameter.pixelShader = pixelShader;
         FlagSet();
@@ -147,13 +148,13 @@ public:
     }
 };
 
-class PrimitiveTopologyRenderingParameter: public RenderingParameter<D3D12_PRIMITIVE_TOPOLOGY, ApplyPrimitiveTopology> {};
-class RenderTargetRenderingParameter: public RenderingParameter<NIPtr<IRenderTarget>, ApplyRenderTarget> {};
-class RootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr, ApplyRootSignature> {};
-class ScissorRenderingParameter: public RenderingParameter<D3D12_RECT, ApplyScissor> {};
-class ViewportRenderingParameter: public RenderingParameter<D3D12_VIEWPORT, ApplyViewport> {};
+class PrimitiveTopologyRenderingParameter: public RenderingParameter<D3D12_PRIMITIVE_TOPOLOGY, RenderThread::ApplyPrimitiveTopology> {};
+class RenderTargetRenderingParameter: public RenderingParameter<NIPtr<IRenderTarget>, RenderThread::ApplyRenderTarget> {};
+class RootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr, RenderThread::ApplyRootSignature> {};
+class ScissorRenderingParameter: public RenderingParameter<D3D12_RECT, RenderThread::ApplyScissor> {};
+class ViewportRenderingParameter: public RenderingParameter<D3D12_VIEWPORT, RenderThread::ApplyViewport> {};
 
-class TexturesRenderingParameter: public RenderingParameter<TextureBank, SetTexturesAction>
+class TexturesRenderingParameter: public RenderingParameter<TextureBank, RenderThread::SetTexturesAction>
 {
 public:
     void SetTexture(uint32_t unit, const NIPtr<TextureBase>& texture)
@@ -168,27 +169,27 @@ public:
     }
 };
 
-class VertexShaderRenderingParameter: public RenderingParameter<NIPtr<Shader>, SetVertexShaderAction> {};
-class PixelShaderRenderingParameter: public RenderingParameter<NIPtr<Shader>, SetPixelShaderAction> {};
-class VertexShaderConstantsRenderingParameter: public ShaderConstantsResource<SetVertexShaderConstantsAction> {};
-class PixelShaderConstantsRenderingParameter: public ShaderConstantsResource<SetPixelShaderConstantsAction> {};
+class VertexShaderRenderingParameter: public RenderingParameter<NIPtr<Shaders::Shader>, RenderThread::SetVertexShaderAction> {};
+class PixelShaderRenderingParameter: public RenderingParameter<NIPtr<Shaders::Shader>, RenderThread::SetPixelShaderAction> {};
+class VertexShaderConstantsRenderingParameter: public ShaderConstantsResource<RenderThread::SetVertexShaderConstantsAction> {};
+class PixelShaderConstantsRenderingParameter: public ShaderConstantsResource<RenderThread::SetPixelShaderConstantsAction> {};
 
 // Compute parameters //
 
-class ComputePipelineStateRenderingParameter: public RenderingParameter<ComputePSOParameters, ApplyComputePipelineState>
+class ComputePipelineStateRenderingParameter: public RenderingParameter<RenderThread::ComputePSOParameters, RenderThread::ApplyComputePipelineState>
 {
 public:
-    void SetComputeShader(const NIPtr<Shader>& shader)
+    void SetComputeShader(const NIPtr<Shaders::Shader>& shader)
     {
         mParameter.shader = shader;
         FlagSet();
     }
 };
 
-class ComputeRootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr, ApplyComputeRootSignature> {};
+class ComputeRootSignatureRenderingParameter: public RenderingParameter<D3D12RootSignaturePtr, RenderThread::ApplyComputeRootSignature> {};
 
-class ComputeShaderRenderingParameter: public RenderingParameter<NIPtr<Shader>, SetComputeShaderAction> {};
-class ComputeShaderConstantsRenderingParameter: public ShaderConstantsResource<SetComputeShaderConstantsAction> {};
+class ComputeShaderRenderingParameter: public RenderingParameter<NIPtr<Shaders::Shader>, RenderThread::SetComputeShaderAction> {};
+class ComputeShaderConstantsRenderingParameter: public ShaderConstantsResource<RenderThread::SetComputeShaderConstantsAction> {};
 
 } // namespace Internal
 } // namespace D3D12

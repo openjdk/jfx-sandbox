@@ -31,14 +31,14 @@
 #include "../D3D12NativeSwapChain.hpp"
 
 #include "D3D12Buffer.hpp"
-#include "D3D12CheckpointQueue.hpp"
 #include "D3D12IRenderTarget.hpp"
 #include "D3D12LinearAllocator.hpp"
 #include "D3D12Matrix.hpp"
 #include "D3D12RenderingParameter.hpp"
-#include "D3D12RenderThread.hpp"
-#include "D3D12PSOManager.hpp"
 #include "MemoryView.hpp"
+
+#include "RenderThread/D3D12CheckpointQueue.hpp"
+#include "RenderThread/D3D12RenderThread.hpp"
 
 #include <unordered_set>
 
@@ -51,8 +51,8 @@ class RenderingContext
     NIPtr<NativeDevice> mNativeDevice;
     LinearAllocator mExtraPayloadDataAllocator; // for 2D Vertex data and small texture updates
     LinearAllocator mPayloadAllocator;
-    RenderThread mRenderThread;
-    RenderPayloadPtr mRTPayload;
+    RenderThread::RenderThread mRenderThread;
+    RenderThread::RenderPayloadPtr mRTPayload;
 
     struct ClearOptState
     {
@@ -120,9 +120,9 @@ class RenderingContext
     // start tracking anew
     std::unordered_set<NIPtr<Internal::IRenderTarget>> mUsedRTs;
 
-    RenderPayloadPtr ReplaceRTPayload(); // creates new payload, returns old one
+    RenderThread::RenderPayloadPtr ReplaceRTPayload(); // creates new payload, returns old one
     bool SubmitRTPayload();
-    bool AddToRTPayload(RenderThreadExecutablePtr&& executable);
+    bool AddToRTPayload(RenderThread::RenderThreadExecutablePtr&& executable);
     void RecordClear(float r, float g, float b, float a, bool clearDepth, const D3D12_RECT& clearRect);
     BBox EstimateDirtyBBox(const MemoryView<float>& vertices, uint32_t vertexCount);
     void ClearAppliedFlags();
@@ -179,9 +179,9 @@ public:
     void SetCompositeMode(CompositeMode mode);
     void SetCullMode(D3D12_CULL_MODE mode);
     void SetFillMode(D3D12_FILL_MODE mode);
-    void SetVertexShader(const NIPtr<Shader>& vertexShader);
-    void SetPixelShader(const NIPtr<Shader>& pixelShader);
-    void SetComputeShader(const NIPtr<Shader>& computeShader);
+    void SetVertexShader(const NIPtr<Shaders::Shader>& vertexShader);
+    void SetPixelShader(const NIPtr<Shaders::Shader>& pixelShader);
+    void SetComputeShader(const NIPtr<Shaders::Shader>& computeShader);
 
     void StashParamters();
     void RestoreStashedParameters();
@@ -202,12 +202,12 @@ public:
         mRenderThread.WaitUntilIdle();
     }
 
-    inline void RegisterWaitableOperation(Internal::IWaitableOperation* waitableOp)
+    inline void RegisterWaitableOperation(RenderThread::IWaitableOperation* waitableOp)
     {
         mRenderThread.RegisterWaitableOperation(waitableOp);
     }
 
-    inline void UnregisterWaitableOperation(Internal::IWaitableOperation* waitableOp)
+    inline void UnregisterWaitableOperation(RenderThread::IWaitableOperation* waitableOp)
     {
         mRenderThread.UnregisterWaitableOperation(waitableOp);
     }

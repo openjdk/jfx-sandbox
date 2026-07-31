@@ -290,7 +290,7 @@ bool NativeSwapChain::Prepare(const D3D12_RECT& dirtyRegion)
 }
 
 // called by Render Thread
-bool NativeSwapChain::Present(const Internal::RenderThreadContextPtr& context)
+bool NativeSwapChain::Present(const RenderThread::RenderThreadContextPtr& context)
 {
     DXGI_PRESENT_PARAMETERS params;
     D3D12NI_ZERO_STRUCT(params);

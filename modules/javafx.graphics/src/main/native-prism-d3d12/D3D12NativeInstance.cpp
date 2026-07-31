@@ -101,7 +101,7 @@ bool NativeInstance::Init()
         ++i;
     }
 
-    mShaderLibrary = std::make_shared<Internal::ShaderLibrary>();
+    mShaderLibrary = std::make_shared<Shaders::ShaderLibrary>();
 
     return true;
 }

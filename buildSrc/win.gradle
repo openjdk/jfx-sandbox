@@ -393,6 +393,8 @@ WIN.prismD3D12.javahInclude = ["com/sun/prism/d3d12/**/*"]
 WIN.prismD3D12.nativeSource = [
     file("${project("graphics").projectDir}/src/main/native-prism-d3d12"),
     file("${project("graphics").projectDir}/src/main/native-prism-d3d12/Internal"),
+    file("${project("graphics").projectDir}/src/main/native-prism-d3d12/RenderThread"),
+    file("${project("graphics").projectDir}/src/main/native-prism-d3d12/Shaders"),
     file("${project("graphics").projectDir}/src/main/native-prism-d3d12/hlsl6"),
 ]
 WIN.prismD3D12.compiler = compiler

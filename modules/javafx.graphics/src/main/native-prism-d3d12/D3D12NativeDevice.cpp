@@ -30,11 +30,11 @@
 #include "D3D12NativeInstance.hpp"
 
 #include "Internal/D3D12Logger.hpp"
-#include "Internal/D3D12MipmapGenComputeShader.hpp"
 #include "Internal/D3D12Profiler.hpp"
 #include "Internal/D3D12TextureUploader.hpp"
 #include "Internal/D3D12Utils.hpp"
 #include "Internal/JNIString.hpp"
+#include "Shaders/D3D12MipmapGenComputeShader.hpp"
 
 #include <com_sun_prism_d3d12_ni_D3D12NativeDevice.h>
 
@@ -43,7 +43,7 @@
 
 namespace D3D12 {
 
-const NIPtr<Internal::Shader>& NativeDevice::GetPhongPixelShader(const PhongShaderSpec& spec) const
+const NIPtr<Shaders::Shader>& NativeDevice::GetPhongPixelShader(const PhongShaderSpec& spec) const
 {
     std::array<char, 16> name;
     size_t nameLen = Constants::PHONG_PS_NAME.length();
@@ -196,7 +196,7 @@ NativeDevice::~NativeDevice()
     D3D12NI_LOG_DEBUG("Device destroyed");
 }
 
-bool NativeDevice::Init(const DXGIAdapterPtr& adapter, const NIPtr<Internal::ShaderLibrary>& shaderLibrary)
+bool NativeDevice::Init(const DXGIAdapterPtr& adapter, const NIPtr<Shaders::ShaderLibrary>& shaderLibrary)
 {
     if (adapter == nullptr) return false;
 
@@ -466,7 +466,7 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
     spec.specular = material->GetSpecularVariant();
     spec.isSelfIllum = material->IsSelfIllum();
 
-    const NIPtr<Internal::Shader>& ps = GetPhongPixelShader(spec);
+    const NIPtr<Shaders::Shader>& ps = GetPhongPixelShader(spec);
     mRenderingContext->SetPixelShader(ps);
 
     // Transform data is set by RenderingContext, so here just set the Light data from MeshView
@@ -608,7 +608,7 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
             sourceTexture = srcRT->GetTexture();
         }
 
-        const NIPtr<Internal::Shader>& blitShader = GetInternalShader("BlitPS");
+        const NIPtr<Shaders::Shader>& blitShader = GetInternalShader("BlitPS");
 
         // temporarily store whatever context state we have right now
         mRenderingContext->StashParamters();

@@ -30,7 +30,7 @@
 #include "D3D12NativeSwapChain.hpp"
 
 #include "Internal/D3D12DeviceInformation.hpp"
-#include "Internal/D3D12ShaderLibrary.hpp"
+#include "Shaders/D3D12ShaderLibrary.hpp"
 
 #include <vector>
 #include <memory>
@@ -43,7 +43,7 @@ class NativeInstance: public std::enable_shared_from_this<NativeInstance>
     DXGIFactoryPtr mDXGIFactory;
     std::vector<DXGIAdapterPtr> mDXGIAdapters;
     std::vector<DXGI_ADAPTER_DESC1> mDXGIAdapterDescs;
-    NIPtr<Internal::ShaderLibrary> mShaderLibrary;
+    NIPtr<Shaders::ShaderLibrary> mShaderLibrary;
 
 public:
     NativeInstance();

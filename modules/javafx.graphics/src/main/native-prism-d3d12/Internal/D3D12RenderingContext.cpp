@@ -29,11 +29,15 @@
 
 #include "D3D12Config.hpp"
 #include "D3D12Debug.hpp"
-#include "D3D12MipmapGenComputeShader.hpp"
 #include "D3D12Profiler.hpp"
-#include "D3D12RenderPayload.hpp"
 #include "D3D12TextureUploader.hpp"
 #include "D3D12Utils.hpp"
+
+#include "RenderThread/D3D12RenderPayload.hpp"
+#include "Shaders/D3D12MipmapGenComputeShader.hpp"
+
+// very very many elements direct RenderThread here via its primitives, so we will short-cut the namespace
+using namespace D3D12::RenderThread;
 
 
 namespace D3D12 {
@@ -67,7 +71,7 @@ bool RenderingContext::SubmitRTPayload()
     {
         // current payload has some work that was not reflected on a Command List yet
         // move current payload to the Render Thread for execution and create a fresh one for later
-        RenderPayloadPtr payload = ReplaceRTPayload();
+        RenderThread::RenderPayloadPtr payload = ReplaceRTPayload();
         if (!payload)
         {
             D3D12NI_LOG_ERROR("Failed to replace RT Payload, this should not happen");
@@ -545,7 +549,7 @@ bool RenderingContext::UpdateTexture(const NIPtr<NativeTexture>& dstTexture, uin
     size_t copyThreshold = Internal::Config::MainRingBufferThreshold() / 2;
     bool useStagingBuffer = targetSize > copyThreshold;
 
-    Internal::RingBuffer::Region ringRegion;
+    RingBuffer::Region ringRegion;
     NIPtr<Internal::Buffer> stagingBuffer;
     if (useStagingBuffer)
     {
@@ -640,7 +644,7 @@ bool RenderingContext::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
 
     uint32_t mipLevels = texture->GetMipLevels();
 
-    const NIPtr<Internal::Shader>& cs = mNativeDevice->GetInternalShader("MipmapGenCS");
+    const NIPtr<Shaders::Shader>& cs = mNativeDevice->GetInternalShader("MipmapGenCS");
     SetComputeShader(cs);
     SetTexture(0, texture);
 
@@ -652,7 +656,7 @@ bool RenderingContext::GenerateMipmaps(const NIPtr<NativeTexture>& texture)
 
     // starting from 1, level 0 is our base mip level
     // also note, we're divinding by 2 a lot, so to make it faster we'll bit-shift instead
-    MipmapGenComputeShader::CBuffer constants;
+    Shaders::MipmapGenComputeShader::CBuffer constants;
     uint32_t mipMapCount = mipLevels - 1; // mipLevels includes base level so we need to skip it
     for (uint32_t mipBase = 0; mipBase < mipMapCount; mipBase += constants.numLevels)
     {
@@ -834,7 +838,7 @@ void RenderingContext::SetFillMode(D3D12_FILL_MODE mode)
     mPipelineState.SetFillMode(mode);
 }
 
-void RenderingContext::SetVertexShader(const NIPtr<Shader>& vertexShader)
+void RenderingContext::SetVertexShader(const NIPtr<Shaders::Shader>& vertexShader)
 {
     if (mPipelineState.Get().vertexShader == vertexShader) return;
 
@@ -843,7 +847,7 @@ void RenderingContext::SetVertexShader(const NIPtr<Shader>& vertexShader)
     mVertexShaderConstants.Set(vertexShader);
 }
 
-void RenderingContext::SetPixelShader(const NIPtr<Shader>& pixelShader)
+void RenderingContext::SetPixelShader(const NIPtr<Shaders::Shader>& pixelShader)
 {
     if (mPipelineState.Get().pixelShader == pixelShader) return;
 
@@ -857,7 +861,7 @@ void RenderingContext::SetPixelShader(const NIPtr<Shader>& pixelShader)
     }
 }
 
-void RenderingContext::SetComputeShader(const NIPtr<Shader>& computeShader)
+void RenderingContext::SetComputeShader(const NIPtr<Shaders::Shader>& computeShader)
 {
     if (mComputePipelineState.Get().shader == computeShader) return;
 
@@ -959,7 +963,7 @@ bool RenderingContext::FlushAndWait(CheckpointType type)
 bool RenderingContext::WaitForNextCheckpoint(CheckpointType type)
 {
     if (!mRenderThread.ScheduleWaitForCheckpoint(mPayloadAllocator, mRTPayload, type)) return false;
-    RenderPayloadPtr payload = ReplaceRTPayload();
+    RenderThread::RenderPayloadPtr payload = ReplaceRTPayload();
     if (!payload)
     {
         D3D12NI_LOG_ERROR("Failure when replacing RenderThread payload");

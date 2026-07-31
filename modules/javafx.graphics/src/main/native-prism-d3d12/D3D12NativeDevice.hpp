@@ -36,22 +36,17 @@
 #include "D3D12NativeTexture.hpp"
 
 #include "Internal/D3D12Buffer.hpp"
-#include "Internal/D3D12CheckpointQueue.hpp"
-#include "Internal/D3D12CommandListPool.hpp"
 #include "Internal/D3D12DescriptorAllocator.hpp"
-#include "Internal/D3D12IWaitableOperation.hpp"
 #include "Internal/D3D12RootSignatureManager.hpp"
-#include "Internal/D3D12ResourceDisposer.hpp"
 #include "Internal/D3D12RenderingContext.hpp"
-#include "Internal/D3D12RingBuffer.hpp"
-#include "Internal/D3D12ShaderLibrary.hpp"
 #include "Internal/D3D12SamplerStorage.hpp"
 #include "Internal/D3D12Waitable.hpp"
-
 #include "Internal/D3D12Debug.hpp"
 #include "Internal/D3D12Matrix.hpp"
 #include "Internal/JNIBuffer.hpp"
 #include "Internal/MemoryView.hpp"
+
+#include "Shaders/D3D12ShaderLibrary.hpp"
 
 #include <vector>
 #include <memory>
@@ -79,10 +74,10 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<Internal::DescriptorAllocator> mRTVAllocator;
     NIPtr<Internal::DescriptorAllocator> mDSVAllocator;
     NIPtr<Internal::DescriptorAllocator> mSRVAllocator;
-    NIPtr<Internal::ShaderLibrary> mShaderLibrary;
-    NIPtr<Internal::Shader> mPassthroughVS;
-    NIPtr<Internal::Shader> mPhongVS;
-    NIPtr<Internal::Shader> mCurrent2DShader;
+    NIPtr<Shaders::ShaderLibrary> mShaderLibrary;
+    NIPtr<Shaders::Shader> mPassthroughVS;
+    NIPtr<Shaders::Shader> mPhongVS;
+    NIPtr<Shaders::Shader> mCurrent2DShader;
     CompositeMode m2DCompositeMode;
 
     struct Transforms
@@ -92,7 +87,7 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
         Internal::Matrix<float> viewProjTransform;
     } mTransforms;
 
-    const NIPtr<Internal::Shader>& GetPhongPixelShader(const PhongShaderSpec& spec) const;
+    const NIPtr<Shaders::Shader>& GetPhongPixelShader(const PhongShaderSpec& spec) const;
     void AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst,
                                    QuadVertices& vertices, QuadColors& colors);
 
@@ -100,7 +95,7 @@ public:
     NativeDevice(const NIPtr<NativeInstance>& instance);
     ~NativeDevice();
 
-    bool Init(const DXGIAdapterPtr& adapter, const NIPtr<Internal::ShaderLibrary>& shaderLibrary);
+    bool Init(const DXGIAdapterPtr& adapter, const NIPtr<Shaders::ShaderLibrary>& shaderLibrary);
     void Release();
 
     // separate, internal buffer creator
@@ -175,7 +170,7 @@ public:
         return mSRVAllocator;
     }
 
-    const NIPtr<Internal::Shader>& GetInternalShader(const std::string_view& name) const
+    const NIPtr<Shaders::Shader>& GetInternalShader(const std::string_view& name) const
     {
         return mShaderLibrary->GetShaderData(name);
     }

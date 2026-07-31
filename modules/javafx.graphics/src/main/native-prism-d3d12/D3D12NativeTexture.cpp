@@ -25,9 +25,10 @@
 
 #include "D3D12NativeTexture.hpp"
 
-#include "../D3D12NativeDevice.hpp"
-#include "D3D12Debug.hpp"
-#include "D3D12Utils.hpp"
+#include "D3D12NativeDevice.hpp"
+
+#include "Internal/D3D12Debug.hpp"
+#include "Internal/D3D12Utils.hpp"
 
 #include <com_sun_prism_d3d12_ni_D3D12NativeTexture.h>
 

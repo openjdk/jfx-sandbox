@@ -28,9 +28,10 @@
 #include "D3D12Common.hpp"
 
 #include "Internal/D3D12IRenderTarget.hpp"
-#include "Internal/D3D12IWaitableOperation.hpp"
 #include "Internal/D3D12TextureBase.hpp"
-#include "Internal/D3D12RenderThreadContext.hpp"
+
+#include "RenderThread/D3D12IWaitableOperation.hpp"
+#include "RenderThread/D3D12RenderThreadContext.hpp"
 
 #include <vector>
 #include <queue>
@@ -40,7 +41,10 @@
 
 namespace D3D12 {
 
-class NativeSwapChain: public Internal::IRenderTarget, Internal::IWaitableOperation
+// TODO: D3D12: This class is a bit of a mixture between main thread code and RenderThread...
+// Should probably be separated into separate objects - NativeSwapChain to interact with Java
+// and an internal SwapChain payload with all stuff used by RenderThread.
+class NativeSwapChain: public Internal::IRenderTarget, RenderThread::IWaitableOperation
 {
     static uint64_t swapChainCounter;
 
@@ -82,7 +86,7 @@ public:
 
     // runs on Render Thread
     bool Prepare(const D3D12_RECT& dirtyRegion);
-    bool Present(const Internal::RenderThreadContextPtr& context);
+    bool Present(const RenderThread::RenderThreadContextPtr& context);
 
     inline const D3D12ResourcePtr& GetBuffer(int index) const
     {
