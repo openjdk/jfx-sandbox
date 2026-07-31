@@ -512,6 +512,9 @@ using SignalCallback = std::function<uint64_t(CheckpointType)>;
 
 // to return errors from RenderThread::Signal()
 #define D3D12NI_INVALID_FENCE_VALUE 0
+// mimics D3D9's D3DADAPTER_DEFAULT macro to pick something if upper layers don't care
+// or don't provide us with a native handle (see Web OpacityTest/ShadowTest tests)
+#define D3D12NI_DEFAULT_ADAPTER 0
 #define D3D12NI_FLOATS_PER_2D_VERTEX 7
 #define D3D12NI_CHARS_PER_2D_VERTEX 4
 

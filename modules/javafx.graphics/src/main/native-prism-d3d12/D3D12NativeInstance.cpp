@@ -113,7 +113,8 @@ int NativeInstance::GetAdapterCount()
 
 int NativeInstance::GetAdapterOrdinal(HMONITOR monitor)
 {
-    int ret = -1;
+    int ret = D3D12NI_DEFAULT_ADAPTER;
+    bool found = false;
     HRESULT hr = S_OK;
 
     D3D12NI_LOG_DEBUG("%s: Asks for monitor %p", __func__, monitor);
@@ -142,14 +143,14 @@ int NativeInstance::GetAdapterOrdinal(HMONITOR monitor)
             D3D12NI_LOG_DEBUG(" \\_ output #%d: %ws (monitor %p)", outputIdx, outputDesc.DeviceName, outputDesc.Monitor);
             if (outputDesc.Monitor == monitor) {
                 ret = adapterIdx;
+                found = true;
                 break;
             }
 
             outputIdx++;
         }
 
-        if (ret > -1)
-            break;
+        if (found) break;
     }
 
     if (ret > -1)
@@ -342,7 +343,7 @@ JNIEXPORT jint JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeInstance_nGetAdapt
     (JNIEnv* env, jobject obj, jlong ptr, jlong screenNativeHandle)
 {
     if (!ptr) return -1;
-    if (!screenNativeHandle) return -1;
+    // null screenNativeHandle is not an error - means that upper renderer doesn't care which screen to provide
 
     return D3D12::GetNIObject<D3D12::NativeInstance>(ptr)->GetAdapterOrdinal(reinterpret_cast<HMONITOR>(screenNativeHandle));
 }
