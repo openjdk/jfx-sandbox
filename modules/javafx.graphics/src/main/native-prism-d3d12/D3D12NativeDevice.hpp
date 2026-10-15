@@ -35,21 +35,20 @@
 #include "D3D12NativeSwapChain.hpp"
 #include "D3D12NativeTexture.hpp"
 
-#include "Internal/D3D12Buffer.hpp"
-#include "Internal/D3D12DescriptorAllocator.hpp"
-#include "Internal/D3D12RootSignatureManager.hpp"
-#include "Internal/D3D12RenderingContext.hpp"
-#include "Internal/D3D12SamplerStorage.hpp"
-#include "Internal/D3D12Waitable.hpp"
-#include "Internal/D3D12Debug.hpp"
-#include "Internal/D3D12Matrix.hpp"
-#include "Internal/JNIBuffer.hpp"
-#include "Internal/MemoryView.hpp"
+#include "internal/D3D12Buffer.hpp"
+#include "internal/D3D12DescriptorAllocator.hpp"
+#include "internal/D3D12RenderingContext.hpp"
+#include "internal/D3D12Waitable.hpp"
+#include "internal/D3D12Debug.hpp"
+#include "internal/D3D12Matrix.hpp"
+#include "internal/JNIBuffer.hpp"
+#include "internal/MemoryView.hpp"
 
-#include "Shaders/D3D12ShaderLibrary.hpp"
+#include "shaders/D3D12ShaderLibrary.hpp"
 
 #include <vector>
 #include <memory>
+#include <atomic>
 
 
 namespace D3D12 {
@@ -63,13 +62,13 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     NIPtr<NativeInstance> mNativeInstance;
     DXGIAdapterPtr mAdapter;
     D3D12DevicePtr mDevice;
+    std::atomic<bool> mDeviceWorks;
     Internal::DebugContextPtr mDebugContext;
     uint32_t mFenceValue;
     uint32_t mFrameCounter; // for debugging ex. triggering a breakpoint after X frames
     uint32_t mProfilerTransferWaitSourceID;
     uint32_t mProfilerFrameTimeID;
 
-    NIPtr<Internal::RootSignatureManager> mRootSignatureManager;
     NIPtr<Internal::RenderingContext> mRenderingContext;
     NIPtr<Internal::DescriptorAllocator> mRTVAllocator;
     NIPtr<Internal::DescriptorAllocator> mDSVAllocator;
@@ -88,7 +87,8 @@ class NativeDevice: public std::enable_shared_from_this<NativeDevice>
     } mTransforms;
 
     const NIPtr<Shaders::Shader>& GetPhongPixelShader(const PhongShaderSpec& spec) const;
-    void AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst,
+    void AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, uint64_t srcTotalWidth, uint64_t srcTotalHeight,
+                                   const Coords_Box_UINT32& dst, uint64_t dstTotalWidth, uint64_t dstTotalHeight,
                                    QuadVertices& vertices, QuadColors& colors);
 
 public:
@@ -114,6 +114,7 @@ public:
     int GetMaximumTextureSize() const;
     void MarkDisposed(const D3D12PageablePtr& pageable);
     void MarkDisposed(const NIPtr<Internal::ITrackedResource>& resource);
+    void MarkDisposed(const NIPtr<NativeRenderTarget>& rtt); // specialization for RTTs to do some extra cleanup in the process
 
     void Clear(float r, float g, float b, float a, bool clearDepth);
     void ClearTextureUnit(uint32_t unit);
@@ -141,18 +142,19 @@ public:
     bool PrepareSwapChain(const NIPtr<NativeSwapChain>& swapChain, const D3D12_RECT& dirtyRegion);
     bool Present(const NIPtr<NativeSwapChain>& swapChain);
     void FinishFrame();
+    bool WaitUntilIdle();
 
     void ExamineDeviceRemoved();
     void ReportErrorMessages();
 
+    inline bool IsDeviceReady() const
+    {
+        return mDeviceWorks;
+    }
+
     const D3D12DevicePtr& GetDevice()
     {
         return mDevice;
-    }
-
-    const NIPtr<Internal::RootSignatureManager>& GetRootSignatureManager() const
-    {
-        return mRootSignatureManager;
     }
 
     const NIPtr<Internal::DescriptorAllocator>& GetRTVDescriptorAllocator() const

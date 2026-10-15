@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -238,6 +238,10 @@ public class RenderPerfTest {
         public void accumulate(PerfResult other) throws Exception {
             if (!this.testName.contentEquals(other.testName) || this.objectCount != other.objectCount) {
                 throw new Exception("Cannot accumulate results from different tests");
+            }
+
+            if (other.status == PerfResultStatus.FAILED) {
+                throw new Exception("Test " + testName + " failed to execute: " + other.statusReason);
             }
 
             if (other.status == PerfResultStatus.SUCCESS) {
@@ -1296,7 +1300,7 @@ public class RenderPerfTest {
             fonts = new Font[n];
 
             for (int i = 0; i < n; i++) {
-                fonts[i] = new Font((random.nextInt() % 24) + 8);
+                fonts[i] = new Font(random.nextInt(24) + 8);
             }
         }
 
@@ -2641,6 +2645,9 @@ public class RenderPerfTest {
                     results.add(result);
                     if (result.status == PerfResultStatus.INTERRUPTED) {
                         throw new InterruptedException("Test execution interrupted early");
+                    }
+                    if (result.status == PerfResultStatus.FAILED) {
+                        throw new RuntimeException("Test execution failed: " + result.statusReason);
                     }
                 }
 

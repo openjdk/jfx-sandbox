@@ -34,10 +34,15 @@ namespace D3D12 {
 
 NativeRenderTarget::NativeRenderTarget(const NIPtr<NativeDevice>& nativeDevice)
     : mNativeDevice(nativeDevice)
-    , mTexture(nullptr)
+    , mTexture()
+    , mDepthTexture()
+    , mTextureBase()
+    , mDepthTextureBase()
     , mDescriptors()
+    , mDSVDescriptor()
     , mWidth(0)
     , mHeight(0)
+    , mDepthTestEnabled(false)
 {
 }
 
@@ -149,7 +154,24 @@ void NativeRenderTarget::SetDepthTestEnabled(bool enabled)
 {
     mDepthTestEnabled = enabled;
 
-    if (mDepthTestEnabled) EnsureHasDepthBuffer();
+    if (mDepthTestEnabled)
+    {
+        if (!EnsureHasDepthBuffer())
+        {
+            D3D12NI_LOG_ERROR("Failed to ensure depth buffer is allocated; depth buffer disabled");
+            mDepthTestEnabled = false;
+        }
+    }
+}
+
+uint64_t NativeRenderTarget::GetSize() const
+{
+    if (!mTexture) return 0;
+
+    uint64_t ret = mTexture->GetSize();
+    if (mDepthTexture) ret += mDepthTexture->GetSize();
+
+    return ret;
 }
 
 } // namespace D3D12
@@ -168,6 +190,14 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeRenderTarget_nRele
     const D3D12::NIPtr<D3D12::NativeRenderTarget>& rtt = D3D12::GetNIObject<D3D12::NativeRenderTarget>(ptr);
     rtt->GetDevice()->MarkDisposed(rtt);
     D3D12::FreeNIObject<D3D12::NativeRenderTarget>(ptr);
+}
+
+JNIEXPORT jlong JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeRenderTarget_nGetSize
+    (JNIEnv* env, jobject obj, jlong ptr)
+{
+    if (!ptr) return 0;
+
+    return static_cast<jlong>(D3D12::GetNIObject<D3D12::NativeRenderTarget>(ptr)->GetSize());
 }
 
 JNIEXPORT jint JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeRenderTarget_nGetWidth

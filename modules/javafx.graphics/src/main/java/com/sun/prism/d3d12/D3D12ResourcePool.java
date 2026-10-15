@@ -50,15 +50,30 @@ class D3D12ResourcePool extends BaseResourcePool<D3D12TextureData>
 
     @Override
     public long estimateTextureSize(int width, int height, PixelFormat format) {
-        return (long) width * height * format.getBytesPerPixelUnit();
+        int bpp = format.getBytesPerPixelUnit();
+        if (width <= 0 || height <= 0 ||
+            height > (Long.MAX_VALUE / bpp) ||
+            width > (Long.MAX_VALUE / ((long)height * bpp))) {
+            throw new IllegalArgumentException("estimateTextureSize: invalid width or height ");
+        }
+        return (long) width * height * bpp;
     }
 
     @Override
     public long estimateRTTextureSize(int width, int height, boolean hasDepth) {
+        if (width <= 0 || height <= 0 ||
+            height > (Long.MAX_VALUE / 4L) ||
+            width  > (Long.MAX_VALUE / (4L * height))) {
+            throw new IllegalArgumentException("estimateRTTextureSize: invalid width or height");
+        }
+
         long size = 4L * width * height;
         if (hasDepth) {
             // RTTs in D3D12 use D32_FLOAT depth format
-            size += width * height * 4L;
+            if ((4L * width * height) > (Long.MAX_VALUE - size)) {
+                throw new IllegalArgumentException("estimateRTTextureSize: invalid width or height");
+            }
+            size += 4L * width * height;
         }
         return size;
     }

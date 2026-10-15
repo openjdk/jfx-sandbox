@@ -203,7 +203,10 @@ class D3D12SwapChain implements Presentable, GraphicsResource {
         if (dirtyregion == null) {
             return mContext.getDevice().prepareSwapChain(mSwapChain, -1, -1, -1, -1);
         } else {
-            return mContext.getDevice().prepareSwapChain(mSwapChain, dirtyregion.x, dirtyregion.y, dirtyregion.width, dirtyregion.height);
+            return mContext.getDevice().prepareSwapChain(mSwapChain,
+                dirtyregion.x, dirtyregion.y,
+                dirtyregion.x + dirtyregion.width, dirtyregion.y + dirtyregion.height
+            );
         }
     }
 

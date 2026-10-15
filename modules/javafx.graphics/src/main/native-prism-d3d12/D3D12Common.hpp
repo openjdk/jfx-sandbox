@@ -50,7 +50,7 @@
 #include <algorithm>
 #include <functional>
 
-#include "Internal/D3D12Logger.hpp"
+#include "internal/D3D12Logger.hpp"
 
 #include "Common_D3D12ShaderResourceDataHeader.hpp"
 
@@ -75,6 +75,9 @@ UniqueCPtr<T> MakeUniqueCPtr(std::size_t size) noexcept
     return UniqueCPtr<T>(reinterpret_cast<T*>(std::malloc(size)));
 }
 
+
+// currently supported D3D12 Feature Level
+#define D3D12NI_FEATURE_LEVEL D3D_FEATURE_LEVEL_12_0
 
 // smart-pointer container shorthand for D3D12 objects
 template <typename T>
@@ -325,98 +328,6 @@ struct Pixel_BGRA8_UNORM
     uint8_t g;
     uint8_t r;
     uint8_t a;
-};
-
-struct BBox
-{
-    // These are absolute coordinates in texture's space, or in other words:
-    //   width = max.x - min.x; height = max.y - min.y;
-    //
-    // Mapping to D3D12_RECT:
-    //    min.x == left, min.y == top
-    //    max.x == right, max.y == bottom
-    Coords_XY_FLOAT min;
-    Coords_XY_FLOAT max;
-
-    BBox() // initializes an invalid BBox
-        : BBox(std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), 0.0f, 0.0f)
-    {
-    }
-
-    BBox(float minx, float miny, float maxx, float maxy)
-        : min{minx, miny}
-        , max{maxx, maxy}
-    {
-    }
-
-    inline void operator=(const BBox& other)
-    {
-        min.x = other.min.x;
-        min.y = other.min.y;
-        max.x = other.max.x;
-        max.y = other.max.y;
-    }
-
-    inline void Merge(const BBox& other)
-    {
-        if (!other.Valid()) return;
-
-        // dirty bbox applies to RTTs only, so its dimensions cannot be less than 0
-        // otherwise further checks we do (ex. Inside() ) might not work
-        BBox maxed(
-            std::max(other.min.x, 0.0f),
-            std::max(other.min.y, 0.0f),
-            std::max(other.max.x, 0.0f),
-            std::max(other.max.y, 0.0f)
-        );
-
-        min.x = std::min(min.x, maxed.min.x);
-        min.y = std::min(min.y, maxed.min.y);
-        max.x = std::max(max.x, maxed.max.x);
-        max.y = std::max(max.y, maxed.max.y);
-    }
-
-    inline void Merge(float minx, float miny, float maxx, float maxy)
-    {
-        Merge(BBox(minx, miny, maxx, maxy));
-    }
-
-    inline bool Inside(const float minx, const float miny, const float maxx, const float maxy) const
-    {
-        return std::round(min.x) >= minx && std::round(min.y) >= miny &&
-               std::round(max.x) <= maxx && std::round(max.y) <= maxy;
-    }
-
-    inline bool Inside(const D3D12_RECT& rect) const
-    {
-        return Inside(
-            static_cast<const float>(rect.left),
-            static_cast<const float>(rect.top),
-            static_cast<const float>(rect.right),
-            static_cast<const float>(rect.bottom)
-        );
-    }
-
-    inline bool Inside(const BBox& other) const
-    {
-        return Inside(other.min.x, other.min.y, other.max.x, other.max.y);
-    }
-
-    inline bool Valid() const
-    {
-        // bbox is valid only when it's max coords are higher than min coords
-        // we don't consider equal coords as valid either, it would mean 0 width
-        // or 0 height which is not an actual area
-        return (min.x <= max.x) && (min.y <= max.y);
-    }
-
-    inline std::string ToString() const
-    {
-        std::stringstream ss;
-        ss.precision(2);
-        ss << '{' << min.x << ", " << min.y << "; " << max.x << ", " << max.y << '}';
-        return ss.str();
-    }
 };
 
 // Light spec matching Shader definitions

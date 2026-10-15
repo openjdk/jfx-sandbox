@@ -25,10 +25,10 @@
 
 #include "D3D12NativeInstance.hpp"
 
-#include "Internal/D3D12Debug.hpp"
-#include "Internal/D3D12Logger.hpp"
-#include "Internal/D3D12Utils.hpp"
-#include "Internal/JNIString.hpp"
+#include "internal/D3D12Debug.hpp"
+#include "internal/D3D12Logger.hpp"
+#include "internal/D3D12Utils.hpp"
+#include "internal/JNIString.hpp"
 
 #include <vector>
 #include <com_sun_prism_d3d12_ni_D3D12NativeInstance.h>
@@ -101,6 +101,12 @@ bool NativeInstance::Init()
         ++i;
     }
 
+    if (mDXGIAdapters.size() == 0)
+    {
+        D3D12NI_LOG_ERROR("Failed to enumerate DXGI adapters - no suitable adapters found.");
+        return false;
+    }
+
     mShaderLibrary = std::make_shared<Shaders::ShaderLibrary>();
 
     return true;
@@ -116,6 +122,12 @@ int NativeInstance::GetAdapterOrdinal(HMONITOR monitor)
     int ret = D3D12NI_DEFAULT_ADAPTER;
     bool found = false;
     HRESULT hr = S_OK;
+
+    if (mDXGIAdapters.size() == 0)
+    {
+        D3D12NI_LOG_ERROR("%s: No adapters available", __func__);
+        return -1;
+    }
 
     D3D12NI_LOG_DEBUG("%s: Asks for monitor %p", __func__, monitor);
 
@@ -175,7 +187,7 @@ bool NativeInstance::CanCreateDevice(uint32_t adapterIdx, Internal::DeviceInform
 
     info.description = Internal::Utils::ToString(mDXGIAdapterDescs[adapterIdx].Description);
 
-    HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx].Get(), D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr);
+    HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx].Get(), D3D12NI_FEATURE_LEVEL, _uuidof(ID3D12Device), nullptr);
     D3D12NI_FILL_DEVICE_ERROR(hr, info);
     return SUCCEEDED(hr);
 }
@@ -210,7 +222,7 @@ bool NativeInstance::GetDeviceInformation(uint32_t adapterIdx, Internal::DeviceI
     info.description = Internal::Utils::ToString(mDXGIAdapterDescs[adapterIdx].Description);
 
     D3D12DevicePtr device;
-    HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx].Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
+    HRESULT hr = D3D12CreateDevice(mDXGIAdapters[adapterIdx].Get(), D3D12NI_FEATURE_LEVEL, IID_PPV_ARGS(&device));
     if (FAILED(hr))
     {
         D3D12NI_LOG_ERROR("GetDeviceInformation: Failed to fetch device information for adapter %ws - D3D12CreateDevice failed", mDXGIAdapterDescs[adapterIdx].Description);
@@ -219,8 +231,6 @@ bool NativeInstance::GetDeviceInformation(uint32_t adapterIdx, Internal::DeviceI
     }
 
     const D3D_FEATURE_LEVEL requestedLevels[] = {
-        D3D_FEATURE_LEVEL_11_0,
-        D3D_FEATURE_LEVEL_11_1,
         D3D_FEATURE_LEVEL_12_0,
         D3D_FEATURE_LEVEL_12_1,
         D3D_FEATURE_LEVEL_12_2,

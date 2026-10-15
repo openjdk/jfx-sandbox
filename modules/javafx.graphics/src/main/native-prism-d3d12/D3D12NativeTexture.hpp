@@ -28,8 +28,8 @@
 #include "D3D12Common.hpp"
 #include "D3D12Constants.hpp"
 
-#include "Internal/D3D12DescriptorData.hpp"
-#include "Internal/D3D12TextureBase.hpp"
+#include "internal/D3D12DescriptorData.hpp"
+#include "internal/D3D12TextureBase.hpp"
 
 
 namespace D3D12 {
@@ -41,7 +41,6 @@ class NativeTexture: public Internal::TextureBase
     static uint64_t rttextureCounter;
 
     NIPtr<NativeDevice> mNativeDevice;
-    D3D12_RESOURCE_DESC mResourceDesc;
     UINT mMipLevels;
     Internal::DescriptorData mSRVDescriptor;
 
@@ -63,26 +62,6 @@ public:
     inline const NIPtr<NativeDevice>& GetDevice() const
     {
         return mNativeDevice;
-    }
-
-    inline UINT64 GetWidth() const
-    {
-        return mResourceDesc.Width;
-    }
-
-    inline UINT64 GetHeight() const
-    {
-        return mResourceDesc.Height;
-    }
-
-    inline DXGI_FORMAT GetFormat() const
-    {
-        return mResourceDesc.Format;
-    }
-
-    inline UINT GetMSAASamples() const
-    {
-        return mResourceDesc.SampleDesc.Count;
     }
 
     inline UINT GetMipLevels() const

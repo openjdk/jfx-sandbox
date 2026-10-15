@@ -27,10 +27,10 @@
 
 #include "D3D12Common.hpp"
 
-#include "Internal/D3D12DescriptorData.hpp"
-#include "Internal/D3D12TextureBase.hpp"
+#include "internal/D3D12DescriptorData.hpp"
+#include "internal/D3D12TextureBase.hpp"
 
-#include "Shaders/D3D12Shader.hpp"
+#include "shaders/D3D12Shader.hpp"
 
 #include <string>
 #include <vector>

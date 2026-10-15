@@ -35,30 +35,19 @@ class D3D12TextureData implements Disposer.Record {
 
     private D3D12NativeTexture mTexture;
     private D3D12NativeRenderTarget mRenderTarget;
-    private final long mSize;
-
-    static long estimateSize(int physicalWidth, int physicalHeight, PixelFormat format)
-    {
-        return (long) physicalWidth * physicalHeight * format.getBytesPerPixelUnit();
-    }
-
-    static long estimateRTSize(int physicalWidth, int physicalHeight, boolean hasDepth)
-    {
-        return 4L * physicalWidth * physicalHeight;
-    }
 
     D3D12TextureData(D3D12NativeTexture tex, D3D12NativeRenderTarget rt, int width, int height, PixelFormat format) {
         mTexture = tex;
         mRenderTarget = rt;
 
-        mSize = isRTT()
-            ? estimateRTSize(width, height, false)
-            : estimateSize(width, height, format);
+        long size = isRTT()
+            ? mRenderTarget.getSize()
+            : mTexture.getSize();
 
         if (isRTT()) {
-            PrismTrace.rttCreated(mRenderTarget.getPtr(), width, height, mSize);
+            PrismTrace.rttCreated(mRenderTarget.getPtr(), width, height, size);
         } else {
-            PrismTrace.textureCreated(mTexture.getPtr(), width, height, mSize);
+            PrismTrace.textureCreated(mTexture.getPtr(), width, height, size);
         }
     }
 
@@ -87,9 +76,10 @@ class D3D12TextureData implements Disposer.Record {
     }
 
     public long getSize() {
+        if (!isValid()) return 0;
+
         if (isRTT()) {
-            // TODO: D3D12: include bpp calculations
-            return mRenderTarget.getHeight() * mRenderTarget.getHeight() * 4;
+            return mRenderTarget.getSize();
         } else {
             return mTexture.getSize();
         }

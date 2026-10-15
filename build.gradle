@@ -1744,6 +1744,9 @@ void addJSL(Project project, String name, String pkg, List<String> addExports, C
         def destinationDir = project.file("$project.buildDir/gensrc/jsl-$lowerName")
         inputs.dir sourceDir
         outputs.dir destinationDir
+        if (IS_WINDOWS) {
+            outputs.file "$project.buildDir/gensrc/d3d12-headers/${name}_D3D12ShaderResourceDataHeader.hpp"
+        }
         doLast {
             compile(sourceDir, destinationDir)
         }
@@ -2521,10 +2524,20 @@ project(":graphics") {
 
         task generateD3D12PhongShaders(group: "Build") {
             enabled = IS_WINDOWS
+            inputs.file "src/main/native-prism-d3d12/hlsl6/D3D12ShaderLimits.h"
+            inputs.file "src/main/native-prism-d3d12/hlsl6/BlitPS.hlsl"
+            inputs.file "src/main/native-prism-d3d12/hlsl6/MipmapGenCS.hlsl"
             inputs.file "src/main/native-prism-d3d12/hlsl6/Mtl1PS.hlsl"
             inputs.file "src/main/native-prism-d3d12/hlsl6/Mtl1VS.hlsl"
+            inputs.file "src/main/native-prism-d3d12/hlsl6/PassThroughDecl.hlsl"
             inputs.file "src/main/native-prism-d3d12/hlsl6/PassThroughVS.hlsl"
-            inputs.file "src/main/native-prism-d3d12/hlsl6/MipmapGenCS.hlsl"
+            inputs.file "src/main/native-prism-d3d12/hlsl6/psConstants.hlsl"
+            inputs.file "src/main/native-prism-d3d12/hlsl6/psMath.hlsl"
+            inputs.file "src/main/native-prism-d3d12/hlsl6/ShaderCommon.hlsl"
+            inputs.file "src/main/native-prism-d3d12/hlsl6/vs2ps.hlsl"
+            inputs.file "src/main/native-prism-d3d12/hlsl6/vsConstants.hlsl"
+            inputs.file "src/main/native-prism-d3d12/hlsl6/vsDecl.hlsl"
+            inputs.file "src/main/native-prism-d3d12/hlsl6/vsMath.hlsl"
             outputs.dir "$buildDir/hlsl6/Native"
             description = "Generate D3D12 Phong shaders from HLSL 6 files"
             doLast {
@@ -2768,6 +2781,10 @@ project(":graphics") {
                 args += ["-name", "$file"]
             }
         }
+    }
+
+    if (IS_WINDOWS) {
+        ccWinPrismD3D12.dependsOn processDecoraShaders, processPrismShaders
     }
 
     if (IS_MAC) {

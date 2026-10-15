@@ -25,16 +25,22 @@
 
 package com.sun.prism.d3d12;
 
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.ListIterator;
 
 import com.sun.glass.ui.Screen;
 import com.sun.glass.utils.NativeLibLoader;
+import com.sun.javafx.tk.Toolkit;
+import com.sun.javafx.tk.quantum.QuantumToolkit;
 import com.sun.prism.GraphicsPipeline;
 import com.sun.prism.ResourceFactory;
 import com.sun.prism.impl.PrismSettings;
 import com.sun.prism.d3d12.ni.D3D12AdapterInformation;
 import com.sun.prism.d3d12.ni.D3D12DeviceInformation;
+import com.sun.prism.d3d12.ni.D3D12NativeDevice;
 import com.sun.prism.d3d12.ni.D3D12NativeInstance;
 import com.sun.prism.d3d12.ni.D3D12NativeShader;
 
@@ -49,7 +55,6 @@ public final class D3D12Pipeline extends GraphicsPipeline {
 
     private D3D12NativeInstance mInstance;
     private D3D12ResourceFactory mDefaultFactory;
-    private int mMaxMSAASamples;
 
     static {
         if (PrismSettings.verbose) {
@@ -104,7 +109,11 @@ public final class D3D12Pipeline extends GraphicsPipeline {
     }
 
     private D3D12ResourceFactory createResourceFactory(int adapter, Screen screen) {
-        return new D3D12ResourceFactory(mInstance, adapter, screen);
+        D3D12ResourceFactory factory = new D3D12ResourceFactory(mInstance, adapter, screen);
+        if (factory != null) {
+            D3D12ShutdownHook.addNativeDevice(factory.getContext().getDevice());
+        }
+        return factory;
     }
 
     private D3D12ResourceFactory getD3D12ResourceFactory(int adapter, Screen screen) {
@@ -191,7 +200,12 @@ public final class D3D12Pipeline extends GraphicsPipeline {
         if (!mInstance.Init())
             return false;
 
-        loadInternalShaders();
+        try {
+            loadInternalShaders();
+        } catch (Exception e) {
+            System.err.println("Failed to load internal D3D12 shaders: " + e.getMessage());
+            return false;
+        }
 
         mFactories = new D3D12ResourceFactory[mInstance.getAdapterCount()];
         return true;
@@ -281,4 +295,53 @@ public final class D3D12Pipeline extends GraphicsPipeline {
         }
     }
 
+}
+
+class D3D12ShutdownHook implements Runnable {
+
+    private static List<WeakReference<D3D12NativeDevice>> deviceRefs = new ArrayList<>();
+    private static boolean isShutdown = false;
+
+    static {
+        Toolkit.getToolkit().addShutdownHook(new D3D12ShutdownHook());
+    }
+
+    public static void addNativeDevice(D3D12NativeDevice device) {
+        synchronized (deviceRefs) {
+            if (isShutdown) {
+                if (device != null) {
+                    QuantumToolkit.runInRenderThreadAndWait(() -> {
+                        device.waitUntilIdle();
+                    });
+                }
+            } else {
+                for (ListIterator<WeakReference<D3D12NativeDevice>> it = deviceRefs.listIterator(); it.hasNext();) {
+                    D3D12NativeDevice dev = it.next().get();
+                    if (dev == null) {
+                        it.remove();
+                    }
+                }
+
+                deviceRefs.add(new WeakReference<>(device));
+            }
+        }
+    }
+
+    @Override
+    public void run() {
+        synchronized (deviceRefs) {
+            for (ListIterator<WeakReference<D3D12NativeDevice>> it = deviceRefs.listIterator(); it.hasNext();) {
+                D3D12NativeDevice device = it.next().get();
+                if (device != null) {
+                    QuantumToolkit.runInRenderThreadAndWait(() -> {
+                        device.waitUntilIdle();
+                    });
+                } else {
+                    it.remove();
+                }
+            }
+
+            isShutdown = true;
+        }
+    }
 }

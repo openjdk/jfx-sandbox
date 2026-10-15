@@ -33,6 +33,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.sun.scenario.effect.compiler.JSLParser;
 import com.sun.scenario.effect.compiler.model.BaseType;
@@ -108,6 +109,7 @@ public class HLSL6Backend extends SLBackend {
 
     private static final String SHADER_RESOURCE_COLLECTIONS_END_LINE = "// end of ShaderResourceCollections\n";
     private static final String SHADERS_END_LINE = "}; // end of Shaders\n";
+    private static final String SHADERS_RESOURCE_COLLECTION_REPLACEMENT_MARKER = "// THIS WILL BE REPLACED";
 
     private StringBuilder shaderHeader;
     private ShaderType shaderType;
@@ -503,15 +505,30 @@ public class HLSL6Backend extends SLBackend {
             .append(" },\n");
     }
 
-    private void addResourceBindingMapToHeader(String resourceMap) {
+    private void addResourceBindingMapToHeader(String resourceMap, int lineToReplace) {
         try {
             String headerContents = Files.readString(Path.of(this.shaderHeaderFilePath));
-            headerContents = headerContents.replace(
-                SHADER_RESOURCE_COLLECTIONS_END_LINE, resourceMap + SHADER_RESOURCE_COLLECTIONS_END_LINE
-            );
-            headerContents = headerContents.replace(
-                SHADERS_END_LINE, "    { \"" + this.shaderName + "\", " + this.shaderName + this.shaderType.toString() + "ShaderResources },\n" + SHADERS_END_LINE
-            );
+
+            if (lineToReplace < 0) {
+                // resource binding entry was not present in the header file, append it at the end
+                headerContents = headerContents.replace(
+                    SHADER_RESOURCE_COLLECTIONS_END_LINE, resourceMap + "\n\n" + SHADER_RESOURCE_COLLECTIONS_END_LINE
+                );
+                headerContents = headerContents.replace(
+                    SHADERS_END_LINE, "    { \"" + this.shaderName + "\", " + this.shaderName + this.shaderType.toString() + "ShaderResources },\n" + SHADERS_END_LINE
+                );
+            } else {
+                // the entry was found someone and removed earlier by removeExistingResourceCollection
+                // paste the contents in the line specified
+                // note that we do NOT edit the main ShaderCollection map here, as the entry already existed
+                List<String> headerLines = headerContents.lines().collect(Collectors.toList());
+                if (!headerLines.contains(SHADERS_RESOURCE_COLLECTION_REPLACEMENT_MARKER)) {
+                    throw new IOException("addResourceBindingMapToHeader: Expected to replace line " + lineToReplace + " but the marker is absent.");
+                }
+
+                headerLines.set(lineToReplace, resourceMap);
+                headerContents = String.join("\n", headerLines);
+            }
             FileWriter fw = new FileWriter(this.shaderHeaderFilePath);
             fw.write(headerContents);
             fw.close();
@@ -521,11 +538,49 @@ public class HLSL6Backend extends SLBackend {
         }
     }
 
+    private int removeExistingCollection(String collectionName) {
+        int collectionBegin = -1;
+
+        try {
+            List<String> headerLines = Files.readString(Path.of(this.shaderHeaderFilePath)).lines().collect(Collectors.toList());
+            for (int i = 0; i < headerLines.size(); ++i) {
+                if (collectionBegin < 0 && headerLines.get(i).contains("ShaderResourceCollection " + collectionName + " = {")) {
+                    collectionBegin = i;
+                    continue;
+                } else if (collectionBegin >= 0 && headerLines.get(i).contentEquals("};")) {
+                    // remove all lines from current line to the beginning
+                    // this will eares the binding and have it ready for replacement later on
+                    // deliberately skips the first collection line to replace it with a marker later on
+                    for (int j = i; j > collectionBegin; --j) {
+                        headerLines.remove(j);
+                    }
+
+                    // place a marker for addResourceBindingMapToHeader
+                    headerLines.set(collectionBegin, SHADERS_RESOURCE_COLLECTION_REPLACEMENT_MARKER);
+
+                    // write the file and exit
+                    FileWriter fw = new FileWriter(this.shaderHeaderFilePath);
+                    fw.write(String.join("\n", headerLines));
+                    fw.close();
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to remove existing Shader Resource collection from header: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return collectionBegin;
+    }
+
     private void appendShaderResourceDataToHeader() {
         initializeShaderHeaderFiles();
 
+        String collectionName = shaderName + this.shaderType.toString() + "ShaderResources";
+        int line = removeExistingCollection(collectionName);
+
         StringBuilder resourceMap = new StringBuilder();
-        resourceMap.append("ShaderResourceCollection ").append(shaderName).append(this.shaderType.toString()).append("ShaderResources = {\n");
+        resourceMap.append("ShaderResourceCollection ").append(collectionName).append(" = {\n");
 
         for (ResourceBinding rb: cbufferResources) {
             buildResourceBindingMapEntry(rb, resourceMap);
@@ -537,9 +592,9 @@ public class HLSL6Backend extends SLBackend {
             buildResourceBindingMapEntry(rb, resourceMap);
         }
 
-        resourceMap.append("};\n\n");
+        resourceMap.append("};");
 
-        addResourceBindingMapToHeader(resourceMap.toString());
+        addResourceBindingMapToHeader(resourceMap.toString(), line);
     }
 
     @Override

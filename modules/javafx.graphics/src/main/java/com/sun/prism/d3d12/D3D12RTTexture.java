@@ -44,25 +44,26 @@ public class D3D12RTTexture extends D3D12Texture implements RTTexture, ReadbackR
     private int mMSAALevel = 1;
 
     D3D12RTTexture(D3D12Resource<D3D12TextureData> resource, D3D12Context context, PixelFormat format, WrapMode wrapMode,
-                   int width, int height, int msaaLevel) {
-        super(resource, context, format, wrapMode, width, height);
+                   int physWidth, int physHeight, int contentWidth, int contentHeight, int msaaLevel) {
+        super(resource, context, format, wrapMode, physWidth, physHeight, contentWidth, contentHeight);
         mMSAALevel = msaaLevel;
     }
 
-    public static D3D12RTTexture create(D3D12Context context, int width, int height, PixelFormat format, WrapMode wrapMode, int aaSamples, boolean enableDirtyBBox) {
-        D3D12NativeTexture tex = context.getDevice().createTexture(width, height, format, Usage.DEFAULT, wrapMode, aaSamples, false, true);
+    public static D3D12RTTexture create(D3D12Context context, int physWidth, int physHeight, int contentWidth, int contentHeight,
+                                        PixelFormat format, WrapMode wrapMode, int aaSamples, boolean enableDirtyBBox) {
+        D3D12NativeTexture tex = context.getDevice().createTexture(physWidth, physHeight, format, Usage.DEFAULT, wrapMode, aaSamples, false, true);
         D3D12NativeRenderTarget rt = context.getDevice().createRenderTarget(tex, enableDirtyBBox);
 
         return new D3D12RTTexture(new D3D12Resource<D3D12TextureData>(
                                       new D3D12TextureData(
-                                         tex, rt, width, height, format
+                                         tex, rt, physWidth, physHeight, format
                                       )
                                   ),
                                   context,
                                   format,
                                   wrapMode,
-                                  width,
-                                  height,
+                                  physWidth, physHeight,
+                                  contentWidth, contentHeight,
                                   aaSamples);
     }
 

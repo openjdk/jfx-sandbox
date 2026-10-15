@@ -25,11 +25,11 @@
 
 #include "D3D12NativeShader.hpp"
 
-#include "Internal/D3D12Debug.hpp"
-#include "Internal/D3D12Config.hpp"
-#include "Internal/D3D12Utils.hpp"
-#include "Internal/JNIBuffer.hpp"
-#include "Internal/JNIString.hpp"
+#include "internal/D3D12Debug.hpp"
+#include "internal/D3D12Config.hpp"
+#include "internal/D3D12Utils.hpp"
+#include "internal/JNIBuffer.hpp"
+#include "internal/JNIString.hpp"
 
 #include "Decora_D3D12ShaderResourceDataHeader.hpp"
 #include "Prism_D3D12ShaderResourceDataHeader.hpp"
@@ -161,7 +161,7 @@ bool NativeShader::Init(const std::string& name, const void* code, size_t size)
             AddShaderResource(
                 binding.name,
                 ResourceAssignment(
-                    ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::GRAPHICS_RS_PS_TEXTURE_DTABLE, binding.slot, 1, 0, 0
+                    ResourceAssignmentType::DESCRIPTOR_TABLE_SAMPLERS, ShaderSlots::GRAPHICS_RS_PS_SAMPLER_DTABLE, binding.slot, 1, 0, 0
                 )
             );
             break;

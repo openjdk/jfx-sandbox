@@ -27,7 +27,7 @@
 
 #include "D3D12NativeDevice.hpp"
 
-#include "Internal/JNIBuffer.hpp"
+#include "internal/JNIBuffer.hpp"
 
 #include <com_sun_prism_d3d12_ni_D3D12NativeMesh.h>
 

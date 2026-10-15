@@ -25,9 +25,9 @@
 
 #include "D3D12Common.hpp"
 
-#include "Internal/D3D12Config.hpp"
-#include "Internal/D3D12Debug.hpp"
-#include "Internal/D3D12Logger.hpp"
+#include "internal/D3D12Config.hpp"
+#include "internal/D3D12Debug.hpp"
+#include "internal/D3D12Logger.hpp"
 
 #include <com_sun_prism_d3d12_D3D12Pipeline.h>
 

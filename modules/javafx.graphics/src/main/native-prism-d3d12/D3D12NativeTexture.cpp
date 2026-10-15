@@ -27,8 +27,8 @@
 
 #include "D3D12NativeDevice.hpp"
 
-#include "Internal/D3D12Debug.hpp"
-#include "Internal/D3D12Utils.hpp"
+#include "internal/D3D12Debug.hpp"
+#include "internal/D3D12Utils.hpp"
 
 #include <com_sun_prism_d3d12_ni_D3D12NativeTexture.h>
 
@@ -41,8 +41,6 @@ uint64_t NativeTexture::rttextureCounter = 0;
 
 bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
 {
-    mResourceDesc = desc;
-
     D3D12_HEAP_PROPERTIES heapProps;
     D3D12NI_ZERO_STRUCT(heapProps);
     // Texture resources require DEFAULT heap type
@@ -60,20 +58,32 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
     D3D12ResourcePtr resource;
     HRESULT hr = mNativeDevice->GetDevice()->CreateCommittedResource(
         &heapProps, D3D12_HEAP_FLAG_NONE,
-        &mResourceDesc, D3D12_RESOURCE_STATE_COMMON,
-        (mResourceDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) ? &clearValue : nullptr,
+        &desc, D3D12_RESOURCE_STATE_COMMON,
+        (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET) ? &clearValue : nullptr,
         IID_PPV_ARGS(&resource)
     );
     D3D12NI_DEV_RET_IF_FAILED(mNativeDevice, hr, false, "Failed to create Texture's Committed Resource");
 
-    if (!IsDepthFormat(mResourceDesc.Format))
+    if (!IsDepthFormat(desc.Format))
     {
+        UINT componentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+        if (desc.Format == DXGI_FORMAT_R8_UNORM)
+        {
+            // BYTE_GRAY should map R to RGB with A set to 1
+            componentMapping = D3D12_ENCODE_SHADER_4_COMPONENT_MAPPING(
+                D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
+                D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
+                D3D12_SHADER_COMPONENT_MAPPING_FROM_MEMORY_COMPONENT_0,
+                D3D12_SHADER_COMPONENT_MAPPING_FORCE_VALUE_1
+            );
+        }
+
         // Allocate the most commonly used descriptor covering all mips
         // The only time we'll need something different is when calling MipmapGen
         D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc;
         D3D12NI_ZERO_STRUCT(srvDesc);
-        srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-        srvDesc.Format = mResourceDesc.Format;
+        srvDesc.Shader4ComponentMapping = componentMapping;
+        srvDesc.Format = desc.Format;
         srvDesc.ViewDimension = (desc.SampleDesc.Count > 1) ? D3D12_SRV_DIMENSION_TEXTURE2DMS : D3D12_SRV_DIMENSION_TEXTURE2D;
         srvDesc.Texture2D.MipLevels = mMipLevels;
         srvDesc.Texture2D.MostDetailedMip = 0;
@@ -95,13 +105,15 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
         mNativeDevice->GetDevice()->CreateShaderResourceView(resource.Get(), &srvDesc, mSRVDescriptor.CPU(0));
     }
 
+    TextureBase::Init(resource, desc, D3D12_RESOURCE_STATE_COMMON);
+
     // Texture will be separately loaded with data via Java's Texture.update() calls
     // Fill in remaining members and leave
-    if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
+    if (mResourceDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET)
     {
         SetName("RTTexture_#" + std::to_string(rttextureCounter++));
     }
-    else if (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
+    else if (mResourceDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL)
     {
         SetName("DepthTexture_#" + std::to_string(depthTextureCounter++));
     }
@@ -109,8 +121,6 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
     {
         SetName("Texture_#" + std::to_string(textureCounter++));
     }
-
-    TextureBase::Init(resource, mResourceDesc.MipLevels, D3D12_RESOURCE_STATE_COMMON);
 
     D3D12NI_LOG_TRACE("--- Texture %s created (%ux%u %s %uxMSAA %s) ---",
         mDebugName.c_str(), mResourceDesc.Width, mResourceDesc.Height, Internal::DXGIFormatToString(mResourceDesc.Format),
@@ -122,7 +132,6 @@ bool NativeTexture::InitInternal(const D3D12_RESOURCE_DESC& desc)
 NativeTexture::NativeTexture(const NIPtr<NativeDevice>& nativeDevice)
     : TextureBase()
     , mNativeDevice(nativeDevice)
-    , mResourceDesc()
     , mMipLevels()
     , mSRVDescriptor()
 {
@@ -141,7 +150,7 @@ NativeTexture::~NativeTexture()
     {
         // Trace log only if we actually allocated the resource
         // with mBufferResource being null we never called Init (or it failed)
-        D3D12NI_LOG_TRACE("--- Texture %S destroyed (%ux%u %s %uxMSAA %s) ---",
+        D3D12NI_LOG_TRACE("--- Texture %s destroyed (%ux%u %s %uxMSAA %s) ---",
             mDebugName.c_str(), mResourceDesc.Width, mResourceDesc.Height, Internal::DXGIFormatToString(mResourceDesc.Format),
             mResourceDesc.SampleDesc.Count, HasMipmaps() ? "Mip" : "NoMip");
     }
@@ -192,19 +201,29 @@ UINT64 NativeTexture::GetSize()
     D3D12_RESOURCE_DESC resDesc;
     resDesc = GetD3D12Resource()->GetDesc();
 
-    return resDesc.Width * resDesc.Height * resDesc.DepthOrArraySize * GetDXGIFormatBPP(resDesc.Format);
+    return resDesc.Width * resDesc.Height * resDesc.DepthOrArraySize * GetDXGIFormatBPP(resDesc.Format) * resDesc.SampleDesc.Count;
 }
 
 bool NativeTexture::Resize(UINT width, UINT height)
 {
     if (width == mResourceDesc.Width && height == mResourceDesc.Height) return true;
 
+    // capture old resource to recover in case we fail new resource initialization
+    D3D12ResourcePtr oldResource = GetD3D12Resource();
+
     mResourceDesc.Width = width;
     mResourceDesc.Height = height;
+    if (!InitInternal(mResourceDesc))
+    {
+        // recover old resource and its desc before returning failure
+        mResource = oldResource;
+        mResourceDesc = mResource->GetDesc();
+        return false;
+    }
 
-    mNativeDevice->MarkDisposed(GetD3D12Resource());
-
-    return InitInternal(mResourceDesc);
+    // success, dispose of old resource and return
+    mNativeDevice->MarkDisposed(oldResource);
+    return true;
 }
 
 void NativeTexture::SetSamplerParameters(TextureWrapMode wrapMode, bool isLinear)

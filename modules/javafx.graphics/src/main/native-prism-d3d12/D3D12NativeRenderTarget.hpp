@@ -30,9 +30,9 @@
 #include "D3D12NativeSwapChain.hpp"
 #include "D3D12NativeTexture.hpp"
 
-#include "Internal/D3D12DescriptorData.hpp"
-#include "Internal/D3D12IRenderTarget.hpp"
-#include "Internal/D3D12TextureBase.hpp"
+#include "internal/D3D12DescriptorData.hpp"
+#include "internal/D3D12IRenderTarget.hpp"
+#include "internal/D3D12TextureBase.hpp"
 
 
 namespace D3D12 {
@@ -58,6 +58,7 @@ public:
     bool EnsureHasDepthBuffer();
     bool Refresh();
     void SetDepthTestEnabled(bool enabled);
+    uint64_t GetSize() const;
 
     inline const NIPtr<NativeDevice>& GetDevice() const
     {

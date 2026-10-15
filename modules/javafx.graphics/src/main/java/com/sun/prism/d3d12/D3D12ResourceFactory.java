@@ -62,6 +62,12 @@ class D3D12ResourceFactory extends BaseShaderFactory {
         mContext = new D3D12Context(mInstance.createDevice(adapterOrdinal), screen, this);
 
         mMaximumTextureSize = mContext.getDevice().getMaximumTextureSize();
+        if (mMaximumTextureSize > PrismSettings.maxTextureSize) {
+            mMaximumTextureSize = PrismSettings.maxTextureSize;
+            if (PrismSettings.verbose) {
+                System.err.println("Maximum texture size clamped to " + mMaximumTextureSize);
+            }
+        }
     }
 
     D3D12Context getContext() {
@@ -70,6 +76,11 @@ class D3D12ResourceFactory extends BaseShaderFactory {
 
     D3D12NativeInstance getNativeInstance() {
         return mInstance;
+    }
+
+    @Override
+    public boolean isDeviceReady() {
+        return mContext.getDevice().isDeviceReady() && super.isDeviceReady();
     }
 
     @Override
@@ -124,12 +135,12 @@ class D3D12ResourceFactory extends BaseShaderFactory {
     }
 
     @Override
-    public Texture createTexture(PixelFormat formatHint, Usage usageHint, WrapMode wrapMode, int w, int h) {
+    public D3D12Texture createTexture(PixelFormat formatHint, Usage usageHint, WrapMode wrapMode, int w, int h) {
         return createTexture(formatHint, usageHint, wrapMode, w, h, false);
     }
 
     @Override
-    public Texture createTexture(PixelFormat formatHint, Usage usageHint, WrapMode wrapMode, int w, int h,
+    public D3D12Texture createTexture(PixelFormat formatHint, Usage usageHint, WrapMode wrapMode, int w, int h,
             boolean useMipmap) {
         if (checkDisposed()) return null;
 
@@ -174,7 +185,10 @@ class D3D12ResourceFactory extends BaseShaderFactory {
             throw new RuntimeException("Failed to create D3D12 texture");
         }
 
-        return D3D12Texture.create(texture, mContext, formatHint, wrapMode);
+        if (wrapMode != WrapMode.CLAMP_NOT_NEEDED && (w < texture.getWidth() || h < texture.getHeight())) {
+            wrapMode = wrapMode.simulatedVersion();
+        }
+        return D3D12Texture.create(texture, mContext, formatHint, wrapMode, w, h);
     }
 
     @Override
@@ -213,17 +227,11 @@ class D3D12ResourceFactory extends BaseShaderFactory {
                         subHeight /= 2;
                     }
 
-                    WrapMode wrapMode = WrapMode.CLAMP_TO_EDGE;
-                    PixelFormat format = PixelFormat.BYTE_ALPHA;
-                    D3D12NativeTexture subNTex = mContext.getDevice().createTexture(
-                        subWidth, subHeight, format, Usage.DYNAMIC, wrapMode, 1, false, false
-                    );
-                    if (subNTex == null) {
+                    D3D12Texture subTex = createTexture(PixelFormat.BYTE_ALPHA, Usage.DYNAMIC, WrapMode.CLAMP_TO_EDGE, subWidth, subHeight);
+                    if (subTex == null || !subTex.getNativeTexture().isValid()) {
                         tex.dispose();
                         return null;
                     }
-
-                    D3D12Texture subTex = D3D12Texture.create(subNTex, mContext, format, wrapMode);
                     tex.setTexture(subTex, index);
                 }
 
@@ -257,7 +265,7 @@ class D3D12ResourceFactory extends BaseShaderFactory {
                 int physHeight = nativeTexture.getHeight();
                 wrapMode = (texWidth < physWidth || texHeight < physHeight)
                     ? WrapMode.CLAMP_TO_EDGE_SIMULATED : WrapMode.CLAMP_TO_EDGE;
-                texture = D3D12Texture.create(nativeTexture, mContext, texFormat, wrapMode);
+                texture = D3D12Texture.create(nativeTexture, mContext, texFormat, wrapMode, width, height);
             }
         }
 
@@ -325,13 +333,13 @@ class D3D12ResourceFactory extends BaseShaderFactory {
             aaSamples = mContext.getMSAASampleSize(format);
         }
 
-        // TODO: D3D12: 3D - Improve estimate to include if multisample rtt
-        long size = pool.estimateRTTextureSize(width, height, false);
+        // TODO: D3D12: Add depth texture estimation
+        long size = pool.estimateRTTextureSize(createw, createh, false) * aaSamples;
         if (!pool.prepareForAllocation(size)) {
             return null;
         }
 
-        D3D12RTTexture tex = D3D12RTTexture.create(mContext, width, height, format, wrapMode, aaSamples, enableDirtyBBox);
+        D3D12RTTexture tex = D3D12RTTexture.create(mContext, createw, createh, width, height, format, wrapMode, aaSamples, enableDirtyBBox);
         if (!tex.isValid()) {
             return null;
         }

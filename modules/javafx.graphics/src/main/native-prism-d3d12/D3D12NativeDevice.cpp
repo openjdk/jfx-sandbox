@@ -29,12 +29,12 @@
 
 #include "D3D12NativeInstance.hpp"
 
-#include "Internal/D3D12Logger.hpp"
-#include "Internal/D3D12Profiler.hpp"
-#include "Internal/D3D12TextureUploader.hpp"
-#include "Internal/D3D12Utils.hpp"
-#include "Internal/JNIString.hpp"
-#include "Shaders/D3D12MipmapGenComputeShader.hpp"
+#include "internal/D3D12Logger.hpp"
+#include "internal/D3D12Profiler.hpp"
+#include "internal/D3D12TextureUploader.hpp"
+#include "internal/D3D12Utils.hpp"
+#include "internal/JNIString.hpp"
+#include "shaders/D3D12MipmapGenComputeShader.hpp"
 
 #include <com_sun_prism_d3d12_ni_D3D12NativeDevice.h>
 
@@ -98,7 +98,8 @@ const NIPtr<Shaders::Shader>& NativeDevice::GetPhongPixelShader(const PhongShade
     return GetInternalShader(name.data());
 }
 
-void NativeDevice::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const Coords_Box_UINT32& dst,
+void NativeDevice::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, uint64_t srcTotalWidth, uint64_t srcTotalHeight,
+                                             const Coords_Box_UINT32& dst, uint64_t dstTotalWidth, uint64_t dstTotalHeight,
                                              QuadVertices& vertices, QuadColors& colors)
 {
     uint32_t srcWidth = src.x1 - src.x0;
@@ -108,8 +109,8 @@ void NativeDevice::AssembleVertexQuadForBlit(const Coords_Box_UINT32& src, const
 
     // default viewport coordinates are from -1 to 1
     // so destination has to be doubled and shifted from 0-2 range to -1-1 range
-    Coords_UV_FLOAT srcTexelSize{ 1.0f / srcWidth, 1.0f / srcHeight };
-    Coords_UV_FLOAT dstTexelSize{ 2.0f / dstWidth, 2.0f / dstHeight };
+    Coords_UV_FLOAT srcTexelSize{ 1.0f / srcTotalWidth, 1.0f / srcTotalHeight };
+    Coords_UV_FLOAT dstTexelSize{ 2.0f / dstTotalWidth, 2.0f / dstTotalHeight };
 
     // dstBox V coord is inverted because of d3d12's coordinate system
     Coords_UV_FLOAT srcBoxTexelsMin{ src.x0 * srcTexelSize.u, src.y0 * srcTexelSize.v };
@@ -166,11 +167,11 @@ NativeDevice::NativeDevice(const NIPtr<NativeInstance>& instance)
     : mNativeInstance(instance)
     , mAdapter(nullptr)
     , mDevice()
+    , mDeviceWorks(false)
     , mFenceValue(0)
     , mFrameCounter(0)
     , mProfilerTransferWaitSourceID(0)
     , mProfilerFrameTimeID(0)
-    , mRootSignatureManager()
     , mRenderingContext()
     , mRTVAllocator()
     , mDSVAllocator()
@@ -208,10 +209,10 @@ bool NativeDevice::Init(const DXGIAdapterPtr& adapter, const NIPtr<Shaders::Shad
     // duplication gives full separation and guarantees no threading woes.
     mShaderLibrary = shaderLibrary->Duplicate();
 
-    // we're asking for FL 11_0 for highest compatibility
+    // we're asking for FL 12_0 for highest compatibility
     // we probably won't need anything higher than that
-    // TODO: See ResourceManager::Init() for more details why we might raise FL to 12_0
-    HRESULT hr = D3D12CreateDevice(mAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&mDevice));
+    // FL 11_0 is an option but requires extra care to resource binding in D3D12ResourceManager - see Sampler Heaps
+    HRESULT hr = D3D12CreateDevice(mAdapter.Get(), D3D12NI_FEATURE_LEVEL, IID_PPV_ARGS(&mDevice));
     if (FAILED(hr))
     {
         _com_error err(hr);
@@ -236,14 +237,6 @@ bool NativeDevice::Init(const DXGIAdapterPtr& adapter, const NIPtr<Shaders::Shad
     }
 
     mFenceValue = 0;
-
-    mRootSignatureManager = std::make_shared<Internal::RootSignatureManager>(shared_from_this());
-    if (!mRootSignatureManager->Init())
-    {
-        D3D12NI_LOG_ERROR("Failed to initialize Root Signatures");
-        Release();
-        return false;
-    }
 
     mRenderingContext = std::make_shared<Internal::RenderingContext>(shared_from_this());
     if (!mRenderingContext->Init())
@@ -287,6 +280,7 @@ bool NativeDevice::Init(const DXGIAdapterPtr& adapter, const NIPtr<Shaders::Shad
     mProfilerTransferWaitSourceID = Internal::Profiler::Instance().RegisterSource("NativeDevice Transfer Wait");
     mProfilerFrameTimeID = Internal::Profiler::Instance().RegisterSource("Frame Time");
 
+    mDeviceWorks = true;
     Internal::Profiler::Instance().TimingStart(mProfilerFrameTimeID);
     return true;
 }
@@ -309,7 +303,6 @@ void NativeDevice::Release()
     if (mRTVAllocator) mRTVAllocator.reset();
     if (mDSVAllocator) mDSVAllocator.reset();
     if (mSRVAllocator) mSRVAllocator.reset();
-    if (mRootSignatureManager) mRootSignatureManager.reset();
 }
 
 NIPtr<Internal::Buffer> NativeDevice::CreateBuffer(const void* initialData, size_t size, bool cpuWriteable, D3D12_RESOURCE_STATES finalState)
@@ -420,6 +413,15 @@ void NativeDevice::MarkDisposed(const NIPtr<Internal::ITrackedResource>& resourc
     if (mRenderingContext && resource) mRenderingContext->Dispose(resource);
 }
 
+void NativeDevice::MarkDisposed(const NIPtr<NativeRenderTarget>& rtt)
+{
+    if (mRenderingContext && rtt)
+    {
+        mRenderingContext->UnsetRenderTargetIfSet(rtt.get());
+        mRenderingContext->Dispose(rtt);
+    }
+}
+
 void NativeDevice::Clear(float r, float g, float b, float a, bool clearDepth)
 {
     mRenderingContext->Clear(r, g, b, a, clearDepth);
@@ -450,7 +452,7 @@ void NativeDevice::RenderQuads(const Internal::MemoryView<float>& vertices, cons
     mRenderingContext->SetCullMode(D3D12_CULL_MODE_NONE);
     mRenderingContext->SetFillMode(D3D12_FILL_MODE_SOLID);
 
-    mRenderingContext->DrawQuads(vertices, colors, vertexCount);
+    mRenderingContext->DrawQuads(vertices, colors, vertexCount, mTransforms.worldTransform);
 }
 
 void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
@@ -486,6 +488,14 @@ void NativeDevice::RenderMeshView(const NIPtr<NativeMeshView>& meshView)
     mRenderingContext->SetCompositeMode(CompositeMode::SRC_OVER);
     mRenderingContext->SetCullMode(meshView->GetCullMode());
     mRenderingContext->SetFillMode(meshView->GetFillMode());
+
+    // NOTE: D3D uses setDeviceParametersFor3D to force linear filtering on texture in slot 0
+    // and to enforce linear filtering when drawing 3D. This emulates this behavior, but has to
+    // be updated when JDK-8092272 is done
+    if (material->GetMap(TextureMapType::DIFFUSE))
+    {
+        material->GetMap(TextureMapType::DIFFUSE)->SetSamplerParameters(TextureWrapMode::REPEAT, true);
+    }
 
     for (uint32_t i = 0; i < static_cast<uint32_t>(TextureMapType::MAX_ENUM); ++i)
     {
@@ -565,6 +575,13 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
         return false;
     }
 
+    if (src.x1 > srcRT->GetWidth() || src.y1 > srcRT->GetHeight() ||
+        dst.x1 > dstRT->GetWidth() || dst.y1 > dstRT->GetHeight())
+    {
+        D3D12NI_LOG_ERROR("Invalid Blit dimensions");
+        return false;
+    }
+
     uint32_t srcWidth = src.x1 - src.x0;
     uint32_t srcHeight = src.y1 - src.y0;
     uint32_t dstWidth = dst.x1 - dst.x0;
@@ -591,7 +608,7 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
         {
             // create intermediate tex, use ResolveSubresource() to populate it
             intermediateTexture = std::make_shared<NativeTexture>(shared_from_this());
-            if (!intermediateTexture->Init(srcWidth, srcHeight, srcRT->GetFormat(),
+            if (!intermediateTexture->Init(static_cast<uint32_t>(srcRT->GetWidth()), static_cast<uint32_t>(srcRT->GetHeight()), srcRT->GetFormat(),
                 D3D12_RESOURCE_FLAG_NONE, TextureUsage::DEFAULT, TextureWrapMode::CLAMP_NOT_NEEDED, 1, false))
             {
                 D3D12NI_LOG_ERROR("BlitTexture: Failed to create intermediate texture for source RT resolve");
@@ -627,11 +644,13 @@ bool NativeDevice::Blit(const NIPtr<NativeRenderTarget>& srcRT, const Coords_Box
         // prepare quad vertices for blitting
         QuadVertices vertices;
         QuadColors colors;
-        AssembleVertexQuadForBlit(src, dst, vertices, colors);
+        AssembleVertexQuadForBlit(src, sourceTexture->GetWidth(), sourceTexture->GetHeight(),
+                                  dst, dstRT->GetWidth(), dstRT->GetHeight(),
+                                  vertices, colors);
 
         Internal::MemoryView<float> verticesView(vertices.data(), vertices.size() * sizeof(float));
         Internal::MemoryView<unsigned char> colorsView(colors.data(), colors.size() * sizeof(unsigned char));
-        mRenderingContext->DrawQuads(verticesView, colorsView, 4);
+        mRenderingContext->DrawQuads(verticesView, colorsView, 4, Internal::Matrix<float>::IDENTITY);
 
         // restore original context parameters
         mRenderingContext->RestoreStashedParameters();
@@ -656,6 +675,12 @@ bool NativeDevice::ReadTexture(const NIPtr<NativeTexture>& texture, void* buffer
     if (srcw * srch * targetbpp > bufferSize)
     {
         D3D12NI_LOG_ERROR("Failed to readback Texture, target buffer is too small");
+        return false;
+    }
+
+    if (srcx + srcw > texture->GetWidth() || srcy + srch > texture->GetHeight())
+    {
+        D3D12NI_LOG_ERROR("Failed to readback Texture, read coordinates exceed texture dimensions");
         return false;
     }
 
@@ -754,9 +779,26 @@ void NativeDevice::FinishFrame()
     Internal::Profiler::Instance().TimingStart(mProfilerFrameTimeID);
 }
 
+bool NativeDevice::WaitUntilIdle()
+{
+    if (mRenderingContext)
+    {
+        if (!mRenderingContext->WaitForGPU())
+        {
+            D3D12NI_LOG_ERROR("Failed to wait until GPU is idle");
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void NativeDevice::ExamineDeviceRemoved()
 {
-    if (mDebugContext) mDebugContext->ExamineDeviceRemoved();
+    if (mDeviceWorks && mDebugContext)
+    {
+        mDeviceWorks = mDebugContext->ExamineDeviceRemoved();
+    }
 }
 
 void NativeDevice::ReportErrorMessages()
@@ -783,6 +825,14 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nReleaseNat
     // D3D12DevicePtr are still valid
     D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->Release();
     D3D12::FreeNIObject<D3D12::NativeDevice>(ptr);
+}
+
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nIsDeviceReady
+    (JNIEnv* env, jobject obj, jlong ptr)
+{
+    if (!ptr) return false;
+
+    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->IsDeviceReady();
 }
 
 JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nCheckFormatSupport
@@ -1201,6 +1251,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nUpdate
 {
     if (!ptr) return false;
     if (!texturePtr) return false;
+    if (dstx < 0 || dsty < 0 || srcx < 0 || srcy < 0 || srcw <= 0 || srch <= 0) return false;
 
     const D3D12::NIPtr<D3D12::NativeTexture>& tex = D3D12::GetNIObject<D3D12::NativeTexture>(texturePtr);
     if (!tex) return false;
@@ -1219,6 +1270,7 @@ JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nUpdate
 {
     if (!ptr) return false;
     if (!texturePtr) return false;
+    if (dstx < 0 || dsty < 0 || srcx < 0 || srcy < 0 || srcw <= 0 || srch <= 0) return false;
 
     const D3D12::NIPtr<D3D12::NativeTexture>& tex = D3D12::GetNIObject<D3D12::NativeTexture>(texturePtr);
     if (!tex) return false;
@@ -1286,6 +1338,14 @@ JNIEXPORT void JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nFinishFram
     if (!ptr) return;
 
     D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->FinishFrame();
+}
+
+JNIEXPORT jboolean JNICALL Java_com_sun_prism_d3d12_ni_D3D12NativeDevice_nWaitUntilIdle
+    (JNIEnv* env, jobject obj, jlong ptr)
+{
+    if (!ptr) return false;
+
+    return D3D12::GetNIObject<D3D12::NativeDevice>(ptr)->WaitUntilIdle();
 }
 
 #ifdef __cplusplus

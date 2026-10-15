@@ -27,11 +27,11 @@
 
 #include "D3D12Common.hpp"
 
-#include "Internal/D3D12IRenderTarget.hpp"
-#include "Internal/D3D12TextureBase.hpp"
+#include "internal/D3D12IRenderTarget.hpp"
+#include "internal/D3D12TextureBase.hpp"
 
-#include "RenderThread/D3D12IWaitableOperation.hpp"
-#include "RenderThread/D3D12RenderThreadContext.hpp"
+#include "render-thread/D3D12IWaitableOperation.hpp"
+#include "render-thread/D3D12RenderThreadContext.hpp"
 
 #include <vector>
 #include <queue>

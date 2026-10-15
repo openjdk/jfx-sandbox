@@ -102,6 +102,7 @@ class D3D12Context extends BaseShaderContext {
 
         int w = mCurrentRT.getWidth();
         int h = mCurrentRT.getHeight();
+        if (w == 0 || h == 0) return null;
 
         // Need to validate the camera before getting its computed data.
         if (camera instanceof NGDefaultCamera) {

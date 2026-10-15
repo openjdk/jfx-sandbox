@@ -27,7 +27,7 @@
 
 #include "D3D12Common.hpp"
 
-#include "Internal/D3D12Buffer.hpp"
+#include "internal/D3D12Buffer.hpp"
 
 
 namespace D3D12 {

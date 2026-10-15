@@ -29,8 +29,8 @@
 #include "D3D12NativeDevice.hpp"
 #include "D3D12NativeSwapChain.hpp"
 
-#include "Internal/D3D12DeviceInformation.hpp"
-#include "Shaders/D3D12ShaderLibrary.hpp"
+#include "internal/D3D12DeviceInformation.hpp"
+#include "shaders/D3D12ShaderLibrary.hpp"
 
 #include <vector>
 #include <memory>

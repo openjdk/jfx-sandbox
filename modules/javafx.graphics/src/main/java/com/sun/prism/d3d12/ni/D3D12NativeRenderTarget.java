@@ -31,9 +31,14 @@ public class D3D12NativeRenderTarget extends D3D12NativeObject {
     }
 
     @Override protected native void nReleaseNativeObject(long ptr);
+    private native long nGetSize(long ptr);
     private native int nGetWidth(long ptr);
     private native int nGetHeight(long ptr);
     private native boolean nRefresh(long ptr);
+
+    public long getSize() {
+        return nGetSize(ptr);
+    }
 
     public int getWidth() {
         return nGetWidth(ptr);

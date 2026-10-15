@@ -44,6 +44,7 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
     }
 
     @Override protected native void nReleaseNativeObject(long ptr);
+    private native boolean nIsDeviceReady(long ptr);
     private native boolean nCheckFormatSupport(long ptr, int dxgiFormat);
     private native long nCreateMesh(long ptr);
     private native long nCreateMeshView(long ptr, long meshPtr);
@@ -105,6 +106,11 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
     private native boolean nPrepareSwapChain(long ptr, long swapChainPtr, long left, long top, long right, long bottom);
     private native boolean nPresent(long ptr, long swapChainPtr);
     private native void nFinishFrame(long ptr);
+    private native boolean nWaitUntilIdle(long ptr);
+
+    public boolean isDeviceReady() {
+        return nIsDeviceReady(ptr);
+    }
 
     public boolean checkFormatSupport(PixelFormat format) {
         return nCheckFormatSupport(ptr, DXGIFormat.fromPixelFormat(format).format);
@@ -278,5 +284,9 @@ public final class D3D12NativeDevice extends D3D12NativeObject {
 
     public void finishFrame() {
         nFinishFrame(ptr);
+    }
+
+    public boolean waitUntilIdle() {
+        return nWaitUntilIdle(ptr);
     }
 }

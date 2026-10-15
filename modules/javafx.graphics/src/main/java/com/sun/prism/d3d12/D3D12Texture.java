@@ -38,17 +38,22 @@ class D3D12Texture extends BaseTexture<D3D12Resource<D3D12TextureData>> {
     protected D3D12Context mContext;
 
     protected D3D12Texture(D3D12Resource<D3D12TextureData> resource, D3D12Context context, PixelFormat format, WrapMode wrapMode,
-                           int width, int height) {
-        super(resource, format, wrapMode, width, height);
+                           int physWidth, int physHeight, int contentWidth, int contentHeight) {
+        // NOTE: D3D provides a constructor with contentX and contentY parameters, however I did not find
+        // any places that would use it that would provide non-zero contentX and contentY.
+        super(resource, format, wrapMode, physWidth, physHeight,
+              0, 0, contentWidth, contentHeight, false);
         mContext = context;
     }
 
     private D3D12Texture(D3D12Texture sharedTex, WrapMode altMode) {
         super(sharedTex, altMode, false);
+        mContext = sharedTex.mContext;
     }
 
     public static D3D12Texture create(D3D12NativeTexture nativeTexture, D3D12Context context,
-                                      PixelFormat format, WrapMode wrapMode) {
+                                      PixelFormat format, WrapMode wrapMode,
+                                      int contentWidth, int contentHeight) {
         return new D3D12Texture(new D3D12Resource<D3D12TextureData>(
                                     new D3D12TextureData(
                                         nativeTexture, null, nativeTexture.getWidth(), nativeTexture.getHeight(), format
@@ -57,8 +62,9 @@ class D3D12Texture extends BaseTexture<D3D12Resource<D3D12TextureData>> {
                                 context,
                                 format,
                                 wrapMode,
-                                nativeTexture.getWidth(),
-                                nativeTexture.getHeight());
+                                nativeTexture.getWidth(), nativeTexture.getHeight(),
+                                contentWidth, contentHeight
+                                );
     }
 
     D3D12NativeTexture getNativeTexture() {
@@ -175,21 +181,14 @@ class D3D12Texture extends BaseTexture<D3D12Resource<D3D12TextureData>> {
 
             boolean res;
 
+            // NOTE: checkUpdateParams is not feasible here because video params might slightly differ
             if (format.getDataType() == PixelFormat.DataType.INT) {
-                checkUpdateParams(
-                    pixels.asIntBuffer(), format, 0, 0, 0, 0,
-                    mf.get().getEncodedWidth(), mf.get().getEncodedHeight(), mf.get().strideForPlane(0)
-                );
                 res = mContext.getDevice().updateTexture(getNativeTexture(),
                                                         pixels.asIntBuffer(), format,
                                                         0, 0, 0, 0,
                                                         mf.get().getEncodedWidth(), mf.get().getEncodedHeight(),
                                                         mf.get().strideForPlane(0));
             } else {
-                checkUpdateParams(
-                    pixels, format, 0, 0, 0, 0,
-                    mf.get().getEncodedWidth(), mf.get().getEncodedHeight(), mf.get().strideForPlane(0)
-                );
                 res = mContext.getDevice().updateTexture(getNativeTexture(),
                                                         pixels, format,
                                                         0, 0, 0, 0,

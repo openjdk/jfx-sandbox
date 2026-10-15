@@ -26,9 +26,9 @@
 #include "D3D12NativeSwapChain.hpp"
 
 #include "D3D12NativeDevice.hpp"
-#include "Internal/D3D12Config.hpp"
-#include "Internal/D3D12Debug.hpp"
-#include "Internal/D3D12Profiler.hpp"
+#include "internal/D3D12Config.hpp"
+#include "internal/D3D12Debug.hpp"
+#include "internal/D3D12Profiler.hpp"
 
 #include <com_sun_prism_d3d12_ni_D3D12NativeSwapChain.h>
 #include <string>
@@ -85,7 +85,7 @@ bool NativeSwapChain::GetSwapChainBuffers(UINT count)
         mNativeDevice->GetDevice()->CreateRenderTargetView(buffer.Get(), &rtvDesc, mRTVs[i].CPU(0));
 
         mTextureBuffers[i] = std::make_shared<Internal::TextureBase>();
-        mTextureBuffers[i]->Init(buffer, 1, D3D12_RESOURCE_STATE_COMMON);
+        mTextureBuffers[i]->Init(buffer, D3D12_RESOURCE_STATE_COMMON);
         mTextureBuffers[i]->SetName(mDebugName + "_Texture_#" + std::to_string(i));
     }
 
